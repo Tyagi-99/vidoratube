@@ -32,7 +32,7 @@ const sampleResult = {
   title: "final_cut.mp4",
   duration: "11:42",
   resolution: "1080p",
-  thumbnail: "https://gomotionai.com/dassets/thumbs/t1.jpg",
+  thumbnail: "https://vidora.ai/dassets/thumbs/t1.jpg",
 };
 
 export function GenerateVideoDialog({

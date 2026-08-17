@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, Check, Wand2, Play, Sparkles, Zap, Clock } from "lucide-react";
-import { GenerateVideoDialog } from "@/components/gomotion/GenerateVideoDialog";
-import { DemoUI } from "@/components/gomotion/DemoUI";
-import { PricingSection } from "@/components/gomotion/PricingSection";
-import { FaqSection } from "@/components/gomotion/FaqSection";
-import { FeatureSection } from "@/components/gomotion/FeatureSection";
-import { ResultsSection } from "@/components/gomotion/ResultsSection";
+import { GenerateVideoDialog } from "@/components/vidora/GenerateVideoDialog";
+import { DemoUI } from "@/components/vidora/DemoUI";
+import { PricingSection } from "@/components/vidora/PricingSection";
+import { FaqSection } from "@/components/vidora/FaqSection";
+import { FeatureSection } from "@/components/vidora/FeatureSection";
+import { ResultsSection } from "@/components/vidora/ResultsSection";
 
 const socialProof = [
   "14,000,000+",
@@ -61,7 +61,7 @@ const niches = [
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "GoMotion AI — Create faceless YouTube videos in one click" },
+      { title: "Vidora AI — Create faceless YouTube videos in one click" },
       {
         name: "description",
         content:
@@ -69,7 +69,7 @@ export const Route = createFileRoute("/")({
       },
       {
         property: "og:title",
-        content: "GoMotion AI — Create faceless YouTube videos in one click",
+        content: "Vidora AI — Create faceless YouTube videos in one click",
       },
       {
         property: "og:description",
@@ -101,7 +101,7 @@ function Index() {
 
             <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl md:text-6xl lg:text-7xl">
               Create faceless{" "}
-              <span className="text-gradient-blue">YouTube videos</span> in one click
+              <span className="text-gradient-brand">YouTube videos</span> in one click
             </h1>
 
             <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground sm:text-xl">

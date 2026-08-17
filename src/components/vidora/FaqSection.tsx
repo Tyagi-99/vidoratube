@@ -9,7 +9,7 @@ const faqs = [
   {
     question: "Can these videos get monetized?",
     answer:
-      "Yes. Your script is original content, and GoMotion produces it with real footage and motion graphics. That's what YouTube pays for, and the results above come from monetized channels.",
+      "Yes. Your script is original content, and Vidora produces it with real footage and motion graphics. That's what YouTube pays for, and the results above come from monetized channels.",
   },
   {
     question: "What do I need besides the script?",
@@ -29,12 +29,12 @@ const faqs = [
   {
     question: "Can I use my own voice?",
     answer:
-      "Yes. You can upload your own narration, and GoMotion will build the rest of the video around it.",
+      "Yes. You can upload your own narration, and Vidora will build the rest of the video around it.",
   },
   {
     question: "What languages are supported?",
     answer:
-      "GoMotion supports 14 languages with 100+ studio-grade voices in each language.",
+      "Vidora supports 14 languages with 100+ studio-grade voices in each language.",
   },
 ];
 

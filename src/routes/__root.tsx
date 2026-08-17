@@ -78,14 +78,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "GoMotion — One click. One finished video." },
+      { title: "Vidora — One click. One finished video." },
       { name: "description", content: "Generate complete, ready-to-upload YouTube videos from a script in one click. Real footage, motion graphics, voiceover, captions and music." },
-      { name: "author", content: "GoMotion" },
-      { property: "og:title", content: "GoMotion — One click. One finished video." },
+      { name: "author", content: "Vidora" },
+      { property: "og:title", content: "Vidora — One click. One finished video." },
       { property: "og:description", content: "Generate complete, ready-to-upload YouTube videos from a script in one click." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@gomotionai" },
+      { name: "twitter:site", content: "@vidoraai" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -149,7 +149,7 @@ function Header() {
             <Play className="h-3.5 w-3.5 fill-current" />
           </div>
           <span className="text-xl font-semibold tracking-tight text-foreground">
-            GoMotion
+            Vidora
           </span>
         </Link>
 
@@ -236,14 +236,14 @@ function Footer() {
               <Play className="h-3 w-3 fill-current" />
             </div>
             <span className="text-lg font-semibold tracking-tight text-foreground">
-              GoMotion
+              Vidora
             </span>
           </div>
           <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} GoMotion. All rights reserved.
+            © {new Date().getFullYear()} Vidora. All rights reserved.
           </p>
           <div className="flex items-center gap-6">
-            <a href="mailto:hello@gomotionai.com" className="text-sm text-muted-foreground hover:text-foreground">
+            <a href="mailto:hello@vidora.ai" className="text-sm text-muted-foreground hover:text-foreground">
               Contact
             </a>
             <Link to="/pricing" className="text-sm text-muted-foreground hover:text-foreground">

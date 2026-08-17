@@ -1,16 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { FeatureSection } from "@/components/gomotion/FeatureSection";
-import { ResultsSection } from "@/components/gomotion/ResultsSection";
-import { DemoUI } from "@/components/gomotion/DemoUI";
+import { FeatureSection } from "@/components/vidora/FeatureSection";
+import { ResultsSection } from "@/components/vidora/ResultsSection";
+import { DemoUI } from "@/components/vidora/DemoUI";
 import { useState } from "react";
-import { GenerateVideoDialog } from "@/components/gomotion/GenerateVideoDialog";
+import { GenerateVideoDialog } from "@/components/vidora/GenerateVideoDialog";
 
 export const Route = createFileRoute("/features")({
   head: () => ({
     meta: [
-      { title: "Features — GoMotion" },
+      { title: "Features — Vidora" },
       { name: "description", content: "Everything an editor would do, done for you. Human-grade voiceover, real footage, captions, motion graphics, music and SFX." },
-      { property: "og:title", content: "Features — GoMotion" },
+      { property: "og:title", content: "Features — Vidora" },
       { property: "og:description", content: "Everything an editor would do, done for you." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
