@@ -1,13 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { PricingSection } from "@/components/gomotion/PricingSection";
-import { FaqSection } from "@/components/gomotion/FaqSection";
+import { PricingSection } from "@/components/vidora/PricingSection";
+import { FaqSection } from "@/components/vidora/FaqSection";
 
 export const Route = createFileRoute("/pricing")({
   head: () => ({
     meta: [
-      { title: "Pricing — GoMotion" },
+      { title: "Pricing — Vidora" },
       { name: "description", content: "Simple credit pricing for AI-generated YouTube videos. Pick the plan that matches your upload schedule." },
-      { property: "og:title", content: "Pricing — GoMotion" },
+      { property: "og:title", content: "Pricing — Vidora" },
       { property: "og:description", content: "Simple credit pricing for AI-generated YouTube videos." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

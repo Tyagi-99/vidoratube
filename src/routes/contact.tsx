@@ -10,9 +10,9 @@ import { Card, CardContent } from "@/components/ui/card";
 export const Route = createFileRoute("/contact")({
   head: () => ({
     meta: [
-      { title: "Contact — GoMotion" },
+      { title: "Contact — Vidora" },
       { name: "description", content: "Get in touch for enterprise plans, custom volume, and hands-on onboarding." },
-      { property: "og:title", content: "Contact — GoMotion" },
+      { property: "og:title", content: "Contact — Vidora" },
       { property: "og:description", content: "Enterprise plans, custom volume, and hands-on onboarding." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -58,7 +58,7 @@ function ContactPage() {
                   </div>
                   <div>
                     <p className="font-semibold text-foreground">Email us</p>
-                    <p className="text-sm text-muted-foreground">hello@gomotionai.com</p>
+                    <p className="text-sm text-muted-foreground">hello@vidora.ai</p>
                   </div>
                 </CardContent>
               </Card>
