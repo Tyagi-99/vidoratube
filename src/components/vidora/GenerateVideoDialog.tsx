@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import {
   Dialog,
   DialogContent,
@@ -19,6 +21,8 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Check, Download, Loader2, Play, Wand2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { createVideoJob } from "@/lib/jobs.functions";
+import { toast } from "sonner";
 
 const steps = [
   "Writing narration",
@@ -28,12 +32,21 @@ const steps = [
   "Final render",
 ];
 
-const sampleResult = {
-  title: "final_cut.mp4",
-  duration: "11:42",
-  resolution: "1080p",
-  thumbnail: "https://vidora.ai/dassets/thumbs/t1.jpg",
+type JobResult = {
+  id: string;
+  title: string;
+  duration_seconds: number | null;
+  result_url: string | null;
+  thumbnail_url: string | null;
+  narration: string | null;
 };
+
+function formatDuration(seconds: number | null) {
+  if (!seconds) return "—";
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
 
 export function GenerateVideoDialog({
   open,
@@ -45,90 +58,110 @@ export function GenerateVideoDialog({
   const [script, setScript] = useState("");
   const [voice, setVoice] = useState("deneb");
   const [format, setFormat] = useState("documentary");
-  const [status, setStatus] = useState<"idle" | "generating" | "done">("idle");
-  const [progress, setProgress] = useState(0);
   const [currentStep, setCurrentStep] = useState(0);
+  const [progress, setProgress] = useState(0);
+  const [result, setResult] = useState<JobResult | null>(null);
 
-  const handleGenerate = () => {
-    if (!script.trim()) return;
-    setStatus("generating");
-    setProgress(0);
-    setCurrentStep(0);
+  const queryClient = useQueryClient();
+  const create = useServerFn(createVideoJob);
 
-    let stepIndex = 0;
-    const totalDuration = 6000;
-    const stepDuration = totalDuration / steps.length;
-
-    const interval = setInterval(() => {
-      stepIndex++;
-      setCurrentStep(stepIndex);
-      setProgress(Math.min((stepIndex / steps.length) * 100, 100));
-
-      if (stepIndex >= steps.length) {
-        clearInterval(interval);
-        setTimeout(() => {
-          setStatus("done");
-          setProgress(100);
-        }, 400);
+  const mutation = useMutation({
+    mutationFn: async () => {
+      setCurrentStep(0);
+      setProgress(8);
+      const ticker = setInterval(() => {
+        setCurrentStep((s) => Math.min(s + 1, steps.length - 1));
+        setProgress((p) => Math.min(p + 16, 92));
+      }, 1400);
+      try {
+        return (await create({ data: { script, voice, format } })) as JobResult;
+      } finally {
+        clearInterval(ticker);
       }
-    }, stepDuration);
-  };
+    },
+    onSuccess: (job) => {
+      setProgress(100);
+      setResult(job);
+      queryClient.invalidateQueries();
+    },
+    onError: (error: Error) => {
+      setProgress(0);
+      toast.error(error.message || "Render failed");
+    },
+  });
 
   const reset = () => {
-    setStatus("idle");
+    setResult(null);
     setProgress(0);
     setCurrentStep(0);
     setScript("");
+    mutation.reset();
   };
 
+  const status = result ? "done" : mutation.isPending ? "generating" : "idle";
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next && !mutation.isPending) reset();
+        onOpenChange(next);
+      }}
+    >
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold tracking-tight">
-            Make your first video
+            {status === "done" ? "Your video is ready" : "Make a video"}
           </DialogTitle>
           <DialogDescription className="text-muted-foreground">
-            Paste your script, pick a voice and format, and we'll assemble a finished video.
+            Paste your script, pick a voice and format, and Vidora assembles the cut. Each render
+            uses one credit.
           </DialogDescription>
         </DialogHeader>
 
-        {status === "done" ? (
+        {status === "done" && result ? (
           <div className="space-y-6 py-4">
             <div className="relative overflow-hidden rounded-2xl border border-border bg-muted">
-              <img
-                src={sampleResult.thumbnail}
-                alt="Finished video thumbnail"
-                className="aspect-video w-full object-cover"
-              />
-              <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/90 text-foreground shadow-lg">
+              {result.thumbnail_url && (
+                <img
+                  src={result.thumbnail_url}
+                  alt={`Thumbnail for ${result.title}`}
+                  className="aspect-video w-full object-cover"
+                  loading="lazy"
+                />
+              )}
+              <div className="absolute inset-0 flex items-center justify-center bg-foreground/25">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-background/90 text-foreground shadow-lg">
                   <Play className="h-6 w-6 fill-current" />
                 </div>
               </div>
             </div>
             <div className="rounded-xl border border-border bg-card p-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="font-semibold text-foreground">{sampleResult.title}</p>
+                  <p className="font-semibold text-foreground">{result.title}</p>
                   <p className="text-sm text-muted-foreground">
-                    {sampleResult.resolution} · {sampleResult.duration}
+                    1080p · {formatDuration(result.duration_seconds)}
                   </p>
                 </div>
-                <Button className="gap-2">
-                  <Download className="h-4 w-4" />
-                  Download
+                <Button asChild className="gap-2">
+                  <a href={result.result_url ?? "#"} target="_blank" rel="noreferrer">
+                    <Download className="h-4 w-4" />
+                    Download
+                  </a>
                 </Button>
               </div>
             </div>
+            {result.narration && (
+              <div className="max-h-40 overflow-y-auto rounded-xl border border-border bg-muted/50 p-4 text-sm leading-relaxed text-muted-foreground">
+                {result.narration}
+              </div>
+            )}
             <div className="flex gap-3">
               <Button onClick={reset} variant="outline" className="flex-1">
                 Make another
               </Button>
-              <Button
-                onClick={() => onOpenChange(false)}
-                className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
-              >
+              <Button onClick={() => onOpenChange(false)} className="flex-1">
                 Done
               </Button>
             </div>
@@ -142,9 +175,7 @@ export function GenerateVideoDialog({
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
-                <span className="font-medium text-foreground">
-                  {steps[currentStep] || "Finalizing"}
-                </span>
+                <span className="font-medium text-foreground">{steps[currentStep]}</span>
                 <span className="text-muted-foreground">{Math.round(progress)}%</span>
               </div>
               <Progress value={progress} className="h-2" />
@@ -159,7 +190,7 @@ export function GenerateVideoDialog({
                       ? "text-foreground"
                       : idx === currentStep
                         ? "text-primary"
-                        : "text-muted-foreground"
+                        : "text-muted-foreground",
                   )}
                 >
                   <div
@@ -169,7 +200,7 @@ export function GenerateVideoDialog({
                         ? "border-primary bg-primary text-primary-foreground"
                         : idx === currentStep
                           ? "border-primary text-primary"
-                          : "border-border"
+                          : "border-border",
                     )}
                   >
                     {idx < currentStep ? <Check className="h-3 w-3" /> : idx + 1}
@@ -178,9 +209,6 @@ export function GenerateVideoDialog({
                 </div>
               ))}
             </div>
-            <p className="text-center text-sm text-muted-foreground">
-              Usually ready within the hour. This demo completes in a few seconds.
-            </p>
           </div>
         ) : (
           <div className="space-y-5 py-4">
@@ -191,10 +219,13 @@ export function GenerateVideoDialog({
                 placeholder="Paste your script here. Any topic, any length, any language..."
                 value={script}
                 onChange={(e) => setScript(e.target.value)}
+                maxLength={12000}
                 className="min-h-[140px] resize-none"
               />
               <p className="text-xs text-muted-foreground">
-                Example: "The frigate HMS Amethyst steamed up the Yangtze toward Nanking in April 1949..."
+                {script.trim().length < 20
+                  ? "At least 20 characters."
+                  : `${script.trim().split(/\s+/).length} words`}
               </p>
             </div>
 
@@ -231,9 +262,9 @@ export function GenerateVideoDialog({
             </div>
 
             <Button
-              onClick={handleGenerate}
-              disabled={!script.trim()}
-              className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+              onClick={() => mutation.mutate()}
+              disabled={script.trim().length < 20}
+              className="w-full gap-2"
             >
               <Wand2 className="h-4 w-4" />
               Generate video
