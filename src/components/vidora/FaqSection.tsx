@@ -7,51 +7,64 @@ import {
 
 const faqs = [
   {
-    question: "Can these videos get monetized?",
+    question: "Can Vidora videos be monetized?",
     answer:
-      "Yes. Your script is original content, and Vidora produces it with real footage and motion graphics. That's what YouTube pays for, and the results above come from monetized channels.",
+      "Yes. The script is your original content and Vidora produces it with licensed footage and original motion design — which is exactly what platforms pay out on. The channels in our showcase are monetized.",
   },
   {
-    question: "What do I need besides the script?",
+    question: "What do I need besides a script?",
     answer:
-      "Nothing. You paste the script, pick a voice and a format, and click Generate. We handle narration, footage, captions, music, and the final render.",
+      "Nothing. Paste the script, pick a voice and a visual register, and render. Narration, footage, captions, score and the final export are handled for you.",
   },
   {
-    question: "How long does a video take?",
+    question: "How long does a render take?",
     answer:
-      "Most videos are ready within the hour. Longer or more complex scripts may take a little more time, but you can queue multiple videos and come back when they're done.",
+      "Most cuts are back within the hour. Longer or denser scripts take a little more, and you can queue several renders at once and come back to them.",
   },
   {
-    question: "Where do the footage and music come from?",
+    question: "Where do footage and music come from?",
     answer:
-      "We match real stock footage and music to your script from licensed libraries, so the final video is safe to publish and monetize on YouTube.",
+      "Vidora matches clips and tracks from licensed libraries, so everything in the master is safe to publish and monetize.",
   },
   {
     question: "Can I use my own voice?",
     answer:
-      "Yes. You can upload your own narration, and Vidora will build the rest of the video around it.",
+      "Yes. Upload your narration track and Vidora builds the entire cut around your timing.",
   },
   {
-    question: "What languages are supported?",
+    question: "Which languages are supported?",
     answer:
-      "Vidora supports 14 languages with 100+ studio-grade voices in each language.",
+      "14 languages, each with 100+ studio-grade voices to choose from.",
   },
 ];
 
 export function FaqSection() {
   return (
-    <section className="w-full bg-background py-24">
-      <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
-        <h2 className="mb-10 text-center text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-          Frequently asked
-        </h2>
-        <Accordion type="single" collapsible className="w-full">
+    <section className="w-full bg-background py-20 sm:py-24">
+      <div className="mx-auto grid max-w-6xl gap-10 px-4 sm:px-6 md:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)] lg:px-8">
+        <div>
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-primary">
+            Questions
+          </p>
+          <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+            Answered before you ask
+          </h2>
+          <p className="mt-4 text-muted-foreground">
+            Still stuck? Write to hello@vidora.ai and a human replies within a business day.
+          </p>
+        </div>
+
+        <Accordion type="single" collapsible className="w-full border-t border-border">
           {faqs.map((faq, index) => (
-            <AccordionItem key={index} value={`item-${index}`} className="border-b border-border">
-              <AccordionTrigger className="py-5 text-left text-lg font-medium text-foreground hover:no-underline">
+            <AccordionItem
+              key={index}
+              value={`item-${index}`}
+              className="border-b border-border"
+            >
+              <AccordionTrigger className="py-5 text-left text-base font-semibold text-foreground hover:no-underline">
                 {faq.question}
               </AccordionTrigger>
-              <AccordionContent className="pb-5 text-base text-muted-foreground">
+              <AccordionContent className="pb-5 text-base leading-relaxed text-muted-foreground">
                 {faq.answer}
               </AccordionContent>
             </AccordionItem>
