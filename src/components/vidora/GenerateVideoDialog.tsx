@@ -47,7 +47,13 @@ type JobResult = {
   thumbnail_url: string | null;
   audio_url: string | null;
   narration: string | null;
+  script?: string | null;
+  voice?: string | null;
+  format?: string | null;
+  assets?: unknown;
+  scenes?: unknown;
 };
+
 
 function formatDuration(seconds: number | null) {
   if (!seconds) return "—";
