@@ -11,7 +11,12 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { Menu, X, Aperture, ArrowUpRight } from "lucide-react";
+import { Menu, X, Aperture, ArrowUpRight, LayoutDashboard } from "lucide-react";
+import { ThemeProvider, themeInitScript } from "@/components/ThemeProvider";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { Toaster } from "@/components/ui/sonner";
+import { useSession } from "@/hooks/useSession";
+
 
 function NotFoundComponent() {
   return (
