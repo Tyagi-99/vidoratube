@@ -1,4 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { FeatureSection } from "@/components/gomotion/FeatureSection";
+import { ResultsSection } from "@/components/gomotion/ResultsSection";
+import { DemoUI } from "@/components/gomotion/DemoUI";
+import { useState } from "react";
+import { GenerateVideoDialog } from "@/components/gomotion/GenerateVideoDialog";
 
 export const Route = createFileRoute("/features")({
   head: () => ({
@@ -15,14 +20,27 @@ export const Route = createFileRoute("/features")({
 });
 
 function FeaturesPage() {
+  const [dialogOpen, setDialogOpen] = useState(false);
+
   return (
-    <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6 lg:px-8">
-      <h1 className="text-center text-4xl font-bold tracking-tight text-foreground">
-        Features
-      </h1>
-      <p className="mx-auto mt-4 max-w-2xl text-center text-lg text-muted-foreground">
-        A full editing crew behind every click: voice actor, asset manager, motion designer, sound designer, and video editor.
-      </p>
-    </div>
+    <main className="min-h-screen bg-background pt-16">
+      <div className="mx-auto max-w-6xl px-4 pt-16 pb-8 sm:px-6 lg:px-8">
+        <h1 className="text-center text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
+          Features
+        </h1>
+        <p className="mx-auto mt-4 max-w-2xl text-center text-lg text-muted-foreground">
+          A full editing crew behind every click: voice actor, asset manager, motion designer, sound designer, and video editor.
+        </p>
+      </div>
+
+      <div className="mx-auto max-w-5xl px-4 pb-24 sm:px-6 lg:px-8">
+        <DemoUI onGenerate={() => setDialogOpen(true)} />
+      </div>
+
+      <FeatureSection />
+      <ResultsSection />
+
+      <GenerateVideoDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+    </main>
   );
 }
