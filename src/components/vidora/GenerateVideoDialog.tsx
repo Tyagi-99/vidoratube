@@ -231,6 +231,10 @@ export function GenerateVideoDialog({
                     </a>
                   </Button>
                 </div>
+              </div>
+            </div>
+
+
 
             {result.narration && (
               <div className="max-h-40 overflow-y-auto rounded-xl border border-border bg-muted/50 p-4 text-sm leading-relaxed text-muted-foreground">
