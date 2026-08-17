@@ -73,8 +73,8 @@
 :root {
   --radius: 0.75rem;
 
-  /* GoMotion light palette */
-  --background: oklch(0.983 0.029 13.86);
+  /* GoMotion light palette - warm cream */
+  --background: oklch(0.985 0.018 82);
   --foreground: oklch(0.167 0.023 284.994);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.167 0.023 284.994);
@@ -82,11 +82,11 @@
   --popover-foreground: oklch(0.167 0.023 284.994);
   --primary: oklch(0.551 0.229 277.042);
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.976 0.027 7.968);
+  --secondary: oklch(0.978 0.015 82);
   --secondary-foreground: oklch(0.167 0.023 284.994);
-  --muted: oklch(0.976 0.027 7.968);
+  --muted: oklch(0.978 0.015 82);
   --muted-foreground: oklch(0.557 0.026 305.101);
-  --accent: oklch(0.936 0.025 322.198);
+  --accent: oklch(0.96 0.02 82);
   --accent-foreground: oklch(0.167 0.023 284.994);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(1 0 0);
