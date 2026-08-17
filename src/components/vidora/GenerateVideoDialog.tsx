@@ -24,23 +24,28 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Check, Download, Loader2, Play, Wand2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { createVideoJob } from "@/lib/jobs.functions";
+import { createVideoJob, advanceVideoJob } from "@/lib/jobs.functions";
 import { toast } from "sonner";
 
-const steps = [
-  "Writing narration",
-  "Matching footage",
-  "Adding captions",
-  "Mixing audio",
-  "Final render",
+const PIPELINE = [
+  { label: "Writing narration", at: 22 },
+  { label: "Recording voiceover", at: 45 },
+  { label: "Generating footage", at: 70 },
+  { label: "Composing the cut", at: 100 },
 ];
 
 type JobResult = {
   id: string;
   title: string;
+  status: string;
+  stage: string;
+  step: string | null;
+  progress: number | null;
+  error: string | null;
   duration_seconds: number | null;
   result_url: string | null;
   thumbnail_url: string | null;
+  audio_url: string | null;
   narration: string | null;
 };
 
@@ -50,6 +55,8 @@ function formatDuration(seconds: number | null) {
   const s = seconds % 60;
   return `${m}:${String(s).padStart(2, "0")}`;
 }
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export function GenerateVideoDialog({
   open,
@@ -61,7 +68,7 @@ export function GenerateVideoDialog({
   const [script, setScript] = useState("");
   const [voice, setVoice] = useState("deneb");
   const [format, setFormat] = useState("documentary");
-  const [currentStep, setCurrentStep] = useState(0);
+  const [stepLabel, setStepLabel] = useState("Writing narration");
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<JobResult | null>(null);
 
@@ -69,20 +76,27 @@ export function GenerateVideoDialog({
   const queryClient = useQueryClient();
 
   const create = useServerFn(createVideoJob);
+  const advance = useServerFn(advanceVideoJob);
 
   const mutation = useMutation({
     mutationFn: async () => {
-      setCurrentStep(0);
+      setStepLabel("Writing narration");
       setProgress(8);
-      const ticker = setInterval(() => {
-        setCurrentStep((s) => Math.min(s + 1, steps.length - 1));
-        setProgress((p) => Math.min(p + 16, 92));
-      }, 1400);
-      try {
-        return (await create({ data: { script, voice, format } })) as JobResult;
-      } finally {
-        clearInterval(ticker);
+
+      let job = (await create({ data: { script, voice, format } })) as JobResult;
+      setProgress(job.progress ?? 20);
+      setStepLabel(job.step ?? "Recording voiceover");
+
+      // Advance one pipeline stage per call until the job settles.
+      for (let i = 0; i < 90 && job.status === "running"; i++) {
+        job = (await advance({ data: { id: job.id } })) as JobResult;
+        setProgress(job.progress ?? 0);
+        setStepLabel(job.step ?? "Working");
+        if (job.status === "running") await sleep(job.stage === "rendering" ? 4000 : 400);
       }
+
+      if (job.status === "failed") throw new Error(job.error ?? "Render failed");
+      return job;
     },
     onSuccess: (job) => {
       setProgress(100);
@@ -91,14 +105,15 @@ export function GenerateVideoDialog({
     },
     onError: (error: Error) => {
       setProgress(0);
+      queryClient.invalidateQueries();
       toast.error(error.message || "Render failed");
     },
+
   });
 
   const reset = () => {
     setResult(null);
     setProgress(0);
-    setCurrentStep(0);
     setScript("");
     mutation.reset();
   };
@@ -141,30 +156,48 @@ export function GenerateVideoDialog({
 
           <div className="space-y-6 py-4">
             <div className="relative overflow-hidden rounded-2xl border border-border bg-muted">
-              {result.thumbnail_url && (
-                <img
-                  src={result.thumbnail_url}
-                  alt={`Thumbnail for ${result.title}`}
-                  className="aspect-video w-full object-cover"
-                  loading="lazy"
+              {result.result_url ? (
+                <video
+                  src={result.result_url}
+                  poster={result.thumbnail_url ?? undefined}
+                  controls
+                  className="aspect-video w-full bg-black"
                 />
+              ) : (
+                <>
+                  {result.thumbnail_url && (
+                    <img
+                      src={result.thumbnail_url}
+                      alt={`Thumbnail for ${result.title}`}
+                      className="aspect-video w-full object-cover"
+                      loading="lazy"
+                    />
+                  )}
+                  <div className="absolute inset-0 flex items-center justify-center bg-foreground/25">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-background/90 text-foreground shadow-lg">
+                      <Play className="h-6 w-6 fill-current" />
+                    </div>
+                  </div>
+                </>
               )}
-              <div className="absolute inset-0 flex items-center justify-center bg-foreground/25">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-background/90 text-foreground shadow-lg">
-                  <Play className="h-6 w-6 fill-current" />
-                </div>
-              </div>
             </div>
+            {result.audio_url && (
+              <div className="rounded-xl border border-border bg-card p-4">
+                <p className="mb-2 text-sm font-medium text-foreground">Voiceover</p>
+                <audio src={result.audio_url} controls className="w-full" />
+              </div>
+            )}
             <div className="rounded-xl border border-border bg-card p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="font-semibold text-foreground">{result.title}</p>
                   <p className="text-sm text-muted-foreground">
-                    1080p · {formatDuration(result.duration_seconds)}
+                    {result.result_url ? "1080p · " : "Preview · "}
+                    {formatDuration(result.duration_seconds)}
                   </p>
                 </div>
-                <Button asChild className="gap-2">
-                  <a href={result.result_url ?? "#"} target="_blank" rel="noreferrer">
+                <Button asChild className="gap-2" disabled={!result.result_url}>
+                  <a href={result.result_url ?? result.audio_url ?? "#"} target="_blank" rel="noreferrer">
                     <Download className="h-4 w-4" />
                     Download
                   </a>
@@ -176,6 +209,7 @@ export function GenerateVideoDialog({
                 {result.narration}
               </div>
             )}
+
             <div className="flex gap-3">
               <Button onClick={reset} variant="outline" className="flex-1">
                 Make another
@@ -194,40 +228,41 @@ export function GenerateVideoDialog({
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
-                <span className="font-medium text-foreground">{steps[currentStep]}</span>
+                <span className="font-medium text-foreground">{stepLabel}</span>
                 <span className="text-muted-foreground">{Math.round(progress)}%</span>
               </div>
               <Progress value={progress} className="h-2" />
             </div>
             <div className="space-y-3">
-              {steps.map((step, idx) => (
-                <div
-                  key={step}
-                  className={cn(
-                    "flex items-center gap-3 text-sm transition-colors",
-                    idx < currentStep
-                      ? "text-foreground"
-                      : idx === currentStep
-                        ? "text-primary"
-                        : "text-muted-foreground",
-                  )}
-                >
+              {PIPELINE.map((step) => {
+                const done = progress >= step.at;
+                const active = !done && progress >= step.at - 22;
+                return (
                   <div
+                    key={step.label}
                     className={cn(
-                      "flex h-5 w-5 items-center justify-center rounded-full border text-xs",
-                      idx < currentStep
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : idx === currentStep
-                          ? "border-primary text-primary"
-                          : "border-border",
+                      "flex items-center gap-3 text-sm transition-colors",
+                      done ? "text-foreground" : active ? "text-primary" : "text-muted-foreground",
                     )}
                   >
-                    {idx < currentStep ? <Check className="h-3 w-3" /> : idx + 1}
+                    <div
+                      className={cn(
+                        "flex h-5 w-5 items-center justify-center rounded-full border text-xs",
+                        done
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : active
+                            ? "border-primary text-primary"
+                            : "border-border",
+                      )}
+                    >
+                      {done ? <Check className="h-3 w-3" /> : ""}
+                    </div>
+                    {step.label}
                   </div>
-                  {step}
-                </div>
-              ))}
+                );
+              })}
             </div>
+
           </div>
         ) : (
           <div className="space-y-5 py-4">

@@ -7,9 +7,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { GenerateVideoDialog } from "@/components/vidora/GenerateVideoDialog";
+import { YouTubePanel } from "@/components/vidora/YouTubePanel";
+import { publishJobToYouTube } from "@/lib/youtube.functions";
 import { getMyAccount, listMyJobs, deleteMyJob } from "@/lib/jobs.functions";
 import { supabase } from "@/integrations/supabase/client";
-import { Coins, Film, LayoutDashboard, LogOut, Plus, Shield, Trash2 } from "lucide-react";
+import { Coins, Film, LayoutDashboard, LogOut, Plus, Shield, Trash2, Youtube, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/studio")({
@@ -50,6 +52,18 @@ function StudioPage() {
     mutationFn: (id: string) => removeFn({ data: { id } }),
     onSuccess: () => {
       toast.success("Video deleted");
+      queryClient.invalidateQueries({ queryKey: ["my-jobs"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const publishFn = useServerFn(publishJobToYouTube);
+  const publish = useMutation({
+    mutationFn: (id: string) => publishFn({ data: { id, privacy: "private" as const } }),
+    onSuccess: (res) => {
+      toast.success("Published to YouTube (private)", {
+        description: res.url,
+      });
       queryClient.invalidateQueries({ queryKey: ["my-jobs"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -112,6 +126,10 @@ function StudioPage() {
             label="Plan"
             value={account.isLoading ? null : (profile?.plan ?? "free")}
           />
+        </div>
+
+        <div className="mt-4">
+          <YouTubePanel />
         </div>
 
         <h2 className="mt-12 text-xl font-bold tracking-tight text-foreground">Your videos</h2>
@@ -178,6 +196,35 @@ function StudioPage() {
                           Open
                         </a>
                       </Button>
+                    )}
+                    {job.status === "completed" && job.result_url && (
+                      job.youtube_video_id ? (
+                        <Button asChild size="sm" variant="secondary" className="flex-1 gap-1">
+                          <a
+                            href={`https://youtu.be/${job.youtube_video_id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            <Youtube className="h-4 w-4" />
+                            On YouTube
+                          </a>
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="flex-1 gap-1"
+                          onClick={() => publish.mutate(job.id)}
+                          disabled={publish.isPending}
+                        >
+                          {publish.isPending && publish.variables === job.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Youtube className="h-4 w-4" />
+                          )}
+                          Publish
+                        </Button>
+                      )
                     )}
                     <Button
                       size="sm"

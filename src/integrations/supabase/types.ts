@@ -241,6 +241,8 @@ export type Database = {
       }
       video_jobs: {
         Row: {
+          assets: Json
+          audio_url: string | null
           created_at: string
           credits_used: number
           duration_seconds: number | null
@@ -249,9 +251,11 @@ export type Database = {
           id: string
           narration: string | null
           progress: number
+          render_id: string | null
           result_url: string | null
           scenes: Json
           script: string
+          stage: string
           status: Database["public"]["Enums"]["job_status"]
           step: string
           thumbnail_url: string | null
@@ -259,8 +263,12 @@ export type Database = {
           updated_at: string
           user_id: string
           voice: string
+          youtube_status: string | null
+          youtube_video_id: string | null
         }
         Insert: {
+          assets?: Json
+          audio_url?: string | null
           created_at?: string
           credits_used?: number
           duration_seconds?: number | null
@@ -269,9 +277,11 @@ export type Database = {
           id?: string
           narration?: string | null
           progress?: number
+          render_id?: string | null
           result_url?: string | null
           scenes?: Json
           script: string
+          stage?: string
           status?: Database["public"]["Enums"]["job_status"]
           step?: string
           thumbnail_url?: string | null
@@ -279,8 +289,12 @@ export type Database = {
           updated_at?: string
           user_id: string
           voice?: string
+          youtube_status?: string | null
+          youtube_video_id?: string | null
         }
         Update: {
+          assets?: Json
+          audio_url?: string | null
           created_at?: string
           credits_used?: number
           duration_seconds?: number | null
@@ -289,9 +303,11 @@ export type Database = {
           id?: string
           narration?: string | null
           progress?: number
+          render_id?: string | null
           result_url?: string | null
           scenes?: Json
           script?: string
+          stage?: string
           status?: Database["public"]["Enums"]["job_status"]
           step?: string
           thumbnail_url?: string | null
@@ -299,6 +315,47 @@ export type Database = {
           updated_at?: string
           user_id?: string
           voice?: string
+          youtube_status?: string | null
+          youtube_video_id?: string | null
+        }
+        Relationships: []
+      }
+      youtube_connections: {
+        Row: {
+          access_token: string | null
+          channel_id: string | null
+          channel_title: string | null
+          created_at: string
+          expires_at: string | null
+          id: string
+          refresh_token: string
+          scope: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token?: string | null
+          channel_id?: string | null
+          channel_title?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          refresh_token: string
+          scope?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string | null
+          channel_id?: string | null
+          channel_title?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          refresh_token?: string
+          scope?: string | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
