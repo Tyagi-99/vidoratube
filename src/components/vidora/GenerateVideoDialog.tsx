@@ -119,7 +119,21 @@ export function GenerateVideoDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {status === "done" && result ? (
+        {!sessionLoading && !user ? (
+          <div className="space-y-4 py-6 text-center">
+            <p className="text-muted-foreground">
+              Create a free account to render videos and keep them in your studio.
+            </p>
+            <Link
+              to="/auth"
+              onClick={() => onOpenChange(false)}
+              className="inline-flex items-center justify-center rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground"
+            >
+              Sign in or create account
+            </Link>
+          </div>
+        ) : status === "done" && result ? (
+
           <div className="space-y-6 py-4">
             <div className="relative overflow-hidden rounded-2xl border border-border bg-muted">
               {result.thumbnail_url && (
