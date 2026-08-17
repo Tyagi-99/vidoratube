@@ -130,31 +130,42 @@ function ContactPage() {
                   <div className="grid gap-5 sm:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="name">Name</Label>
-                      <Input id="name" placeholder="Your name" required />
+                      <Input id="name" name="name" placeholder="Your name" maxLength={100} required />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="email">Email</Label>
-                      <Input id="email" type="email" placeholder="you@company.com" required />
+                      <Input id="email" name="email" type="email" placeholder="you@company.com" maxLength={255} required />
                     </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="company">Company / channel</Label>
-                    <Input id="company" placeholder="Acme Inc." />
+                    <Input id="company" name="company" placeholder="Acme Inc." maxLength={150} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="message">Message</Label>
                     <Textarea
                       id="message"
+                      name="message"
                       placeholder="Tell us about your volume, channels, and goals..."
                       className="min-h-[140px]"
+                      maxLength={2000}
                       required
                     />
                   </div>
-                  <Button type="submit" className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
-                    <Send className="h-4 w-4" />
-                    Send message
+                  <Button
+                    type="submit"
+                    disabled={mutation.isPending}
+                    className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+                  >
+                    {mutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
+                    {mutation.isPending ? "Sending…" : "Send message"}
                   </Button>
                 </form>
+
               )}
             </CardContent>
           </Card>
