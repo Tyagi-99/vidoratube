@@ -21,6 +21,7 @@ import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAdminContentRouteImport } from './routes/_authenticated/admin.content'
 import { Route as AuthenticatedAdminIntegrationsRouteImport } from './routes/_authenticated/admin.integrations'
 import { Route as AuthenticatedAdminJobsRouteImport } from './routes/_authenticated/admin.jobs'
+import { Route as AuthenticatedAdminMessagesRouteImport } from './routes/_authenticated/admin.messages'
 import { Route as AuthenticatedAdminPlansRouteImport } from './routes/_authenticated/admin.plans'
 import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin.users'
 
@@ -85,6 +86,12 @@ const AuthenticatedAdminJobsRoute = AuthenticatedAdminJobsRouteImport.update({
   path: '/jobs',
   getParentRoute: () => AuthenticatedAdminRoute,
 } as any)
+const AuthenticatedAdminMessagesRoute =
+  AuthenticatedAdminMessagesRouteImport.update({
+    id: '/messages',
+    path: '/messages',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminPlansRoute = AuthenticatedAdminPlansRouteImport.update({
   id: '/plans',
   path: '/plans',
@@ -107,6 +114,7 @@ export interface FileRoutesByFullPath {
   '/admin/content': typeof AuthenticatedAdminContentRoute
   '/admin/integrations': typeof AuthenticatedAdminIntegrationsRoute
   '/admin/jobs': typeof AuthenticatedAdminJobsRoute
+  '/admin/messages': typeof AuthenticatedAdminMessagesRoute
   '/admin/plans': typeof AuthenticatedAdminPlansRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
@@ -121,6 +129,7 @@ export interface FileRoutesByTo {
   '/admin/content': typeof AuthenticatedAdminContentRoute
   '/admin/integrations': typeof AuthenticatedAdminIntegrationsRoute
   '/admin/jobs': typeof AuthenticatedAdminJobsRoute
+  '/admin/messages': typeof AuthenticatedAdminMessagesRoute
   '/admin/plans': typeof AuthenticatedAdminPlansRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
@@ -138,6 +147,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/content': typeof AuthenticatedAdminContentRoute
   '/_authenticated/admin/integrations': typeof AuthenticatedAdminIntegrationsRoute
   '/_authenticated/admin/jobs': typeof AuthenticatedAdminJobsRoute
+  '/_authenticated/admin/messages': typeof AuthenticatedAdminMessagesRoute
   '/_authenticated/admin/plans': typeof AuthenticatedAdminPlansRoute
   '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
@@ -155,6 +165,7 @@ export interface FileRouteTypes {
     | '/admin/content'
     | '/admin/integrations'
     | '/admin/jobs'
+    | '/admin/messages'
     | '/admin/plans'
     | '/admin/users'
     | '/admin/'
@@ -169,6 +180,7 @@ export interface FileRouteTypes {
     | '/admin/content'
     | '/admin/integrations'
     | '/admin/jobs'
+    | '/admin/messages'
     | '/admin/plans'
     | '/admin/users'
     | '/admin'
@@ -185,6 +197,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/content'
     | '/_authenticated/admin/integrations'
     | '/_authenticated/admin/jobs'
+    | '/_authenticated/admin/messages'
     | '/_authenticated/admin/plans'
     | '/_authenticated/admin/users'
     | '/_authenticated/admin/'
@@ -285,6 +298,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminJobsRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/messages': {
+      id: '/_authenticated/admin/messages'
+      path: '/messages'
+      fullPath: '/admin/messages'
+      preLoaderRoute: typeof AuthenticatedAdminMessagesRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/plans': {
       id: '/_authenticated/admin/plans'
       path: '/plans'
@@ -306,6 +326,7 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminContentRoute: typeof AuthenticatedAdminContentRoute
   AuthenticatedAdminIntegrationsRoute: typeof AuthenticatedAdminIntegrationsRoute
   AuthenticatedAdminJobsRoute: typeof AuthenticatedAdminJobsRoute
+  AuthenticatedAdminMessagesRoute: typeof AuthenticatedAdminMessagesRoute
   AuthenticatedAdminPlansRoute: typeof AuthenticatedAdminPlansRoute
   AuthenticatedAdminUsersRoute: typeof AuthenticatedAdminUsersRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
@@ -315,6 +336,7 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminContentRoute: AuthenticatedAdminContentRoute,
   AuthenticatedAdminIntegrationsRoute: AuthenticatedAdminIntegrationsRoute,
   AuthenticatedAdminJobsRoute: AuthenticatedAdminJobsRoute,
+  AuthenticatedAdminMessagesRoute: AuthenticatedAdminMessagesRoute,
   AuthenticatedAdminPlansRoute: AuthenticatedAdminPlansRoute,
   AuthenticatedAdminUsersRoute: AuthenticatedAdminUsersRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
