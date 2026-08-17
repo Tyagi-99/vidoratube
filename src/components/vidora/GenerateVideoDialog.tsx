@@ -24,6 +24,8 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Check, Download, Loader2, Play, Wand2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CapCutExportButton } from "@/components/vidora/CapCutExportButton";
+
 import { createVideoJob, advanceVideoJob } from "@/lib/jobs.functions";
 import { toast } from "sonner";
 
