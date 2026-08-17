@@ -8,38 +8,30 @@ import { FaqSection } from "@/components/vidora/FaqSection";
 import { FeatureSection } from "@/components/vidora/FeatureSection";
 import { ResultsSection } from "@/components/vidora/ResultsSection";
 
-const socialProof = [
-  "14,000,000+",
-  "1,000,000+",
-  "$500,000+",
-];
+const socialProof = ["14M+", "1M+", "$500K+"];
 
-const socialLabels = [
-  "views generated",
-  "subscribers gained",
-  "revenue earned",
-];
+const socialLabels = ["views delivered", "subscribers gained", "creator revenue"];
 
 const processSteps = [
   {
     number: "01",
-    title: "Paste your script",
-    description: "Any topic, any length, any language. We'll break it into a scene-by-scene plan.",
+    title: "Drop in your script",
+    description: "Any topic, any length, any language. Vidora breaks it into a scene-by-scene plan.",
   },
   {
     number: "02",
-    title: "Pick a voice & format",
-    description: "Choose a studio-grade voice and a style that matches your channel.",
+    title: "Choose voice & look",
+    description: "Pick a studio voice and a visual register that matches your channel.",
   },
   {
     number: "03",
-    title: "Click Generate",
-    description: "We assemble narration, footage, captions, music, and motion into a 1080p video.",
+    title: "Hit render",
+    description: "Narration, footage, captions, music and motion are assembled into a 1080p cut.",
   },
   {
     number: "04",
-    title: "Publish",
-    description: "Download the MP4 and upload it to YouTube. One click, one video, one day closer to Partner.",
+    title: "Ship it",
+    description: "Download the MP4 and publish. No timeline, no keyframes, no all-nighter.",
   },
 ];
 
@@ -48,33 +40,33 @@ const niches = [
   "Finance",
   "Celebrities",
   "Science",
-  "Movies",
+  "Film",
   "Sports",
-  "Aliens",
+  "Space",
   "Nature",
-  "Conspiracies",
+  "True crime",
   "Mystery",
-  "Cities",
+  "Travel",
   "Sleep",
 ];
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Vidora AI — Create faceless YouTube videos in one click" },
+      { title: "Vidora AI — Your AI video studio, on autopilot" },
       {
         name: "description",
         content:
-          "Turn any script into a monetizable YouTube video with AI narration, real footage, captions, music and motion graphics.",
+          "Vidora AI turns a script into a finished video — AI narration, real footage, word-synced captions, music and motion graphics, rendered in one pass.",
       },
       {
         property: "og:title",
-        content: "Vidora AI — Create faceless YouTube videos in one click",
+        content: "Vidora AI — Your AI video studio, on autopilot",
       },
       {
         property: "og:description",
         content:
-          "Turn any script into a monetizable YouTube video with AI narration, real footage, captions, music and motion graphics.",
+          "Turn a script into a finished, ready-to-upload video with narration, footage, captions, music and motion.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -82,6 +74,7 @@ export const Route = createFileRoute("/")({
   }),
   component: Index,
 });
+
 
 function Index() {
   const [dialogOpen, setDialogOpen] = useState(false);
