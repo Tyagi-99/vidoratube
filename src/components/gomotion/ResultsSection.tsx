@@ -1,13 +1,13 @@
 const results = [
-  { views: "2.5M views", earnings: "$16,952", image: "https://gomotionai.com/dassets/results/r1.png" },
-  { views: "234K views", earnings: "$978", image: "https://gomotionai.com/dassets/results/r4.png" },
-  { views: "778K views", earnings: "€2,369", image: "https://gomotionai.com/dassets/results/r9.png" },
-  { views: "Partner", earnings: "YouTube Partner", image: "https://gomotionai.com/dassets/results/r8.png" },
-  { views: "602K views", earnings: "$1,606", image: "https://gomotionai.com/dassets/results/r5.png" },
-  { views: "1.6M views", earnings: "$9,163", image: "https://gomotionai.com/dassets/results/r10.png" },
-  { views: "3.9M views", earnings: "$25,231", image: "https://gomotionai.com/dassets/results/r2.png" },
-  { views: "309K views", earnings: "$1,622", image: "https://gomotionai.com/dassets/results/r7.png" },
-  { views: "842K views", earnings: "$6,143", image: "https://gomotionai.com/dassets/results/r3.png" },
+  { views: "2.5M views", earnings: "$16,952", title: "The Forgotten Ship Chase", gradient: "from-blue-600 to-indigo-700" },
+  { views: "234K views", earnings: "$978", title: "Ancient Cities of the Sahara", gradient: "from-amber-600 to-orange-700" },
+  { views: "778K views", earnings: "€2,369", title: "The Man Who Beat the Banks", gradient: "from-emerald-600 to-teal-700" },
+  { views: "Partner", earnings: "YouTube Partner", title: "Space Mysteries", gradient: "from-violet-600 to-purple-700" },
+  { views: "602K views", earnings: "$1,606", title: "True Crime: The Heist", gradient: "from-red-600 to-rose-700" },
+  { views: "1.6M views", earnings: "$9,163", title: "World War II Untold", gradient: "from-slate-600 to-gray-700" },
+  { views: "3.9M views", earnings: "$25,231", title: "Mysteries of the Ocean", gradient: "from-cyan-600 to-blue-700" },
+  { views: "309K views", earnings: "$1,622", title: "The Secret Formula", gradient: "from-lime-600 to-green-700" },
+  { views: "842K views", earnings: "$6,143", title: "Conspiracy Unpacked", gradient: "from-fuchsia-600 to-pink-700" },
 ];
 
 export function ResultsSection() {
@@ -32,15 +32,25 @@ export function ResultsSection() {
               key={index}
               className="group relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all hover:-translate-y-1 hover:shadow-md"
             >
-              <img
-                src={result.image}
-                alt={`YouTube result: ${result.views} ${result.earnings}`}
-                className="aspect-[4/3] w-full object-cover"
-                loading="lazy"
-              />
-              <div className="absolute inset-0 flex flex-col items-center justify-end bg-gradient-to-t from-black/70 via-transparent to-transparent p-3 text-center opacity-0 transition-opacity group-hover:opacity-100">
-                <p className="text-xs font-semibold text-white">{result.views}</p>
-                <p className="text-xs text-white/90">{result.earnings}</p>
+              <div className={`relative aspect-[4/3] w-full bg-gradient-to-br ${result.gradient} p-4`}>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20" />
+                <div className="relative flex h-full flex-col justify-between">
+                  <div className="rounded bg-white/20 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-sm w-fit">
+                    YOUTUBE
+                  </div>
+                  <p className="line-clamp-2 text-sm font-bold leading-tight text-white">
+                    {result.title}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center justify-between p-3">
+                <div>
+                  <p className="text-xs font-semibold text-foreground">{result.views}</p>
+                  <p className="text-xs text-muted-foreground">{result.earnings}</p>
+                </div>
+                <div className="h-5 w-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold">
+                  ▶
+                </div>
               </div>
             </div>
           ))}
