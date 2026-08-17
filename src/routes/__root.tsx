@@ -143,7 +143,7 @@ function Wordmark({ size = "md" }: { size?: "sm" | "md" }) {
         <span className="absolute inset-[3px] rounded-[6px] border border-accent/70" />
         <Aperture className="relative h-3.5 w-3.5 text-accent" strokeWidth={2.4} />
       </span>
-      <span className={`font-display ${text} font-700 font-bold tracking-tight text-foreground`}>
+      <span className={`font-display ${text} font-bold tracking-tight text-foreground`}>
         Vidora<span className="text-primary">.ai</span>
       </span>
     </span>
