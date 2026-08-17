@@ -82,74 +82,71 @@ function Index() {
   return (
     <main className="min-h-screen w-full bg-background">
       {/* Hero */}
-      <section className="relative overflow-hidden bg-background pt-16 pb-24 sm:pt-20 sm:pb-32">
-        <div className="absolute top-0 left-1/2 -z-10 h-[500px] w-[800px] -translate-x-1/2 rounded-full bg-top-glow opacity-60 blur-3xl" />
+      <section className="relative overflow-hidden bg-background pt-12 pb-20 sm:pt-16 sm:pb-28">
+        <div className="absolute top-0 left-0 -z-10 h-[520px] w-[820px] -translate-x-1/4 rounded-full bg-top-glow opacity-70 blur-3xl" />
 
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-4xl text-center">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-foreground shadow-sm">
-              <Sparkles className="h-4 w-4 text-primary" />
-              <span>One-click video production</span>
+          <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+            <div className="text-left">
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-1.5 text-xs font-semibold tracking-wide text-foreground uppercase">
+                <Sparkles className="h-3.5 w-3.5 text-primary" />
+                <span>Render-first video studio</span>
+              </div>
+
+              <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
+                Your AI video studio,{" "}
+                <span className="text-gradient-brand">on autopilot</span>
+              </h1>
+
+              <p className="mt-6 max-w-xl text-lg text-muted-foreground">
+                Script in, finished cut out. Vidora writes the shot plan, narrates
+                it, sources the footage, syncs the captions and scores the whole
+                thing — then hands you a 1080p file.
+              </p>
+
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <button
+                  onClick={() => setDialogOpen(true)}
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-foreground px-6 py-3 text-base font-semibold text-background transition-transform hover:-translate-y-0.5"
+                >
+                  <Wand2 className="h-5 w-5" />
+                  Render your first video
+                </button>
+                <Link
+                  to="/features"
+                  className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-6 py-3 text-base font-semibold text-foreground transition-colors hover:bg-muted"
+                >
+                  Watch the workflow
+                  <ArrowRight className="h-5 w-5" />
+                </Link>
+              </div>
+
+              <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-muted-foreground">
+                {["Zero editing skills", "14 languages", "1080p delivery"].map((item) => (
+                  <div key={item} className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-primary" />
+                    {item}
+                  </div>
+                ))}
+              </div>
             </div>
 
-            <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl md:text-6xl lg:text-7xl">
-              Create faceless{" "}
-              <span className="text-gradient-brand">YouTube videos</span> in one click
-            </h1>
-
-            <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground sm:text-xl">
-              Paste your script. Pick a voice. Click generate. Get a fully-edited,
-              monetizable YouTube video with narration, footage, captions, music,
-              and motion graphics.
-            </p>
-
-            <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
-              <button
-                onClick={() => setDialogOpen(true)}
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-base font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-              >
-                <Wand2 className="h-5 w-5" />
-                Make your first video
-              </button>
-              <Link
-                to="/features"
-                className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-background px-6 py-3 text-base font-semibold text-foreground transition-colors hover:bg-muted"
-              >
-                See how it works
-                <ArrowRight className="h-5 w-5" />
-              </Link>
-            </div>
-
-            <div className="mt-10 flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground">
-              <div className="flex items-center gap-2">
-                <Check className="h-4 w-4 text-primary" />
-                No editing skills needed
-              </div>
-              <div className="flex items-center gap-2">
-                <Check className="h-4 w-4 text-primary" />
-                14 languages
-              </div>
-              <div className="flex items-center gap-2">
-                <Check className="h-4 w-4 text-primary" />
-                1080p export
-              </div>
+            <div className="lg:-mr-6">
+              <DemoUI onGenerate={() => setDialogOpen(true)} />
             </div>
           </div>
 
-          <div className="mt-16">
-            <DemoUI onGenerate={() => setDialogOpen(true)} />
-          </div>
-
-          <div className="mt-12 flex flex-wrap items-center justify-center gap-8 sm:gap-12">
+          <div className="mt-14 grid gap-6 rounded-3xl border border-border bg-card/70 px-6 py-7 sm:grid-cols-3">
             {socialProof.map((value, index) => (
-              <div key={index} className="text-center">
-                <p className="text-2xl font-bold text-foreground sm:text-3xl">{value}</p>
-                <p className="text-xs text-muted-foreground sm:text-sm">{socialLabels[index]}</p>
+              <div key={index} className="text-left">
+                <p className="font-display text-3xl font-bold text-foreground">{value}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{socialLabels[index]}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
+
 
       {/* How it works */}
       <section className="w-full bg-muted/30 py-24">
