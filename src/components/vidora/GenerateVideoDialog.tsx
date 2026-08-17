@@ -24,6 +24,8 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Check, Download, Loader2, Play, Wand2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CapCutExportButton } from "@/components/vidora/CapCutExportButton";
+
 import { createVideoJob, advanceVideoJob } from "@/lib/jobs.functions";
 import { toast } from "sonner";
 
@@ -47,7 +49,13 @@ type JobResult = {
   thumbnail_url: string | null;
   audio_url: string | null;
   narration: string | null;
+  script?: string | null;
+  voice?: string | null;
+  format?: string | null;
+  assets?: unknown;
+  scenes?: unknown;
 };
+
 
 function formatDuration(seconds: number | null) {
   if (!seconds) return "—";
@@ -196,14 +204,40 @@ export function GenerateVideoDialog({
                     {formatDuration(result.duration_seconds)}
                   </p>
                 </div>
-                <Button asChild className="gap-2" disabled={!result.result_url}>
-                  <a href={result.result_url ?? result.audio_url ?? "#"} target="_blank" rel="noreferrer">
-                    <Download className="h-4 w-4" />
-                    Download
-                  </a>
-                </Button>
+                <div className="flex items-center gap-2">
+                  <CapCutExportButton
+                    job={{
+                      id: result.id,
+                      title: result.title,
+                      narration: result.narration,
+                      script: result.script ?? null,
+                      voice: result.voice ?? null,
+                      format: result.format ?? null,
+                      duration_seconds: result.duration_seconds,
+                      audio_url: result.audio_url,
+                      assets: result.assets,
+                      scenes: result.scenes,
+                    }}
+                    size="default"
+                    variant="outline"
+                    className="gap-2"
+                  />
+                  <Button asChild className="gap-2" disabled={!result.result_url}>
+                    <a
+                      href={result.result_url ?? result.audio_url ?? "#"}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <Download className="h-4 w-4" />
+                      Download
+                    </a>
+                  </Button>
+                </div>
               </div>
             </div>
+
+
+
             {result.narration && (
               <div className="max-h-40 overflow-y-auto rounded-xl border border-border bg-muted/50 p-4 text-sm leading-relaxed text-muted-foreground">
                 {result.narration}
