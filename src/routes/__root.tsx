@@ -11,7 +11,12 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { Menu, X, Aperture, ArrowUpRight } from "lucide-react";
+import { Menu, X, Aperture, ArrowUpRight, LayoutDashboard } from "lucide-react";
+import { ThemeProvider, themeInitScript } from "@/components/ThemeProvider";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { Toaster } from "@/components/ui/sonner";
+import { useSession } from "@/hooks/useSession";
+
 
 function NotFoundComponent() {
   return (
@@ -104,9 +109,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className="font-sans antialiased">
         {children}
@@ -121,16 +127,20 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="relative flex min-h-screen flex-col">
-        <Header />
-        <main className="flex-1">
-          <Outlet />
-        </main>
-        <Footer />
-      </div>
+      <ThemeProvider>
+        <div className="relative flex min-h-screen flex-col">
+          <Header />
+          <main className="flex-1">
+            <Outlet />
+          </main>
+          <Footer />
+        </div>
+        <Toaster position="top-center" richColors />
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
+
 
 function Wordmark({ size = "md" }: { size?: "sm" | "md" }) {
   const box = size === "sm" ? "h-6 w-6" : "h-8 w-8";
@@ -152,17 +162,17 @@ function Wordmark({ size = "md" }: { size?: "sm" | "md" }) {
 
 function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { user, loading } = useSession();
 
   const navItems = [
     { label: "Product", to: "/features" },
-    { label: "Showcase", to: "/features" },
     { label: "Pricing", to: "/pricing" },
     { label: "Contact", to: "/contact" },
-  ];
+  ] as const;
 
   return (
     <header className="sticky top-0 z-50 w-full px-3 pt-3 sm:px-6 sm:pt-5">
-      <div className="mx-auto flex max-w-5xl items-center justify-between rounded-full border border-border/70 bg-card/80 py-2 pr-2 pl-4 shadow-[0_10px_30px_-24px_oklch(0.235_0.035_196/0.6)] backdrop-blur-xl sm:pl-5">
+      <div className="mx-auto flex max-w-5xl items-center justify-between rounded-full border border-border/70 bg-card/80 py-2 pr-2 pl-4 shadow-[0_10px_30px_-24px_var(--shadow-tint-strong)] backdrop-blur-xl sm:pl-5">
         <Link to="/" aria-label="Vidora AI home">
           <Wordmark />
         </Link>
@@ -180,28 +190,44 @@ function Header() {
         </nav>
 
         <div className="hidden items-center gap-2 md:flex">
-          <Link
-            to="/contact"
-            className="rounded-full px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
-          >
-            Log in
-          </Link>
-          <Link
-            to="/pricing"
-            className="inline-flex items-center justify-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background transition-transform hover:-translate-y-0.5"
-          >
-            Start free
-            <ArrowUpRight className="h-4 w-4" />
-          </Link>
+          <ThemeToggle />
+          {!loading && user ? (
+            <Link
+              to="/studio"
+              className="inline-flex items-center justify-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background transition-transform hover:-translate-y-0.5"
+            >
+              <LayoutDashboard className="h-4 w-4" />
+              Studio
+            </Link>
+          ) : (
+            <>
+              <Link
+                to="/auth"
+                className="rounded-full px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+              >
+                Log in
+              </Link>
+              <Link
+                to="/auth"
+                className="inline-flex items-center justify-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background transition-transform hover:-translate-y-0.5"
+              >
+                Start free
+                <ArrowUpRight className="h-4 w-4" />
+              </Link>
+            </>
+          )}
         </div>
 
-        <button
-          className="inline-flex items-center justify-center rounded-full p-2 text-foreground md:hidden"
-          onClick={() => setMobileOpen(!mobileOpen)}
-          aria-label="Toggle menu"
-        >
-          {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
+        <div className="flex items-center gap-1 md:hidden">
+          <ThemeToggle />
+          <button
+            className="inline-flex items-center justify-center rounded-full p-2 text-foreground"
+            onClick={() => setMobileOpen(!mobileOpen)}
+            aria-label="Toggle menu"
+          >
+            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
       </div>
 
       {mobileOpen && (
@@ -218,16 +244,17 @@ function Header() {
               </Link>
             ))}
             <Link
-              to="/pricing"
+              to={user ? "/studio" : "/auth"}
               className="mt-2 inline-flex items-center justify-center gap-2 rounded-full bg-foreground px-4 py-2.5 text-base font-semibold text-background"
               onClick={() => setMobileOpen(false)}
             >
-              Start free
+              {user ? "Go to studio" : "Start free"}
             </Link>
           </nav>
         </div>
       )}
     </header>
+
   );
 }
 

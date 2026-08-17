@@ -1,11 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Mail, MessageSquare, Send, ArrowRight } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { Mail, MessageSquare, Send, ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
+import { submitContactMessage } from "@/lib/public.functions";
 
 export const Route = createFileRoute("/contact")({
   head: () => ({
@@ -23,11 +27,26 @@ export const Route = createFileRoute("/contact")({
 
 function ContactPage() {
   const [submitted, setSubmitted] = useState(false);
+  const send = useServerFn(submitContactMessage);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const mutation = useMutation({
+    mutationFn: (values: { name: string; email: string; subject: string; message: string }) =>
+      send({ data: values }),
+    onSuccess: () => setSubmitted(true),
+    onError: (error: Error) => toast.error(error.message || "Could not send your message"),
+  });
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setSubmitted(true);
+    const form = new FormData(e.currentTarget);
+    mutation.mutate({
+      name: String(form.get("name") ?? ""),
+      email: String(form.get("email") ?? ""),
+      subject: String(form.get("company") ?? ""),
+      message: String(form.get("message") ?? ""),
+    });
   };
+
 
   return (
     <main className="min-h-screen bg-background pt-16">
@@ -111,31 +130,42 @@ function ContactPage() {
                   <div className="grid gap-5 sm:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="name">Name</Label>
-                      <Input id="name" placeholder="Your name" required />
+                      <Input id="name" name="name" placeholder="Your name" maxLength={100} required />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="email">Email</Label>
-                      <Input id="email" type="email" placeholder="you@company.com" required />
+                      <Input id="email" name="email" type="email" placeholder="you@company.com" maxLength={255} required />
                     </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="company">Company / channel</Label>
-                    <Input id="company" placeholder="Acme Inc." />
+                    <Input id="company" name="company" placeholder="Acme Inc." maxLength={150} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="message">Message</Label>
                     <Textarea
                       id="message"
+                      name="message"
                       placeholder="Tell us about your volume, channels, and goals..."
                       className="min-h-[140px]"
+                      maxLength={2000}
                       required
                     />
                   </div>
-                  <Button type="submit" className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
-                    <Send className="h-4 w-4" />
-                    Send message
+                  <Button
+                    type="submit"
+                    disabled={mutation.isPending}
+                    className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+                  >
+                    {mutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
+                    {mutation.isPending ? "Sending…" : "Send message"}
                   </Button>
                 </form>
+
               )}
             </CardContent>
           </Card>
