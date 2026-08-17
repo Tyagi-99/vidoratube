@@ -1,72 +1,84 @@
 import { Mic, Film, Type, Palette, Music, FileVideo } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const features = [
   {
-    icon: Mic,
-    title: "Human-grade voiceover",
+    icon: Film,
+    title: "Real footage on every beat",
     description:
-      "Reads your script like a narrator would. 100+ studio-grade voices in each of 14 languages — or upload your own narration.",
-    badge: null,
+      "Vidora reads the script line by line and pulls licensed clips that actually match what's being said, then cuts them to the narration.",
+    badge: "scene_plan · 42 shots",
+    span: "lg:col-span-2 lg:row-span-1",
   },
   {
-    icon: Film,
-    title: "Real footage, every sentence",
-    description: "Real clips matched to what's being said and cut to the narration.",
-    badge: "fourteenmengone",
+    icon: Mic,
+    title: "Human-grade narration",
+    description:
+      "100+ studio voices across 14 languages — or upload your own track and Vidora builds around it.",
+    badge: null,
+    span: "",
   },
   {
     icon: Type,
     title: "Word-synced captions",
-    description: "Karaoke captions hit the exact syllable, styled like the channels that win.",
-    badge: "ZOOMSWIPE+38,412 COUNTER",
+    description: "Karaoke captions land on the exact syllable, styled to your channel.",
+    badge: "+38,412 COUNTER",
+    span: "",
   },
   {
     icon: Palette,
-    title: "Motion graphics & animations",
-    description: "Zoom punches, kinetic text, counters and map reveals, placed where the script asks for them.",
-    badge: "AMBIENTDRIVINGFINALE",
+    title: "Motion that earns its place",
+    description:
+      "Punch-ins, kinetic type, counters and map reveals, placed only where the script asks for them.",
+    badge: null,
+    span: "",
   },
   {
     icon: Music,
-    title: "Music & SFX, mixed",
+    title: "Scored and mixed",
     description:
-      "A soundtrack that follows the story, kept softly under the voice, safe to monetize.",
+      "A soundtrack that tracks the story, ducked under the voice, cleared for monetization.",
     badge: null,
+    span: "",
   },
   {
     icon: FileVideo,
-    title: "The final video, delivered",
-    description: "A 1080p MP4 with everything baked in. Drag it into YouTube and publish.",
-    badge: "final_cut.mp4 · 1080p · 11:42",
+    title: "One file, ready to publish",
+    description:
+      "A 1080p master with everything baked in. Drag it straight into your upload queue.",
+    badge: "master.mp4 · 1080p · 11:42",
+    span: "lg:col-span-2",
   },
 ];
 
 export function FeatureSection() {
   return (
-    <section className="w-full bg-background py-24">
+    <section className="w-full bg-background py-20 sm:py-24">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <div className="mb-16 text-center">
-          <p className="mb-3 text-sm font-semibold uppercase tracking-wider text-primary">
-            Inside every video
+        <div className="mb-12 max-w-2xl">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-primary">
+            Inside a render
           </p>
           <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Everything an editor would do, done for you
+            Everything an edit suite does, minus the edit suite
           </h2>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid auto-rows-fr gap-4 md:grid-cols-2 lg:grid-cols-3">
           {features.map((feature) => (
             <div
               key={feature.title}
-              className="group relative overflow-hidden rounded-2xl border border-border bg-card p-6 transition-shadow hover:shadow-md"
+              className={cn("surface-card flex flex-col p-6", feature.span)}
             >
-              {feature.badge && (
-                <div className="mb-4 inline-flex rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
-                  {feature.badge}
+              <div className="mb-5 flex items-center justify-between gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent text-foreground">
+                  <feature.icon className="h-5 w-5" />
                 </div>
-              )}
-              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <feature.icon className="h-5 w-5" />
+                {feature.badge && (
+                  <span className="rounded-full bg-muted px-2.5 py-1 font-mono text-[11px] text-muted-foreground">
+                    {feature.badge}
+                  </span>
+                )}
               </div>
               <h3 className="mb-2 text-lg font-semibold text-foreground">{feature.title}</h3>
               <p className="text-sm leading-relaxed text-muted-foreground">
@@ -79,3 +91,4 @@ export function FeatureSection() {
     </section>
   );
 }
+
