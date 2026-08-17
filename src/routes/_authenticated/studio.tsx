@@ -189,7 +189,7 @@ function StudioPage() {
                     <span>{new Date(job.created_at).toLocaleDateString()}</span>
                   </div>
                   {job.error && <p className="text-xs text-destructive">{job.error}</p>}
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     {job.result_url && (
                       <Button asChild size="sm" variant="outline" className="flex-1">
                         <a href={job.result_url} target="_blank" rel="noreferrer">
@@ -197,6 +197,10 @@ function StudioPage() {
                         </a>
                       </Button>
                     )}
+                    {job.status === "completed" && (
+                      <CapCutExportButton job={job} className="flex-1 gap-1" />
+                    )}
+
                     {job.status === "completed" && job.result_url && (
                       job.youtube_video_id ? (
                         <Button asChild size="sm" variant="secondary" className="flex-1 gap-1">
