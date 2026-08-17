@@ -149,25 +149,24 @@ function Index() {
 
 
       {/* How it works */}
-      <section className="w-full bg-muted/30 py-24">
+      <section className="w-full border-y border-border bg-muted/40 py-20 sm:py-24">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-          <div className="mb-16 text-center">
-            <p className="mb-3 text-sm font-semibold uppercase tracking-wider text-primary">
-              How it works
+          <div className="mb-12 max-w-2xl">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-primary">
+              The workflow
             </p>
             <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-              From script to YouTube video in 4 steps
+              Four moves between a draft and a published video
             </h2>
           </div>
 
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-px overflow-hidden rounded-3xl border border-border bg-border sm:grid-cols-2 lg:grid-cols-4">
             {processSteps.map((step) => (
-              <div
-                key={step.number}
-                className="relative rounded-2xl border border-border bg-card p-6 shadow-sm"
-              >
-                <span className="text-4xl font-bold text-primary/20">{step.number}</span>
-                <h3 className="mt-4 text-lg font-semibold text-foreground">{step.title}</h3>
+              <div key={step.number} className="bg-card p-6 lg:p-7">
+                <span className="font-display text-sm font-bold tracking-[0.2em] text-primary">
+                  {step.number}
+                </span>
+                <h3 className="mt-5 text-lg font-semibold text-foreground">{step.title}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                   {step.description}
                 </p>
@@ -178,39 +177,39 @@ function Index() {
       </section>
 
       {/* Crew section */}
-      <section className="w-full bg-background py-24">
+      <section className="w-full bg-background py-20 sm:py-24">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-          <div className="mb-16 text-center">
-            <p className="mb-3 text-sm font-semibold uppercase tracking-wider text-primary">
-              Your AI crew
-            </p>
-            <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-              One click hires a full production team
-            </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
-              Writers, editors, voiceover artists, sound designers and footage researchers — all replaced by one button.
+          <div className="mb-12 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div className="max-w-2xl">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-primary">
+                The crew
+              </p>
+              <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+                Six specialists, one render button
+              </h2>
+            </div>
+            <p className="max-w-sm text-muted-foreground">
+              Writers, editors, voice talent, sound designers and researchers —
+              coordinated by Vidora instead of a production schedule.
             </p>
           </div>
 
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[
-              { title: "AI Scriptwriter", desc: "Takes your draft and shapes it into a story that keeps viewers watching.", icon: Sparkles },
-              { title: "AI Voice Artist", desc: "100+ voices in 14 languages, or bring your own narration.", icon: Play },
-              { title: "AI Footage Editor", desc: "Matches real footage to every sentence in your script.", icon: Zap },
-              { title: "AI Motion Designer", desc: "Adds captions, zooms, counters and map reveals.", icon: Wand2 },
-              { title: "AI Sound Engineer", desc: "Mixes music and SFX under the voice, keeping it clean and monetizable.", icon: Clock },
-              { title: "AI Post Producer", desc: "Renders the final 1080p MP4 ready for upload.", icon: Check },
+              { title: "Story architect", desc: "Reshapes your draft into a structure that holds attention past the hook.", icon: Sparkles },
+              { title: "Voice talent", desc: "100+ voices across 14 languages, or bring your own narration track.", icon: Play },
+              { title: "Footage researcher", desc: "Finds and cuts real clips against every sentence of the script.", icon: Zap },
+              { title: "Motion designer", desc: "Layers captions, punch-ins, counters and map reveals where they land.", icon: Wand2 },
+              { title: "Sound designer", desc: "Scores and mixes music and SFX beneath the voice, cleared for monetization.", icon: Clock },
+              { title: "Post producer", desc: "Bakes the master and delivers a 1080p MP4 ready for upload.", icon: Check },
             ].map((role) => (
-              <div
-                key={role.title}
-                className="flex items-start gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm"
-              >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <div key={role.title} className="surface-card flex items-start gap-4 p-6">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent text-foreground">
                   <role.icon className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-foreground">{role.title}</h3>
-                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{role.desc}</p>
+                  <h3 className="text-base font-semibold text-foreground">{role.title}</h3>
+                  <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{role.desc}</p>
                 </div>
               </div>
             ))}
@@ -219,23 +218,22 @@ function Index() {
       </section>
 
       {/* Niches */}
-      <section className="w-full bg-muted/30 py-24">
+      <section className="w-full bg-muted/40 py-16">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-          <div className="mb-12 text-center">
-            <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-              Works in every niche that wins on YouTube
+          <div className="flex flex-col gap-6 md:flex-row md:items-center">
+            <h2 className="max-w-xs shrink-0 text-2xl font-bold tracking-tight text-foreground">
+              Built for the niches that actually scale
             </h2>
-          </div>
-
-          <div className="flex flex-wrap justify-center gap-3">
-            {niches.map((niche) => (
-              <span
-                key={niche}
-                className="rounded-full border border-border bg-card px-5 py-2.5 text-sm font-medium text-foreground shadow-sm"
-              >
-                {niche}
-              </span>
-            ))}
+            <div className="flex flex-wrap gap-2.5">
+              {niches.map((niche) => (
+                <span
+                  key={niche}
+                  className="rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-foreground"
+                >
+                  {niche}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -246,27 +244,29 @@ function Index() {
       <FaqSection />
 
       {/* Final CTA */}
-      <section className="w-full bg-background py-24">
-        <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
-          <div className="relative overflow-hidden rounded-3xl bg-primary px-6 py-16 sm:px-12 sm:py-20">
-            <div className="absolute top-0 right-0 -mt-10 -mr-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
-            <div className="absolute bottom-0 left-0 -mb-10 -ml-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
-            <h2 className="relative text-3xl font-bold tracking-tight text-primary-foreground sm:text-4xl">
-              Stop editing. Start uploading.
-            </h2>
-            <p className="relative mx-auto mt-4 max-w-xl text-lg text-primary-foreground/80">
-              Your first faceless video is one click away. No credit card required to try it.
-            </p>
-            <button
-              onClick={() => setDialogOpen(true)}
-              className="relative mt-8 inline-flex items-center gap-2 rounded-full bg-primary-foreground px-6 py-3 text-base font-semibold text-primary transition-colors hover:bg-primary-foreground/90"
-            >
-              <Wand2 className="h-5 w-5" />
-              Make your first video
-            </button>
+      <section className="w-full bg-background pb-24">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="relative overflow-hidden rounded-[2rem] bg-foreground px-6 py-16 sm:px-14 sm:py-20">
+            <div className="absolute -top-20 -right-16 h-72 w-72 rounded-full bg-accent/25 blur-3xl" />
+            <div className="relative max-w-xl">
+              <h2 className="text-3xl font-bold tracking-tight text-background sm:text-4xl">
+                Close the timeline. Open the render queue.
+              </h2>
+              <p className="mt-4 text-lg text-background/70">
+                Your first Vidora cut takes one script and one click. No card needed to try it.
+              </p>
+              <button
+                onClick={() => setDialogOpen(true)}
+                className="mt-8 inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 text-base font-semibold text-foreground transition-transform hover:-translate-y-0.5"
+              >
+                <Wand2 className="h-5 w-5" />
+                Render your first video
+              </button>
+            </div>
           </div>
         </div>
       </section>
+
 
       <GenerateVideoDialog open={dialogOpen} onOpenChange={setDialogOpen} />
     </main>
