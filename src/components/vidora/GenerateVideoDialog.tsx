@@ -65,7 +65,9 @@ export function GenerateVideoDialog({
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<JobResult | null>(null);
 
+  const { user, loading: sessionLoading } = useSession();
   const queryClient = useQueryClient();
+
   const create = useServerFn(createVideoJob);
 
   const mutation = useMutation({
