@@ -21,6 +21,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ArrowLeft, Download, ImageIcon, Loader2, Play, RefreshCw, Trash2, Wand2 } from "lucide-react";
+import { RenderPanel } from "@/components/vidora/RenderPanel";
+
 
 export const Route = createFileRoute("/_authenticated/projects/$projectId")({
   head: () => ({
@@ -279,7 +281,15 @@ function ProjectEditor() {
             ))}
           </div>
         )}
+
+        <RenderPanel
+          project={project}
+          scenes={scenes}
+          voiceovers={voiceovers}
+          captions={captions}
+        />
       </div>
+
     </main>
   );
 }
