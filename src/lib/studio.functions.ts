@@ -305,7 +305,7 @@ export const advanceProject = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { planProject, resolveSceneVisual, generateSceneVoice, buildCues } = await import("./studio.server");
-    const { presetById } = await import("./studio-config");
+    const { presetById, VISUAL_BATCH, VOICE_BATCH } = await import("./studio-config");
 
     const { data: project, error } = await supabase
       .from("projects")
