@@ -14,6 +14,125 @@ export type Database = {
   }
   public: {
     Tables: {
+      api_usage: {
+        Row: {
+          created_at: string
+          estimated_cost: number
+          id: string
+          meta: Json
+          operation: string
+          project_id: string | null
+          provider: string
+          units: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          estimated_cost?: number
+          id?: string
+          meta?: Json
+          operation: string
+          project_id?: string | null
+          provider: string
+          units?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          estimated_cost?: number
+          id?: string
+          meta?: Json
+          operation?: string
+          project_id?: string | null
+          provider?: string
+          units?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_usage_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      captions: {
+        Row: {
+          created_at: string
+          cues: Json
+          id: string
+          project_id: string
+          scene_id: string | null
+          style: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          cues?: Json
+          id?: string
+          project_id: string
+          scene_id?: string | null
+          style?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          cues?: Json
+          id?: string
+          project_id?: string
+          scene_id?: string | null
+          style?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "captions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "captions_scene_id_fkey"
+            columns: ["scene_id"]
+            isOneToOne: false
+            referencedRelation: "scenes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      categories: {
+        Row: {
+          active: boolean
+          created_at: string
+          group_name: string
+          id: string
+          name: string
+          slug: string
+          sort_order: number
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          group_name: string
+          id?: string
+          name: string
+          slug: string
+          sort_order?: number
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          group_name?: string
+          id?: string
+          name?: string
+          slug?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       contact_messages: {
         Row: {
           created_at: string
@@ -197,6 +316,175 @@ export type Database = {
         }
         Relationships: []
       }
+      projects: {
+        Row: {
+          aspect_ratio: string
+          audio_url: string | null
+          category: string | null
+          created_at: string
+          duration_minutes: number
+          error: string | null
+          id: string
+          job_id: string | null
+          language: string
+          mode: string
+          narration: string | null
+          preset: string
+          result_url: string | null
+          script: string | null
+          settings: Json
+          stage: string
+          status: string
+          step: string
+          thumbnail_url: string | null
+          title: string
+          topic: string
+          updated_at: string
+          user_id: string
+          visual_bible: Json
+          visual_style: string
+        }
+        Insert: {
+          aspect_ratio?: string
+          audio_url?: string | null
+          category?: string | null
+          created_at?: string
+          duration_minutes?: number
+          error?: string | null
+          id?: string
+          job_id?: string | null
+          language?: string
+          mode?: string
+          narration?: string | null
+          preset?: string
+          result_url?: string | null
+          script?: string | null
+          settings?: Json
+          stage?: string
+          status?: string
+          step?: string
+          thumbnail_url?: string | null
+          title?: string
+          topic?: string
+          updated_at?: string
+          user_id: string
+          visual_bible?: Json
+          visual_style?: string
+        }
+        Update: {
+          aspect_ratio?: string
+          audio_url?: string | null
+          category?: string | null
+          created_at?: string
+          duration_minutes?: number
+          error?: string | null
+          id?: string
+          job_id?: string | null
+          language?: string
+          mode?: string
+          narration?: string | null
+          preset?: string
+          result_url?: string | null
+          script?: string | null
+          settings?: Json
+          stage?: string
+          status?: string
+          step?: string
+          thumbnail_url?: string | null
+          title?: string
+          topic?: string
+          updated_at?: string
+          user_id?: string
+          visual_bible?: Json
+          visual_style?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "video_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scenes: {
+        Row: {
+          asset_source: Json
+          asset_thumb_url: string | null
+          asset_url: string | null
+          created_at: string
+          duration: number
+          error: string | null
+          id: string
+          motion_type: string
+          narration: string
+          negative_prompt: string | null
+          project_id: string
+          scene_number: number
+          search_query: string | null
+          status: string
+          style_override: string | null
+          transition: string
+          updated_at: string
+          user_id: string
+          visual_prompt: string | null
+          visual_type: string
+        }
+        Insert: {
+          asset_source?: Json
+          asset_thumb_url?: string | null
+          asset_url?: string | null
+          created_at?: string
+          duration?: number
+          error?: string | null
+          id?: string
+          motion_type?: string
+          narration?: string
+          negative_prompt?: string | null
+          project_id: string
+          scene_number: number
+          search_query?: string | null
+          status?: string
+          style_override?: string | null
+          transition?: string
+          updated_at?: string
+          user_id: string
+          visual_prompt?: string | null
+          visual_type?: string
+        }
+        Update: {
+          asset_source?: Json
+          asset_thumb_url?: string | null
+          asset_url?: string | null
+          created_at?: string
+          duration?: number
+          error?: string | null
+          id?: string
+          motion_type?: string
+          narration?: string
+          negative_prompt?: string | null
+          project_id?: string
+          scene_number?: number
+          search_query?: string | null
+          status?: string
+          style_override?: string | null
+          transition?: string
+          updated_at?: string
+          user_id?: string
+          visual_prompt?: string | null
+          visual_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scenes_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       site_content: {
         Row: {
           key: string
@@ -319,6 +607,63 @@ export type Database = {
           youtube_video_id?: string | null
         }
         Relationships: []
+      }
+      voiceovers: {
+        Row: {
+          audio_url: string | null
+          cache_key: string | null
+          characters: number
+          created_at: string
+          duration: number | null
+          id: string
+          model: string | null
+          project_id: string
+          scene_id: string | null
+          user_id: string
+          voice_id: string | null
+        }
+        Insert: {
+          audio_url?: string | null
+          cache_key?: string | null
+          characters?: number
+          created_at?: string
+          duration?: number | null
+          id?: string
+          model?: string | null
+          project_id: string
+          scene_id?: string | null
+          user_id: string
+          voice_id?: string | null
+        }
+        Update: {
+          audio_url?: string | null
+          cache_key?: string | null
+          characters?: number
+          created_at?: string
+          duration?: number | null
+          id?: string
+          model?: string | null
+          project_id?: string
+          scene_id?: string | null
+          user_id?: string
+          voice_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "voiceovers_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "voiceovers_scene_id_fkey"
+            columns: ["scene_id"]
+            isOneToOne: false
+            referencedRelation: "scenes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       youtube_connections: {
         Row: {
