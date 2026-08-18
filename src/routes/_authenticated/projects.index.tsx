@@ -41,7 +41,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Copy, Film, Loader2, Plus, Trash2 } from "lucide-react";
 
-export const Route = createFileRoute("/_authenticated/projects")({
+export const Route = createFileRoute("/_authenticated/projects/")({
   head: () => ({
     meta: [
       { title: "Projects — Vidora AI" },

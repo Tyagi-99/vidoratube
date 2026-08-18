@@ -16,6 +16,7 @@ import { Route as ContactRouteImport } from './routes/contact'
 import { Route as FeaturesRouteImport } from './routes/features'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthenticatedProjectsRouteImport } from './routes/_authenticated/projects'
 import { Route as AuthenticatedStudioRouteImport } from './routes/_authenticated/studio'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as AuthenticatedAdminContentRouteImport } from './routes/_authenticated/admin.content'
@@ -58,6 +59,11 @@ const PricingRoute = PricingRouteImport.update({
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedProjectsRoute = AuthenticatedProjectsRouteImport.update({
+  id: '/projects',
+  path: '/projects',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedStudioRoute = AuthenticatedStudioRouteImport.update({
@@ -117,6 +123,7 @@ export interface FileRoutesByFullPath {
   '/features': typeof FeaturesRoute
   '/pricing': typeof PricingRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/projects': typeof AuthenticatedProjectsRoute
   '/studio': typeof AuthenticatedStudioRoute
   '/admin/content': typeof AuthenticatedAdminContentRoute
   '/admin/integrations': typeof AuthenticatedAdminIntegrationsRoute
@@ -133,6 +140,7 @@ export interface FileRoutesByTo {
   '/contact': typeof ContactRoute
   '/features': typeof FeaturesRoute
   '/pricing': typeof PricingRoute
+  '/projects': typeof AuthenticatedProjectsRoute
   '/studio': typeof AuthenticatedStudioRoute
   '/admin/content': typeof AuthenticatedAdminContentRoute
   '/admin/integrations': typeof AuthenticatedAdminIntegrationsRoute
@@ -152,6 +160,7 @@ export interface FileRoutesById {
   '/features': typeof FeaturesRoute
   '/pricing': typeof PricingRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/_authenticated/projects': typeof AuthenticatedProjectsRoute
   '/_authenticated/studio': typeof AuthenticatedStudioRoute
   '/_authenticated/admin/content': typeof AuthenticatedAdminContentRoute
   '/_authenticated/admin/integrations': typeof AuthenticatedAdminIntegrationsRoute
@@ -171,6 +180,7 @@ export interface FileRouteTypes {
     | '/features'
     | '/pricing'
     | '/admin'
+    | '/projects'
     | '/studio'
     | '/admin/content'
     | '/admin/integrations'
@@ -187,6 +197,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/features'
     | '/pricing'
+    | '/projects'
     | '/studio'
     | '/admin/content'
     | '/admin/integrations'
@@ -205,6 +216,7 @@ export interface FileRouteTypes {
     | '/features'
     | '/pricing'
     | '/_authenticated/admin'
+    | '/_authenticated/projects'
     | '/_authenticated/studio'
     | '/_authenticated/admin/content'
     | '/_authenticated/admin/integrations'
@@ -275,6 +287,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/projects': {
+      id: '/_authenticated/projects'
+      path: '/projects'
+      fullPath: '/projects'
+      preLoaderRoute: typeof AuthenticatedProjectsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/studio': {
@@ -368,11 +387,13 @@ const AuthenticatedAdminRouteWithChildren =
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRouteWithChildren
+  AuthenticatedProjectsRoute: typeof AuthenticatedProjectsRoute
   AuthenticatedStudioRoute: typeof AuthenticatedStudioRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRouteWithChildren,
+  AuthenticatedProjectsRoute: AuthenticatedProjectsRoute,
   AuthenticatedStudioRoute: AuthenticatedStudioRoute,
 }
 
