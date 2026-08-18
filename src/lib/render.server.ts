@@ -95,7 +95,8 @@ export async function generateVoiceover(
       response_format: "mp3",
     }),
   });
-  if (!res.ok) throw gatewayError(res.status);
+  if (!res.ok) throw gatewayError(res.status, await res.text().catch(() => ""));
+
 
   const audio = await res.arrayBuffer();
   const url = await upload(admin, `${userId}/${jobId}/narration.mp3`, audio, "audio/mpeg");
