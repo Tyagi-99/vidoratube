@@ -114,9 +114,9 @@ export async function generateSceneImages(
 ): Promise<string[]> {
   const selected = scenes.slice(0, 5);
   const urls: string[] = [];
+  let blocked = 0;
 
-  for (const [index, scene] of selected.entries()) {
-    const prompt = `Cinematic ${format} b-roll still, 16:9 widescreen, photorealistic, filmic colour grading, no text or logos. Scene: ${scene.visual}`;
+  const requestImage = async (prompt: string) => {
     const res = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey()}`, "Content-Type": "application/json" },
@@ -126,18 +126,56 @@ export async function generateSceneImages(
         modalities: ["image", "text"],
       }),
     });
-    if (!res.ok) throw gatewayError(res.status);
+    if (res.ok) {
+      const payload = (await res.json()) as { data?: { b64_json?: string }[] };
+      return { b64: payload.data?.[0]?.b64_json ?? null, status: res.status, body: "" };
+    }
+    const body = await res.text().catch(() => "");
+    return { b64: null, status: res.status, body };
+  };
 
-    const payload = (await res.json()) as { data?: { b64_json?: string }[] };
-    const b64 = payload.data?.[0]?.b64_json;
-    if (!b64) continue;
+  for (const [index, scene] of selected.entries()) {
+    const base = `Cinematic ${format} b-roll still, 16:9 widescreen, photorealistic, filmic colour grading, no text or logos. Scene: `;
+    let attempt = await requestImage(`${base}${scene.visual}`);
+
+    if (isContentBlocked(attempt.status, attempt.body)) {
+      console.warn(
+        `[vidora] image blocked for scene ${index + 1} of job ${jobId}: ${sanitiseGatewayBody(attempt.body)} — retrying with a softened prompt`,
+      );
+      attempt = await requestImage(
+        `${base}${softenPrompt(scene.visual)}. Tasteful, non-graphic historical reconstruction, no injury or gore shown.`,
+      );
+    }
+
+    if (!attempt.b64 && attempt.status !== 200) {
+      if (isContentBlocked(attempt.status, attempt.body)) {
+        blocked += 1;
+        console.warn(
+          `[vidora] skipping scene ${index + 1} of job ${jobId}: ${sanitiseGatewayBody(attempt.body)}`,
+        );
+        continue;
+      }
+      console.error(
+        `[vidora] image generation failed for scene ${index + 1} of job ${jobId} (status ${attempt.status}): ${sanitiseGatewayBody(attempt.body)}`,
+      );
+      throw gatewayError(attempt.status, attempt.body);
+    }
+
+    if (!attempt.b64) continue;
     urls.push(
-      await upload(admin, `${userId}/${jobId}/scene-${index}.png`, base64ToBytes(b64), "image/png"),
+      await upload(admin, `${userId}/${jobId}/scene-${index}.png`, base64ToBytes(attempt.b64), "image/png"),
+    );
+  }
+
+  if (urls.length === 0 && blocked > 0) {
+    throw new Error(
+      "The image provider refused every scene on safety grounds — soften the script's graphic wording and try again.",
     );
   }
 
   return urls;
 }
+
 
 /* ------------------------------------------------------------------ */
 /* Shotstack composition                                               */
