@@ -23,11 +23,35 @@ function apiKey(): string {
   return key;
 }
 
-function gatewayError(status: number): Error {
+function sanitiseGatewayBody(body: string): string {
+  try {
+    const parsed = JSON.parse(body) as { error?: { message?: string; type?: string } };
+    return [parsed.error?.type, parsed.error?.message].filter(Boolean).join(": ") || body.slice(0, 200);
+  } catch {
+    return body.slice(0, 200).replace(/\s+/g, " ").trim();
+  }
+}
+
+function gatewayError(status: number, body = ""): Error {
+  const detail = sanitiseGatewayBody(body);
   if (status === 429) return new Error("The AI studio is busy right now — try again in a moment.");
   if (status === 402) return new Error("AI credits are exhausted. Add credits to keep rendering.");
-  return new Error(`AI gateway error ${status}`);
+  return new Error(`AI gateway error ${status}${detail ? ` — ${detail}` : ""}`);
 }
+
+/** True when the provider refused the prompt on safety grounds (returned as a 400). */
+function isContentBlocked(status: number, body: string): boolean {
+  return status === 400 && /safety|blocked|content policy/i.test(body);
+}
+
+/** Removes the graphic wording that makes image safety filters refuse a historical scene. */
+function softenPrompt(text: string): string {
+  return text
+    .replace(/\b(blood(?:ied|y)?|gore|gory|corpse[s]?|dead body|dead bodies|slaughter(?:ed)?|mutilat\w*|severed|killing|death of|dying|wounded|carnage)\b/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 
 async function upload(
   admin: SupabaseClient<Database>,
