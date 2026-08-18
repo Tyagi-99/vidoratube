@@ -6,7 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, Aperture } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Loader2, Aperture, MailCheck } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/auth")({
@@ -30,6 +38,8 @@ const schema = z.object({
   displayName: z.string().trim().max(80).optional(),
 });
 
+const emailSchema = z.string().trim().email("Enter a valid email").max(255);
+
 function AuthPage() {
   const navigate = useNavigate();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
@@ -37,6 +47,10 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetSent, setResetSent] = useState(false);
+  const [resetBusy, setResetBusy] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -87,6 +101,30 @@ function AuthPage() {
     }
   };
 
+  const handleForgot = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const parsed = emailSchema.safeParse(resetEmail);
+    if (!parsed.success) {
+      toast.error(parsed.error.issues[0]?.message ?? "Check your email");
+      return;
+    }
+
+    setResetBusy(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(parsed.data, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      setResetSent(true);
+      toast.success("Reset link sent — check your inbox.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Something went wrong";
+      toast.error(message);
+    } finally {
+      setResetBusy(false);
+    }
+  };
+
   return (
     <main className="flex min-h-[80vh] items-center justify-center bg-top-glow px-4 py-20">
       <div className="w-full max-w-md">
@@ -132,7 +170,21 @@ function AuthPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Password</Label>
+                  {mode === "signin" && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setResetEmail(email);
+                        setForgotOpen(true);
+                      }}
+                      className="text-xs font-medium text-primary hover:underline"
+                    >
+                      Forgot password?
+                    </button>
+                  )}
+                </div>
                 <Input
                   id="password"
                   type="password"
@@ -168,6 +220,52 @@ function AuthPage() {
           </Link>
         </p>
       </div>
+
+      <Dialog open={forgotOpen} onOpenChange={setForgotOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reset your password</DialogTitle>
+            <DialogDescription>
+              {resetSent
+                ? "We sent a secure link to the address below. Click it to choose a new password."
+                : "Enter the email you use for Vidora and we'll send you a reset link."}
+            </DialogDescription>
+          </DialogHeader>
+
+          {resetSent ? (
+            <div className="flex flex-col items-center justify-center gap-4 py-6 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                <MailCheck className="h-6 w-6 text-primary" />
+              </div>
+              <div className="space-y-1">
+                <p className="font-medium text-foreground">{resetEmail}</p>
+                <p className="text-sm text-muted-foreground">Check your inbox and spam folder.</p>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={handleForgot} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="resetEmail">Email</Label>
+                <Input
+                  id="resetEmail"
+                  type="email"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  placeholder="you@studio.com"
+                  autoComplete="email"
+                  required
+                />
+              </div>
+              <DialogFooter>
+                <Button type="submit" disabled={resetBusy} className="w-full gap-2 sm:w-auto">
+                  {resetBusy && <Loader2 className="h-4 w-4 animate-spin" />}
+                  Send reset link
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }
