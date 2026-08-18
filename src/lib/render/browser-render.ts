@@ -29,7 +29,7 @@ export type RenderProgress = {
   stage: RenderStageId;
   label: string;
   progress: number; // 0..100 overall
-  detail?: string;
+  detail?: string | undefined;
 };
 
 export type RenderCue = { start: number; end: number; text: string };
