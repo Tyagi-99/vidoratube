@@ -279,7 +279,15 @@ function ProjectEditor() {
             ))}
           </div>
         )}
+
+        <RenderPanel
+          project={project}
+          scenes={scenes}
+          voiceovers={voiceovers}
+          captions={captions}
+        />
       </div>
+
     </main>
   );
 }
