@@ -183,10 +183,13 @@ export const updateScene = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => sceneUpdateSchema.parse(i))
   .handler(async ({ data, context }) => {
-    const { id, ...patch } = data;
+    const { id, ...rest } = data;
+    const patch = Object.fromEntries(
+      Object.entries(rest).filter(([, value]) => value !== undefined),
+    );
     const { data: scene, error } = await context.supabase
       .from("scenes")
-      .update(patch)
+      .update(patch as never)
       .eq("id", id)
       .eq("user_id", context.userId)
       .select()
