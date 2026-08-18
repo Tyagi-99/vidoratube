@@ -305,7 +305,7 @@ export const advanceProject = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { planProject, resolveSceneVisual, generateSceneVoice, buildCues } = await import("./studio.server");
-    const { presetById } = await import("./studio-config");
+    const { presetById, VISUAL_BATCH, VOICE_BATCH } = await import("./studio-config");
 
     const { data: project, error } = await supabase
       .from("projects")
@@ -380,50 +380,53 @@ export const advanceProject = createServerFn({ method: "POST" })
             .is("asset_url", null)
             .neq("status", "failed")
             .order("scene_number")
-            .limit(2);
+            .limit(VISUAL_BATCH);
 
           if (!pending || pending.length === 0) {
             return await save({ stage: "voice", step: "Recording voiceover" });
           }
 
-          for (const scene of pending) {
-            try {
-              const visual = await resolveSceneVisual(supabaseAdmin, {
-                userId,
-                projectId: project.id,
-                sceneId: scene.id,
-                sceneNumber: scene.scene_number,
-                mode: project.mode,
-                visualType: scene.visual_type as never,
-                searchQuery: scene.search_query,
-                imagePrompt: scene.visual_prompt,
-                negativePrompt: scene.negative_prompt,
-                style: scene.style_override ?? project.visual_style,
-                aspectRatio: project.aspect_ratio,
-                visualBible: (project.visual_bible ?? {}) as Record<string, unknown>,
-              });
-              await supabaseAdmin
-                .from("scenes")
-                .update({
-                  asset_url: visual.url,
-                  asset_thumb_url: visual.thumb,
-                  asset_source: visual.source as never,
-                  visual_type: visual.visualType,
-                  status: "ready",
-                  error: null,
-                })
-                .eq("id", scene.id);
-            } catch (sceneError) {
-              // One failed scene never stops the project.
-              await supabaseAdmin
-                .from("scenes")
-                .update({
-                  status: "failed",
-                  error: sceneError instanceof Error ? sceneError.message : "Visual failed",
-                })
-                .eq("id", scene.id);
-            }
-          }
+          // Scenes are independent, so resolve the whole batch concurrently.
+          await Promise.allSettled(
+            pending.map(async (scene) => {
+              try {
+                const visual = await resolveSceneVisual(supabaseAdmin, {
+                  userId,
+                  projectId: project.id,
+                  sceneId: scene.id,
+                  sceneNumber: scene.scene_number,
+                  mode: project.mode,
+                  visualType: scene.visual_type as never,
+                  searchQuery: scene.search_query,
+                  imagePrompt: scene.visual_prompt,
+                  negativePrompt: scene.negative_prompt,
+                  style: scene.style_override ?? project.visual_style,
+                  aspectRatio: project.aspect_ratio,
+                  visualBible: (project.visual_bible ?? {}) as Record<string, unknown>,
+                });
+                await supabaseAdmin
+                  .from("scenes")
+                  .update({
+                    asset_url: visual.url,
+                    asset_thumb_url: visual.thumb,
+                    asset_source: visual.source as never,
+                    visual_type: visual.visualType,
+                    status: "ready",
+                    error: null,
+                  })
+                  .eq("id", scene.id);
+              } catch (sceneError) {
+                // One failed scene never stops the project.
+                await supabaseAdmin
+                  .from("scenes")
+                  .update({
+                    status: "failed",
+                    error: sceneError instanceof Error ? sceneError.message : "Visual failed",
+                  })
+                  .eq("id", scene.id);
+              }
+            }),
+          );
           return await save({ step: "Finding visuals" });
         }
 
@@ -435,7 +438,7 @@ export const advanceProject = createServerFn({ method: "POST" })
             .order("scene_number");
           const { data: done } = await supabase.from("voiceovers").select("scene_id").eq("project_id", project.id);
           const doneIds = new Set((done ?? []).map((d) => d.scene_id));
-          const next = (scenes ?? []).filter((s) => !doneIds.has(s.id)).slice(0, 2);
+          const next = (scenes ?? []).filter((s) => !doneIds.has(s.id)).slice(0, VOICE_BATCH);
 
           if (next.length === 0) {
             const thumb = (scenes ?? []).find((s) => s.asset_thumb_url)?.asset_thumb_url ?? null;
@@ -443,8 +446,10 @@ export const advanceProject = createServerFn({ method: "POST" })
           }
 
           const settings = (project.settings ?? {}) as { voice?: Record<string, unknown> };
-          for (const scene of next) {
-            try {
+          const preset = presetById(project.preset);
+          // Voice synthesis is the slowest step, so run a small batch in parallel.
+          const results = await Promise.allSettled(
+            next.map(async (scene) => {
               const voice = await generateSceneVoice(supabaseAdmin, {
                 userId,
                 projectId: project.id,
@@ -453,7 +458,6 @@ export const advanceProject = createServerFn({ method: "POST" })
                 narration: scene.narration,
                 settings: (settings.voice ?? {}) as never,
               });
-              const preset = presetById(project.preset);
               await supabaseAdmin
                 .from("scenes")
                 .update({
@@ -461,16 +465,23 @@ export const advanceProject = createServerFn({ method: "POST" })
                   status: "ready",
                 })
                 .eq("id", scene.id);
-            } catch (voiceError) {
-              await supabaseAdmin
-                .from("scenes")
-                .update({
-                  status: "failed",
-                  error: voiceError instanceof Error ? voiceError.message : "Voice failed",
-                })
-                .eq("id", scene.id);
-              throw voiceError;
-            }
+            }),
+          );
+
+          const failures = results.filter((r) => r.status === "rejected");
+          if (failures.length === results.length) {
+            const reason = (failures[0] as PromiseRejectedResult | undefined)?.reason;
+            await supabaseAdmin
+              .from("scenes")
+              .update({
+                status: "failed",
+                error: reason instanceof Error ? reason.message : "Voice failed",
+              })
+              .in(
+                "id",
+                next.map((s) => s.id),
+              );
+            throw reason instanceof Error ? reason : new Error("Voice generation failed");
           }
           return await save({ step: "Recording voiceover" });
         }

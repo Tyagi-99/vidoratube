@@ -140,3 +140,7 @@ export function styleById(id: string | null | undefined): ImageStyle {
 export function presetById(id: string | null | undefined) {
   return PRESETS[(id as PresetId) ?? "documentary"] ?? PRESETS.documentary;
 }
+
+/** How many scenes each pipeline tick processes in parallel. */
+export const VISUAL_BATCH = 6;
+export const VOICE_BATCH = 3;
