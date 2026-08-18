@@ -1,6 +1,6 @@
 import { providerFetch } from "./http.server";
 
-export type VoiceOption = { id: string; name: string; category?: string };
+export type VoiceOption = { id: string; name: string; category?: string | undefined };
 
 export type VoiceSettings = {
   voiceId: string;
