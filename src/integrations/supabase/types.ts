@@ -408,6 +408,86 @@ export type Database = {
           },
         ]
       }
+      renders: {
+        Row: {
+          aspect_ratio: string | null
+          created_at: string
+          duration: number | null
+          engine: string
+          error: string | null
+          file_size: number | null
+          file_url: string | null
+          format: string
+          id: string
+          job_id: string | null
+          meta: Json
+          progress: number
+          project_id: string | null
+          render_completed_at: string | null
+          render_started_at: string | null
+          resolution: string | null
+          stage: string
+          status: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          aspect_ratio?: string | null
+          created_at?: string
+          duration?: number | null
+          engine?: string
+          error?: string | null
+          file_size?: number | null
+          file_url?: string | null
+          format?: string
+          id?: string
+          job_id?: string | null
+          meta?: Json
+          progress?: number
+          project_id?: string | null
+          render_completed_at?: string | null
+          render_started_at?: string | null
+          resolution?: string | null
+          stage?: string
+          status?: string
+          type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          aspect_ratio?: string | null
+          created_at?: string
+          duration?: number | null
+          engine?: string
+          error?: string | null
+          file_size?: number | null
+          file_url?: string | null
+          format?: string
+          id?: string
+          job_id?: string | null
+          meta?: Json
+          progress?: number
+          project_id?: string | null
+          render_completed_at?: string | null
+          render_started_at?: string | null
+          resolution?: string | null
+          stage?: string
+          status?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "renders_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scenes: {
         Row: {
           asset_source: Json
