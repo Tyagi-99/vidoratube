@@ -56,7 +56,7 @@ export function ResumeComposeButton({
 
       const controller = new AbortController();
       abortRef.current = controller;
-      setLabel("Starting");
+      setLabel("Composing final MP4…");
 
       const { composeQuickJobMp4 } = await import("@/lib/render/quick-job-compose");
       const output = await composeQuickJobMp4({

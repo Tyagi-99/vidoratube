@@ -12,6 +12,7 @@ import { VoiceoverCreateDialog } from "@/components/vidora/VoiceoverCreateDialog
 import { AutoEditCreateDialog } from "@/components/vidora/AutoEditCreateDialog";
 import { YouTubePanel } from "@/components/vidora/YouTubePanel";
 import { CapCutExportButton } from "@/components/vidora/CapCutExportButton";
+import { selectDownloadUrl } from "@/lib/jobs/final-video";
 import { ResumeComposeButton, isStalledCompose } from "@/components/vidora/ResumeComposeButton";
 
 import { publishJobToYouTube } from "@/lib/youtube.functions";
@@ -164,10 +165,10 @@ function StudioPage() {
               <div>
                 <p className="font-semibold text-foreground">No videos yet</p>
                 <p className="text-sm text-muted-foreground">
-                  Paste a script and Vidora will handle the rest.
+                  Choose Script, Voiceover, or Automatic Edit to start.
                 </p>
               </div>
-              <Button onClick={() => setDialogOpen(true)} className="gap-2">
+              <Button onClick={() => setModeChooserOpen(true)} className="gap-2">
                 <Plus className="h-4 w-4" />
                 Make your first video
               </Button>
@@ -175,7 +176,9 @@ function StudioPage() {
           </Card>
         ) : (
           <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {(jobs.data ?? []).map((job) => (
+            {(jobs.data ?? []).map((job) => {
+              const downloadUrl = selectDownloadUrl(job);
+              return (
               <div key={job.id} className="surface-card overflow-hidden">
                 <div className="relative aspect-video w-full bg-muted">
                   {job.thumbnail_url && (
@@ -206,26 +209,26 @@ function StudioPage() {
                   {job.error && <p className="text-xs text-destructive">{job.error}</p>}
                   {isStalledCompose(job) && (
                     <p className="text-xs text-muted-foreground">
-                      Voiceover and visuals are ready — the final video is put together in this
-                      tab. Keep this page open while it finishes.
+                      Stills and voiceover are ready. Vidora is composing the final MP4 in this
+                      browser tab — keep the page open until Download appears.
                     </p>
                   )}
                   <div className="flex flex-wrap gap-2">
                     {isStalledCompose(job) && (
                       <ResumeComposeButton job={job} className="flex-1 gap-1" />
                     )}
-                    {job.result_url && (
+                    {downloadUrl && (
                       <Button asChild size="sm" variant="outline" className="flex-1">
-                        <a href={job.result_url} target="_blank" rel="noreferrer">
+                        <a href={downloadUrl} target="_blank" rel="noreferrer">
                           Open
                         </a>
                       </Button>
                     )}
-                    {job.status === "completed" && (
+                    {job.status === "completed" && downloadUrl && (
                       <CapCutExportButton job={job} className="flex-1 gap-1" />
                     )}
 
-                    {job.status === "completed" && job.result_url && (
+                    {job.status === "completed" && downloadUrl && (
                       job.youtube_video_id ? (
                         <Button asChild size="sm" variant="secondary" className="flex-1 gap-1">
                           <a
@@ -265,7 +268,8 @@ function StudioPage() {
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -273,6 +277,8 @@ function StudioPage() {
       <ModeChooser
         open={modeChooserOpen}
         onOpenChange={setModeChooserOpen}
+        title="New video"
+        description="Pick Script to Video, Voiceover, or Automatic Edit."
         onChoose={(mode) => {
           setModeChooserOpen(false);
           if (mode === "voiceover") setVoiceoverOpen(true);

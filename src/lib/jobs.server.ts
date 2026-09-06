@@ -109,18 +109,14 @@ Respond with JSON only.`;
   }
 }
 
-/** Placeholder render output until a render provider is connected. */
-export function renderPlaceholders(seed: string) {
-  const palettes = ["0f766e", "115e59", "0e7490", "047857", "134e4a"];
-  const color = palettes[Math.abs(hash(seed)) % palettes.length];
-  return {
-    result_url: "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-    thumbnail_url: `https://placehold.co/1280x720/${color}/e6fff8/png?text=Vidora`,
-  };
+/**
+ * Legacy BigBuckBunny placeholder — intentionally gated.
+ * Real Mode 1/2/3 paths must upload a composed MP4 and set result_url.
+ * Calling this in production would ship a sample clip as a "final" video.
+ */
+export function renderPlaceholders(_seed: string): never {
+  throw new Error(
+    "renderPlaceholders is disabled. Compose a real MP4 and finalize with result_url — never use BigBuckBunny.",
+  );
 }
 
-function hash(value: string) {
-  let h = 0;
-  for (let i = 0; i < value.length; i++) h = (h << 5) - h + value.charCodeAt(i);
-  return h;
-}

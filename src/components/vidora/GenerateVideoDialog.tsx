@@ -43,7 +43,7 @@ const PIPELINE = [
   { label: "Writing narration", at: 22 },
   { label: "Recording voiceover", at: 45 },
   { label: "Generating footage", at: 70 },
-  { label: "Composing the cut", at: 100 },
+  { label: "Composing final MP4 in this tab", at: 100 },
 ];
 
 type JobResult = {
@@ -107,7 +107,7 @@ export function GenerateVideoDialog({
     const captions = scenes.map((s) => (s.caption ?? "").trim());
 
     setShowPercent(false);
-    setStepLabel("Composing the cut");
+    setStepLabel("Composing final MP4 in this tab");
     setProgress(75);
     setComposeError(null);
     setPendingComposeJob(job);
@@ -334,7 +334,7 @@ export function GenerateVideoDialog({
             </div>
             <div className="space-y-3">
               {PIPELINE.map((step) => {
-                const done = showPercent ? progress >= step.at : step.label !== "Composing the cut" && progress >= step.at;
+                const done = showPercent ? progress >= step.at : step.label !== "Composing final MP4 in this tab" && progress >= step.at;
                 const active =
                   step.label === stepLabel ||
                   (!done && showPercent && progress >= step.at - 22);
