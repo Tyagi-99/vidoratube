@@ -7,6 +7,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { GenerateVideoDialog } from "@/components/vidora/GenerateVideoDialog";
+import { ModeChooser } from "@/components/vidora/ModeChooser";
+import { VoiceoverCreateDialog } from "@/components/vidora/VoiceoverCreateDialog";
 import { YouTubePanel } from "@/components/vidora/YouTubePanel";
 import { CapCutExportButton } from "@/components/vidora/CapCutExportButton";
 import { ResumeComposeButton, isStalledCompose } from "@/components/vidora/ResumeComposeButton";
@@ -41,6 +43,8 @@ const statusStyles: Record<string, string> = {
 
 function StudioPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [modeChooserOpen, setModeChooserOpen] = useState(false);
+  const [voiceoverOpen, setVoiceoverOpen] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -112,7 +116,7 @@ function StudioPage() {
               <LogOut className="h-4 w-4" />
               Sign out
             </Button>
-            <Button onClick={() => setDialogOpen(true)} className="gap-2">
+            <Button onClick={() => setModeChooserOpen(true)} className="gap-2">
               <Plus className="h-4 w-4" />
               New video
             </Button>
@@ -264,7 +268,17 @@ function StudioPage() {
         )}
       </div>
 
+      <ModeChooser
+        open={modeChooserOpen}
+        onOpenChange={setModeChooserOpen}
+        onChoose={(mode) => {
+          setModeChooserOpen(false);
+          if (mode === "voiceover") setVoiceoverOpen(true);
+          else setDialogOpen(true);
+        }}
+      />
       <GenerateVideoDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+      <VoiceoverCreateDialog open={voiceoverOpen} onOpenChange={setVoiceoverOpen} />
     </main>
   );
 }

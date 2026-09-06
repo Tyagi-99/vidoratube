@@ -27,7 +27,14 @@ describe("rights gate", () => {
 
   it("recognizes approved rights set", () => {
     expect(isApprovedRights("permission_granted")).toBe(true);
+    expect(isApprovedRights("owned")).toBe(true);
     expect(isApprovedRights("permission_requested")).toBe(false);
+  });
+
+  it("canRenderFinal requires explicit clearance", async () => {
+    const { canRenderFinal } = await import("./stages");
+    expect(canRenderFinal("owned")).toEqual({ ok: true });
+    expect(canRenderFinal("unknown").ok).toBe(false);
   });
 
   it("exposes seed niches as data", () => {

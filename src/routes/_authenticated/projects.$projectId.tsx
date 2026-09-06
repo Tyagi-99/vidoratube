@@ -22,6 +22,8 @@ import {
 } from "@/components/ui/select";
 import { ArrowLeft, Download, ImageIcon, Loader2, Play, RefreshCw, Trash2, Wand2 } from "lucide-react";
 import { RenderPanel } from "@/components/vidora/RenderPanel";
+import { VoiceoverEditorPanel } from "@/components/vidora/VoiceoverEditorPanel";
+import { projectCreationMode } from "@/lib/mode2/settings";
 
 
 export const Route = createFileRoute("/_authenticated/projects/$projectId")({
@@ -111,7 +113,26 @@ function ProjectEditor() {
     );
   }
 
-  const stageIndex = Math.max(0, STAGES.indexOf(project.stage as (typeof STAGES)[number]));
+  if (projectCreationMode(project) === "voiceover") {
+    return (
+      <main className="min-h-screen bg-top-glow px-4 py-10 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-5xl space-y-6">
+          <div className="flex flex-wrap items-center gap-3">
+            <Button asChild variant="ghost" size="sm" className="gap-2">
+              <Link to="/projects">
+                <ArrowLeft className="h-4 w-4" />
+                Projects
+              </Link>
+            </Button>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">{project.title}</h1>
+          </div>
+          <VoiceoverEditorPanel project={project} captions={captions} />
+        </div>
+      </main>
+    );
+  }
+
+    const stageIndex = Math.max(0, STAGES.indexOf(project.stage as (typeof STAGES)[number]));
   const readyScenes = scenes.filter((s) => s.asset_url).length;
   const progress =
     project.status === "completed"
