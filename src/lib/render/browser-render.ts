@@ -248,22 +248,30 @@ let ffmpegSingleton: Ffmpeg | null = null;
 export async function loadFfmpeg(onLog?: (line: string) => void): Promise<Ffmpeg> {
   if (ffmpegSingleton) return ffmpegSingleton;
   const [{ FFmpeg }, { toBlobURL }] = await Promise.all([import("@ffmpeg/ffmpeg"), import("@ffmpeg/util")]);
+  // Bundle the ffmpeg core with the app (no CDN dependency).
+  const [{ default: coreJsUrl }, { default: coreWasmUrl }, { default: workerUrl }] = await Promise.all([
+    import("@ffmpeg/core/dist/umd/ffmpeg-core.js?url"),
+    import("@ffmpeg/core/dist/umd/ffmpeg-core.wasm?url"),
+    import("@ffmpeg/ffmpeg/dist/umd/814.ffmpeg.js?url"),
+  ]);
   const ffmpeg = new FFmpeg();
   if (onLog) ffmpeg.on("log", ({ message }) => onLog(message));
 
-  const base = "https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd";
+  const describe = (error: unknown) =>
+    error instanceof Error && error.message
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : "download or worker startup failed — check your connection and reload";
   try {
     await ffmpeg.load({
-      coreURL: await toBlobURL(`${base}/ffmpeg-core.js`, "text/javascript"),
-      wasmURL: await toBlobURL(`${base}/ffmpeg-core.wasm`, "application/wasm"),
-      classWorkerURL: await toBlobURL(
-        "https://unpkg.com/@ffmpeg/ffmpeg@0.12.15/dist/umd/814.ffmpeg.js",
-        "text/javascript",
-      ),
+      coreURL: await toBlobURL(coreJsUrl, "text/javascript"),
+      wasmURL: await toBlobURL(coreWasmUrl, "application/wasm"),
+      classWorkerURL: await toBlobURL(workerUrl, "text/javascript"),
     });
   } catch (error) {
     throw new Error(
-      `FFmpeg could not start in this browser (${(error as Error).message}). Try Chrome, Firefox or Brave with a normal (non-private) window.`,
+      `FFmpeg could not start in this browser (${describe(error)}). Try Chrome, Firefox or Brave with a normal (non-private) window.`,
     );
   }
   ffmpegSingleton = ffmpeg;
