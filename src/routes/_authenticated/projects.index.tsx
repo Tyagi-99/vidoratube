@@ -42,6 +42,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Copy, Film, Loader2, Plus, Trash2 } from "lucide-react";
 import { ModeChooser } from "@/components/vidora/ModeChooser";
 import { VoiceoverCreateDialog } from "@/components/vidora/VoiceoverCreateDialog";
+import { AutoEditCreateDialog } from "@/components/vidora/AutoEditCreateDialog";
 import { projectCreationMode } from "@/lib/mode2/settings";
 
 export const Route = createFileRoute("/_authenticated/projects/")({
@@ -70,6 +71,7 @@ function ProjectsPage() {
   const [open, setOpen] = useState(false);
   const [modeChooserOpen, setModeChooserOpen] = useState(false);
   const [voiceoverOpen, setVoiceoverOpen] = useState(false);
+  const [autoEditOpen, setAutoEditOpen] = useState(false);
   const queryClient = useQueryClient();
   const listFn = useServerFn(listProjects);
   const removeFn = useServerFn(deleteProject);
@@ -171,9 +173,12 @@ function ProjectsPage() {
                   </Link>
                   <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     <Badge variant="secondary" className="capitalize">
-                      {projectCreationMode(project) === "voiceover"
-                        ? "voiceover"
-                        : `${project.mode} mode`}
+                      {(() => {
+                        const cm = projectCreationMode(project);
+                        if (cm === "voiceover") return "voiceover";
+                        if (cm === "auto_edit") return "auto edit";
+                        return `${project.mode} mode`;
+                      })()}
                     </Badge>
                     <Badge variant="secondary">{project.duration_minutes} min</Badge>
                     <span>{new Date(project.created_at).toLocaleDateString()}</span>
@@ -211,14 +216,18 @@ function ProjectsPage() {
       <ModeChooser
         open={modeChooserOpen}
         onOpenChange={setModeChooserOpen}
+        title="New project"
+        description="Pick Script to Video, Voiceover, or Automatic Edit."
         onChoose={(mode) => {
           setModeChooserOpen(false);
           if (mode === "voiceover") setVoiceoverOpen(true);
+          else if (mode === "auto_edit") setAutoEditOpen(true);
           else setOpen(true);
         }}
       />
       <NewProjectDialog open={open} onOpenChange={setOpen} />
       <VoiceoverCreateDialog open={voiceoverOpen} onOpenChange={setVoiceoverOpen} />
+      <AutoEditCreateDialog open={autoEditOpen} onOpenChange={setAutoEditOpen} />
     </main>
   );
 }

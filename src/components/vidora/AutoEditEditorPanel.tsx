@@ -200,7 +200,7 @@ export function AutoEditEditorPanel({
     }
 
     setBusy("render");
-    setProgress({ stage: "init", label: "Starting", progress: 0 });
+    setProgress({ stage: "init", label: "Starting MP4 compose in this tab", progress: 0 });
     const controller = new AbortController();
     abortRef.current = controller;
 
