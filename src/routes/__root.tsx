@@ -200,21 +200,13 @@ function Header() {
               Studio
             </Link>
           ) : (
-            <>
-              <Link
-                to="/auth"
-                className="rounded-full px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
-              >
-                Log in
-              </Link>
-              <Link
-                to="/auth"
-                className="inline-flex items-center justify-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background transition-transform hover:-translate-y-0.5"
-              >
-                Start free
-                <ArrowUpRight className="h-4 w-4" />
-              </Link>
-            </>
+            <Link
+              to="/studio"
+              className="inline-flex items-center justify-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background transition-transform hover:-translate-y-0.5"
+            >
+              Open studio
+              <ArrowUpRight className="h-4 w-4" />
+            </Link>
           )}
         </div>
 
@@ -244,11 +236,11 @@ function Header() {
               </Link>
             ))}
             <Link
-              to={user ? "/studio" : "/auth"}
+              to="/studio"
               className="mt-2 inline-flex items-center justify-center gap-2 rounded-full bg-foreground px-4 py-2.5 text-base font-semibold text-background"
               onClick={() => setMobileOpen(false)}
             >
-              {user ? "Go to studio" : "Start free"}
+              Open studio
             </Link>
           </nav>
         </div>
