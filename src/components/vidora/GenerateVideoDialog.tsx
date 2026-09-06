@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -22,11 +22,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
-import { Check, Download, Loader2, Play, Wand2 } from "lucide-react";
+import { Check, Download, Loader2, RotateCcw, Wand2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CapCutExportButton } from "@/components/vidora/CapCutExportButton";
+import { supabase } from "@/integrations/supabase/client";
 
-import { createVideoJob, advanceVideoJob } from "@/lib/jobs.functions";
+import {
+  createVideoJob,
+  advanceVideoJob,
+  finalizeVideoJob,
+  failVideoJobCompose,
+} from "@/lib/jobs.functions";
+import {
+  isFinalVideoReady,
+  needsClientCompose,
+  selectDownloadUrl,
+} from "@/lib/jobs/final-video";
 import { toast } from "sonner";
 
 const PIPELINE = [
@@ -56,7 +67,6 @@ type JobResult = {
   scenes?: unknown;
 };
 
-
 function formatDuration(seconds: number | null) {
   if (!seconds) return "—";
   const m = Math.floor(seconds / 60);
@@ -78,68 +88,208 @@ export function GenerateVideoDialog({
   const [format, setFormat] = useState("documentary");
   const [stepLabel, setStepLabel] = useState("Writing narration");
   const [progress, setProgress] = useState(0);
+  const [showPercent, setShowPercent] = useState(true);
   const [result, setResult] = useState<JobResult | null>(null);
+  const [composeError, setComposeError] = useState<string | null>(null);
+  const [pendingComposeJob, setPendingComposeJob] = useState<JobResult | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const { user, loading: sessionLoading } = useSession();
   const queryClient = useQueryClient();
 
   const create = useServerFn(createVideoJob);
   const advance = useServerFn(advanceVideoJob);
+  const finalize = useServerFn(finalizeVideoJob);
+  const failCompose = useServerFn(failVideoJobCompose);
+
+  const runClientCompose = async (job: JobResult): Promise<JobResult> => {
+    if (!user) throw new Error("Sign in to finish rendering.");
+    const images = (Array.isArray(job.assets) ? job.assets : []).filter(
+      (u): u is string => typeof u === "string" && u.length > 0,
+    );
+    if (!job.audio_url || images.length === 0) {
+      throw new Error("Voiceover or scene visuals are missing — cannot compose the MP4.");
+    }
+
+    const scenes = (Array.isArray(job.scenes) ? job.scenes : []) as { caption?: string }[];
+    const captions = scenes.map((s, i) => s.caption?.trim() || `Scene ${i + 1}`);
+
+    setShowPercent(false);
+    setStepLabel("Composing the cut");
+    setProgress(75);
+    setComposeError(null);
+    setPendingComposeJob(job);
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    const { composeQuickJobMp4 } = await import("@/lib/render/quick-job-compose");
+    const output = await composeQuickJobMp4({
+      title: job.title || "Vidora video",
+      images,
+      audioUrl: job.audio_url,
+      captions,
+      durationSeconds: job.duration_seconds ?? Math.max(15, images.length * 6),
+      signal: controller.signal,
+      onProgress: (p) => {
+        setStepLabel(p.label);
+        // Stage labels only — no fabricated overall % during browser compose
+        setShowPercent(false);
+      },
+    });
+
+    setStepLabel("Saving final video");
+    const storagePath = `${user.id}/${job.id}/video.mp4`;
+    const upload = await supabase.storage
+      .from("generated-videos")
+      .upload(storagePath, output.blob, { contentType: "video/mp4", upsert: true });
+    if (upload.error) {
+      throw new Error(`Saving the MP4 failed: ${upload.error.message}`);
+    }
+
+    const finalized = (await finalize({
+      data: {
+        id: job.id,
+        path: storagePath,
+        file_size: output.blob.size,
+        duration: output.duration,
+        width: output.width,
+        height: output.height,
+      },
+    })) as JobResult;
+
+    abortRef.current = null;
+    setPendingComposeJob(null);
+    setShowPercent(true);
+    return finalized;
+  };
 
   const mutation = useMutation({
     mutationFn: async () => {
       setStepLabel("Writing narration");
       setProgress(8);
+      setShowPercent(true);
+      setComposeError(null);
+      setPendingComposeJob(null);
 
       let job = (await create({ data: { script, voice, format } })) as JobResult;
       setProgress(job.progress ?? 20);
       setStepLabel(job.step ?? "Recording voiceover");
 
-      // Advance one pipeline stage per call until the job settles.
       for (let i = 0; i < 90 && job.status === "running"; i++) {
+        if (needsClientCompose(job)) {
+          try {
+            job = await runClientCompose(job);
+          } catch (err) {
+            const message = err instanceof Error ? err.message : "Compose failed";
+            try {
+              job = (await failCompose({ data: { id: job.id, error: message } })) as JobResult;
+            } catch {
+              job = {
+                ...job,
+                status: "failed",
+                stage: "failed",
+                step: "Failed",
+                error: message,
+              };
+            }
+            throw new Error(message);
+          }
+          break;
+        }
+
         job = (await advance({ data: { id: job.id } })) as JobResult;
         setProgress(job.progress ?? 0);
         setStepLabel(job.step ?? "Working");
+        setShowPercent(true);
+
+        if (needsClientCompose(job)) {
+          continue;
+        }
         if (job.status === "running") await sleep(job.stage === "rendering" ? 4000 : 400);
       }
 
       if (job.status === "failed") throw new Error(job.error ?? "Render failed");
+      if (!isFinalVideoReady(job)) {
+        throw new Error("Render finished without a final MP4. Please retry.");
+      }
       return job;
     },
     onSuccess: (job) => {
       setProgress(100);
+      setShowPercent(true);
       setResult(job);
+      setComposeError(null);
+      setPendingComposeJob(null);
       queryClient.invalidateQueries();
     },
     onError: (error: Error) => {
       setProgress(0);
+      setComposeError(error.message || "Render failed");
       queryClient.invalidateQueries();
       toast.error(error.message || "Render failed");
     },
+  });
 
+  const retryCompose = useMutation({
+    mutationFn: async () => {
+      const job = pendingComposeJob;
+      if (!job) throw new Error("Nothing to retry.");
+      return runClientCompose(job);
+    },
+    onSuccess: (job) => {
+      setProgress(100);
+      setResult(job);
+      setComposeError(null);
+      setPendingComposeJob(null);
+      queryClient.invalidateQueries();
+      toast.success("Your MP4 is ready");
+    },
+    onError: (error: Error) => {
+      setComposeError(error.message || "Compose failed");
+      toast.error(error.message || "Compose failed");
+    },
   });
 
   const reset = () => {
+    abortRef.current?.abort();
+    abortRef.current = null;
     setResult(null);
     setProgress(0);
+    setShowPercent(true);
     setScript("");
+    setComposeError(null);
+    setPendingComposeJob(null);
     mutation.reset();
+    retryCompose.reset();
   };
 
-  const status = result ? "done" : mutation.isPending ? "generating" : "idle";
+  const ready = result && isFinalVideoReady(result);
+  const downloadUrl = result ? selectDownloadUrl(result) : null;
+  const status = ready
+    ? "done"
+    : mutation.isPending || retryCompose.isPending
+      ? "generating"
+      : composeError
+        ? "failed"
+        : "idle";
 
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        if (!next && !mutation.isPending) reset();
+        if (!next && !mutation.isPending && !retryCompose.isPending) reset();
         onOpenChange(next);
       }}
     >
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold tracking-tight">
-            {status === "done" ? "Your video is ready" : "Make a video"}
+            {status === "done"
+              ? "Your video is ready"
+              : status === "failed"
+                ? "Render failed"
+                : "Make a video"}
           </DialogTitle>
           <DialogDescription className="text-muted-foreground">
             Paste your script, pick a voice and format, and Vidora assembles the cut. Each render
@@ -160,34 +310,15 @@ export function GenerateVideoDialog({
               Sign in or create account
             </Link>
           </div>
-        ) : status === "done" && result ? (
-
+        ) : status === "done" && result && downloadUrl ? (
           <div className="space-y-6 py-4">
             <div className="relative overflow-hidden rounded-2xl border border-border bg-muted">
-              {result.result_url ? (
-                <video
-                  src={result.result_url}
-                  poster={result.thumbnail_url ?? undefined}
-                  controls
-                  className="aspect-video w-full bg-black"
-                />
-              ) : (
-                <>
-                  {result.thumbnail_url && (
-                    <img
-                      src={result.thumbnail_url}
-                      alt={`Thumbnail for ${result.title}`}
-                      className="aspect-video w-full object-cover"
-                      loading="lazy"
-                    />
-                  )}
-                  <div className="absolute inset-0 flex items-center justify-center bg-foreground/25">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-background/90 text-foreground shadow-lg">
-                      <Play className="h-6 w-6 fill-current" />
-                    </div>
-                  </div>
-                </>
-              )}
+              <video
+                src={downloadUrl}
+                poster={result.thumbnail_url ?? undefined}
+                controls
+                className="aspect-video w-full bg-black"
+              />
             </div>
             {result.audio_url && (
               <div className="rounded-xl border border-border bg-card p-4">
@@ -200,8 +331,7 @@ export function GenerateVideoDialog({
                 <div>
                   <p className="font-semibold text-foreground">{result.title}</p>
                   <p className="text-sm text-muted-foreground">
-                    {result.result_url ? "1080p · " : "Preview · "}
-                    {formatDuration(result.duration_seconds)}
+                    1080p · {formatDuration(result.duration_seconds)}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -215,6 +345,7 @@ export function GenerateVideoDialog({
                       format: result.format ?? null,
                       duration_seconds: result.duration_seconds,
                       audio_url: result.audio_url,
+                      result_url: result.result_url,
                       assets: result.assets,
                       scenes: result.scenes,
                     }}
@@ -222,12 +353,8 @@ export function GenerateVideoDialog({
                     variant="outline"
                     className="gap-2"
                   />
-                  <Button asChild className="gap-2" disabled={!result.result_url}>
-                    <a
-                      href={result.result_url ?? result.audio_url ?? "#"}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
+                  <Button asChild className="gap-2">
+                    <a href={downloadUrl} target="_blank" rel="noreferrer" download>
                       <Download className="h-4 w-4" />
                       Download
                     </a>
@@ -235,8 +362,6 @@ export function GenerateVideoDialog({
                 </div>
               </div>
             </div>
-
-
 
             {result.narration && (
               <div className="max-h-40 overflow-y-auto rounded-xl border border-border bg-muted/50 p-4 text-sm leading-relaxed text-muted-foreground">
@@ -263,14 +388,26 @@ export function GenerateVideoDialog({
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
                 <span className="font-medium text-foreground">{stepLabel}</span>
-                <span className="text-muted-foreground">{Math.round(progress)}%</span>
+                {showPercent ? (
+                  <span className="text-muted-foreground">{Math.round(progress)}%</span>
+                ) : (
+                  <span className="text-muted-foreground">Working…</span>
+                )}
               </div>
-              <Progress value={progress} className="h-2" />
+              {showPercent ? (
+                <Progress value={progress} className="h-2" />
+              ) : (
+                <div className="h-2 w-full overflow-hidden rounded-full bg-primary/20">
+                  <div className="h-full w-1/3 animate-pulse rounded-full bg-primary" />
+                </div>
+              )}
             </div>
             <div className="space-y-3">
               {PIPELINE.map((step) => {
-                const done = progress >= step.at;
-                const active = !done && progress >= step.at - 22;
+                const done = showPercent ? progress >= step.at : step.label !== "Composing the cut" && progress >= step.at;
+                const active =
+                  step.label === stepLabel ||
+                  (!done && showPercent && progress >= step.at - 22);
                 return (
                   <div
                     key={step.label}
@@ -289,14 +426,41 @@ export function GenerateVideoDialog({
                             : "border-border",
                       )}
                     >
-                      {done ? <Check className="h-3 w-3" /> : ""}
+                      {done ? <Check className="h-3 w-3" /> : active ? <Loader2 className="h-3 w-3 animate-spin" /> : ""}
                     </div>
                     {step.label}
                   </div>
                 );
               })}
             </div>
-
+          </div>
+        ) : status === "failed" ? (
+          <div className="space-y-6 py-6">
+            <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4">
+              <p className="text-sm font-medium text-destructive">
+                {composeError ?? "Render failed"}
+              </p>
+            </div>
+            <div className="flex gap-3">
+              {pendingComposeJob ? (
+                <Button
+                  className="flex-1 gap-2"
+                  onClick={() => retryCompose.mutate()}
+                  disabled={retryCompose.isPending}
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Retry compose
+                </Button>
+              ) : (
+                <Button className="flex-1 gap-2" onClick={() => mutation.mutate()}>
+                  <RotateCcw className="h-4 w-4" />
+                  Try again
+                </Button>
+              )}
+              <Button variant="outline" className="flex-1" onClick={reset}>
+                Start over
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="space-y-5 py-4">
