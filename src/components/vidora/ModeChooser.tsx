@@ -1,4 +1,4 @@
-import { Clapperboard, Mic2 } from "lucide-react";
+import { Clapperboard, Mic2, Sparkles } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
-export type CreationModeChoice = "script" | "voiceover";
+export type CreationModeChoice = "script" | "voiceover" | "auto_edit";
 
 export function ModeChooser({
   open,
@@ -21,12 +21,12 @@ export function ModeChooser({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>New video</DialogTitle>
           <DialogDescription>Choose how you want to create this video.</DialogDescription>
         </DialogHeader>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-3">
           <button
             type="button"
             className={cn(
@@ -55,6 +55,21 @@ export function ModeChooser({
             <p className="font-semibold text-foreground">Voiceover Mode</p>
             <p className="text-sm text-muted-foreground">
               Mode 2 — upload footage, set rights, generate commentary + ElevenLabs VO.
+            </p>
+          </button>
+          <button
+            type="button"
+            className={cn(
+              "flex flex-col items-start gap-2 rounded-2xl border border-border bg-card p-4 text-left transition hover:border-primary/60 hover:bg-primary/5",
+            )}
+            onClick={() => onChoose("auto_edit")}
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <p className="font-semibold text-foreground">Automatic Edit</p>
+            <p className="text-sm text-muted-foreground">
+              Mode 3 — upload video, target duration/aspect, auto trim + captions (optional VO).
             </p>
           </button>
         </div>
