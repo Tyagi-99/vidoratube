@@ -2,6 +2,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
 const BUCKET = "generated-videos";
+
+function looksLikeMp4(bytes: ArrayBuffer | Uint8Array): boolean {
+  const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  if (u8.length < 12) return false;
+  return u8[4] === 0x66 && u8[5] === 0x74 && u8[6] === 0x79 && u8[7] === 0x70;
+}
+
 const SIGNED_URL_TTL = 60 * 60 * 24 * 365; // 1 year
 
 const TTS_MODEL = "openai/gpt-4o-mini-tts";
@@ -279,6 +286,12 @@ export async function storeFinishedVideo(
   const res = await fetch(sourceUrl);
   if (!res.ok) throw new Error("Could not download the finished video.");
   const bytes = await res.arrayBuffer();
+  if (bytes.byteLength < 1024) {
+    throw new Error("Finished video file is empty or truncated.");
+  }
+  if (!looksLikeMp4(bytes)) {
+    throw new Error("Finished video is not a valid MP4.");
+  }
   return upload(admin, `${userId}/${jobId}/video.mp4`, bytes, "video/mp4");
 }
 
