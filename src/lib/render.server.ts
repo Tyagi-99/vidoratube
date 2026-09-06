@@ -14,14 +14,28 @@ const SIGNED_URL_TTL = 60 * 60 * 24 * 365; // 1 year
 const TTS_MODEL = "openai/gpt-4o-mini-tts";
 const IMAGE_MODEL = "google/gemini-2.5-flash-image";
 
-/** Maps Vidora's voice names to the underlying TTS voices. */
+/** Maps Vidora's voice names to Lovable/OpenAI TTS voices. */
 const VOICE_MAP: Record<string, string> = {
   deneb: "alloy",
+  sirius: "echo",
   vega: "shimmer",
+  altair: "fable",
   orion: "onyx",
   lyra: "nova",
   atlas: "echo",
   nova: "nova",
+};
+
+/**
+ * Maps quick-generate voice nicknames to ElevenLabs voice IDs.
+ * Unknown names fall back to DEFAULT_VOICE_ID (George).
+ */
+const ELEVENLABS_VOICE_MAP: Record<string, string> = {
+  // George / Adam / Rachel / Bella — stable public ElevenLabs IDs
+  deneb: "JBFqnCBsd6RMkjVDRZzb",
+  sirius: "pNInz6obpgDQGcFmaJgB",
+  vega: "21m00Tcm4TlvDq8ikWAM",
+  altair: "EXAVITQu4vr4xnSDxMaL",
 };
 
 function apiKey(): string {
@@ -84,14 +98,10 @@ function base64ToBytes(b64: string): Uint8Array {
   return bytes;
 }
 
-/** Generates the narration audio track and stores it. */
-export async function generateVoiceover(
-  admin: SupabaseClient<Database>,
-  jobId: string,
-  userId: string,
+async function generateVoiceoverViaGateway(
   narration: string,
   voice: string,
-): Promise<{ url: string; estimatedSeconds: number }> {
+): Promise<ArrayBuffer> {
   const res = await fetch("https://ai.gateway.lovable.dev/v1/audio/speech", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey()}`, "Content-Type": "application/json" },
@@ -103,12 +113,53 @@ export async function generateVoiceover(
     }),
   });
   if (!res.ok) throw gatewayError(res.status, await res.text().catch(() => ""));
+  return res.arrayBuffer();
+}
 
+/** Generates the narration audio track and stores it. Prefers ElevenLabs when configured. */
+export async function generateVoiceover(
+  admin: SupabaseClient<Database>,
+  jobId: string,
+  userId: string,
+  narration: string,
+  voice: string,
+): Promise<{ url: string; estimatedSeconds: number }> {
+  const text = narration.slice(0, 4000);
+  let audio: ArrayBuffer | null = null;
+  let estimatedSeconds: number | null = null;
 
-  const audio = await res.arrayBuffer();
+  try {
+    const {
+      elevenLabsConfigured,
+      synthesize,
+      mp3Duration,
+      DEFAULT_VOICE_ID,
+      DEFAULT_VOICE_MODEL,
+    } = await import("./providers/voice.server");
+    if (elevenLabsConfigured()) {
+      const voiceId = ELEVENLABS_VOICE_MAP[voice.toLowerCase()] ?? DEFAULT_VOICE_ID;
+      audio = await synthesize(text, {
+        voiceId,
+        model: DEFAULT_VOICE_MODEL,
+      });
+      estimatedSeconds = Math.max(8, Math.round(mp3Duration(audio, text)));
+    }
+  } catch (error) {
+    console.warn(
+      `[vidora] ElevenLabs voiceover failed for job ${jobId}; falling back to gateway TTS:`,
+      error instanceof Error ? error.message : error,
+    );
+    audio = null;
+  }
+
+  if (!audio) {
+    audio = await generateVoiceoverViaGateway(narration, voice);
+    const words = narration.trim().split(/\s+/).length;
+    estimatedSeconds = Math.max(8, Math.round((words / 150) * 60));
+  }
+
   const url = await upload(admin, `${userId}/${jobId}/narration.mp3`, audio, "audio/mpeg");
-  const words = narration.trim().split(/\s+/).length;
-  return { url, estimatedSeconds: Math.max(8, Math.round((words / 150) * 60)) };
+  return { url, estimatedSeconds: estimatedSeconds ?? 8 };
 }
 
 /** Generates one cinematic still per scene and stores them. */

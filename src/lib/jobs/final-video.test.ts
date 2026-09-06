@@ -95,3 +95,20 @@ describe("validation helpers", () => {
     expect(validateClientFinalizeMeta({ file_size: 5000, duration: 12.5 })).toBeNull();
   });
 });
+
+describe("Phase 1 ready gate", () => {
+  it("ready modal requires result_url (not audio-only)", () => {
+    const audioOnly = {
+      status: "completed",
+      result_url: null as string | null,
+      audio_url: "https://cdn/narration.mp3",
+    };
+    expect(isFinalVideoReady(audioOnly)).toBe(false);
+    expect(selectDownloadUrl(audioOnly)).toBeNull();
+  });
+
+  it("download URL is the muxed MP4 result_url", () => {
+    const job = { result_url: "https://cdn/final.mp4" };
+    expect(selectDownloadUrl(job)).toBe("https://cdn/final.mp4");
+  });
+});
