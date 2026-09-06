@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { GenerateVideoDialog } from "@/components/vidora/GenerateVideoDialog";
 import { YouTubePanel } from "@/components/vidora/YouTubePanel";
 import { CapCutExportButton } from "@/components/vidora/CapCutExportButton";
+import { ResumeComposeButton, isStalledCompose } from "@/components/vidora/ResumeComposeButton";
 
 import { publishJobToYouTube } from "@/lib/youtube.functions";
 import { getMyAccount, listMyJobs, deleteMyJob } from "@/lib/jobs.functions";
@@ -197,7 +198,16 @@ function StudioPage() {
                     <span>{new Date(job.created_at).toLocaleDateString()}</span>
                   </div>
                   {job.error && <p className="text-xs text-destructive">{job.error}</p>}
+                  {isStalledCompose(job) && (
+                    <p className="text-xs text-muted-foreground">
+                      Voiceover and visuals are ready — the final video is put together in this
+                      tab. Keep this page open while it finishes.
+                    </p>
+                  )}
                   <div className="flex flex-wrap gap-2">
+                    {isStalledCompose(job) && (
+                      <ResumeComposeButton job={job} className="flex-1 gap-1" />
+                    )}
                     {job.result_url && (
                       <Button asChild size="sm" variant="outline" className="flex-1">
                         <a href={job.result_url} target="_blank" rel="noreferrer">
