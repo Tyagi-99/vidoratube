@@ -248,12 +248,11 @@ let ffmpegSingleton: Ffmpeg | null = null;
 export async function loadFfmpeg(onLog?: (line: string) => void): Promise<Ffmpeg> {
   if (ffmpegSingleton) return ffmpegSingleton;
   const [{ FFmpeg }, { toBlobURL }] = await Promise.all([import("@ffmpeg/ffmpeg"), import("@ffmpeg/util")]);
-  // Bundle the ffmpeg core with the app (no CDN dependency).
-  const [{ default: coreJsUrl }, { default: coreWasmUrl }, { default: workerUrl }] = await Promise.all([
-    import("@ffmpeg/core/dist/umd/ffmpeg-core.js?url"),
-    import("@ffmpeg/core/dist/umd/ffmpeg-core.wasm?url"),
-    import("@ffmpeg/ffmpeg/dist/umd/814.ffmpeg.js?url"),
-  ]);
+  // Serve the ffmpeg core from the app itself (no CDN dependency).
+  const { default: coreWasmAsset } = await import("./ffmpeg-core-wasm.asset.json");
+  const coreJsUrl = "/wasm/ffmpeg-core.js";
+  const coreWasmUrl = coreWasmAsset.url;
+  const workerUrl = "/wasm/ffmpeg-worker.js";
   const ffmpeg = new FFmpeg();
   if (onLog) ffmpeg.on("log", ({ message }) => onLog(message));
 
