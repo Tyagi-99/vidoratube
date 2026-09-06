@@ -322,6 +322,7 @@ export type Database = {
           audio_url: string | null
           category: string | null
           created_at: string
+          creation_mode: string
           duration_minutes: number
           error: string | null
           id: string
@@ -349,6 +350,7 @@ export type Database = {
           audio_url?: string | null
           category?: string | null
           created_at?: string
+          creation_mode?: string
           duration_minutes?: number
           error?: string | null
           id?: string
@@ -376,6 +378,7 @@ export type Database = {
           audio_url?: string | null
           category?: string | null
           created_at?: string
+          creation_mode?: string
           duration_minutes?: number
           error?: string | null
           id?: string

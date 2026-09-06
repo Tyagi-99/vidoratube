@@ -40,6 +40,9 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Copy, Film, Loader2, Plus, Trash2 } from "lucide-react";
+import { ModeChooser } from "@/components/vidora/ModeChooser";
+import { VoiceoverCreateDialog } from "@/components/vidora/VoiceoverCreateDialog";
+import { projectCreationMode } from "@/lib/mode2/settings";
 
 export const Route = createFileRoute("/_authenticated/projects/")({
   head: () => ({
@@ -65,6 +68,8 @@ const statusStyles: Record<string, string> = {
 
 function ProjectsPage() {
   const [open, setOpen] = useState(false);
+  const [modeChooserOpen, setModeChooserOpen] = useState(false);
+  const [voiceoverOpen, setVoiceoverOpen] = useState(false);
   const queryClient = useQueryClient();
   const listFn = useServerFn(listProjects);
   const removeFn = useServerFn(deleteProject);
@@ -105,7 +110,7 @@ function ProjectsPage() {
               Every video starts as a project: script, scenes, visuals, voice and captions.
             </p>
           </div>
-          <Button onClick={() => setOpen(true)} className="gap-2">
+          <Button onClick={() => setModeChooserOpen(true)} className="gap-2">
             <Plus className="h-4 w-4" />
             New project
           </Button>
@@ -129,7 +134,7 @@ function ProjectsPage() {
                   Pick a topic and Vidora writes the script, finds the visuals and records the voice.
                 </p>
               </div>
-              <Button onClick={() => setOpen(true)} className="gap-2">
+              <Button onClick={() => setModeChooserOpen(true)} className="gap-2">
                 <Plus className="h-4 w-4" />
                 Create your first project
               </Button>
@@ -166,7 +171,9 @@ function ProjectsPage() {
                   </Link>
                   <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     <Badge variant="secondary" className="capitalize">
-                      {project.mode} mode
+                      {projectCreationMode(project) === "voiceover"
+                        ? "voiceover"
+                        : `${project.mode} mode`}
                     </Badge>
                     <Badge variant="secondary">{project.duration_minutes} min</Badge>
                     <span>{new Date(project.created_at).toLocaleDateString()}</span>
@@ -201,7 +208,17 @@ function ProjectsPage() {
         )}
       </div>
 
+      <ModeChooser
+        open={modeChooserOpen}
+        onOpenChange={setModeChooserOpen}
+        onChoose={(mode) => {
+          setModeChooserOpen(false);
+          if (mode === "voiceover") setVoiceoverOpen(true);
+          else setOpen(true);
+        }}
+      />
       <NewProjectDialog open={open} onOpenChange={setOpen} />
+      <VoiceoverCreateDialog open={voiceoverOpen} onOpenChange={setVoiceoverOpen} />
     </main>
   );
 }
