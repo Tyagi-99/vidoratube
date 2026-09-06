@@ -120,6 +120,17 @@ export const completeRender = createServerFn({ method: "POST" })
       .select("*")
       .single();
     if (error) throw new Error(error.message);
+
+    // Studio path: promote finished render URL onto the project when missing.
+    if (row?.project_id && row.file_url) {
+      await context.supabase
+        .from("projects")
+        .update({ result_url: row.file_url })
+        .eq("id", row.project_id)
+        .eq("user_id", context.userId)
+        .is("result_url", null);
+    }
+
     return row;
   });
 

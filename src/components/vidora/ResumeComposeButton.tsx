@@ -17,6 +17,8 @@ type JobLike = {
   result_url: string | null;
   audio_url: string | null;
   duration_seconds: number | null;
+  narration?: string | null;
+  script?: string | null;
   assets?: unknown;
   scenes?: unknown;
 };
@@ -50,7 +52,7 @@ export function ResumeComposeButton({
         throw new Error("Voiceover or scene visuals are missing — cannot compose the MP4.");
       }
       const scenes = (Array.isArray(job.scenes) ? job.scenes : []) as { caption?: string }[];
-      const captions = scenes.map((s, i) => s.caption?.trim() || `Scene ${i + 1}`);
+      const captions = scenes.map((s) => (s.caption ?? "").trim());
 
       const controller = new AbortController();
       abortRef.current = controller;
@@ -62,6 +64,7 @@ export function ResumeComposeButton({
         images,
         audioUrl: job.audio_url,
         captions,
+        narration: job.narration || job.script || "",
         durationSeconds: job.duration_seconds ?? Math.max(15, images.length * 6),
         signal: controller.signal,
         onProgress: (p) => setLabel(p.label),

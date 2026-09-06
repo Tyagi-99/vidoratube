@@ -22,9 +22,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
-import { Check, Download, Loader2, RotateCcw, Wand2 } from "lucide-react";
+import { Check, Loader2, RotateCcw, Wand2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { CapCutExportButton } from "@/components/vidora/CapCutExportButton";
+import { FinalVideoPreview } from "@/components/vidora/FinalVideoPreview";
 import { supabase } from "@/integrations/supabase/client";
 
 import {
@@ -36,7 +36,6 @@ import {
 import {
   isFinalVideoReady,
   needsClientCompose,
-  selectDownloadUrl,
 } from "@/lib/jobs/final-video";
 import { toast } from "sonner";
 
@@ -66,13 +65,6 @@ type JobResult = {
   assets?: unknown;
   scenes?: unknown;
 };
-
-function formatDuration(seconds: number | null) {
-  if (!seconds) return "—";
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}:${String(s).padStart(2, "0")}`;
-}
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -112,7 +104,7 @@ export function GenerateVideoDialog({
     }
 
     const scenes = (Array.isArray(job.scenes) ? job.scenes : []) as { caption?: string }[];
-    const captions = scenes.map((s, i) => s.caption?.trim() || `Scene ${i + 1}`);
+    const captions = scenes.map((s) => (s.caption ?? "").trim());
 
     setShowPercent(false);
     setStepLabel("Composing the cut");
@@ -129,6 +121,7 @@ export function GenerateVideoDialog({
       images,
       audioUrl: job.audio_url,
       captions,
+      narration: job.narration || job.script || "",
       durationSeconds: job.duration_seconds ?? Math.max(15, images.length * 6),
       signal: controller.signal,
       onProgress: (p) => {
@@ -265,7 +258,6 @@ export function GenerateVideoDialog({
   };
 
   const ready = result && isFinalVideoReady(result);
-  const downloadUrl = result ? selectDownloadUrl(result) : null;
   const status = ready
     ? "done"
     : mutation.isPending || retryCompose.isPending
@@ -310,74 +302,12 @@ export function GenerateVideoDialog({
               Sign in or create account
             </Link>
           </div>
-        ) : status === "done" && result && downloadUrl ? (
-          <div className="space-y-6 py-4">
-            <div className="relative overflow-hidden rounded-2xl border border-border bg-muted">
-              <video
-                src={downloadUrl}
-                poster={result.thumbnail_url ?? undefined}
-                controls
-                className="aspect-video w-full bg-black"
-              />
-            </div>
-            {result.audio_url && (
-              <div className="rounded-xl border border-border bg-card p-4">
-                <p className="mb-2 text-sm font-medium text-foreground">Voiceover</p>
-                <audio src={result.audio_url} controls className="w-full" />
-              </div>
-            )}
-            <div className="rounded-xl border border-border bg-card p-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="font-semibold text-foreground">{result.title}</p>
-                  <p className="text-sm text-muted-foreground">
-                    1080p · {formatDuration(result.duration_seconds)}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CapCutExportButton
-                    job={{
-                      id: result.id,
-                      title: result.title,
-                      narration: result.narration,
-                      script: result.script ?? null,
-                      voice: result.voice ?? null,
-                      format: result.format ?? null,
-                      duration_seconds: result.duration_seconds,
-                      audio_url: result.audio_url,
-                      result_url: result.result_url,
-                      assets: result.assets,
-                      scenes: result.scenes,
-                    }}
-                    size="default"
-                    variant="outline"
-                    className="gap-2"
-                  />
-                  <Button asChild className="gap-2">
-                    <a href={downloadUrl} target="_blank" rel="noreferrer" download>
-                      <Download className="h-4 w-4" />
-                      Download
-                    </a>
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            {result.narration && (
-              <div className="max-h-40 overflow-y-auto rounded-xl border border-border bg-muted/50 p-4 text-sm leading-relaxed text-muted-foreground">
-                {result.narration}
-              </div>
-            )}
-
-            <div className="flex gap-3">
-              <Button onClick={reset} variant="outline" className="flex-1">
-                Make another
-              </Button>
-              <Button onClick={() => onOpenChange(false)} className="flex-1">
-                Done
-              </Button>
-            </div>
-          </div>
+        ) : status === "done" && result ? (
+          <FinalVideoPreview
+            job={result}
+            onMakeAnother={reset}
+            onDone={() => onOpenChange(false)}
+          />
         ) : status === "generating" ? (
           <div className="space-y-6 py-8">
             <div className="flex items-center justify-center">
