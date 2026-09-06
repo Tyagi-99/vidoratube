@@ -248,12 +248,12 @@ let ffmpegSingleton: Ffmpeg | null = null;
 export async function loadFfmpeg(onLog?: (line: string) => void): Promise<Ffmpeg> {
   if (ffmpegSingleton) return ffmpegSingleton;
   const { FFmpeg } = await import("@ffmpeg/ffmpeg");
-  // FFmpeg v0.12 spawns its worker with `type: "module"`, so it needs the ESM
-  // worker + ESM core (a classic/UMD script makes importScripts throw inside a
-  // module worker). Vite bundles the worker from the package; the core js and
-  // wasm are served same-origin (no CDN dependency).
+  // FFmpeg v0.12 spawns its worker with `type: "module"`, so it needs a module
+  // worker + the ESM core (a classic/UMD script makes importScripts throw inside
+  // a module worker). The worker is our own module bundled by Vite; the core js
+  // and wasm are served same-origin (no CDN dependency).
   const [{ default: workerUrl }, { default: coreWasmAsset }] = await Promise.all([
-    import("@ffmpeg/ffmpeg/dist/esm/worker.js?worker&url"),
+    import("./ffmpeg-worker?worker&url"),
     import("./ffmpeg-core-wasm.asset.json"),
   ]);
   const ffmpeg = new FFmpeg();
