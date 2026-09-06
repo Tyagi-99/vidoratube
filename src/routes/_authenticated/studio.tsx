@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { GenerateVideoDialog } from "@/components/vidora/GenerateVideoDialog";
 import { ModeChooser } from "@/components/vidora/ModeChooser";
 import { VoiceoverCreateDialog } from "@/components/vidora/VoiceoverCreateDialog";
+import { AutoEditCreateDialog } from "@/components/vidora/AutoEditCreateDialog";
 import { YouTubePanel } from "@/components/vidora/YouTubePanel";
 import { CapCutExportButton } from "@/components/vidora/CapCutExportButton";
 import { ResumeComposeButton, isStalledCompose } from "@/components/vidora/ResumeComposeButton";
@@ -45,6 +46,7 @@ function StudioPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [modeChooserOpen, setModeChooserOpen] = useState(false);
   const [voiceoverOpen, setVoiceoverOpen] = useState(false);
+  const [autoEditOpen, setAutoEditOpen] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -274,11 +276,13 @@ function StudioPage() {
         onChoose={(mode) => {
           setModeChooserOpen(false);
           if (mode === "voiceover") setVoiceoverOpen(true);
+          else if (mode === "auto_edit") setAutoEditOpen(true);
           else setDialogOpen(true);
         }}
       />
       <GenerateVideoDialog open={dialogOpen} onOpenChange={setDialogOpen} />
       <VoiceoverCreateDialog open={voiceoverOpen} onOpenChange={setVoiceoverOpen} />
+      <AutoEditCreateDialog open={autoEditOpen} onOpenChange={setAutoEditOpen} />
     </main>
   );
 }

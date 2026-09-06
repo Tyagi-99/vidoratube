@@ -23,6 +23,7 @@ import {
 import { ArrowLeft, Download, ImageIcon, Loader2, Play, RefreshCw, Trash2, Wand2 } from "lucide-react";
 import { RenderPanel } from "@/components/vidora/RenderPanel";
 import { VoiceoverEditorPanel } from "@/components/vidora/VoiceoverEditorPanel";
+import { AutoEditEditorPanel } from "@/components/vidora/AutoEditEditorPanel";
 import { projectCreationMode } from "@/lib/mode2/settings";
 
 
@@ -113,7 +114,8 @@ function ProjectEditor() {
     );
   }
 
-  if (projectCreationMode(project) === "voiceover") {
+  const creationMode = projectCreationMode(project);
+  if (creationMode === "voiceover" || creationMode === "auto_edit") {
     return (
       <main className="min-h-screen bg-top-glow px-4 py-10 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-5xl space-y-6">
@@ -126,7 +128,11 @@ function ProjectEditor() {
             </Button>
             <h1 className="text-2xl font-bold tracking-tight text-foreground">{project.title}</h1>
           </div>
-          <VoiceoverEditorPanel project={project} captions={captions} />
+          {creationMode === "auto_edit" ? (
+            <AutoEditEditorPanel project={project} captions={captions} />
+          ) : (
+            <VoiceoverEditorPanel project={project} captions={captions} />
+          )}
         </div>
       </main>
     );
