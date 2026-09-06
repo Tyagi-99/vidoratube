@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { GenerateVideoDialog } from "@/components/vidora/GenerateVideoDialog";
 import { YouTubePanel } from "@/components/vidora/YouTubePanel";
 import { CapCutExportButton } from "@/components/vidora/CapCutExportButton";
+import { ResumeComposeButton, isStalledCompose } from "@/components/vidora/ResumeComposeButton";
 
 import { publishJobToYouTube } from "@/lib/youtube.functions";
 import { getMyAccount, listMyJobs, deleteMyJob } from "@/lib/jobs.functions";
