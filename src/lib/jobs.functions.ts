@@ -3,6 +3,11 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
 import { generateVideoPlan } from "./jobs.server";
+import {
+  looksLikeMp4,
+  nextStageAfterVisuals,
+  validateClientFinalizeMeta,
+} from "./jobs/final-video";
 
 export const getMyAccount = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -196,12 +201,13 @@ export const advanceVideoJob = createServerFn({ method: "POST" })
             scenes,
             job.format,
           );
+          const next = nextStageAfterVisuals(shotstackConfigured());
           return await save({
             assets: images,
             thumbnail_url: images[0] ?? job.thumbnail_url,
-            stage: shotstackConfigured() ? "render" : "preview",
-            progress: 70,
-            step: shotstackConfigured() ? "Composing the cut" : "Finishing preview",
+            stage: next.stage,
+            progress: next.progress,
+            step: next.step,
           });
         }
 
@@ -245,14 +251,12 @@ export const advanceVideoJob = createServerFn({ method: "POST" })
           return await save({ progress: Math.min(96, (job.progress ?? 80) + 3) });
         }
 
+        case "client_render":
         case "preview": {
-          return await save({
-            status: "completed",
-            stage: "done",
-            progress: 100,
-            step: "Preview ready",
-            error: null,
-          });
+          // Stills + voiceover ready; final MP4 is composed in the browser
+          // when Shotstack is not configured. Do not mark completed here —
+          // finalize attaches result_url after upload + validation.
+          return job;
         }
 
         default:
@@ -289,4 +293,119 @@ export const updateMyProfile = createServerFn({ method: "POST" })
       .eq("id", context.userId);
     if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+const SIGNED_URL_TTL = 60 * 60 * 24 * 365;
+const VIDEO_BUCKET = "generated-videos";
+
+/**
+ * After the browser composes and uploads video.mp4, validate the object and
+ * attach result_url. Does not overwrite audio_url.
+ */
+export const finalizeVideoJob = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        path: z.string().min(8).max(400),
+        file_size: z.number().int().nonnegative(),
+        duration: z.number().positive(),
+        width: z.number().int().positive().optional(),
+        height: z.number().int().positive().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const metaError = validateClientFinalizeMeta({
+      file_size: data.file_size,
+      duration: data.duration,
+    });
+    if (metaError) throw new Error(metaError);
+
+    const expectedPath = `${userId}/${data.id}/video.mp4`;
+    if (data.path !== expectedPath) {
+      throw new Error("Invalid upload path for this job.");
+    }
+
+    const { data: job, error: jobError } = await supabase
+      .from("video_jobs")
+      .select("*")
+      .eq("id", data.id)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (jobError) throw new Error(jobError.message);
+    if (!job) throw new Error("Job not found");
+    if (job.status === "completed" && job.result_url) return job;
+
+    const { data: blob, error: dlError } = await supabase.storage
+      .from(VIDEO_BUCKET)
+      .download(data.path);
+    if (dlError || !blob) {
+      throw new Error(
+        `Final video missing from storage: ${dlError?.message ?? "not found"}`,
+      );
+    }
+    if (blob.size < 1024) {
+      throw new Error("Uploaded video is empty or truncated.");
+    }
+
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    if (!looksLikeMp4(bytes)) {
+      throw new Error("Uploaded file is not a valid MP4 (missing ftyp).");
+    }
+
+    const { data: signed, error: signError } = await supabase.storage
+      .from(VIDEO_BUCKET)
+      .createSignedUrl(data.path, SIGNED_URL_TTL);
+    if (signError || !signed?.signedUrl) {
+      throw new Error(signError?.message ?? "Could not sign result URL");
+    }
+
+    const { data: updated, error } = await supabase
+      .from("video_jobs")
+      .update({
+        result_url: signed.signedUrl,
+        duration_seconds: Math.round(data.duration),
+        status: "completed",
+        stage: "done",
+        progress: 100,
+        step: "Ready",
+        error: null,
+      })
+      .eq("id", data.id)
+      .eq("user_id", userId)
+      .select("*")
+      .single();
+    if (error) throw new Error(error.message);
+    return updated;
+  });
+
+/** Mark a quick-generate job failed when browser compose/upload fails. */
+export const failVideoJobCompose = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        error: z.string().trim().min(1).max(1000),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: updated, error } = await context.supabase
+      .from("video_jobs")
+      .update({
+        status: "failed",
+        stage: "failed",
+        step: "Failed",
+        error: data.error.slice(0, 1000),
+      })
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .select("*")
+      .single();
+    if (error) throw new Error(error.message);
+    return updated;
   });

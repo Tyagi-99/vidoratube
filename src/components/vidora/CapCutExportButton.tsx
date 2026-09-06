@@ -14,6 +14,8 @@ export type ExportableJob = {
   format: string | null;
   duration_seconds: number | null;
   audio_url: string | null;
+  /** Final muxed MP4 when available — preferred over VO+stills zip-only. */
+  result_url?: string | null;
   assets: unknown;
   scenes: unknown;
 };
@@ -92,13 +94,19 @@ export function CapCutExportButton({
           `${title}`,
           `Format: ${job.format ?? "—"}   Voice: ${job.voice ?? "—"}   Approx. length: ${Math.round(duration)}s`,
           "",
-          "How to assemble in CapCut:",
-          "1. New project -> import everything in /images and audio/narration.mp3.",
-          "2. Drop narration.mp3 on the audio track first — it sets the total length.",
-          "3. Lay the stills on the video track in order and stretch them evenly to fill the audio.",
-          "4. Add a slow zoom (Ken Burns) to each still so nothing sits static.",
-          "5. Captions -> Import captions -> pick captions.srt, then restyle to taste.",
-          "6. Export 1080p / 30fps, then publish from Vidora or upload to YouTube.",
+          job.result_url
+            ? "This package includes video.mp4 — the final muxed render from Vidora."
+            : "This package has voiceover + stills (not a final MP4). Assemble in CapCut:",
+          job.result_url
+            ? "Import video.mp4 into CapCut for further edits, or use the Download button for the MP4 alone."
+            : "1. New project -> import everything in /images and audio/narration.mp3.",
+          job.result_url ? "" : "2. Drop narration.mp3 on the audio track first — it sets the total length.",
+          job.result_url ? "" : "3. Lay the stills on the video track in order and stretch them evenly to fill the audio.",
+          job.result_url ? "" : "4. Add a slow zoom (Ken Burns) to each still so nothing sits static.",
+          job.result_url
+            ? "captions.srt and shot-list.txt are included for reference."
+            : "5. Captions -> Import captions -> pick captions.srt, then restyle to taste.",
+          job.result_url ? "" : "6. Export 1080p / 30fps, then publish from Vidora or upload to YouTube.",
           "",
           "shot-list.txt holds the per-scene visual direction if you swap in your own footage.",
         ].join("\n"),
@@ -109,6 +117,10 @@ export function CapCutExportButton({
         if (!res.ok) throw new Error(`Could not download an asset (${res.status})`);
         return res.arrayBuffer();
       };
+
+      if (job.result_url) {
+        zip.file("video.mp4", await fetchBinary(job.result_url));
+      }
 
       if (job.audio_url) {
         zip.file("audio/narration.mp3", await fetchBinary(job.audio_url));
@@ -129,7 +141,7 @@ export function CapCutExportButton({
       a.click();
       a.remove();
       URL.revokeObjectURL(href);
-      toast.success("CapCut package downloaded");
+      toast.success(job.result_url ? "CapCut package (with MP4) downloaded" : "CapCut package downloaded");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Export failed");
     } finally {

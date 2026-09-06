@@ -54,6 +54,8 @@ export type RenderOptions = {
   burnCaptions?: boolean;
   musicUrl?: string | null;
   musicVolume?: number;
+  /** Full-timeline voiceover mixed after scene join (quick-generate path). */
+  voiceoverUrl?: string | null;
   mediaFit?: "cover" | "contain";
   fps?: number;
   onProgress?: (p: RenderProgress) => void;
@@ -534,9 +536,48 @@ export async function renderProject(scenes: RenderScene[], options: RenderOption
       await ffmpeg.deleteFile(`seg${String(i).padStart(4, "0")}.mp4`).catch(() => undefined);
     }
 
-    /* Stages 5–7: narration is already baked per scene; mix music with ducking. */
-    report("narration", 82, "Narration mixed per scene");
+    /* Stages 5–7: optional full-timeline voiceover, then music with ducking. */
+    report("narration", 82, options.voiceoverUrl ? "Mixing voiceover" : "Narration mixed per scene");
     let finalName = "joined.mp4";
+
+    if (options.voiceoverUrl) {
+      throwIfCancelled(signal);
+      try {
+        const vo = await fetchBytes(options.voiceoverUrl);
+        const voName = `vo.${extFromUrl(options.voiceoverUrl, "mp3")}`;
+        await ffmpeg.writeFile(voName, vo);
+        await ffmpeg.exec([
+          "-i",
+          finalName,
+          "-i",
+          voName,
+          "-map",
+          "0:v",
+          "-map",
+          "1:a",
+          "-c:v",
+          "copy",
+          "-c:a",
+          "aac",
+          "-b:a",
+          "160k",
+          "-ar",
+          "44100",
+          "-ac",
+          "2",
+          "-shortest",
+          "-movflags",
+          "+faststart",
+          "-y",
+          "voiced.mp4",
+        ]);
+        await ffmpeg.deleteFile(voName).catch(() => undefined);
+        await ffmpeg.deleteFile(finalName).catch(() => undefined);
+        finalName = "voiced.mp4";
+      } catch (error) {
+        throw new Error(`Voiceover mux failed: ${(error as Error).message}`);
+      }
+    }
 
     if (options.musicUrl) {
       throwIfCancelled(signal);
@@ -548,7 +589,7 @@ export async function renderProject(scenes: RenderScene[], options: RenderOption
         const vol = options.musicVolume ?? 0.12;
         await ffmpeg.exec([
           "-i",
-          "joined.mp4",
+          finalName,
           "-stream_loop",
           "-1",
           "-i",
@@ -572,7 +613,7 @@ export async function renderProject(scenes: RenderScene[], options: RenderOption
           "mixed.mp4",
         ]);
         await ffmpeg.deleteFile(musicName).catch(() => undefined);
-        await ffmpeg.deleteFile("joined.mp4").catch(() => undefined);
+        await ffmpeg.deleteFile(finalName).catch(() => undefined);
         finalName = "mixed.mp4";
       } catch (error) {
         report("music", 88, `Music skipped: ${(error as Error).message}`);
