@@ -784,11 +784,620 @@ export type Database = {
         }
         Relationships: []
       }
+
+      content_assets: {
+        Row: {
+          bytes: number | null
+          checksum_sha256: string | null
+          content_item_id: string
+          created_at: string
+          duration_seconds: number | null
+          height: number | null
+          id: string
+          kind: string
+          mime_type: string | null
+          origin: string
+          perceptual_hash: string | null
+          rights_basis: string
+          source_url: string | null
+          storage_path: string | null
+          technical_metadata: Json
+          updated_at: string
+          user_id: string
+          width: number | null
+        }
+        Insert: {
+          bytes?: number | null
+          checksum_sha256?: string | null
+          content_item_id: string
+          created_at?: string
+          duration_seconds?: number | null
+          height?: number | null
+          id?: string
+          kind: string
+          mime_type?: string | null
+          origin: string
+          perceptual_hash?: string | null
+          rights_basis?: string
+          source_url?: string | null
+          storage_path?: string | null
+          technical_metadata?: Json
+          updated_at?: string
+          user_id: string
+          width?: number | null
+        }
+        Update: {
+          bytes?: number | null
+          checksum_sha256?: string | null
+          content_item_id?: string
+          created_at?: string
+          duration_seconds?: number | null
+          height?: number | null
+          id?: string
+          kind?: string
+          mime_type?: string | null
+          origin?: string
+          perceptual_hash?: string | null
+          rights_basis?: string
+          source_url?: string | null
+          storage_path?: string | null
+          technical_metadata?: Json
+          updated_at?: string
+          user_id?: string
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_assets_content_item_id_fkey"
+            columns: ["content_item_id"]
+            isOneToOne: false
+            referencedRelation: "content_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_duplicate_flags: {
+        Row: {
+          confidence: number
+          content_item_id: string
+          created_at: string
+          details: Json
+          duplicate_of_id: string | null
+          id: string
+          match_type: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          confidence?: number
+          content_item_id: string
+          created_at?: string
+          details?: Json
+          duplicate_of_id?: string | null
+          id?: string
+          match_type: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          confidence?: number
+          content_item_id?: string
+          created_at?: string
+          details?: Json
+          duplicate_of_id?: string | null
+          id?: string
+          match_type?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_duplicate_flags_content_item_id_fkey"
+            columns: ["content_item_id"]
+            isOneToOne: false
+            referencedRelation: "content_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_duplicate_flags_duplicate_of_id_fkey"
+            columns: ["duplicate_of_id"]
+            isOneToOne: false
+            referencedRelation: "content_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_items: {
+        Row: {
+          canonical_url: string
+          caption: string | null
+          category: string | null
+          comments: number | null
+          created_at: string
+          creator_account_id: string | null
+          creator_id: string | null
+          description: string | null
+          discovery_date: string
+          duration_seconds: number | null
+          engagement_score: number | null
+          followers: number | null
+          freshness_score: number | null
+          hashtags: string[]
+          id: string
+          language: string | null
+          likes: number | null
+          metadata_incomplete: boolean
+          niche_id: string | null
+          niche_relevance_score: number | null
+          pipeline_stage: string
+          platform: string
+          platform_id: string | null
+          project_id: string | null
+          raw_metadata: Json
+          rights_status: string
+          shares: number | null
+          source_kind: string
+          tags: string[]
+          thumbnail_url: string | null
+          title: string | null
+          updated_at: string
+          uploaded_at: string | null
+          user_id: string
+          view_velocity: number | null
+          views: number | null
+          viral_potential_score: number | null
+        }
+        Insert: {
+          canonical_url: string
+          caption?: string | null
+          category?: string | null
+          comments?: number | null
+          created_at?: string
+          creator_account_id?: string | null
+          creator_id?: string | null
+          description?: string | null
+          discovery_date?: string
+          duration_seconds?: number | null
+          engagement_score?: number | null
+          followers?: number | null
+          freshness_score?: number | null
+          hashtags?: string[]
+          id?: string
+          language?: string | null
+          likes?: number | null
+          metadata_incomplete?: boolean
+          niche_id?: string | null
+          niche_relevance_score?: number | null
+          pipeline_stage?: string
+          platform?: string
+          platform_id?: string | null
+          project_id?: string | null
+          raw_metadata?: Json
+          rights_status?: string
+          shares?: number | null
+          source_kind?: string
+          tags?: string[]
+          thumbnail_url?: string | null
+          title?: string | null
+          updated_at?: string
+          uploaded_at?: string | null
+          user_id: string
+          view_velocity?: number | null
+          views?: number | null
+          viral_potential_score?: number | null
+        }
+        Update: {
+          canonical_url?: string
+          caption?: string | null
+          category?: string | null
+          comments?: number | null
+          created_at?: string
+          creator_account_id?: string | null
+          creator_id?: string | null
+          description?: string | null
+          discovery_date?: string
+          duration_seconds?: number | null
+          engagement_score?: number | null
+          followers?: number | null
+          freshness_score?: number | null
+          hashtags?: string[]
+          id?: string
+          language?: string | null
+          likes?: number | null
+          metadata_incomplete?: boolean
+          niche_id?: string | null
+          niche_relevance_score?: number | null
+          pipeline_stage?: string
+          platform?: string
+          platform_id?: string | null
+          project_id?: string | null
+          raw_metadata?: Json
+          rights_status?: string
+          shares?: number | null
+          source_kind?: string
+          tags?: string[]
+          thumbnail_url?: string | null
+          title?: string | null
+          updated_at?: string
+          uploaded_at?: string | null
+          user_id?: string
+          view_velocity?: number | null
+          views?: number | null
+          viral_potential_score?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_items_creator_account_id_fkey"
+            columns: ["creator_account_id"]
+            isOneToOne: false
+            referencedRelation: "creator_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_items_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_items_niche_id_fkey"
+            columns: ["niche_id"]
+            isOneToOne: false
+            referencedRelation: "niches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_items_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_accounts: {
+        Row: {
+          created_at: string
+          creator_id: string
+          engagement_rate: number | null
+          followers: number | null
+          id: string
+          permission_status: string
+          platform: string
+          platform_user_id: string | null
+          profile_url: string | null
+          public_contact: string | null
+          updated_at: string
+          user_id: string
+          username: string | null
+        }
+        Insert: {
+          created_at?: string
+          creator_id: string
+          engagement_rate?: number | null
+          followers?: number | null
+          id?: string
+          permission_status?: string
+          platform: string
+          platform_user_id?: string | null
+          profile_url?: string | null
+          public_contact?: string | null
+          updated_at?: string
+          user_id: string
+          username?: string | null
+        }
+        Update: {
+          created_at?: string
+          creator_id?: string
+          engagement_rate?: number | null
+          followers?: number | null
+          id?: string
+          permission_status?: string
+          platform?: string
+          platform_user_id?: string | null
+          profile_url?: string | null
+          public_contact?: string | null
+          updated_at?: string
+          user_id?: string
+          username?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_accounts_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creators: {
+        Row: {
+          created_at: string
+          display_name: string
+          id: string
+          niche_tags: string[]
+          notes: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string
+          id?: string
+          niche_tags?: string[]
+          notes?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string
+          id?: string
+          niche_tags?: string[]
+          notes?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      niches: {
+        Row: {
+          content_style: string
+          created_at: string
+          enabled: boolean
+          hashtags: string[]
+          id: string
+          keywords: string[]
+          min_engagement_rate: number
+          min_views: number
+          name: string
+          preferred_duration_seconds_max: number | null
+          preferred_duration_seconds_min: number | null
+          preferred_format: string
+          preferred_language: string
+          scoring_weights: Json
+          search_queries: string[]
+          slug: string
+          target_platforms: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content_style?: string
+          created_at?: string
+          enabled?: boolean
+          hashtags?: string[]
+          id?: string
+          keywords?: string[]
+          min_engagement_rate?: number
+          min_views?: number
+          name: string
+          preferred_duration_seconds_max?: number | null
+          preferred_duration_seconds_min?: number | null
+          preferred_format?: string
+          preferred_language?: string
+          scoring_weights?: Json
+          search_queries?: string[]
+          slug: string
+          target_platforms?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content_style?: string
+          created_at?: string
+          enabled?: boolean
+          hashtags?: string[]
+          id?: string
+          keywords?: string[]
+          min_engagement_rate?: number
+          min_views?: number
+          name?: string
+          preferred_duration_seconds_max?: number | null
+          preferred_duration_seconds_min?: number | null
+          preferred_format?: string
+          preferred_language?: string
+          scoring_weights?: Json
+          search_queries?: string[]
+          slug?: string
+          target_platforms?: string[]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      rights_decisions: {
+        Row: {
+          content_item_id: string
+          created_at: string
+          creator_account_id: string | null
+          decided_at: string
+          decided_by: string | null
+          evidence_notes: string
+          evidence_url: string | null
+          id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          content_item_id: string
+          created_at?: string
+          creator_account_id?: string | null
+          decided_at?: string
+          decided_by?: string | null
+          evidence_notes?: string
+          evidence_url?: string | null
+          id?: string
+          status: string
+          user_id: string
+        }
+        Update: {
+          content_item_id?: string
+          created_at?: string
+          creator_account_id?: string | null
+          decided_at?: string
+          decided_by?: string | null
+          evidence_notes?: string
+          evidence_url?: string | null
+          id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rights_decisions_content_item_id_fkey"
+            columns: ["content_item_id"]
+            isOneToOne: false
+            referencedRelation: "content_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rights_decisions_creator_account_id_fkey"
+            columns: ["creator_account_id"]
+            isOneToOne: false
+            referencedRelation: "creator_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_job_events: {
+        Row: {
+          created_at: string
+          data: Json
+          id: string
+          level: string
+          message: string
+          user_id: string
+          workflow_job_id: string
+        }
+        Insert: {
+          created_at?: string
+          data?: Json
+          id?: string
+          level?: string
+          message: string
+          user_id: string
+          workflow_job_id: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json
+          id?: string
+          level?: string
+          message?: string
+          user_id?: string
+          workflow_job_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_job_events_workflow_job_id_fkey"
+            columns: ["workflow_job_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_jobs: {
+        Row: {
+          attempt: number
+          content_item_id: string | null
+          created_at: string
+          error: string | null
+          finished_at: string | null
+          id: string
+          idempotency_key: string | null
+          job_type: string
+          locked_at: string | null
+          locked_by: string | null
+          max_attempts: number
+          payload: Json
+          progress: number
+          project_id: string | null
+          result: Json
+          run_after: string
+          stage: string
+          started_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attempt?: number
+          content_item_id?: string | null
+          created_at?: string
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          idempotency_key?: string | null
+          job_type: string
+          locked_at?: string | null
+          locked_by?: string | null
+          max_attempts?: number
+          payload?: Json
+          progress?: number
+          project_id?: string | null
+          result?: Json
+          run_after?: string
+          stage?: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attempt?: number
+          content_item_id?: string | null
+          created_at?: string
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          idempotency_key?: string | null
+          job_type?: string
+          locked_at?: string | null
+          locked_by?: string | null
+          max_attempts?: number
+          payload?: Json
+          progress?: number
+          project_id?: string | null
+          result?: Json
+          run_after?: string
+          stage?: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_jobs_content_item_id_fkey"
+            columns: ["content_item_id"]
+            isOneToOne: false
+            referencedRelation: "content_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_jobs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      content_rights_approved: {
+        Args: {
+          _content_id: string
+        }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
