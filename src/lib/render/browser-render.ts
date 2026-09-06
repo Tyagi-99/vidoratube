@@ -267,8 +267,10 @@ export async function loadFfmpeg(onLog?: (line: string) => void): Promise<Ffmpeg
         : "download or worker startup failed — check your connection and reload";
   try {
     await ffmpeg.load({
-      coreURL: "/wasm/ffmpeg-core-esm.js",
-      wasmURL: coreWasmAsset.url,
+      // Module workers resolve dynamic imports poorly from relative paths —
+      // hand the worker fully-qualified same-origin URLs.
+      coreURL: new URL("/wasm/ffmpeg-core-esm.js", window.location.origin).href,
+      wasmURL: new URL(coreWasmAsset.url, window.location.origin).href,
       classWorkerURL: workerUrl,
     });
   } catch (error) {
