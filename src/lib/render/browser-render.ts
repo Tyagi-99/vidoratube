@@ -248,10 +248,14 @@ let ffmpegSingleton: Ffmpeg | null = null;
 export async function loadFfmpeg(onLog?: (line: string) => void): Promise<Ffmpeg> {
   if (ffmpegSingleton) return ffmpegSingleton;
   const { FFmpeg } = await import("@ffmpeg/ffmpeg");
-  // Serve the ffmpeg core from the app itself (no CDN dependency).
-  // Pass same-origin URLs directly — wrapping them in blob: URLs breaks the
-  // worker's internal importScripts on some browsers.
-  const { default: coreWasmAsset } = await import("./ffmpeg-core-wasm.asset.json");
+  // FFmpeg v0.12 spawns its worker with `type: "module"`, so it needs the ESM
+  // worker + ESM core (a classic/UMD script makes importScripts throw inside a
+  // module worker). Vite bundles the worker from the package; the core js and
+  // wasm are served same-origin (no CDN dependency).
+  const [{ default: workerUrl }, { default: coreWasmAsset }] = await Promise.all([
+    import("@ffmpeg/ffmpeg/dist/esm/worker.js?worker&url"),
+    import("./ffmpeg-core-wasm.asset.json"),
+  ]);
   const ffmpeg = new FFmpeg();
   if (onLog) ffmpeg.on("log", ({ message }) => onLog(message));
 
@@ -263,9 +267,9 @@ export async function loadFfmpeg(onLog?: (line: string) => void): Promise<Ffmpeg
         : "download or worker startup failed — check your connection and reload";
   try {
     await ffmpeg.load({
-      coreURL: "/wasm/ffmpeg-core.js",
+      coreURL: "/wasm/ffmpeg-core-esm.js",
       wasmURL: coreWasmAsset.url,
-      classWorkerURL: "/wasm/ffmpeg-worker.js",
+      classWorkerURL: workerUrl,
     });
   } catch (error) {
     throw new Error(
