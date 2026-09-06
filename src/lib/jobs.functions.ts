@@ -110,12 +110,15 @@ export const createVideoJob = createServerFn({ method: "POST" })
         .single();
       if (error) throw new Error(error.message);
 
-      // Reserve the credit once the plan exists.
-      await supabase
+      // Reserve the credit once the plan exists. Privileged write: credits and
+      // ledger entries can only change through the service role (users can no
+      // longer modify them directly), so use the admin client after validation.
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      await supabaseAdmin
         .from("profiles")
         .update({ credits: profile.credits - 1 })
         .eq("id", userId);
-      await supabase.from("credit_ledger").insert({
+      await supabaseAdmin.from("credit_ledger").insert({
         user_id: userId,
         delta: -1,
         reason: `Video render: ${plan.title}`,

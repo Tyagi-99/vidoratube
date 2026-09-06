@@ -70,7 +70,10 @@ export const adminAdjustCredits = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     await assertAdmin(supabase, userId);
 
-    const { data: profile, error } = await supabase
+    // Credits and ledger entries are protected from direct user writes, so
+    // privileged changes go through the service role after the admin check.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: profile, error } = await supabaseAdmin
       .from("profiles")
       .select("credits")
       .eq("id", data.userId)
@@ -79,13 +82,13 @@ export const adminAdjustCredits = createServerFn({ method: "POST" })
     if (!profile) throw new Error("User not found");
 
     const next = Math.max(0, profile.credits + data.delta);
-    const { error: updateError } = await supabase
+    const { error: updateError } = await supabaseAdmin
       .from("profiles")
       .update({ credits: next })
       .eq("id", data.userId);
     if (updateError) throw new Error(updateError.message);
 
-    await supabase.from("credit_ledger").insert({
+    await supabaseAdmin.from("credit_ledger").insert({
       user_id: data.userId,
       delta: data.delta,
       reason: data.reason,
@@ -105,7 +108,9 @@ export const adminSetUserStatus = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     await assertAdmin(supabase, userId);
-    const { error } = await supabase
+    // Account status is a protected column; write it via the service role.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
       .from("profiles")
       .update({ status: data.status })
       .eq("id", data.userId);
