@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createPublicSupabase } from "./public.server";
 
 export const getSiteContent = createServerFn({ method: "GET" }).handler(async () => {
+  try {
   const supabase = createPublicSupabase();
   const { data, error } = await supabase.from("site_content").select("key, label, value");
   if (error) throw new Error(error.message);
@@ -12,6 +13,7 @@ export const getSiteContent = createServerFn({ method: "GET" }).handler(async ()
     map[row.key] = (row.value ?? {}) as Record<string, string>;
   }
   return map;
+  } catch (e) { console.error("PROBE", e); throw e; }
 });
 
 export const getPricingPlans = createServerFn({ method: "GET" }).handler(async () => {
