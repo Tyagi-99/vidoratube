@@ -12,13 +12,15 @@ import { VoiceoverCreateDialog } from "@/components/vidora/VoiceoverCreateDialog
 import { AutoEditCreateDialog } from "@/components/vidora/AutoEditCreateDialog";
 import { YouTubePanel } from "@/components/vidora/YouTubePanel";
 import { CapCutExportButton } from "@/components/vidora/CapCutExportButton";
+import { JobPreviewDialog } from "@/components/vidora/JobPreviewDialog";
 import { selectDownloadUrl } from "@/lib/jobs/final-video";
 import { ResumeComposeButton, isStalledCompose } from "@/components/vidora/ResumeComposeButton";
 
 import { publishJobToYouTube } from "@/lib/youtube.functions";
 import { getMyAccount, listMyJobs, deleteMyJob } from "@/lib/jobs.functions";
 import { supabase } from "@/integrations/supabase/client";
-import { Coins, Film, LayoutDashboard, LogOut, Plus, Shield, Trash2, Youtube, Loader2 } from "lucide-react";
+import { Coins, Film, LayoutDashboard, LogOut, Plus, Shield, Trash2, Youtube, Loader2, Download } from "lucide-react";
+
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/studio")({
