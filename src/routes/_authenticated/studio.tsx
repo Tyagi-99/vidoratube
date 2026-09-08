@@ -217,16 +217,22 @@ function StudioPage() {
                     {isStalledCompose(job) && (
                       <ResumeComposeButton job={job} className="flex-1 gap-1" />
                     )}
-                    {downloadUrl && (
-                      <Button asChild size="sm" variant="outline" className="flex-1">
-                        <a href={downloadUrl} target="_blank" rel="noreferrer">
-                          Open
+                    <JobPreviewDialog job={job} className="flex-1 gap-1" />
+                    {(downloadUrl || job.audio_url) && (
+                      <Button asChild size="sm" variant="outline" className="flex-1 gap-1">
+                        <a
+                          href={downloadUrl ?? job.audio_url ?? "#"}
+                          target="_blank"
+                          rel="noreferrer"
+                          download
+                        >
+                          <Download className="h-4 w-4" />
+                          {downloadUrl ? "Download" : "Audio"}
                         </a>
                       </Button>
                     )}
-                    {job.status === "completed" && downloadUrl && (
-                      <CapCutExportButton job={job} className="flex-1 gap-1" />
-                    )}
+                    <CapCutExportButton job={job} className="flex-1 gap-1" />
+
 
                     {job.status === "completed" && downloadUrl && (
                       job.youtube_video_id ? (
