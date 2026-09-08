@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -7,20 +7,29 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Play, ChevronLeft, ChevronRight } from "lucide-react";
+import { Play, Loader2, AlertTriangle } from "lucide-react";
+import { FinalVideoPreview } from "@/components/vidora/FinalVideoPreview";
+import { useComposeJobMp4 } from "@/lib/render/useComposeJobMp4";
 
 type PreviewJob = {
   id: string;
   title: string;
   result_url: string | null;
   audio_url: string | null;
+  duration_seconds?: number | null;
   thumbnail_url?: string | null;
   narration?: string | null;
+  script?: string | null;
+  voice?: string | null;
+  format?: string | null;
   assets?: unknown;
   scenes?: unknown;
 };
 
-/** Plays the final MP4 when it exists, otherwise a stills + voiceover preview. */
+/**
+ * Plays the finished MP4. When it doesn't exist yet, it is composed in the
+ * browser automatically (images + voiceover in sync), then played.
+ */
 export function JobPreviewDialog({
   job,
   className,
@@ -28,15 +37,53 @@ export function JobPreviewDialog({
   job: PreviewJob;
   className?: string;
 }) {
-  const [index, setIndex] = useState(0);
-  const images = (Array.isArray(job.assets) ? job.assets : []).filter(
-    (u): u is string => typeof u === "string" && u.length > 0,
-  );
-  const captions = (Array.isArray(job.scenes) ? job.scenes : []) as { caption?: string }[];
-  const current = images[Math.min(index, Math.max(0, images.length - 1))];
+  const [open, setOpen] = useState(false);
+  const [resultUrl, setResultUrl] = useState<string | null>(job.result_url);
+  const started = useRef(false);
+  const { run, label } = useComposeJobMp4({ silent: true });
+
+  useEffect(() => {
+    setResultUrl(job.result_url);
+  }, [job.result_url]);
+
+  const hasSource =
+    Boolean(job.audio_url) &&
+    Array.isArray(job.assets) &&
+    job.assets.some((u) => typeof u === "string" && u.length > 0);
+
+  useEffect(() => {
+    if (!open || resultUrl || started.current || !hasSource) return;
+    started.current = true;
+    run.mutate(
+      {
+        id: job.id,
+        title: job.title,
+        result_url: job.result_url,
+        audio_url: job.audio_url,
+        duration_seconds: job.duration_seconds ?? null,
+        narration: job.narration ?? null,
+        script: job.script ?? null,
+        assets: job.assets,
+        scenes: job.scenes,
+      },
+      {
+        onSuccess: (finished) => {
+          const url = (finished as { result_url?: string | null })?.result_url ?? null;
+          if (url) setResultUrl(url);
+        },
+      },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, resultUrl, hasSource]);
+
+  const retry = () => {
+    started.current = false;
+    run.reset();
+    setResultUrl(null);
+  };
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm" variant="outline" className={className}>
           <Play className="h-4 w-4" />
@@ -48,71 +95,44 @@ export function JobPreviewDialog({
           <DialogTitle className="text-left">{job.title}</DialogTitle>
         </DialogHeader>
 
-        {job.result_url ? (
-          <video
-            src={job.result_url}
-            poster={job.thumbnail_url ?? undefined}
-            controls
-            autoPlay
-            className="aspect-video w-full rounded-xl bg-black"
+        {resultUrl ? (
+          <FinalVideoPreview
+            job={{
+              id: job.id,
+              title: job.title,
+              narration: job.narration ?? null,
+              script: job.script ?? null,
+              voice: job.voice ?? null,
+              format: job.format ?? null,
+              duration_seconds: job.duration_seconds ?? null,
+              audio_url: job.audio_url,
+              result_url: resultUrl,
+              thumbnail_url: job.thumbnail_url ?? null,
+              assets: job.assets,
+              scenes: job.scenes,
+            }}
           />
-        ) : (
-          <div className="space-y-3">
-            <div className="relative overflow-hidden rounded-xl bg-muted">
-              {current ? (
-                <img
-                  src={current}
-                  alt={`${job.title} — scene ${index + 1}`}
-                  className="aspect-video w-full object-cover"
-                />
-              ) : (
-                <div className="flex aspect-video w-full items-center justify-center text-sm text-muted-foreground">
-                  No scene images yet
-                </div>
-              )}
-              {captions[index]?.caption && (
-                <p className="absolute inset-x-0 bottom-0 bg-background/80 p-3 text-center text-sm text-foreground">
-                  {captions[index]?.caption}
-                </p>
-              )}
-            </div>
-            {images.length > 1 && (
-              <div className="flex items-center justify-center gap-3">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setIndex((i) => Math.max(0, i - 1))}
-                  disabled={index === 0}
-                  aria-label="Previous scene"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <span className="text-xs text-muted-foreground">
-                  Scene {index + 1} of {images.length}
-                </span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setIndex((i) => Math.min(images.length - 1, i + 1))}
-                  disabled={index >= images.length - 1}
-                  aria-label="Next scene"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
-            {job.audio_url && (
-              <div className="rounded-xl border border-border bg-card p-3">
-                <p className="mb-2 text-sm font-medium text-foreground">Voiceover</p>
-                <audio src={job.audio_url} controls className="w-full" />
-              </div>
-            )}
+        ) : run.isError ? (
+          <div className="flex flex-col items-center gap-4 rounded-xl border border-border bg-muted/40 p-8 text-center">
+            <AlertTriangle className="h-6 w-6 text-destructive" />
+            <p className="text-sm text-muted-foreground">
+              {run.error instanceof Error ? run.error.message : "Building the video failed."}
+            </p>
+            <Button onClick={retry}>Try again</Button>
           </div>
-        )}
-
-        {job.narration && (
-          <div className="max-h-32 overflow-y-auto rounded-xl border border-border bg-muted/50 p-3 text-sm leading-relaxed text-muted-foreground">
-            {job.narration}
+        ) : hasSource ? (
+          <div className="flex flex-col items-center gap-4 rounded-xl border border-border bg-muted/40 p-10 text-center">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <p className="text-sm font-medium text-foreground">
+              {label ?? "Building your video…"}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Keep this tab open — this usually takes a minute or two.
+            </p>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-border bg-muted/40 p-10 text-center text-sm text-muted-foreground">
+            This video isn&apos;t ready yet — the voiceover or scene images are still missing.
           </div>
         )}
       </DialogContent>
