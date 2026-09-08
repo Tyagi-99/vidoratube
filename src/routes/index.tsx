@@ -2,6 +2,7 @@ import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, Check, Wand2, Play, Sparkles, Zap, Clock } from "lucide-react";
 import { GenerateVideoDialog } from "@/components/vidora/GenerateVideoDialog";
+import { HomeCreateModes } from "@/components/vidora/HomeCreateModes";
 import { DemoUI } from "@/components/vidora/DemoUI";
 import { PricingSection } from "@/components/vidora/PricingSection";
 import { FaqSection } from "@/components/vidora/FaqSection";
@@ -105,13 +106,13 @@ function Index() {
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <button
-                  onClick={() => setDialogOpen(true)}
+                <a
+                  href="#create"
                   className="inline-flex items-center justify-center gap-2 rounded-full bg-foreground px-6 py-3 text-base font-semibold text-background transition-transform hover:-translate-y-0.5"
                 >
                   <Wand2 className="h-5 w-5" />
-                  Render your first video
-                </button>
+                  Start a video
+                </a>
                 <Link
                   to="/features"
                   className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-6 py-3 text-base font-semibold text-foreground transition-colors hover:bg-muted"
@@ -132,7 +133,7 @@ function Index() {
             </div>
 
             <div className="lg:-mr-6">
-              <DemoUI onGenerate={() => setDialogOpen(true)} />
+              <DemoUI onGenerate={() => { window.location.href = "/studio?create=script"; }} />
             </div>
           </div>
 
@@ -147,6 +148,7 @@ function Index() {
         </div>
       </section>
 
+      <HomeCreateModes />
 
       {/* How it works */}
       <section className="w-full border-y border-border bg-muted/40 py-20 sm:py-24">

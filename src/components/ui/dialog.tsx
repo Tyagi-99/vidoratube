@@ -31,8 +31,10 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & { embedded?: boolean }
+>(({ className, children, embedded, ...props }, ref) => embedded ? (
+    <DialogPrimitive.Content ref={ref} className={cn("relative grid w-full max-w-3xl gap-4 border bg-card p-6 shadow-none sm:p-8", className)} {...props}>{children}</DialogPrimitive.Content>
+  ) : (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
