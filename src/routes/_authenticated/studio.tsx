@@ -12,13 +12,15 @@ import { VoiceoverCreateDialog } from "@/components/vidora/VoiceoverCreateDialog
 import { AutoEditCreateDialog } from "@/components/vidora/AutoEditCreateDialog";
 import { YouTubePanel } from "@/components/vidora/YouTubePanel";
 import { CapCutExportButton } from "@/components/vidora/CapCutExportButton";
+import { JobPreviewDialog } from "@/components/vidora/JobPreviewDialog";
 import { selectDownloadUrl } from "@/lib/jobs/final-video";
 import { ResumeComposeButton, isStalledCompose } from "@/components/vidora/ResumeComposeButton";
 
 import { publishJobToYouTube } from "@/lib/youtube.functions";
 import { getMyAccount, listMyJobs, deleteMyJob } from "@/lib/jobs.functions";
 import { supabase } from "@/integrations/supabase/client";
-import { Coins, Film, LayoutDashboard, LogOut, Plus, Shield, Trash2, Youtube, Loader2 } from "lucide-react";
+import { Coins, Film, LayoutDashboard, LogOut, Plus, Shield, Trash2, Youtube, Loader2, Download } from "lucide-react";
+
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/studio")({
@@ -217,16 +219,22 @@ function StudioPage() {
                     {isStalledCompose(job) && (
                       <ResumeComposeButton job={job} className="flex-1 gap-1" />
                     )}
-                    {downloadUrl && (
-                      <Button asChild size="sm" variant="outline" className="flex-1">
-                        <a href={downloadUrl} target="_blank" rel="noreferrer">
-                          Open
+                    <JobPreviewDialog job={job} className="flex-1 gap-1" />
+                    {(downloadUrl || job.audio_url) && (
+                      <Button asChild size="sm" variant="outline" className="flex-1 gap-1">
+                        <a
+                          href={downloadUrl ?? job.audio_url ?? "#"}
+                          target="_blank"
+                          rel="noreferrer"
+                          download
+                        >
+                          <Download className="h-4 w-4" />
+                          {downloadUrl ? "Download" : "Audio"}
                         </a>
                       </Button>
                     )}
-                    {job.status === "completed" && downloadUrl && (
-                      <CapCutExportButton job={job} className="flex-1 gap-1" />
-                    )}
+                    <CapCutExportButton job={job} className="flex-1 gap-1" />
+
 
                     {job.status === "completed" && downloadUrl && (
                       job.youtube_video_id ? (
