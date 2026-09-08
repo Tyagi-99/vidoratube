@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import { YouTubePanel } from "@/components/vidora/YouTubePanel";
 import { CapCutExportButton } from "@/components/vidora/CapCutExportButton";
 import { JobPreviewDialog } from "@/components/vidora/JobPreviewDialog";
 import { selectDownloadUrl } from "@/lib/jobs/final-video";
+import { parseCreateMode, type CreationModeId } from "@/lib/creation-modes";
 import { ResumeComposeButton, isStalledCompose } from "@/components/vidora/ResumeComposeButton";
 
 import { publishJobToYouTube } from "@/lib/youtube.functions";
@@ -46,6 +47,10 @@ const statusStyles: Record<string, string> = {
 };
 
 function StudioPage() {
+  const [pageMode, setPageMode] = useState<CreationModeId | null>(null);
+  useEffect(() => {
+    setPageMode(parseCreateMode(new URLSearchParams(window.location.search).get("create")));
+  }, []);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [modeChooserOpen, setModeChooserOpen] = useState(false);
   const [voiceoverOpen, setVoiceoverOpen] = useState(false);
@@ -89,6 +94,34 @@ function StudioPage() {
   };
 
   const profile = account.data?.profile;
+
+  if (pageMode) {
+    const closePage = () => {
+      window.history.replaceState({}, "", "/studio");
+      setPageMode(null);
+    };
+    return (
+      <main className="min-h-screen bg-background px-4 py-8 sm:px-6">
+        <div className="mx-auto mb-6 flex max-w-3xl items-center justify-between">
+          <a href="/" className="text-sm font-semibold text-foreground underline-offset-4 hover:underline">
+            Home
+          </a>
+          <button type="button" onClick={closePage} className="text-sm text-muted-foreground hover:text-foreground">
+            Studio
+          </button>
+        </div>
+        {pageMode === "script" && (
+          <GenerateVideoDialog asPage open onOpenChange={closePage} />
+        )}
+        {pageMode === "voiceover" && (
+          <VoiceoverCreateDialog asPage open onOpenChange={closePage} />
+        )}
+        {pageMode === "auto_edit" && (
+          <AutoEditCreateDialog asPage open onOpenChange={closePage} />
+        )}
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-top-glow px-4 py-16 sm:px-6 lg:px-8">

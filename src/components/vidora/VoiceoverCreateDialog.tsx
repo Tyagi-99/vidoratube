@@ -43,9 +43,11 @@ const RIGHTS_LABELS: Record<string, string> = {
 export function VoiceoverCreateDialog({
   open,
   onOpenChange,
+  asPage = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  asPage?: boolean;
 }) {
   const { user } = useSession();
   const navigate = useNavigate();
@@ -159,11 +161,12 @@ export function VoiceoverCreateDialog({
   return (
     <Dialog
       open={open}
+      modal={!asPage}
       onOpenChange={(v) => {
         if (!busy) onOpenChange(v);
       }}
     >
-      <DialogContent className="max-h-[90vh] max-w-xl overflow-y-auto">
+      <DialogContent embedded={asPage} className="max-h-[90vh] max-w-xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Voiceover Mode</DialogTitle>
           <DialogDescription>

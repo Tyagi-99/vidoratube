@@ -71,9 +71,11 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 export function GenerateVideoDialog({
   open,
   onOpenChange,
+  asPage = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  asPage?: boolean;
 }) {
   const [script, setScript] = useState("");
   const [voice, setVoice] = useState("deneb");
@@ -269,12 +271,13 @@ export function GenerateVideoDialog({
   return (
     <Dialog
       open={open}
+      modal={!asPage}
       onOpenChange={(next) => {
         if (!next && !mutation.isPending && !retryCompose.isPending) reset();
         onOpenChange(next);
       }}
     >
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent embedded={asPage} className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold tracking-tight">
             {status === "done"
