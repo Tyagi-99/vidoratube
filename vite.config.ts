@@ -10,9 +10,15 @@ import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 // connection values into Vite's browser bundle when a deployment does not
 // provide their VITE_* aliases. The service-role key is intentionally never
 // exposed here.
-const supabaseUrl = process.env["VITE_SUPABASE_URL"] ?? process.env["SUPABASE_URL"] ?? "";
+const managedCloudUrl = "https://paowbdzcrncsiyogwnys.supabase.co";
+const managedCloudPublishableKey = "sb_publishable_cpm_1zLpkcOfkUtdYfdVfw_9GrEtfhg";
+
+const supabaseUrl =
+  process.env["VITE_SUPABASE_URL"] ?? process.env["SUPABASE_URL"] ?? managedCloudUrl;
 const supabasePublishableKey =
-  process.env["VITE_SUPABASE_PUBLISHABLE_KEY"] ?? process.env["SUPABASE_PUBLISHABLE_KEY"] ?? "";
+  process.env["VITE_SUPABASE_PUBLISHABLE_KEY"] ??
+  process.env["SUPABASE_PUBLISHABLE_KEY"] ??
+  managedCloudPublishableKey;
 
 export default defineConfig({
   vite: {
