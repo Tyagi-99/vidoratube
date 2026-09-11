@@ -58,6 +58,9 @@ function AuthPage() {
   const [resetEmail, setResetEmail] = useState("");
   const [resetSent, setResetSent] = useState(false);
   const [resetBusy, setResetBusy] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [formError, setFormError] = useState<string | null>(null);
+  const [resetError, setResetError] = useState<string | null>(null);
 
   const goNext = () => {
     window.location.replace(safeAuthNext(next));
@@ -74,10 +77,17 @@ function AuthPage() {
     e.preventDefault();
     const parsed = schema.safeParse({ email, password, displayName });
     if (!parsed.success) {
-      toast.error(parsed.error.issues[0]?.message ?? "Check your details");
+      const errors: Record<string, string> = {};
+      for (const issue of parsed.error.issues) {
+        const field = String(issue.path[0] ?? "form");
+        if (!errors[field]) errors[field] = issue.message;
+      }
+      setFieldErrors(errors);
       return;
     }
 
+    setFieldErrors({});
+    setFormError(null);
     setBusy(true);
     try {
       if (mode === "signup") {
@@ -101,13 +111,13 @@ function AuthPage() {
       goNext();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Something went wrong";
-      toast.error(
-        message.includes("Invalid login credentials")
+      const friendly = message.includes("Invalid login credentials")
           ? "Wrong email or password."
           : message.includes("already registered")
             ? "That email already has an account — sign in instead."
-            : message,
-      );
+            : message;
+      setFormError(friendly);
+      toast.error(friendly);
     } finally {
       setBusy(false);
     }
@@ -117,10 +127,11 @@ function AuthPage() {
     e.preventDefault();
     const parsed = emailSchema.safeParse(resetEmail);
     if (!parsed.success) {
-      toast.error(parsed.error.issues[0]?.message ?? "Check your email");
+      setResetError(parsed.error.issues[0]?.message ?? "Check your email");
       return;
     }
 
+    setResetError(null);
     setResetBusy(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(parsed.data, {
@@ -131,6 +142,7 @@ function AuthPage() {
       toast.success("Reset link sent — check your inbox.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Something went wrong";
+      setResetError(message);
       toast.error(message);
     } finally {
       setResetBusy(false);
@@ -166,7 +178,10 @@ function AuthPage() {
                     onChange={(e) => setDisplayName(e.target.value)}
                     placeholder="Your name"
                     maxLength={80}
+                    aria-invalid={Boolean(fieldErrors.displayName)}
+                    aria-describedby={fieldErrors.displayName ? "displayName-error" : undefined}
                   />
+                  {fieldErrors.displayName && <p id="displayName-error" className="text-sm text-destructive">{fieldErrors.displayName}</p>}
                 </div>
               )}
               <div className="space-y-2">
@@ -179,7 +194,10 @@ function AuthPage() {
                   placeholder="you@studio.com"
                   autoComplete="email"
                   required
+                    aria-invalid={Boolean(fieldErrors.email)}
+                    aria-describedby={fieldErrors.email ? "email-error" : undefined}
                 />
+                  {fieldErrors.email && <p id="email-error" className="text-sm text-destructive">{fieldErrors.email}</p>}
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -205,11 +223,15 @@ function AuthPage() {
                   placeholder="••••••••"
                   autoComplete={mode === "signin" ? "current-password" : "new-password"}
                   required
+                    aria-invalid={Boolean(fieldErrors.password)}
+                    aria-describedby={fieldErrors.password ? "password-error" : undefined}
                 />
+                  {fieldErrors.password && <p id="password-error" className="text-sm text-destructive">{fieldErrors.password}</p>}
               </div>
+              {formError && <div role="alert" className="border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{formError}</div>}
               <Button type="submit" disabled={busy} className="w-full gap-2">
                 {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-                {mode === "signin" ? "Sign in" : "Create account"}
+                {busy ? (mode === "signin" ? "Signing in…" : "Creating account…") : mode === "signin" ? "Sign in" : "Create account"}
               </Button>
             </form>
 
@@ -266,12 +288,15 @@ function AuthPage() {
                   placeholder="you@studio.com"
                   autoComplete="email"
                   required
+                  aria-invalid={Boolean(resetError)}
+                  aria-describedby={resetError ? "resetEmail-error" : undefined}
                 />
+                {resetError && <p id="resetEmail-error" className="text-sm text-destructive" role="alert">{resetError}</p>}
               </div>
               <DialogFooter>
                 <Button type="submit" disabled={resetBusy} className="w-full gap-2 sm:w-auto">
                   {resetBusy && <Loader2 className="h-4 w-4 animate-spin" />}
-                  Send reset link
+                  {resetBusy ? "Sending…" : "Send reset link"}
                 </Button>
               </DialogFooter>
             </form>

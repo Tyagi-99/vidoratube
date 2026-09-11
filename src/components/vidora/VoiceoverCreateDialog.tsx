@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { CheckCircle2, FileVideo, Loader2, Upload } from "lucide-react";
+import { CheckCircle2, Loader2, Upload } from "lucide-react";
 import { CreateSurface } from "@/components/vidora/CreateSurface";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

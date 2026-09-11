@@ -133,8 +133,8 @@ function ResetPasswordPage() {
           <CardContent className="p-6 sm:p-8">
             {done ? (
               <div className="flex flex-col items-center gap-4 py-6 text-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10">
-                  <CheckCircle2 className="h-6 w-6 text-emerald-500" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/10">
+                  <CheckCircle2 className="h-6 w-6 text-accent" />
                 </div>
                 <p className="text-lg font-semibold text-foreground">Password updated</p>
                 <p className="text-sm text-muted-foreground">Redirecting you to your studio…</p>

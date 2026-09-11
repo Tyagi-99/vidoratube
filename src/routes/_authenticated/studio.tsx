@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -49,6 +49,7 @@ const statusStyles: Record<string, string> = {
 function StudioPage() {
   const { create: pageMode } = Route.useSearch();
   const [modeChooserOpen, setModeChooserOpen] = useState(false);
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const accountFn = useServerFn(getMyAccount);
@@ -83,7 +84,7 @@ function StudioPage() {
 
   if (pageMode) {
     const closePage = () => {
-      window.location.assign("/studio");
+      void navigate({ to: "/studio", replace: true });
     };
     if (pageMode === "auto_edit") {
       return <AutoEditCreateDialog asPage open onOpenChange={closePage} />;

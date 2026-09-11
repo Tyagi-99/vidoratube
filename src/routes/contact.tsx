@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation } from "@tanstack/react-query";
-import { toast } from "sonner";
 import { Mail, MessageSquare, Send, ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,24 +26,31 @@ export const Route = createFileRoute("/contact")({
 
 function ContactPage() {
   const [submitted, setSubmitted] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const send = useServerFn(submitContactMessage);
 
   const mutation = useMutation({
     mutationFn: (values: { name: string; email: string; subject: string; message: string }) =>
       send({ data: values }),
     onSuccess: () => setSubmitted(true),
-    onError: (error: Error) => toast.error(error.message || "Could not send your message"),
   });
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    mutation.mutate({
-      name: String(form.get("name") ?? ""),
-      email: String(form.get("email") ?? ""),
+    const values = {
+      name: String(form.get("name") ?? "").trim(),
+      email: String(form.get("email") ?? "").trim(),
       subject: String(form.get("company") ?? ""),
-      message: String(form.get("message") ?? ""),
-    });
+      message: String(form.get("message") ?? "").trim(),
+    };
+    const nextErrors: Record<string, string> = {};
+    if (!values.name) nextErrors.name = "Enter your name.";
+    if (!/^\S+@\S+\.\S+$/.test(values.email)) nextErrors.email = "Enter a valid email.";
+    if (!values.message) nextErrors.message = "Tell us how we can help.";
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length) return;
+    mutation.mutate(values);
   };
 
 
@@ -132,11 +138,13 @@ function ContactPage() {
                   <div className="grid gap-5 sm:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="name">Name</Label>
-                      <Input id="name" name="name" placeholder="Your name" maxLength={100} required />
+                       <Input id="name" name="name" placeholder="Your name" maxLength={100} required aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? "contact-name-error" : undefined} />
+                       {errors.name && <p id="contact-name-error" className="text-sm text-destructive">{errors.name}</p>}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="email">Email</Label>
-                      <Input id="email" name="email" type="email" placeholder="you@company.com" maxLength={255} required />
+                       <Input id="email" name="email" type="email" placeholder="you@company.com" maxLength={255} required aria-invalid={Boolean(errors.email)} aria-describedby={errors.email ? "contact-email-error" : undefined} />
+                       {errors.email && <p id="contact-email-error" className="text-sm text-destructive">{errors.email}</p>}
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -152,8 +160,17 @@ function ContactPage() {
                       className="min-h-[140px]"
                       maxLength={2000}
                       required
+                       aria-invalid={Boolean(errors.message)}
+                       aria-describedby={errors.message ? "contact-message-error" : undefined}
                     />
+                     {errors.message && <p id="contact-message-error" className="text-sm text-destructive">{errors.message}</p>}
                   </div>
+                  {mutation.isError && (
+                    <div className="border border-destructive/30 bg-destructive/5 p-3 text-sm" role="alert">
+                      <p className="font-medium text-destructive">Your message was not sent.</p>
+                      <p className="mt-1 text-muted-foreground">{mutation.error.message || "Please try again."}</p>
+                    </div>
+                  )}
                   <Button
                     type="submit"
                     disabled={mutation.isPending}
