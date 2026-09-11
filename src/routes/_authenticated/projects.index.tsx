@@ -49,7 +49,10 @@ export const Route = createFileRoute("/_authenticated/projects/")({
   head: () => ({
     meta: [
       { title: "Projects — Vidora AI" },
-      { name: "description", content: "Plan, generate and manage every faceless video project in your Vidora AI studio." },
+      {
+        name: "description",
+        content: "Plan, generate and manage every faceless video project in your Vidora AI studio.",
+      },
       { property: "og:title", content: "Projects — Vidora AI" },
       { property: "og:description", content: "Your Vidora AI video projects." },
       { property: "og:type", content: "website" },
@@ -102,10 +105,7 @@ function ProjectsPage() {
       <div className="mx-auto max-w-6xl">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              Studio
-            </p>
-            <h1 className="mt-1 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+            <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
               Projects
             </h1>
             <p className="mt-2 text-sm text-muted-foreground">
@@ -124,6 +124,16 @@ function ProjectsPage() {
               <Skeleton key={i} className="h-48 rounded-2xl" />
             ))}
           </div>
+        ) : projects.isError ? (
+          <div className="mt-10 border border-destructive/30 bg-destructive/5 p-8" role="alert">
+            <p className="font-semibold text-foreground">We couldn't load your projects</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {(projects.error as Error)?.message ?? "Something went wrong."}
+            </p>
+            <Button variant="outline" className="mt-5" onClick={() => projects.refetch()}>
+              Try again
+            </Button>
+          </div>
         ) : (projects.data ?? []).length === 0 ? (
           <Card className="mt-10 border-dashed border-border bg-card">
             <CardContent className="flex flex-col items-center gap-4 p-12 text-center">
@@ -133,7 +143,8 @@ function ProjectsPage() {
               <div>
                 <p className="font-semibold text-foreground">No projects yet</p>
                 <p className="text-sm text-muted-foreground">
-                  Pick a topic and Vidora writes the script, finds the visuals and records the voice.
+                  Pick a topic and Vidora writes the script, finds the visuals and records the
+                  voice.
                 </p>
               </div>
               <Button onClick={() => setModeChooserOpen(true)} className="gap-2">
@@ -156,7 +167,7 @@ function ProjectsPage() {
                     />
                   )}
                   <span
-                    className={`absolute left-3 top-3 rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${
+                    className={`absolute left-3 top-3 rounded-md px-2.5 py-1 text-xs font-semibold capitalize ${
                       statusStyles[project.status] ?? "bg-muted"
                     }`}
                   >
@@ -291,7 +302,8 @@ function NewProjectDialog({
         <DialogHeader>
           <DialogTitle>New project</DialogTitle>
           <DialogDescription>
-            Give Vidora a topic, or paste your own script and it will only handle the visuals and voice.
+            Give Vidora a topic, or paste your own script and it will only handle the visuals and
+            voice.
           </DialogDescription>
         </DialogHeader>
 
@@ -366,7 +378,10 @@ function NewProjectDialog({
             </Field>
 
             <Field label="Category">
-              <Select value={category || "none"} onValueChange={(v) => setCategory(v === "none" ? "" : v)}>
+              <Select
+                value={category || "none"}
+                onValueChange={(v) => setCategory(v === "none" ? "" : v)}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Optional" />
                 </SelectTrigger>

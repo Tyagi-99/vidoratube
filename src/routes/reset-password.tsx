@@ -24,10 +24,7 @@ export const Route = createFileRoute("/reset-password")({
   component: ResetPasswordPage,
 });
 
-const passwordSchema = z
-  .string()
-  .min(6, "Password must be at least 6 characters")
-  .max(72);
+const passwordSchema = z.string().min(6, "Password must be at least 6 characters").max(72);
 
 function ResetPasswordPage() {
   const navigate = useNavigate();
@@ -125,16 +122,20 @@ function ResetPasswordPage() {
           <span className="relative mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-foreground">
             <Aperture className="h-5 w-5 text-primary" strokeWidth={2.4} />
           </span>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Choose a new password</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Make it strong — at least 6 characters.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+            Choose a new password
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Make it strong — at least 6 characters.
+          </p>
         </div>
 
         <Card className="border-border bg-card">
           <CardContent className="p-6 sm:p-8">
             {done ? (
               <div className="flex flex-col items-center gap-4 py-6 text-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10">
-                  <CheckCircle2 className="h-6 w-6 text-emerald-500" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/10">
+                  <CheckCircle2 className="h-6 w-6 text-accent" />
                 </div>
                 <p className="text-lg font-semibold text-foreground">Password updated</p>
                 <p className="text-sm text-muted-foreground">Redirecting you to your studio…</p>

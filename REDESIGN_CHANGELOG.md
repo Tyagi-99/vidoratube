@@ -8,10 +8,12 @@ auth gates, storage paths, or integrations were changed.
 
 - `bunx vitest run` — 12 files, 70 tests passing
 - `bunx tsgo --noEmit` — clean
+- `bun run lint` — existing repository-wide formatting debt: 2,180 findings
 
 ## Changed
 
 ### `src/styles.css`
+
 - Dark theme retuned to a deep graphite canvas (`oklch(0.135 0.004 265)`) with warm
   off-white ink and higher-contrast muted text (AA-compliant secondary copy).
 - Added elevation tokens `--elev-1` / `--elev-2` for both themes; depth now comes
@@ -23,13 +25,31 @@ auth gates, storage paths, or integrations were changed.
 - `prefers-reduced-motion` handling retained.
 
 ### `src/routes/__root.tsx`
+
 - Header: full-width sticky bar with backdrop blur, underline active states,
   and a persistent primary creation action (`New video`) for signed-in users.
 - Mobile navigation uses 48px touch targets and closes on navigation.
 - Footer restructured into a brand column plus labelled link groups.
 - Route destinations, theme toggle, and session behavior unchanged.
 
+### Product-wide unification — September 11, 2026
+
+- Added a dedicated authenticated header with Studio, Projects, live credits,
+  theme controls, sign out, admin access, and persistent New video access.
+- Kept marketing navigation and footer on public pages only.
+- Unified Auto-edit with the authenticated product shell while preserving file
+  selection and generation callbacks.
+- Preserved Manrope/Sora, film grain, border-led hierarchy, tabular numerals,
+  and the single sea accent in both themes.
+- Removed page-level kickers and the split-color homepage headline.
+- Added inline accessible validation and visible request recovery to sign-in,
+  password reset, contact, script, and voiceover creation surfaces.
+- Added an explicit Projects failure state with a working retry action.
+- Focused changed-file lint passed with one existing Fast Refresh warning.
+- Unit tests passed: 12 files and 70 tests. Production build passed.
+
 ### `src/routes/_authenticated/studio.tsx`
+
 - Split into a page header band (identity, actions, credit/plan/render stats)
   and a library section.
 - Library cards now lead with a 16:9 poster, status chip, title, format/voice
@@ -40,11 +60,12 @@ auth gates, storage paths, or integrations were changed.
 - All server functions, query keys and mutations untouched.
 
 ### `src/routes/index.tsx`
-- Hero reworked with an editorial eyebrow, tighter measure, rule under the
-  proof points, and stats presented as a bordered `dl` strip instead of a card grid.
+
+- Hero reworked with a tighter measure, restrained headline, rule under the proof
+  points, and stats presented as a bordered `dl` strip instead of a card grid.
 
 ## Deliberately unchanged
 
-Creation dialogs' inputs and submit handlers, compose pipeline
+Creation dialogs' input names and submit handlers, compose pipeline
 (`useComposeJobMp4`), YouTube publish flow, admin role gate, pricing data,
 Supabase clients and policies.

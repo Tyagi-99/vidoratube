@@ -19,7 +19,7 @@ const ThemeContext = createContext<ThemeContextValue>({
 });
 
 /** Runs before hydration so the correct palette paints on first frame. */
-export const themeInitScript = `(function(){try{var t=localStorage.getItem("${STORAGE_KEY}")||"dark";var d=t==="dark"||(t==="system"&&window.matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.classList.toggle("dark",d);document.documentElement.style.colorScheme=d?"dark":"light";}catch(e){document.documentElement.classList.add("dark");document.documentElement.style.colorScheme="dark";}})();`;
+export const themeInitScript = `(function(){try{var t=localStorage.getItem("${STORAGE_KEY}")||"dark";var d=t==="dark"||(t==="system"&&window.matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.classList.toggle("dark",d);document.documentElement.dataset.theme=d?"dark":"light";document.documentElement.style.colorScheme=d?"dark":"light";}catch(e){document.documentElement.classList.add("dark");document.documentElement.dataset.theme="dark";document.documentElement.style.colorScheme="dark";}})();`;
 
 function systemPrefersDark() {
   if (typeof window === "undefined") return false;
@@ -29,6 +29,7 @@ function systemPrefersDark() {
 function applyTheme(theme: Theme) {
   const dark = theme === "dark" || (theme === "system" && systemPrefersDark());
   document.documentElement.classList.toggle("dark", dark);
+  document.documentElement.dataset["theme"] = dark ? "dark" : "light";
   document.documentElement.style.colorScheme = dark ? "dark" : "light";
   return dark ? "dark" : "light";
 }

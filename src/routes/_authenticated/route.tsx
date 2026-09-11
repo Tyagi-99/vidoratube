@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { isAppUser, locationToNext, safeAuthNext } from "@/lib/auth-user";
+import { AppChrome } from "@/components/vidora/AppChrome";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -19,8 +20,17 @@ export const Route = createFileRoute("/_authenticated")({
     }
     return { user };
   },
-  component: () => <Outlet />,
+  component: AuthenticatedLayout,
 });
+
+function AuthenticatedLayout() {
+  return (
+    <div className="min-h-screen bg-background">
+      <AppChrome />
+      <Outlet />
+    </div>
+  );
+}
 
 function StudioPending() {
   return (

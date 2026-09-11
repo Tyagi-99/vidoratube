@@ -26,8 +26,7 @@ export const Route = createFileRoute("/")({
       },
       {
         property: "og:description",
-        content:
-          "Turn a script into a 1080p MP4 with narration, scene stills, and captions.",
+        content: "Turn a script into a 1080p MP4 with narration, scene stills, and captions.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -36,26 +35,21 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-
 function Index() {
   return (
-    <div className="min-h-screen w-full bg-background">
+    <main className="min-h-screen w-full bg-background">
       {/* Hero */}
       <section className="relative overflow-hidden bg-background pt-14 pb-20 sm:pt-20 sm:pb-28">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid items-center gap-14 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
             <div className="text-left">
-              <p className="rule-label">Render-first video studio</p>
-
-              <h1 className="mt-6 text-4xl font-bold leading-[1.02] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-                Your AI video studio,{" "}
-                <span className="text-gradient-brand">on autopilot</span>
+              <h1 className="text-4xl font-bold leading-[1.02] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
+                Your AI video studio, on autopilot
               </h1>
 
               <p className="mt-6 max-w-lg text-lg leading-relaxed text-muted-foreground">
-                Script in, 1080p MP4 out. Vidora writes a scene plan, narrates it,
-                generates stills, and burns captions. Keep the tab open until
-                Download appears.
+                Script in, 1080p MP4 out. Vidora writes a scene plan, narrates it, generates stills,
+                and burns captions. Keep the tab open until Download appears.
               </p>
 
               <div className="mt-9 flex flex-col gap-3 sm:flex-row">
@@ -86,7 +80,11 @@ function Index() {
             </div>
 
             <div className="lg:-mr-6">
-              <DemoUI onGenerate={() => { window.location.href = "/studio?create=script"; }} />
+              <DemoUI
+                onGenerate={() => {
+                  window.location.href = "/studio?create=script";
+                }}
+              />
             </div>
           </div>
 
@@ -95,7 +93,9 @@ function Index() {
               <div key={index} className="bg-card px-6 py-7 text-left">
                 <dt className="sr-only">{socialLabels[index]}</dt>
                 <dd>
-                  <p className="font-display text-3xl font-semibold tracking-tight text-foreground">{value}</p>
+                  <p className="font-display text-3xl font-semibold tracking-tight text-foreground tabular-nums">
+                    {value}
+                  </p>
                   <p className="mt-1 text-sm text-muted-foreground">{socialLabels[index]}</p>
                 </dd>
               </div>
@@ -103,7 +103,6 @@ function Index() {
           </dl>
         </div>
       </section>
-
 
       <HomeCreateModes />
       <FeatureSection />
@@ -121,7 +120,8 @@ function Index() {
               Your first cut is a script and an account. Ten free credits, no card.
             </p>
             <p className="mt-2 text-sm text-muted-foreground">
-              Checkout is not live yet. Create a free account for 10 render credits — no card needed.
+              Checkout is not live yet. Create a free account for 10 render credits — no card
+              needed.
             </p>
             <Link
               to="/studio"
@@ -134,8 +134,6 @@ function Index() {
           </div>
         </div>
       </section>
-
-
-    </div>
+    </main>
   );
 }

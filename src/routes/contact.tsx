@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation } from "@tanstack/react-query";
-import { toast } from "sonner";
 import { Mail, MessageSquare, Send, ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,9 +14,15 @@ export const Route = createFileRoute("/contact")({
   head: () => ({
     meta: [
       { title: "Contact — Vidora" },
-      { name: "description", content: "Get in touch for enterprise plans, custom volume, and hands-on onboarding." },
+      {
+        name: "description",
+        content: "Get in touch for enterprise plans, custom volume, and hands-on onboarding.",
+      },
       { property: "og:title", content: "Contact — Vidora" },
-      { property: "og:description", content: "Enterprise plans, custom volume, and hands-on onboarding." },
+      {
+        property: "og:description",
+        content: "Enterprise plans, custom volume, and hands-on onboarding.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -27,36 +32,41 @@ export const Route = createFileRoute("/contact")({
 
 function ContactPage() {
   const [submitted, setSubmitted] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const send = useServerFn(submitContactMessage);
 
   const mutation = useMutation({
     mutationFn: (values: { name: string; email: string; subject: string; message: string }) =>
       send({ data: values }),
     onSuccess: () => setSubmitted(true),
-    onError: (error: Error) => toast.error(error.message || "Could not send your message"),
   });
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    mutation.mutate({
-      name: String(form.get("name") ?? ""),
-      email: String(form.get("email") ?? ""),
+    const values = {
+      name: String(form.get("name") ?? "").trim(),
+      email: String(form.get("email") ?? "").trim(),
       subject: String(form.get("company") ?? ""),
-      message: String(form.get("message") ?? ""),
-    });
+      message: String(form.get("message") ?? "").trim(),
+    };
+    const nextErrors: Record<string, string> = {};
+    if (!values.name) nextErrors["name"] = "Enter your name.";
+    if (!/^\S+@\S+\.\S+$/.test(values.email)) nextErrors["email"] = "Enter a valid email.";
+    if (!values.message) nextErrors["message"] = "Tell us how we can help.";
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length) return;
+    mutation.mutate(values);
   };
-
 
   return (
     <main className="min-h-screen bg-background pt-16">
       <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6 lg:px-8">
         <div className="mb-12 text-center">
-          <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
-            Contact
-          </h1>
+          <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">Contact</h1>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
-            Enterprise & large scale. Hundreds of videos a month, multiple channels, custom volume & hands-on onboarding.
+            Enterprise & large scale. Hundreds of videos a month, multiple channels, custom volume &
+            hands-on onboarding.
           </p>
         </div>
 
@@ -65,7 +75,8 @@ function ContactPage() {
             <div className="space-y-6">
               <h2 className="text-2xl font-bold text-foreground">Get in touch</h2>
               <p className="text-muted-foreground">
-                Tell us what you're building and we'll find a plan that fits your volume, team size, and workflow.
+                Tell us what you're building and we'll find a plan that fits your volume, team size,
+                and workflow.
               </p>
             </div>
 
@@ -77,7 +88,10 @@ function ContactPage() {
                   </div>
                   <div>
                     <p className="font-semibold text-foreground">Email us</p>
-                    <a href="mailto:hello@vidora.ai" className="text-sm text-muted-foreground hover:text-primary">
+                    <a
+                      href="mailto:hello@vidora.ai"
+                      className="text-sm text-muted-foreground hover:text-primary"
+                    >
                       hello@vidora.ai
                     </a>
                   </div>
@@ -132,11 +146,38 @@ function ContactPage() {
                   <div className="grid gap-5 sm:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="name">Name</Label>
-                      <Input id="name" name="name" placeholder="Your name" maxLength={100} required />
+                      <Input
+                        id="name"
+                        name="name"
+                        placeholder="Your name"
+                        maxLength={100}
+                        required
+                        aria-invalid={Boolean(errors["name"])}
+                        aria-describedby={errors["name"] ? "contact-name-error" : undefined}
+                      />
+                      {errors["name"] && (
+                        <p id="contact-name-error" className="text-sm text-destructive">
+                          {errors["name"]}
+                        </p>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="email">Email</Label>
-                      <Input id="email" name="email" type="email" placeholder="you@company.com" maxLength={255} required />
+                      <Input
+                        id="email"
+                        name="email"
+                        type="email"
+                        placeholder="you@company.com"
+                        maxLength={255}
+                        required
+                        aria-invalid={Boolean(errors["email"])}
+                        aria-describedby={errors["email"] ? "contact-email-error" : undefined}
+                      />
+                      {errors["email"] && (
+                        <p id="contact-email-error" className="text-sm text-destructive">
+                          {errors["email"]}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -152,8 +193,26 @@ function ContactPage() {
                       className="min-h-[140px]"
                       maxLength={2000}
                       required
+                      aria-invalid={Boolean(errors["message"])}
+                      aria-describedby={errors["message"] ? "contact-message-error" : undefined}
                     />
+                    {errors["message"] && (
+                      <p id="contact-message-error" className="text-sm text-destructive">
+                        {errors["message"]}
+                      </p>
+                    )}
                   </div>
+                  {mutation.isError && (
+                    <div
+                      className="border border-destructive/30 bg-destructive/5 p-3 text-sm"
+                      role="alert"
+                    >
+                      <p className="font-medium text-destructive">Your message was not sent.</p>
+                      <p className="mt-1 text-muted-foreground">
+                        {mutation.error.message || "Please try again."}
+                      </p>
+                    </div>
+                  )}
                   <Button
                     type="submit"
                     disabled={mutation.isPending}
@@ -167,7 +226,6 @@ function ContactPage() {
                     {mutation.isPending ? "Sending…" : "Send message"}
                   </Button>
                 </form>
-
               )}
             </CardContent>
           </Card>

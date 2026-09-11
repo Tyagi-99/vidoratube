@@ -28,10 +28,7 @@ import {
   finalizeVideoJob,
   failVideoJobCompose,
 } from "@/lib/jobs.functions";
-import {
-  isFinalVideoReady,
-  needsClientCompose,
-} from "@/lib/jobs/final-video";
+import { isFinalVideoReady, needsClientCompose } from "@/lib/jobs/final-video";
 import { toast } from "sonner";
 
 const PIPELINE = [
@@ -277,187 +274,201 @@ export function GenerateVideoDialog({
         onOpenChange(next);
       }}
       title={
-        status === "done" ? "Your video is ready" : status === "failed" ? "Render failed" : "Make a video"
+        status === "done"
+          ? "Your video is ready"
+          : status === "failed"
+            ? "Render failed"
+            : "Make a video"
       }
       description="Paste a script, pick a voice, and Vidora writes narration, generates scene stills, and muxes a 1080p MP4 in this tab. One credit per render."
     >
-        {!sessionLoading && !signedIn ? (
-          <div className="space-y-4 py-6 text-center">
-            <p className="text-muted-foreground">
-              Create a free account to render videos and keep them in your studio.
-            </p>
-            <Link
-              to="/auth"
-              search={{ next: "/studio?create=script" }}
-              onClick={() => onOpenChange(false)}
-              className="inline-flex items-center justify-center rounded-[10px] bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground"
-            >
-              Sign in or create account
-            </Link>
-          </div>
-        ) : status === "done" && result ? (
-          <FinalVideoPreview
-            job={result}
-            onMakeAnother={reset}
-            onDone={() => onOpenChange(false)}
-          />
-        ) : status === "generating" ? (
-          <div className="space-y-6 py-8">
-            <div className="flex items-center justify-center">
-              <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/10">
-                <Loader2 className="h-10 w-10 animate-spin text-primary" />
-              </div>
+      {!sessionLoading && !signedIn ? (
+        <div className="space-y-4 py-6 text-center">
+          <p className="text-muted-foreground">
+            Create a free account to render videos and keep them in your studio.
+          </p>
+          <Link
+            to="/auth"
+            search={{ next: "/studio?create=script" }}
+            onClick={() => onOpenChange(false)}
+            className="inline-flex items-center justify-center rounded-[10px] bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground"
+          >
+            Sign in or create account
+          </Link>
+        </div>
+      ) : status === "done" && result ? (
+        <FinalVideoPreview job={result} onMakeAnother={reset} onDone={() => onOpenChange(false)} />
+      ) : status === "generating" ? (
+        <div className="space-y-6 py-8">
+          <div className="flex items-center justify-center">
+            <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/10">
+              <Loader2 className="h-10 w-10 animate-spin text-primary" />
             </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="font-medium text-foreground">{stepLabel}</span>
-                {showPercent ? (
-                  <span className="text-muted-foreground">{Math.round(progress)}%</span>
-                ) : (
-                  <span className="text-muted-foreground">Working…</span>
-                )}
-              </div>
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-medium text-foreground">{stepLabel}</span>
               {showPercent ? (
-                <Progress value={progress} className="h-2" />
+                <span className="text-muted-foreground">{Math.round(progress)}%</span>
               ) : (
-                <div className="h-2 w-full overflow-hidden rounded-full bg-primary/20">
-                  <div className="h-full w-1/3 animate-pulse rounded-full bg-primary" />
-                </div>
+                <span className="text-muted-foreground">Working…</span>
               )}
             </div>
-            <div className="space-y-3">
-              {PIPELINE.map((step) => {
-                const done = showPercent ? progress >= step.at : step.label !== "Composing final MP4 in this tab" && progress >= step.at;
-                const active =
-                  step.label === stepLabel ||
-                  (!done && showPercent && progress >= step.at - 22);
-                return (
+            {showPercent ? (
+              <Progress value={progress} className="h-2" />
+            ) : (
+              <div className="h-2 w-full overflow-hidden rounded-full bg-primary/20">
+                <div className="h-full w-1/3 animate-pulse rounded-full bg-primary" />
+              </div>
+            )}
+          </div>
+          <div className="space-y-3">
+            {PIPELINE.map((step) => {
+              const done = showPercent
+                ? progress >= step.at
+                : step.label !== "Composing final MP4 in this tab" && progress >= step.at;
+              const active =
+                step.label === stepLabel || (!done && showPercent && progress >= step.at - 22);
+              return (
+                <div
+                  key={step.label}
+                  className={cn(
+                    "flex items-center gap-3 text-sm transition-colors",
+                    done ? "text-foreground" : active ? "text-primary" : "text-muted-foreground",
+                  )}
+                >
                   <div
-                    key={step.label}
                     className={cn(
-                      "flex items-center gap-3 text-sm transition-colors",
-                      done ? "text-foreground" : active ? "text-primary" : "text-muted-foreground",
+                      "flex h-5 w-5 items-center justify-center rounded-full border text-xs",
+                      done
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : active
+                          ? "border-primary text-primary"
+                          : "border-border",
                     )}
                   >
-                    <div
-                      className={cn(
-                        "flex h-5 w-5 items-center justify-center rounded-full border text-xs",
-                        done
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : active
-                            ? "border-primary text-primary"
-                            : "border-border",
-                      )}
-                    >
-                      {done ? <Check className="h-3 w-3" /> : active ? <Loader2 className="h-3 w-3 animate-spin" /> : ""}
-                    </div>
-                    {step.label}
+                    {done ? (
+                      <Check className="h-3 w-3" />
+                    ) : active ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      ""
+                    )}
                   </div>
-                );
-              })}
-            </div>
+                  {step.label}
+                </div>
+              );
+            })}
           </div>
-        ) : status === "failed" ? (
-          <div className="space-y-6 py-6">
-            <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4">
-              <p className="text-sm font-medium text-destructive">
-                {composeError ?? "Render failed"}
+        </div>
+      ) : status === "failed" ? (
+        <div className="space-y-6 py-6">
+          <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4">
+            <p className="text-sm font-medium text-destructive">
+              {composeError ?? "Render failed"}
+            </p>
+          </div>
+          <div className="flex gap-3">
+            {pendingComposeJob ? (
+              <Button
+                className="flex-1 gap-2"
+                onClick={() => retryCompose.mutate()}
+                disabled={retryCompose.isPending}
+              >
+                <RotateCcw className="h-4 w-4" />
+                Retry compose
+              </Button>
+            ) : (
+              <Button className="flex-1 gap-2" onClick={() => mutation.mutate()}>
+                <RotateCcw className="h-4 w-4" />
+                Try again
+              </Button>
+            )}
+            <Button variant="outline" className="flex-1" onClick={reset}>
+              Start over
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-5 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="script">Your script</Label>
+            <Textarea
+              id="script"
+              placeholder="Paste your script here. At least 20 characters."
+              value={script}
+              onChange={(e) => setScript(e.target.value)}
+              maxLength={12000}
+              className="min-h-[140px] resize-none"
+              aria-invalid={script.length > 0 && script.trim().length < 20}
+              aria-describedby="script-help"
+            />
+            <div
+              id="script-help"
+              className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground"
+            >
+              <p>
+                {script.trim().length < 20
+                  ? "At least 20 characters."
+                  : `${script.trim().split(/\s+/).length} words`}
               </p>
-            </div>
-            <div className="flex gap-3">
-              {pendingComposeJob ? (
-                <Button
-                  className="flex-1 gap-2"
-                  onClick={() => retryCompose.mutate()}
-                  disabled={retryCompose.isPending}
-                >
-                  <RotateCcw className="h-4 w-4" />
-                  Retry compose
-                </Button>
-              ) : (
-                <Button className="flex-1 gap-2" onClick={() => mutation.mutate()}>
-                  <RotateCcw className="h-4 w-4" />
-                  Try again
-                </Button>
-              )}
-              <Button variant="outline" className="flex-1" onClick={reset}>
-                Start over
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="h-auto min-h-11 px-0 font-medium text-accent"
+                onClick={() => setScript(SAMPLE_SCRIPT)}
+              >
+                Use a sample script
               </Button>
             </div>
           </div>
-        ) : (
-          <div className="space-y-5 py-4">
+
+          <div className="grid gap-5 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="script">Your script</Label>
-              <Textarea
-                id="script"
-                placeholder="Paste your script here. At least 20 characters."
-                value={script}
-                onChange={(e) => setScript(e.target.value)}
-                maxLength={12000}
-                className="min-h-[140px] resize-none"
-              />
-              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-                <p>
-                  {script.trim().length < 20
-                    ? "At least 20 characters."
-                    : `${script.trim().split(/\s+/).length} words`}
-                </p>
-                <button
-                  type="button"
-                  className="font-medium text-primary hover:underline"
-                  onClick={() => setScript(SAMPLE_SCRIPT)}
-                >
-                  Use a sample script
-                </button>
-              </div>
+              <Label>Voice</Label>
+              <Select value={voice} onValueChange={setVoice}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pick a voice" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="deneb">Deneb · EN</SelectItem>
+                  <SelectItem value="sirius">Sirius · EN</SelectItem>
+                  <SelectItem value="vega">Vega · ES</SelectItem>
+                  <SelectItem value="altair">Altair · FR</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-
-            <div className="grid gap-5 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Voice</Label>
-                <Select value={voice} onValueChange={setVoice}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Pick a voice" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="deneb">Deneb · EN</SelectItem>
-                    <SelectItem value="sirius">Sirius · EN</SelectItem>
-                    <SelectItem value="vega">Vega · ES</SelectItem>
-                    <SelectItem value="altair">Altair · FR</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Format</Label>
-                <Select value={format} onValueChange={setFormat}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Pick a format" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="documentary">Documentary</SelectItem>
-                    <SelectItem value="listicle">Listicle</SelectItem>
-                    <SelectItem value="finance">Finance</SelectItem>
-                    <SelectItem value="history">History</SelectItem>
-                    <SelectItem value="sleep">Sleep story</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2">
+              <Label>Format</Label>
+              <Select value={format} onValueChange={setFormat}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pick a format" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="documentary">Documentary</SelectItem>
+                  <SelectItem value="listicle">Listicle</SelectItem>
+                  <SelectItem value="finance">Finance</SelectItem>
+                  <SelectItem value="history">History</SelectItem>
+                  <SelectItem value="sleep">Sleep story</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-
-            <Button
-              onClick={() => mutation.mutate()}
-              disabled={script.trim().length < 20}
-              className="w-full gap-2"
-            >
-              <Wand2 className="h-4 w-4" />
-              Generate video
-            </Button>
-            <p className="text-center text-xs text-muted-foreground">
-              Keep this tab open until Download appears. The MP4 is assembled in this browser.
-            </p>
           </div>
-        )}
+
+          <Button
+            onClick={() => mutation.mutate()}
+            disabled={script.trim().length < 20}
+            className="w-full gap-2"
+          >
+            <Wand2 className="h-4 w-4" />
+            Generate video
+          </Button>
+          <p className="text-center text-xs text-muted-foreground">
+            Keep this tab open until Download appears. The MP4 is assembled in this browser.
+          </p>
+        </div>
+      )}
     </CreateSurface>
   );
 }
