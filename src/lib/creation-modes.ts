@@ -32,3 +32,11 @@ export function parseCreateMode(value: string | null): CreationModeId | null {
   if (value === "script" || value === "voiceover" || value === "auto_edit") return value;
   return null;
 }
+
+/** Router search for /studio — available on the first client render, no useEffect. */
+export function studioSearchFromUnknown(search: Record<string, unknown>): {
+  create?: CreationModeId;
+} {
+  const create = parseCreateMode(typeof search["create"] === "string" ? search["create"] : null);
+  return create ? { create } : {};
+}

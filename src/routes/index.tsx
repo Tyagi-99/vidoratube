@@ -1,7 +1,5 @@
-import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, Check, Wand2, Play, Sparkles, Zap, Clock } from "lucide-react";
-import { GenerateVideoDialog } from "@/components/vidora/GenerateVideoDialog";
 import { HomeCreateModes } from "@/components/vidora/HomeCreateModes";
 import { DemoUI } from "@/components/vidora/DemoUI";
 import { PricingSection } from "@/components/vidora/PricingSection";
@@ -9,9 +7,9 @@ import { FaqSection } from "@/components/vidora/FaqSection";
 import { FeatureSection } from "@/components/vidora/FeatureSection";
 import { ResultsSection } from "@/components/vidora/ResultsSection";
 
-const socialProof = ["14M+", "1M+", "$500K+"];
+const socialProof = ["1080p", "3 modes", "10"];
 
-const socialLabels = ["views delivered", "subscribers gained", "creator revenue"];
+const socialLabels = ["MP4 download", "script, voiceover, auto-edit", "free credits to start"];
 
 const processSteps = [
   {
@@ -27,7 +25,7 @@ const processSteps = [
   {
     number: "03",
     title: "Hit render",
-    description: "Narration, footage, captions, music and motion are assembled into a 1080p cut.",
+    description: "Narration, stills and captions are muxed into a 1080p MP4 in this browser tab.",
   },
   {
     number: "04",
@@ -58,7 +56,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Vidora AI turns a script into a finished video — AI narration, real footage, word-synced captions, music and motion graphics, rendered in one pass.",
+          "Vidora turns a script into a 1080p MP4 with AI narration, scene stills, and burned-in captions. Early access — keep the tab open until the file is ready.",
       },
       {
         property: "og:title",
@@ -67,7 +65,7 @@ export const Route = createFileRoute("/")({
       {
         property: "og:description",
         content:
-          "Turn a script into a finished, ready-to-upload video with narration, footage, captions, music and motion.",
+          "Turn a script into a 1080p MP4 with narration, scene stills, and captions.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -78,10 +76,8 @@ export const Route = createFileRoute("/")({
 
 
 function Index() {
-  const [dialogOpen, setDialogOpen] = useState(false);
-
   return (
-    <main className="min-h-screen w-full bg-background">
+    <div className="min-h-screen w-full bg-background">
       {/* Hero */}
       <section className="relative overflow-hidden bg-background pt-12 pb-20 sm:pt-16 sm:pb-28">
         <div className="absolute top-0 left-0 -z-10 h-[520px] w-[820px] -translate-x-1/4 rounded-full bg-top-glow opacity-70 blur-3xl" />
@@ -100,9 +96,9 @@ function Index() {
               </h1>
 
               <p className="mt-6 max-w-xl text-lg text-muted-foreground">
-                Script in, finished cut out. Vidora writes the shot plan, narrates
-                it, sources the footage, syncs the captions and scores the whole
-                thing — then hands you a 1080p file.
+                Script in, 1080p MP4 out. Vidora writes a scene plan, narrates it,
+                generates stills, and burns captions. Keep the tab open until
+                Download appears.
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -123,7 +119,7 @@ function Index() {
               </div>
 
               <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-muted-foreground">
-                {["Zero editing skills", "14 languages", "1080p delivery"].map((item) => (
+                {["No timeline required", "EN / ES / FR voices", "1080p MP4"].map((item) => (
                   <div key={item} className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-primary" />
                     {item}
@@ -199,10 +195,10 @@ function Index() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[
               { title: "Story architect", desc: "Reshapes your draft into a structure that holds attention past the hook.", icon: Sparkles },
-              { title: "Voice talent", desc: "100+ voices across 14 languages, or bring your own narration track.", icon: Play },
-              { title: "Footage researcher", desc: "Finds and cuts real clips against every sentence of the script.", icon: Zap },
-              { title: "Motion designer", desc: "Layers captions, punch-ins, counters and map reveals where they land.", icon: Wand2 },
-              { title: "Sound designer", desc: "Scores and mixes music and SFX beneath the voice, cleared for monetization.", icon: Clock },
+              { title: "Voice talent", desc: "A small set of AI voices on the quick path. More as we add them.", icon: Play },
+              { title: "Scene stills", desc: "An image per scene from the script. Stock clips on the studio path when configured.", icon: Zap },
+              { title: "Captions", desc: "Readable burned-in cues, not karaoke word-sync yet.", icon: Wand2 },
+              { title: "Sound", desc: "Narration in the mix. Optional music if you attach a track.", icon: Clock },
               { title: "Post producer", desc: "Bakes the master and delivers a 1080p MP4 ready for upload.", icon: Check },
             ].map((role) => (
               <div key={role.title} className="surface-card flex items-start gap-4 p-6">
@@ -255,22 +251,22 @@ function Index() {
                 Close the timeline. Open the render queue.
               </h2>
               <p className="mt-4 text-lg text-background/70">
-                Your first Vidora cut takes one script and one click. No card needed to try it.
+                Your first cut is a script and an account. Ten free credits, no card.
               </p>
-              <button
-                onClick={() => setDialogOpen(true)}
+              <Link
+                to="/studio"
+                search={{ create: "script" }}
                 className="mt-8 inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 text-base font-semibold text-foreground transition-transform hover:-translate-y-0.5"
               >
                 <Wand2 className="h-5 w-5" />
                 Render your first video
-              </button>
+              </Link>
             </div>
           </div>
         </div>
       </section>
 
 
-      <GenerateVideoDialog open={dialogOpen} onOpenChange={setDialogOpen} />
-    </main>
+    </div>
   );
 }

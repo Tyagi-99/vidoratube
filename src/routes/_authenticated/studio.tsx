@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,7 @@ import { YouTubePanel } from "@/components/vidora/YouTubePanel";
 import { CapCutExportButton } from "@/components/vidora/CapCutExportButton";
 import { JobPreviewDialog } from "@/components/vidora/JobPreviewDialog";
 import { selectDownloadUrl } from "@/lib/jobs/final-video";
-import { parseCreateMode, type CreationModeId } from "@/lib/creation-modes";
+import { studioSearchFromUnknown } from "@/lib/creation-modes";
 import { ResumeComposeButton, isStalledCompose } from "@/components/vidora/ResumeComposeButton";
 
 import { publishJobToYouTube } from "@/lib/youtube.functions";
@@ -25,6 +25,7 @@ import { Coins, Film, LayoutDashboard, LogOut, Plus, Shield, Trash2, Youtube, Lo
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/studio")({
+  validateSearch: (search: Record<string, unknown>) => studioSearchFromUnknown(search),
   head: () => ({
     meta: [
       { title: "Studio dashboard — Vidora AI" },
@@ -47,14 +48,8 @@ const statusStyles: Record<string, string> = {
 };
 
 function StudioPage() {
-  const [pageMode, setPageMode] = useState<CreationModeId | null>(null);
-  useEffect(() => {
-    setPageMode(parseCreateMode(new URLSearchParams(window.location.search).get("create")));
-  }, []);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const { create: pageMode } = Route.useSearch();
   const [modeChooserOpen, setModeChooserOpen] = useState(false);
-  const [voiceoverOpen, setVoiceoverOpen] = useState(false);
-  const [autoEditOpen, setAutoEditOpen] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -97,11 +92,10 @@ function StudioPage() {
 
   if (pageMode) {
     const closePage = () => {
-      window.history.replaceState({}, "", "/studio");
-      setPageMode(null);
+      void navigate({ to: "/studio", replace: true });
     };
     return (
-      <main className="min-h-screen bg-background px-4 py-8 sm:px-6">
+      <div className="min-h-screen bg-background px-4 py-8 sm:px-6">
         <div className="mx-auto mb-6 flex max-w-3xl items-center justify-between">
           <a href="/" className="text-sm font-semibold text-foreground underline-offset-4 hover:underline">
             Home
@@ -119,12 +113,12 @@ function StudioPage() {
         {pageMode === "auto_edit" && (
           <AutoEditCreateDialog asPage open onOpenChange={closePage} />
         )}
-      </main>
+      </div>
     );
   }
 
   return (
-    <main className="min-h-screen bg-top-glow px-4 py-16 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-top-glow px-4 py-16 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
@@ -322,15 +316,10 @@ function StudioPage() {
         description="Pick Script to Video, Voiceover, or Automatic Edit."
         onChoose={(mode) => {
           setModeChooserOpen(false);
-          if (mode === "voiceover") setVoiceoverOpen(true);
-          else if (mode === "auto_edit") setAutoEditOpen(true);
-          else setDialogOpen(true);
+          void navigate({ to: "/studio", search: { create: mode } });
         }}
       />
-      <GenerateVideoDialog open={dialogOpen} onOpenChange={setDialogOpen} />
-      <VoiceoverCreateDialog open={voiceoverOpen} onOpenChange={setVoiceoverOpen} />
-      <AutoEditCreateDialog open={autoEditOpen} onOpenChange={setAutoEditOpen} />
-    </main>
+    </div>
   );
 }
 

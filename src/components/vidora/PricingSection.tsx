@@ -5,6 +5,7 @@ import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getPricingPlans } from "@/lib/public.functions";
+import { displayPlanFeatures, PRICING_FOOTNOTE } from "@/lib/pricing-display";
 
 export function PricingSection({ compact = false }: { compact?: boolean }) {
   const plansFn = useServerFn(getPricingPlans);
@@ -33,7 +34,7 @@ export function PricingSection({ compact = false }: { compact?: boolean }) {
             </h2>
           </div>
           <p className="max-w-sm text-muted-foreground">
-            Credit-based, no seats, no surprises. You only spend on the videos you actually render.
+            Credit packs for finished 1080p MP4s. Prices are what we intend to charge when checkout goes live.
           </p>
         </div>
 
@@ -47,7 +48,10 @@ export function PricingSection({ compact = false }: { compact?: boolean }) {
           <div className="grid items-start gap-5 lg:grid-cols-3">
             {plans.map((plan) => {
               const popular = plan.highlighted;
-              const features = (plan.features ?? []) as string[];
+              const features = displayPlanFeatures({
+                slug: plan.slug,
+                features: plan.features,
+              });
               const perVideo =
                 plan.credits > 0
                   ? `≈ $${(Number(plan.price_monthly) / plan.credits).toFixed(2)} per finished cut`
@@ -153,9 +157,7 @@ export function PricingSection({ compact = false }: { compact?: boolean }) {
           </div>
         )}
 
-        <p className="mt-8 text-sm text-muted-foreground">
-          Cancel in one click · credits reset monthly
-        </p>
+        <p className="mt-8 text-sm text-muted-foreground">{PRICING_FOOTNOTE}</p>
       </div>
     </section>
   );

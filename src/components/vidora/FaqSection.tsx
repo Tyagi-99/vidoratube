@@ -7,34 +7,34 @@ import {
 
 const faqs = [
   {
-    question: "Can Vidora videos be monetized?",
+    question: "Can I monetize the video?",
     answer:
-      "Yes. The script is your original content and Vidora produces it with licensed footage and original motion design — which is exactly what platforms pay out on. The channels in our showcase are monetized.",
+      "You own the script. Quick-path visuals are AI-generated stills, not a licensed stock library. Check YouTube and your local rules before you run ads. We do not promise Partner revenue.",
   },
   {
     question: "What do I need besides a script?",
     answer:
-      "Nothing. Paste the script, pick a voice and a visual register, and render. Narration, footage, captions, score and the final export are handled for you.",
+      "A free account and one credit. Paste the script, pick a voice and a format, then keep the tab open until the MP4 is ready.",
   },
   {
     question: "How long does a render take?",
     answer:
-      "Most cuts are back within the hour. Longer or denser scripts take a little more, and you can queue several renders at once and come back to them.",
+      "Short scripts are usually a few minutes. The last step muxes the MP4 in this browser tab, so leaving or closing it can stall the job.",
   },
   {
     question: "Where do footage and music come from?",
     answer:
-      "Vidora matches clips and tracks from licensed libraries, so everything in the master is safe to publish and monetize.",
+      "Quick generate uses AI scene stills plus narration. Studio projects can pull stock when Pexels or Pixabay keys are set. Music is optional and only included if you attach a track.",
   },
   {
-    question: "Can I use my own voice?",
+    question: "Can I use my own footage or voice?",
     answer:
-      "Yes. Upload your narration track and Vidora builds the entire cut around your timing.",
+      "Yes. Voiceover mode is for a clip you own plus commentary. Automatic edit trims a raw take. Declare rights before we will render a final.",
   },
   {
     question: "Which languages are supported?",
     answer:
-      "14 languages, each with 100+ studio-grade voices to choose from.",
+      "Quick generate currently offers English, Spanish, and French voices. More voices land as we wire them in.",
   },
 ];
 

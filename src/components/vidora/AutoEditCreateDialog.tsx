@@ -3,13 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Loader2, Upload } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { CreateSurface } from "@/components/vidora/CreateSurface";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -153,22 +147,16 @@ export function AutoEditCreateDialog({
   };
 
   return (
-    <Dialog
+    <CreateSurface
+      asPage={asPage}
       open={open}
-      modal={!asPage}
       onOpenChange={(v) => {
         if (!busy) onOpenChange(v);
       }}
+      title="Automatic edit"
+      description="Upload a raw take, pick a target length and aspect, and Vidora trims a keep window with optional captions and voiceover."
+      className="max-w-xl"
     >
-      <DialogContent embedded={asPage} className="max-h-[90vh] max-w-xl overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Automatic Edit</DialogTitle>
-          <DialogDescription>
-            Upload footage, pick target duration and aspect. Vidora plans a keep-window trim and
-            optional captions/VO — no AutoEditor code is embedded (see docs/PHASE3-AUTOEDITOR.md).
-          </DialogDescription>
-        </DialogHeader>
-
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="ae-file">Upload video</Label>
@@ -307,7 +295,6 @@ export function AutoEditCreateDialog({
             Create automatic edit
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+    </CreateSurface>
   );
 }

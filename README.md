@@ -1,6 +1,6 @@
-# Website Cloner
+# Vidora
 
-can you help me to clone a website
+Script-to-MP4 studio: AI narration, scene stills, burned-in captions. Early access.
 
 This project was built with [Lovable](https://lovable.dev).
 

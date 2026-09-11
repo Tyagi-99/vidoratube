@@ -4,49 +4,48 @@ import { cn } from "@/lib/utils";
 const features = [
   {
     icon: Film,
-    title: "Real footage on every beat",
+    title: "Scene stills from your script",
     description:
-      "Vidora reads the script line by line and pulls licensed clips that actually match what's being said, then cuts them to the narration.",
-    badge: "scene_plan · 42 shots",
+      "Vidora breaks the script into scenes and generates an image for each beat. Stock video matching is on the studio path when keys are configured.",
+    badge: "script → scenes",
     span: "lg:col-span-2 lg:row-span-1",
   },
   {
     icon: Mic,
-    title: "Human-grade narration",
+    title: "AI narration",
     description:
-      "100+ studio voices across 14 languages — or upload your own track and Vidora builds around it.",
+      "A short voice list on the quick path (English, Spanish, French). Upload your own footage in Voiceover mode.",
     badge: null,
     span: "",
   },
   {
     icon: Type,
-    title: "Word-synced captions",
-    description: "Karaoke captions land on the exact syllable, styled to your channel.",
-    badge: "+38,412 COUNTER",
+    title: "Burned-in captions",
+    description: "Captions are burned into the MP4, one readable cue per scene — not karaoke word-sync yet.",
+    badge: "on-screen",
     span: "",
   },
   {
     icon: Palette,
-    title: "Motion that earns its place",
-    description:
-      "Punch-ins, kinetic type, counters and map reveals, placed only where the script asks for them.",
+    title: "Simple motion",
+    description: "Ken Burns-style moves on stills so the cut does not sit static.",
     badge: null,
     span: "",
   },
   {
     icon: Music,
-    title: "Scored and mixed",
+    title: "Optional music",
     description:
-      "A soundtrack that tracks the story, ducked under the voice, cleared for monetization.",
+      "You can attach a music bed on the studio render path. We do not claim a cleared commercial library yet.",
     badge: null,
     span: "",
   },
   {
     icon: FileVideo,
-    title: "One file, ready to publish",
+    title: "One 1080p MP4",
     description:
-      "A 1080p master with everything baked in. Drag it straight into your upload queue.",
-    badge: "master.mp4 · 1080p · 11:42",
+      "The download is a muxed MP4. Keep the tab open until it finishes — compose currently runs in the browser.",
+    badge: "master.mp4 · 1080p",
     span: "lg:col-span-2",
   },
 ];
@@ -60,7 +59,7 @@ export function FeatureSection() {
             Inside a render
           </p>
           <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Everything an edit suite does, minus the edit suite
+            What a Vidora render includes today
           </h2>
         </div>
 

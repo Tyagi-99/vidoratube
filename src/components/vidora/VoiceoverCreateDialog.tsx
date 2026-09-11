@@ -3,13 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Loader2, Upload } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { CreateSurface } from "@/components/vidora/CreateSurface";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -159,22 +153,16 @@ export function VoiceoverCreateDialog({
   };
 
   return (
-    <Dialog
+    <CreateSurface
+      asPage={asPage}
       open={open}
-      modal={!asPage}
       onOpenChange={(v) => {
         if (!busy) onOpenChange(v);
       }}
+      title="Voiceover"
+      description="Upload footage you own, declare rights, then add commentary and captions. We never scrape or download videos from other platforms."
+      className="max-w-xl"
     >
-      <DialogContent embedded={asPage} className="max-h-[90vh] max-w-xl overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Voiceover Mode</DialogTitle>
-          <DialogDescription>
-            Upload footage, declare rights, pick duration and commentary style. We never scrape DRM or
-            bypass platform downloads — upload is the solid path.
-          </DialogDescription>
-        </DialogHeader>
-
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="vo-file">Upload video (primary)</Label>
@@ -307,7 +295,6 @@ export function VoiceoverCreateDialog({
             Create voiceover project
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+    </CreateSurface>
   );
 }

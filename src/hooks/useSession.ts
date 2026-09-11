@@ -18,5 +18,7 @@ export function useSession() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  return { session, user: session?.user ?? null, loading };
+  const raw = session?.user ?? null;
+  const user = raw && raw.is_anonymous !== true ? raw : null;
+  return { session: user ? session : null, user, loading };
 }

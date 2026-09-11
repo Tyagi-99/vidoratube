@@ -84,10 +84,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Vidora AI — Your AI video studio, on autopilot" },
-      { name: "description", content: "Vidora AI turns a script into a finished, ready-to-upload video: narration, footage, captions, music and motion — generated in one pass." },
+      { name: "description", content: "Vidora turns a script into a 1080p MP4 with AI narration, scene stills, and burned-in captions." },
       { name: "author", content: "Vidora AI" },
       { property: "og:title", content: "Vidora AI — Your AI video studio, on autopilot" },
-      { property: "og:description", content: "Turn a script into a finished, ready-to-upload video in one pass." },
+      { property: "og:description", content: "Turn a script into a 1080p MP4 with narration, stills, and captions." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@vidoraai" },
@@ -258,8 +258,8 @@ function Footer() {
           <div className="max-w-xs">
             <Wordmark size="sm" />
             <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-              Vidora AI is a video studio that runs itself — script in, finished
-              cut out, without a timeline in sight.
+              Vidora is a script-to-MP4 studio in early access — narration, scene
+              stills, and captions, without a timeline.
             </p>
           </div>
 
@@ -290,6 +290,12 @@ function Footer() {
               </a>
               <Link to="/contact" className="text-sm text-foreground/80 hover:text-primary">
                 Support
+              </Link>
+              <Link to="/privacy" className="text-sm text-foreground/80 hover:text-primary">
+                Privacy
+              </Link>
+              <Link to="/terms" className="text-sm text-foreground/80 hover:text-primary">
+                Terms
               </Link>
               <span className="text-sm text-muted-foreground">Remote · worldwide</span>
             </div>

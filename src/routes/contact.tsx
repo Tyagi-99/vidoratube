@@ -77,7 +77,9 @@ function ContactPage() {
                   </div>
                   <div>
                     <p className="font-semibold text-foreground">Email us</p>
-                    <p className="text-sm text-muted-foreground">hello@vidora.ai</p>
+                    <a href="mailto:hello@vidora.ai" className="text-sm text-muted-foreground hover:text-primary">
+                      hello@vidora.ai
+                    </a>
                   </div>
                 </CardContent>
               </Card>
@@ -87,8 +89,8 @@ function ContactPage() {
                     <MessageSquare className="h-5 w-5" />
                   </div>
                   <div>
-                    <p className="font-semibold text-foreground">Chat support</p>
-                    <p className="text-sm text-muted-foreground">Available 9am–6pm EST</p>
+                    <p className="font-semibold text-foreground">Response time</p>
+                    <p className="text-sm text-muted-foreground">Email, within one business day</p>
                   </div>
                 </CardContent>
               </Card>

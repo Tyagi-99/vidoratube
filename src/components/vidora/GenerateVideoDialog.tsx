@@ -3,14 +3,9 @@ import { Link } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useSession } from "@/hooks/useSession";
+import { isAppUser } from "@/lib/auth-user";
+import { CreateSurface } from "@/components/vidora/CreateSurface";
 
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -42,9 +37,12 @@ import { toast } from "sonner";
 const PIPELINE = [
   { label: "Writing narration", at: 22 },
   { label: "Recording voiceover", at: 45 },
-  { label: "Generating footage", at: 70 },
+  { label: "Generating stills", at: 70 },
   { label: "Composing final MP4 in this tab", at: 100 },
 ];
+
+const SAMPLE_SCRIPT =
+  "In April 1949 the frigate HMS Amethyst steamed up the Yangtze toward Nanking. The crew thought they were on a routine resupply. They were sailing into the longest single-ship chase of the twentieth century.";
 
 type JobResult = {
   id: string;
@@ -268,37 +266,29 @@ export function GenerateVideoDialog({
         ? "failed"
         : "idle";
 
+  const signedIn = isAppUser(user);
+
   return (
-    <Dialog
+    <CreateSurface
+      asPage={asPage}
       open={open}
-      modal={!asPage}
       onOpenChange={(next) => {
         if (!next && !mutation.isPending && !retryCompose.isPending) reset();
         onOpenChange(next);
       }}
+      title={
+        status === "done" ? "Your video is ready" : status === "failed" ? "Render failed" : "Make a video"
+      }
+      description="Paste a script, pick a voice, and Vidora writes narration, generates scene stills, and muxes a 1080p MP4 in this tab. One credit per render."
     >
-      <DialogContent embedded={asPage} className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold tracking-tight">
-            {status === "done"
-              ? "Your video is ready"
-              : status === "failed"
-                ? "Render failed"
-                : "Make a video"}
-          </DialogTitle>
-          <DialogDescription className="text-muted-foreground">
-            Paste your script, pick a voice and format, and Vidora assembles the cut. Each render
-            uses one credit.
-          </DialogDescription>
-        </DialogHeader>
-
-        {!sessionLoading && !user ? (
+        {!sessionLoading && !signedIn ? (
           <div className="space-y-4 py-6 text-center">
             <p className="text-muted-foreground">
               Create a free account to render videos and keep them in your studio.
             </p>
             <Link
               to="/auth"
+              search={{ next: "/studio?create=script" }}
               onClick={() => onOpenChange(false)}
               className="inline-flex items-center justify-center rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground"
             >
@@ -401,17 +391,26 @@ export function GenerateVideoDialog({
               <Label htmlFor="script">Your script</Label>
               <Textarea
                 id="script"
-                placeholder="Paste your script here. Any topic, any length, any language..."
+                placeholder="Paste your script here. At least 20 characters."
                 value={script}
                 onChange={(e) => setScript(e.target.value)}
                 maxLength={12000}
                 className="min-h-[140px] resize-none"
               />
-              <p className="text-xs text-muted-foreground">
-                {script.trim().length < 20
-                  ? "At least 20 characters."
-                  : `${script.trim().split(/\s+/).length} words`}
-              </p>
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                <p>
+                  {script.trim().length < 20
+                    ? "At least 20 characters."
+                    : `${script.trim().split(/\s+/).length} words`}
+                </p>
+                <button
+                  type="button"
+                  className="font-medium text-primary hover:underline"
+                  onClick={() => setScript(SAMPLE_SCRIPT)}
+                >
+                  Use a sample script
+                </button>
+              </div>
             </div>
 
             <div className="grid gap-5 sm:grid-cols-2">
@@ -454,9 +453,11 @@ export function GenerateVideoDialog({
               <Wand2 className="h-4 w-4" />
               Generate video
             </Button>
+            <p className="text-center text-xs text-muted-foreground">
+              Keep this tab open until Download appears. The MP4 is assembled in this browser.
+            </p>
           </div>
         )}
-      </DialogContent>
-    </Dialog>
+    </CreateSurface>
   );
 }

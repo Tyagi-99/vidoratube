@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { CREATION_MODES, creationModeHref, parseCreateMode } from "./creation-modes";
+import {
+  CREATION_MODES,
+  creationModeHref,
+  parseCreateMode,
+  studioSearchFromUnknown,
+} from "./creation-modes";
 
 describe("home creation modes", () => {
   it("exposes three home links that open a page, not a dialog", () => {
@@ -12,5 +17,12 @@ describe("home creation modes", () => {
     expect(parseCreateMode("script")).toBe("script");
     expect(parseCreateMode("nope")).toBeNull();
     expect(parseCreateMode(null)).toBeNull();
+  });
+
+  it("reads create from router search on the first render", () => {
+    expect(studioSearchFromUnknown({ create: "script" })).toEqual({ create: "script" });
+    expect(studioSearchFromUnknown({ create: "voiceover" })).toEqual({ create: "voiceover" });
+    expect(studioSearchFromUnknown({})).toEqual({});
+    expect(studioSearchFromUnknown({ create: ["script"] })).toEqual({});
   });
 });

@@ -1,4 +1,5 @@
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { isAppUser, safeAuthNext } from "@/lib/auth-user";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,6 +19,12 @@ import { Loader2, Aperture, MailCheck } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/auth")({
+  validateSearch: (search: Record<string, unknown>): { next?: string } => {
+    const raw = typeof search["next"] === "string" ? search["next"] : undefined;
+    if (!raw) return {};
+    const next = safeAuthNext(raw);
+    return next === "/studio" && raw !== "/studio" ? {} : { next };
+  },
   head: () => ({
     meta: [
       { title: "Sign in — Vidora AI" },
@@ -41,7 +48,7 @@ const schema = z.object({
 const emailSchema = z.string().trim().email("Enter a valid email").max(255);
 
 function AuthPage() {
-  const navigate = useNavigate();
+  const { next } = Route.useSearch();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -52,11 +59,16 @@ function AuthPage() {
   const [resetSent, setResetSent] = useState(false);
   const [resetBusy, setResetBusy] = useState(false);
 
+  const goNext = () => {
+    window.location.replace(safeAuthNext(next));
+  };
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/studio", replace: true });
+      if (isAppUser(data.session?.user)) goNext();
     });
-  }, [navigate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,7 +98,7 @@ function AuthPage() {
         });
         if (error) throw error;
       }
-      navigate({ to: "/studio", replace: true });
+      goNext();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Something went wrong";
       toast.error(

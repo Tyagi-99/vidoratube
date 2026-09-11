@@ -24,7 +24,7 @@ function PricingPage() {
           Pricing
         </h1>
         <p className="mx-auto mt-4 max-w-2xl text-center text-lg text-muted-foreground">
-          Less than a coffee per finished video. Simple credit pricing — pick the plan that matches your upload schedule.
+          Credit packs we intend to sell. Checkout is not live — start with 10 free credits.
         </p>
       </div>
       <PricingSection />
