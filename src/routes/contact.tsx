@@ -51,9 +51,9 @@ function ContactPage() {
       message: String(form.get("message") ?? "").trim(),
     };
     const nextErrors: Record<string, string> = {};
-    if (!values.name) nextErrors.name = "Enter your name.";
-    if (!/^\S+@\S+\.\S+$/.test(values.email)) nextErrors.email = "Enter a valid email.";
-    if (!values.message) nextErrors.message = "Tell us how we can help.";
+    if (!values.name) nextErrors["name"] = "Enter your name.";
+    if (!/^\S+@\S+\.\S+$/.test(values.email)) nextErrors["email"] = "Enter a valid email.";
+    if (!values.message) nextErrors["message"] = "Tell us how we can help.";
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;
     mutation.mutate(values);
