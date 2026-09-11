@@ -214,8 +214,22 @@
 
   h1, h2, h3, h4, .font-display {
     font-family: var(--font-display);
-    letter-spacing: -0.04em;
+    letter-spacing: -0.03em;
     text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  ::selection {
+    background: color-mix(in oklch, var(--accent) 32%, transparent);
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -226,6 +240,23 @@
     }
   }
 }
+
+@utility elevate-1 {
+  box-shadow: var(--elev-1);
+}
+
+@utility elevate-2 {
+  box-shadow: var(--elev-2);
+}
+
+@utility rule-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
 
 @utility text-gradient-brand {
   color: var(--accent);
