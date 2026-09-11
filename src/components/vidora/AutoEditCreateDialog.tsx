@@ -64,6 +64,7 @@ export function AutoEditCreateDialog({
   const [enableVo, setEnableVo] = useState(false);
   const [muteOriginal, setMuteOriginal] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [audioFile, setAudioFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [captionStyle, setCaptionStyle] = useState<AutoEditCaptionStyleId>("karaoke");
   const [voiceoverMode, setVoiceoverMode] = useState<VoiceoverMode>("off");
@@ -123,6 +124,7 @@ export function AutoEditCreateDialog({
     setEnableVo(false);
     setMuteOriginal(false);
     setFile(null);
+    setAudioFile(null);
     setCaptionStyle("karaoke");
     setVoiceoverMode("off");
     setLanguage("Auto");
@@ -218,38 +220,14 @@ export function AutoEditCreateDialog({
     return (
       <AutoEditStudio
         file={file}
-        previewUrl={previewUrl}
-        sourceDuration={sourceDuration}
-        targetDuration={targetDuration}
-        captionStyle={captionStyle}
-        voiceoverMode={voiceoverMode}
-        language={language}
-        rights={rights}
-        notes={notes}
+        audioName={audioFile?.name ?? null}
         busy={busy}
-        videoRef={videoRef}
-        currentTime={currentTime}
-        playing={playing}
         onClose={() => onOpenChange(false)}
         onReset={reset}
         onPickFile={pickFile}
-        onTargetDuration={setTargetDuration}
-        onCaptionStyle={setCaptionStyle}
-        onVoiceoverMode={setVoiceoverMode}
-        onLanguage={setLanguage}
-        onRights={setRights}
-        onNotes={setNotes}
-        onTogglePlay={() => {
-          const el = videoRef.current;
-          if (!el) return;
-          if (el.paused) void el.play();
-          else el.pause();
-        }}
-        onSeek={(seconds) => {
-          const el = videoRef.current;
-          if (!el) return;
-          el.currentTime = seconds;
-          setCurrentTime(seconds);
+        onPickAudio={(next) => {
+          setAudioFile(next);
+          setVoiceoverMode("upload");
         }}
         onGenerate={() => void onSubmit()}
       />
