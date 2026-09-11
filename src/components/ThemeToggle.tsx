@@ -12,9 +12,9 @@ export function ThemeToggle({ className }: { className?: string }) {
     <button
       type="button"
       onClick={toggle}
-      aria-label="Toggle dark mode"
+      aria-label={`Switch to ${resolvedTheme === "dark" ? "light" : "dark"} mode`}
       className={cn(
-        "inline-flex size-9 items-center justify-center rounded-[10px] border border-border/70 bg-card text-foreground transition-colors hover:bg-muted",
+        "inline-flex size-11 items-center justify-center rounded-lg border border-border bg-card text-foreground transition-colors hover:bg-muted",
         className,
       )}
     >

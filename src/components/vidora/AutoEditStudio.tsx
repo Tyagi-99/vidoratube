@@ -84,23 +84,6 @@ export function AutoEditStudio({
 
   return (
     <main className="app ae-app">
-      <header className="nav">
-        <div className="nav__brand">
-          <span className="brand__logo" aria-hidden="true">
-            ►
-          </span>
-          <span className="brand__name">
-            <span className="brand__pre">Vidora</span> AutoEditor
-          </span>
-          <span className="brand__tag">image + video · voiceover sync</span>
-        </div>
-        <div className="nav__links">
-          <button type="button" className="ext-link" onClick={onReset}>
-            New project
-          </button>
-        </div>
-      </header>
-
       <div className="projbar projbar--onboard">
         <div className="projbar__id">
           <button type="button" className="brand__back" onClick={onClose} title="Back to studio">
@@ -108,6 +91,9 @@ export function AutoEditStudio({
           </button>
           <button type="button" className="brand__proj" title="Project">
             {file ? file.name.replace(/\.[^.]+$/, "") : "Untitled project"}
+          </button>
+          <button type="button" className="ext-link" onClick={onReset}>
+            New project
           </button>
         </div>
       </div>
