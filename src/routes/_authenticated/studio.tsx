@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -19,8 +19,7 @@ import { ResumeComposeButton, isStalledCompose } from "@/components/vidora/Resum
 
 import { publishJobToYouTube } from "@/lib/youtube.functions";
 import { getMyAccount, listMyJobs, deleteMyJob } from "@/lib/jobs.functions";
-import { supabase } from "@/integrations/supabase/client";
-import { Coins, Film, LayoutDashboard, LogOut, Plus, Shield, Trash2, Youtube, Loader2, Download } from "lucide-react";
+import { Coins, Film, LayoutDashboard, Plus, Trash2, Youtube, Loader2, Download } from "lucide-react";
 
 import { toast } from "sonner";
 
@@ -50,7 +49,6 @@ const statusStyles: Record<string, string> = {
 function StudioPage() {
   const { create: pageMode } = Route.useSearch();
   const [modeChooserOpen, setModeChooserOpen] = useState(false);
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const accountFn = useServerFn(getMyAccount);
@@ -81,50 +79,34 @@ function StudioPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const signOut = async () => {
-    await queryClient.cancelQueries();
-    queryClient.clear();
-    await supabase.auth.signOut();
-    navigate({ to: "/auth", replace: true });
-  };
-
   const profile = account.data?.profile;
 
   if (pageMode) {
     const closePage = () => {
-      void navigate({ to: "/studio", replace: true });
+      window.location.assign("/studio");
     };
     if (pageMode === "auto_edit") {
       return <AutoEditCreateDialog asPage open onOpenChange={closePage} />;
     }
     return (
-      <div className="min-h-screen bg-background px-4 py-8 sm:px-6">
-        <div className="mx-auto mb-6 flex max-w-3xl items-center justify-between">
-          <a href="/" className="text-sm font-semibold text-foreground underline-offset-4 hover:underline">
-            Home
-          </a>
-          <button type="button" onClick={closePage} className="text-sm text-muted-foreground hover:text-foreground">
-            Studio
-          </button>
-        </div>
+      <main className="min-h-[calc(100dvh-4rem)] bg-background px-4 py-10 sm:px-6">
         {pageMode === "script" && (
           <GenerateVideoDialog asPage open onOpenChange={closePage} />
         )}
         {pageMode === "voiceover" && (
           <VoiceoverCreateDialog asPage open onOpenChange={closePage} />
         )}
-      </div>
+      </main>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <main className="min-h-[calc(100dvh-4rem)] bg-background">
       <div className="border-b border-border bg-card/40">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
           <div className="flex flex-wrap items-end justify-between gap-6">
             <div className="min-w-0">
-              <p className="rule-label">Studio</p>
-              <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+              <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
                 {profile?.display_name ? `Hey, ${profile.display_name}` : "Your studio"}
               </h1>
               <p className="mt-2 max-w-md text-sm text-muted-foreground">
@@ -132,24 +114,6 @@ function StudioPage() {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <Button asChild variant="outline" className="gap-2">
-                <Link to="/projects">
-                  <Film className="h-4 w-4" />
-                  Projects
-                </Link>
-              </Button>
-              {account.data?.isAdmin && (
-                <Button asChild variant="outline" className="gap-2">
-                  <Link to="/admin">
-                    <Shield className="h-4 w-4" />
-                    Admin
-                  </Link>
-                </Button>
-              )}
-              <Button variant="ghost" onClick={signOut} className="gap-2">
-                <LogOut className="h-4 w-4" />
-                Sign out
-              </Button>
               <Button onClick={() => setModeChooserOpen(true)} className="gap-2">
                 <Plus className="h-4 w-4" />
                 New video
@@ -377,7 +341,7 @@ function StudioPage() {
           void navigate({ to: "/studio", search: { create: mode } });
         }}
       />
-    </div>
+    </main>
   );
 }
 
@@ -399,7 +363,7 @@ function StatCard({
       {value === null ? (
         <Skeleton className="mt-3 h-8 w-20" />
       ) : (
-        <dd className="mt-2 font-display text-3xl font-semibold capitalize tracking-tight text-foreground">
+        <dd className="mt-2 font-display text-3xl font-semibold capitalize tracking-tight text-foreground tabular-nums">
           {value}
         </dd>
       )}

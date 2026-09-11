@@ -396,20 +396,24 @@ export function GenerateVideoDialog({
                 onChange={(e) => setScript(e.target.value)}
                 maxLength={12000}
                 className="min-h-[140px] resize-none"
+                aria-invalid={script.length > 0 && script.trim().length < 20}
+                aria-describedby="script-help"
               />
-              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+              <div id="script-help" className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
                 <p>
                   {script.trim().length < 20
                     ? "At least 20 characters."
                     : `${script.trim().split(/\s+/).length} words`}
                 </p>
-                <button
+                <Button
                   type="button"
-                  className="font-medium text-primary hover:underline"
+                  variant="link"
+                  size="sm"
+                  className="h-auto min-h-11 px-0 font-medium text-accent"
                   onClick={() => setScript(SAMPLE_SCRIPT)}
                 >
                   Use a sample script
-                </button>
+                </Button>
               </div>
             </div>
 

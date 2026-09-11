@@ -6,6 +6,7 @@ import {
   useRouter,
   HeadContent,
   Scripts,
+  useRouterState,
 } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 
@@ -125,16 +126,23 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const authenticated =
+    pathname === "/studio" ||
+    pathname === "/projects" ||
+    pathname.startsWith("/projects/") ||
+    pathname === "/admin" ||
+    pathname.startsWith("/admin/");
 
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <div className="relative flex min-h-screen flex-col">
-          <Header />
-          <main className="flex-1">
+          {!authenticated && <Header />}
+          <div className="flex-1">
             <Outlet />
-          </main>
-          <Footer />
+          </div>
+          {!authenticated && <Footer />}
         </div>
         <Toaster position="top-center" richColors />
       </ThemeProvider>

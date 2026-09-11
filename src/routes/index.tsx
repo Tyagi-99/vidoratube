@@ -45,11 +45,8 @@ function Index() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid items-center gap-14 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
             <div className="text-left">
-              <p className="rule-label">Render-first video studio</p>
-
-              <h1 className="mt-6 text-4xl font-bold leading-[1.02] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-                Your AI video studio,{" "}
-                <span className="text-gradient-brand">on autopilot</span>
+              <h1 className="text-4xl font-bold leading-[1.02] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
+                Your AI video studio, on autopilot
               </h1>
 
               <p className="mt-6 max-w-lg text-lg leading-relaxed text-muted-foreground">
@@ -95,7 +92,7 @@ function Index() {
               <div key={index} className="bg-card px-6 py-7 text-left">
                 <dt className="sr-only">{socialLabels[index]}</dt>
                 <dd>
-                  <p className="font-display text-3xl font-semibold tracking-tight text-foreground">{value}</p>
+                  <p className="font-display text-3xl font-semibold tracking-tight text-foreground tabular-nums">{value}</p>
                   <p className="mt-1 text-sm text-muted-foreground">{socialLabels[index]}</p>
                 </dd>
               </div>

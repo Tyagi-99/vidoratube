@@ -23,10 +23,9 @@ export const Route = createFileRoute("/features")({
 
 function FeaturesPage() {
   return (
-    <div className="min-h-screen bg-background pt-16">
+    <main className="min-h-screen bg-background pt-16">
       <div className="mx-auto max-w-6xl px-4 pt-16 pb-8 sm:px-6 lg:px-8">
-        <p className="text-xs font-semibold text-accent">Product</p>
-        <h1 className="mt-3 text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
+        <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
           Features
         </h1>
         <p className="mt-4 max-w-2xl text-lg text-muted-foreground">
@@ -41,6 +40,6 @@ function FeaturesPage() {
 
       <FeatureSection />
       <ResultsSection />
-    </div>
+    </main>
   );
 }

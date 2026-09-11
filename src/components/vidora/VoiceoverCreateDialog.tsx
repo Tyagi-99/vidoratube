@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Loader2, Upload } from "lucide-react";
+import { CheckCircle2, FileVideo, Loader2, Upload } from "lucide-react";
 import { CreateSurface } from "@/components/vidora/CreateSurface";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,6 +58,7 @@ export function VoiceoverCreateDialog({
   const [metaUrl, setMetaUrl] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const reset = () => {
     setTitle("");
@@ -73,18 +74,19 @@ export function VoiceoverCreateDialog({
 
   const onSubmit = async () => {
     if (!user) {
-      toast.error("Sign in to create a voiceover project.");
+      setFormError("Sign in to create a voiceover project.");
       return;
     }
     if (!file && !metaUrl.trim()) {
-      toast.error("Upload a video file (recommended) or paste a URL for metadata only.");
+      setFormError("Upload a video file or paste a URL for metadata only.");
       return;
     }
     if (rights === "do_not_use" || rights === "permission_denied") {
-      toast.error("That rights status is blocked — pick a usable clearance.");
+      setFormError("That rights status is blocked — pick a usable clearance.");
       return;
     }
 
+    setFormError(null);
     setBusy(true);
     try {
       let source_video_url: string | undefined;
@@ -146,7 +148,9 @@ export function VoiceoverCreateDialog({
       reset();
       navigate({ to: "/projects/$projectId", params: { projectId: project.id } });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not create project");
+      const message = e instanceof Error ? e.message : "Could not create project";
+      setFormError(message);
+      toast.error(message);
     } finally {
       setBusy(false);
     }
@@ -177,11 +181,16 @@ export function VoiceoverCreateDialog({
             <Button
               type="button"
               variant="outline"
-              className="w-full gap-2"
+              className="min-h-20 w-full justify-start gap-3 border-dashed px-4"
               onClick={() => fileRef.current?.click()}
             >
-              <Upload className="h-4 w-4" />
-              {file ? file.name : "Choose video file"}
+              {file ? <CheckCircle2 className="h-5 w-5 text-accent" /> : <Upload className="h-5 w-5" />}
+              <span className="min-w-0 text-left">
+                <span className="block truncate">{file ? file.name : "Choose video file"}</span>
+                <span className="block text-xs font-normal text-muted-foreground">
+                  {file ? `${(file.size / 1024 / 1024).toFixed(1)} MB selected` : "MP4, MOV, or another browser-supported video"}
+                </span>
+              </span>
             </Button>
           </div>
 
@@ -290,9 +299,14 @@ export function VoiceoverCreateDialog({
             <Switch id="vo-mute" checked={muteOriginal} onCheckedChange={setMuteOriginal} />
           </div>
 
+          {formError && (
+            <div className="border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive" role="alert">
+              {formError}
+            </div>
+          )}
           <Button className="w-full gap-2" disabled={busy} onClick={onSubmit}>
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-            Create voiceover project
+            {busy ? "Uploading and creating…" : "Create voiceover project"}
           </Button>
         </div>
     </CreateSurface>

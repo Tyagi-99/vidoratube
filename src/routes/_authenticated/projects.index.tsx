@@ -102,10 +102,7 @@ function ProjectsPage() {
       <div className="mx-auto max-w-6xl">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              Studio
-            </p>
-            <h1 className="mt-1 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+            <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
               Projects
             </h1>
             <p className="mt-2 text-sm text-muted-foreground">
@@ -123,6 +120,16 @@ function ProjectsPage() {
             {[0, 1, 2].map((i) => (
               <Skeleton key={i} className="h-48 rounded-2xl" />
             ))}
+          </div>
+        ) : projects.isError ? (
+          <div className="mt-10 border border-destructive/30 bg-destructive/5 p-8" role="alert">
+            <p className="font-semibold text-foreground">We couldn't load your projects</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {(projects.error as Error)?.message ?? "Something went wrong."}
+            </p>
+            <Button variant="outline" className="mt-5" onClick={() => projects.refetch()}>
+              Try again
+            </Button>
           </div>
         ) : (projects.data ?? []).length === 0 ? (
           <Card className="mt-10 border-dashed border-border bg-card">
@@ -156,7 +163,7 @@ function ProjectsPage() {
                     />
                   )}
                   <span
-                    className={`absolute left-3 top-3 rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${
+                    className={`absolute left-3 top-3 rounded-md px-2.5 py-1 text-xs font-semibold capitalize ${
                       statusStyles[project.status] ?? "bg-muted"
                     }`}
                   >

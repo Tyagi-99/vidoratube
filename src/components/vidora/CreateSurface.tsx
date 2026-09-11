@@ -46,7 +46,7 @@ export function CreateSurface({
     return (
       <div
         className={cn(
-          "mx-auto w-full max-w-2xl rounded-3xl border border-border bg-card p-6 shadow-none sm:p-8",
+          "mx-auto w-full max-w-2xl rounded-xl border border-border bg-card p-6 shadow-none sm:p-8",
           className,
         )}
       >
