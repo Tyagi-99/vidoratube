@@ -1,9 +1,10 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Loader2, Upload } from "lucide-react";
 import { CreateSurface } from "@/components/vidora/CreateSurface";
+import { AutoEditStudio } from "@/components/vidora/AutoEditStudio";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +22,11 @@ import { useSession } from "@/hooks/useSession";
 import { createAutoEditProject } from "@/lib/mode3/mode3.functions";
 import { DURATION_PRESETS } from "@/lib/mode2/duration";
 import { PERMISSION_STATUSES } from "@/lib/content/stages";
+import {
+  type AutoEditCaptionStyleId,
+  type VoiceoverMode,
+  voiceoverFlags,
+} from "@/lib/mode3/studio-ui";
 
 const RIGHTS_LABELS: Record<string, string> = {
   unknown: "Unknown (cannot render final)",
@@ -59,6 +65,52 @@ export function AutoEditCreateDialog({
   const [muteOriginal, setMuteOriginal] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
+  const [captionStyle, setCaptionStyle] = useState<AutoEditCaptionStyleId>("karaoke");
+  const [voiceoverMode, setVoiceoverMode] = useState<VoiceoverMode>("off");
+  const [language, setLanguage] = useState("Auto");
+  const [targetDuration, setTargetDuration] = useState(60);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [sourceDuration, setSourceDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  const pickFile = (next: File) => {
+    setFile(next);
+    setTitle((t) => t || next.name.replace(/\.[^.]+$/, ""));
+  };
+
+  useEffect(() => {
+    if (!file) {
+      setPreviewUrl(null);
+      setSourceDuration(0);
+      setCurrentTime(0);
+      setPlaying(false);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el || !previewUrl) return;
+    const onMeta = () => setSourceDuration(Number.isFinite(el.duration) ? el.duration : 0);
+    const onTime = () => setCurrentTime(el.currentTime);
+    const onPlay = () => setPlaying(true);
+    const onPause = () => setPlaying(false);
+    el.addEventListener("loadedmetadata", onMeta);
+    el.addEventListener("timeupdate", onTime);
+    el.addEventListener("play", onPlay);
+    el.addEventListener("pause", onPause);
+    return () => {
+      el.removeEventListener("loadedmetadata", onMeta);
+      el.removeEventListener("timeupdate", onTime);
+      el.removeEventListener("play", onPlay);
+      el.removeEventListener("pause", onPause);
+    };
+  }, [previewUrl]);
 
   const reset = () => {
     setTitle("");
@@ -71,6 +123,12 @@ export function AutoEditCreateDialog({
     setEnableVo(false);
     setMuteOriginal(false);
     setFile(null);
+    setCaptionStyle("karaoke");
+    setVoiceoverMode("off");
+    setLanguage("Auto");
+    setTargetDuration(60);
+    setCurrentTime(0);
+    setPlaying(false);
   };
 
   const onSubmit = async () => {
@@ -125,13 +183,23 @@ export function AutoEditCreateDialog({
           source_video_url: signed.signedUrl,
           source_storage_path: path,
           source_file_name: file.name,
-          source_duration_seconds,
-          duration_preset: preset as never,
-          custom_duration_seconds: preset === "custom" ? Number(customSec) : undefined,
+          source_duration_seconds: sourceDuration || source_duration_seconds,
+          duration_preset: asPage ? "custom" : (preset as never),
+          custom_duration_seconds: asPage
+            ? targetDuration
+            : preset === "custom"
+              ? Number(customSec)
+              : undefined,
           aspect_ratio: aspect,
+          language: language === "Auto" ? "English" : language,
           burn_captions: burnCaptions,
-          enable_voiceover: enableVo,
-          mute_original: enableVo ? true : muteOriginal,
+          enable_voiceover: asPage ? voiceoverFlags(voiceoverMode).enable_voiceover : enableVo,
+          mute_original: asPage
+            ? voiceoverFlags(voiceoverMode).mute_original
+            : enableVo
+              ? true
+              : muteOriginal,
+          caption_style: captionStyle,
         },
       });
 
@@ -145,6 +213,48 @@ export function AutoEditCreateDialog({
       setBusy(false);
     }
   };
+
+  if (asPage) {
+    return (
+      <AutoEditStudio
+        file={file}
+        previewUrl={previewUrl}
+        sourceDuration={sourceDuration}
+        targetDuration={targetDuration}
+        captionStyle={captionStyle}
+        voiceoverMode={voiceoverMode}
+        language={language}
+        rights={rights}
+        notes={notes}
+        busy={busy}
+        videoRef={videoRef}
+        currentTime={currentTime}
+        playing={playing}
+        onClose={() => onOpenChange(false)}
+        onReset={reset}
+        onPickFile={pickFile}
+        onTargetDuration={setTargetDuration}
+        onCaptionStyle={setCaptionStyle}
+        onVoiceoverMode={setVoiceoverMode}
+        onLanguage={setLanguage}
+        onRights={setRights}
+        onNotes={setNotes}
+        onTogglePlay={() => {
+          const el = videoRef.current;
+          if (!el) return;
+          if (el.paused) void el.play();
+          else el.pause();
+        }}
+        onSeek={(seconds) => {
+          const el = videoRef.current;
+          if (!el) return;
+          el.currentTime = seconds;
+          setCurrentTime(seconds);
+        }}
+        onGenerate={() => void onSubmit()}
+      />
+    );
+  }
 
   return (
     <CreateSurface

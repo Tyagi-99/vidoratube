@@ -94,6 +94,9 @@ function StudioPage() {
     const closePage = () => {
       void navigate({ to: "/studio", replace: true });
     };
+    if (pageMode === "auto_edit") {
+      return <AutoEditCreateDialog asPage open onOpenChange={closePage} />;
+    }
     return (
       <div className="min-h-screen bg-background px-4 py-8 sm:px-6">
         <div className="mx-auto mb-6 flex max-w-3xl items-center justify-between">
@@ -109,9 +112,6 @@ function StudioPage() {
         )}
         {pageMode === "voiceover" && (
           <VoiceoverCreateDialog asPage open onOpenChange={closePage} />
-        )}
-        {pageMode === "auto_edit" && (
-          <AutoEditCreateDialog asPage open onOpenChange={closePage} />
         )}
       </div>
     );

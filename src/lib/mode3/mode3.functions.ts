@@ -41,6 +41,7 @@ const createAutoEditSchema = z.object({
   burn_captions: z.boolean().default(true),
   enable_voiceover: z.boolean().default(false),
   mute_original: z.boolean().default(false),
+  caption_style: z.enum(["highlight", "karaoke", "box"]).default("karaoke"),
 });
 
 const idSchema = z.object({ id: z.string().uuid() });
@@ -102,6 +103,7 @@ export const createAutoEditProject = createServerFn({ method: "POST" })
       mute_original: data.mute_original,
       burn_captions: data.burn_captions,
       enable_voiceover: data.enable_voiceover,
+      caption_style: data.caption_style,
       auto_edit_provider: plan.providerId,
       auto_edit_plan: plan,
     };
