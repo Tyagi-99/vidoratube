@@ -25,7 +25,7 @@ export const Route = createFileRoute("/pricing")({
 
 function PricingPage() {
   return (
-    <div className="min-h-screen bg-background pt-16">
+    <main className="min-h-screen bg-background pt-16">
       <div className="mx-auto max-w-6xl px-4 pt-16 pb-8 sm:px-6 lg:px-8">
         <h1 className="text-center text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
           Pricing
@@ -40,6 +40,6 @@ function PricingPage() {
       </div>
       <PricingSection />
       <FaqSection />
-    </div>
+    </main>
   );
 }
