@@ -118,83 +118,117 @@ function StudioPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background px-4 py-16 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-6xl">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold text-accent">
-              Studio
-            </p>
-            <h1 className="mt-1 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-              {profile?.display_name ? `Hey, ${profile.display_name}` : "Your studio"}
-            </h1>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button asChild variant="outline" className="gap-2">
-              <Link to="/projects">
-                <Film className="h-4 w-4" />
-                Projects
-              </Link>
-            </Button>
-            {account.data?.isAdmin && (
+    <div className="min-h-screen bg-background">
+      <div className="border-b border-border bg-card/40">
+        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+          <div className="flex flex-wrap items-end justify-between gap-6">
+            <div className="min-w-0">
+              <p className="rule-label">Studio</p>
+              <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+                {profile?.display_name ? `Hey, ${profile.display_name}` : "Your studio"}
+              </h1>
+              <p className="mt-2 max-w-md text-sm text-muted-foreground">
+                Script, voiceover or automatic edit — each render finishes as one 1080p MP4.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
               <Button asChild variant="outline" className="gap-2">
-                <Link to="/admin">
-                  <Shield className="h-4 w-4" />
-                  Admin
+                <Link to="/projects">
+                  <Film className="h-4 w-4" />
+                  Projects
                 </Link>
               </Button>
-            )}
-            <Button variant="ghost" onClick={signOut} className="gap-2">
-              <LogOut className="h-4 w-4" />
-              Sign out
-            </Button>
-            <Button onClick={() => setModeChooserOpen(true)} className="gap-2">
-              <Plus className="h-4 w-4" />
-              New video
-            </Button>
+              {account.data?.isAdmin && (
+                <Button asChild variant="outline" className="gap-2">
+                  <Link to="/admin">
+                    <Shield className="h-4 w-4" />
+                    Admin
+                  </Link>
+                </Button>
+              )}
+              <Button variant="ghost" onClick={signOut} className="gap-2">
+                <LogOut className="h-4 w-4" />
+                Sign out
+              </Button>
+              <Button onClick={() => setModeChooserOpen(true)} className="gap-2">
+                <Plus className="h-4 w-4" />
+                New video
+              </Button>
+            </div>
           </div>
-        </div>
 
-        <div className="mt-8 grid gap-4 sm:grid-cols-3">
-          <StatCard
-            icon={<Coins className="h-4 w-4" />}
-            label="Credits left"
-            value={account.isLoading ? null : String(profile?.credits ?? 0)}
-          />
-          <StatCard
-            icon={<Film className="h-4 w-4" />}
-            label="Videos rendered"
-            value={account.isLoading ? null : String(account.data?.jobCount ?? 0)}
-          />
-          <StatCard
-            icon={<LayoutDashboard className="h-4 w-4" />}
-            label="Plan"
-            value={account.isLoading ? null : (profile?.plan ?? "free")}
-          />
+          <dl className="mt-8 grid gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-3">
+            <StatCard
+              icon={<Coins className="h-4 w-4" />}
+              label="Credits left"
+              value={account.isLoading ? null : String(profile?.credits ?? 0)}
+            />
+            <StatCard
+              icon={<Film className="h-4 w-4" />}
+              label="Videos rendered"
+              value={account.isLoading ? null : String(account.data?.jobCount ?? 0)}
+            />
+            <StatCard
+              icon={<LayoutDashboard className="h-4 w-4" />}
+              label="Plan"
+              value={account.isLoading ? null : (profile?.plan ?? "free")}
+            />
+          </dl>
         </div>
+      </div>
 
-        <div className="mt-4">
+      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        <div className="mb-6">
           <YouTubePanel />
         </div>
 
-        <h2 className="mt-12 text-xl font-bold tracking-tight text-foreground">Your videos</h2>
+        <div className="flex items-baseline justify-between gap-4 border-b border-border pb-4">
+          <h2 className="font-display text-xl font-semibold tracking-tight text-foreground">
+            Your videos
+          </h2>
+          {!jobs.isLoading && (jobs.data ?? []).length > 0 && (
+            <span className="text-sm text-muted-foreground">
+              {(jobs.data ?? []).length} item{(jobs.data ?? []).length === 1 ? "" : "s"}
+            </span>
+          )}
+        </div>
 
         {jobs.isLoading ? (
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {[0, 1, 2].map((i) => (
-              <Skeleton key={i} className="h-56 rounded-2xl" />
+              <div key={i} className="surface-card overflow-hidden">
+                <Skeleton className="aspect-video w-full rounded-none" />
+                <div className="space-y-3 p-5">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-3 w-1/2" />
+                  <Skeleton className="h-9 w-full" />
+                </div>
+              </div>
             ))}
           </div>
+        ) : jobs.isError ? (
+          <div className="mt-6 rounded-xl border border-destructive/30 bg-destructive/5 p-8">
+            <p className="font-semibold text-foreground">We couldn't load your videos</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {(jobs.error as Error)?.message ?? "Something went wrong."}
+            </p>
+            <Button className="mt-5" variant="outline" onClick={() => jobs.refetch()}>
+              Try again
+            </Button>
+          </div>
         ) : (jobs.data ?? []).length === 0 ? (
-          <Card className="mt-4 border-dashed border-border bg-card">
-            <CardContent className="flex flex-col items-center gap-4 p-12 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                <Film className="h-5 w-5" />
+          <Card className="mt-6 border-dashed border-border bg-card">
+            <CardContent className="mx-auto flex max-w-md flex-col items-center gap-5 p-14 text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-border bg-muted text-accent">
+                <Film className="h-6 w-6" />
               </div>
               <div>
-                <p className="font-semibold text-foreground">No videos yet</p>
-                <p className="text-sm text-muted-foreground">
-                  Choose Script, Voiceover, or Automatic Edit to start.
+                <p className="font-display text-lg font-semibold text-foreground">
+                  Nothing rendered yet
+                </p>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  Start from a script, a voiceover, or an automatic edit. Your finished MP4s
+                  collect here.
                 </p>
               </div>
               <Button onClick={() => setModeChooserOpen(true)} className="gap-2">
@@ -211,105 +245,122 @@ function StudioPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {(jobs.data ?? []).map((job) => {
               const downloadUrl = selectDownloadUrl(job);
               return (
-              <div key={job.id} className="surface-card overflow-hidden">
-                <div className="relative aspect-video w-full bg-muted">
-                  {job.thumbnail_url && (
-                    <img
-                      src={job.thumbnail_url}
-                      alt={`Thumbnail for ${job.title}`}
-                      className="h-full w-full object-cover"
-                      loading="lazy"
-                    />
-                  )}
-                  <span
-                    className={`absolute left-3 top-3 rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${statusStyles[job.status] ?? "bg-muted"}`}
-                  >
-                    {job.status}
-                  </span>
-                </div>
-                <div className="space-y-3 p-4">
-                  <p className="line-clamp-2 font-semibold text-foreground">{job.title}</p>
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    <Badge variant="secondary" className="capitalize">
-                      {job.format}
-                    </Badge>
-                    <Badge variant="secondary" className="capitalize">
-                      {job.voice}
-                    </Badge>
-                    <span>{new Date(job.created_at).toLocaleDateString()}</span>
+                <article key={job.id} className="surface-card flex flex-col overflow-hidden">
+                  <div className="relative aspect-video w-full overflow-hidden bg-muted">
+                    {job.thumbnail_url ? (
+                      <img
+                        src={job.thumbnail_url}
+                        alt={`Thumbnail for ${job.title}`}
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                        <Film className="h-6 w-6" aria-hidden="true" />
+                      </div>
+                    )}
+                    <span
+                      className={`absolute left-3 top-3 rounded-md px-2 py-1 text-[11px] font-semibold uppercase tracking-wider ${statusStyles[job.status] ?? "bg-muted text-muted-foreground"}`}
+                    >
+                      {job.status}
+                    </span>
                   </div>
-                  {job.error && <p className="text-xs text-destructive">{job.error}</p>}
-                  {isStalledCompose(job) && (
-                    <p className="text-xs text-muted-foreground">
-                      Stills and voiceover are ready. Vidora is composing the final MP4 in this
-                      browser tab — keep the page open until Download appears.
-                    </p>
-                  )}
-                  <div className="flex flex-wrap gap-2">
+
+                  <div className="flex flex-1 flex-col gap-4 p-5">
+                    <div>
+                      <h3 className="line-clamp-2 font-display text-base font-semibold leading-snug text-foreground">
+                        {job.title}
+                      </h3>
+                      <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                        <Badge variant="secondary" className="capitalize">
+                          {job.format}
+                        </Badge>
+                        <Badge variant="secondary" className="capitalize">
+                          {job.voice}
+                        </Badge>
+                        <span aria-hidden="true">·</span>
+                        <time dateTime={job.created_at}>
+                          {new Date(job.created_at).toLocaleDateString()}
+                        </time>
+                      </div>
+                    </div>
+
+                    {job.error && (
+                      <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs leading-relaxed text-destructive">
+                        {job.error}
+                      </p>
+                    )}
                     {isStalledCompose(job) && (
-                      <ResumeComposeButton job={job} className="flex-1 gap-1" />
+                      <p className="rounded-md border border-border bg-muted/60 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+                        Stills and voiceover are ready. Vidora is composing the final MP4 in this
+                        browser tab — keep the page open until Download appears.
+                      </p>
                     )}
-                    <JobPreviewDialog job={job} className="flex-1 gap-1" />
-                    {(downloadUrl || job.audio_url) && (
-                      <Button asChild size="sm" variant="outline" className="flex-1 gap-1">
-                        <a
-                          href={downloadUrl ?? job.audio_url ?? "#"}
-                          target="_blank"
-                          rel="noreferrer"
-                          download
-                        >
-                          <Download className="h-4 w-4" />
-                          {downloadUrl ? "Download" : "Audio"}
-                        </a>
-                      </Button>
-                    )}
-                    <CapCutExportButton job={job} className="flex-1 gap-1" />
 
-
-                    {job.status === "completed" && downloadUrl && (
-                      job.youtube_video_id ? (
-                        <Button asChild size="sm" variant="secondary" className="flex-1 gap-1">
+                    <div className="mt-auto flex flex-wrap gap-2">
+                      {isStalledCompose(job) && (
+                        <ResumeComposeButton job={job} className="flex-1 gap-1" />
+                      )}
+                      <JobPreviewDialog job={job} className="flex-1 gap-1" />
+                      {(downloadUrl || job.audio_url) && (
+                        <Button asChild size="sm" variant="outline" className="flex-1 gap-1">
                           <a
-                            href={`https://youtu.be/${job.youtube_video_id}`}
+                            href={downloadUrl ?? job.audio_url ?? "#"}
                             target="_blank"
                             rel="noreferrer"
+                            download
                           >
-                            <Youtube className="h-4 w-4" />
-                            On YouTube
+                            <Download className="h-4 w-4" />
+                            {downloadUrl ? "Download" : "Audio"}
                           </a>
                         </Button>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          className="flex-1 gap-1"
-                          onClick={() => publish.mutate(job.id)}
-                          disabled={publish.isPending}
-                        >
-                          {publish.isPending && publish.variables === job.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Youtube className="h-4 w-4" />
-                          )}
-                          Publish
-                        </Button>
-                      )
-                    )}
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => remove.mutate(job.id)}
-                      aria-label={`Delete ${job.title}`}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                      )}
+                      <CapCutExportButton job={job} className="flex-1 gap-1" />
+
+                      {job.status === "completed" && downloadUrl && (
+                        job.youtube_video_id ? (
+                          <Button asChild size="sm" variant="secondary" className="flex-1 gap-1">
+                            <a
+                              href={`https://youtu.be/${job.youtube_video_id}`}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              <Youtube className="h-4 w-4" />
+                              On YouTube
+                            </a>
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="flex-1 gap-1"
+                            onClick={() => publish.mutate(job.id)}
+                            disabled={publish.isPending}
+                          >
+                            {publish.isPending && publish.variables === job.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Youtube className="h-4 w-4" />
+                            )}
+                            Publish
+                          </Button>
+                        )
+                      )}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => remove.mutate(job.id)}
+                        aria-label={`Delete ${job.title}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              </div>
+                </article>
               );
             })}
           </div>
@@ -340,16 +391,19 @@ function StatCard({
   value: string | null;
 }) {
   return (
-    <div className="surface-card p-5">
-      <div className="flex items-center gap-2 text-muted-foreground">
+    <div className="bg-card p-5">
+      <dt className="flex items-center gap-2 text-muted-foreground">
         {icon}
-        <span className="text-xs font-semibold uppercase tracking-[0.14em]">{label}</span>
-      </div>
+        <span className="text-[11px] font-semibold uppercase tracking-[0.16em]">{label}</span>
+      </dt>
       {value === null ? (
         <Skeleton className="mt-3 h-8 w-20" />
       ) : (
-        <p className="mt-2 text-3xl font-bold capitalize tracking-tight text-foreground">{value}</p>
+        <dd className="mt-2 font-display text-3xl font-semibold capitalize tracking-tight text-foreground">
+          {value}
+        </dd>
       )}
     </div>
   );
 }
+
