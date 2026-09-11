@@ -265,61 +265,58 @@ function Header() {
 
 function Footer() {
   return (
-    <footer className="w-full border-t border-border bg-background py-14">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <div className="grid gap-10 md:grid-cols-3">
-          <div className="max-w-xs">
+    <footer className="w-full border-t border-border bg-background">
+      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+        <div className="grid gap-12 md:grid-cols-[minmax(0,1.4fr)_repeat(2,minmax(0,1fr))]">
+          <div className="max-w-sm">
             <Wordmark size="sm" />
             <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-              Vidora is a script-to-MP4 studio in early access — narration, scene
-              stills, and captions, without a timeline.
+              A script-to-MP4 studio in early access — narration, scene stills and burned-in
+              captions, without a timeline.
             </p>
           </div>
 
           <div>
-            <p className="text-xs font-semibold text-muted-foreground">
-              Product
-            </p>
-            <div className="mt-4 flex flex-col gap-2.5">
-              <Link to="/features" className="text-sm text-foreground/80 hover:text-primary">
+            <p className="rule-label">Product</p>
+            <div className="mt-5 flex flex-col gap-3">
+              <Link to="/features" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
                 Features
               </Link>
-              <Link to="/pricing" className="text-sm text-foreground/80 hover:text-primary">
+              <Link to="/pricing" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
                 Pricing
               </Link>
-              <Link to="/contact" className="text-sm text-foreground/80 hover:text-primary">
-                Enterprise
+              <Link to="/studio" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+                Studio
               </Link>
             </div>
           </div>
 
           <div>
-            <p className="text-xs font-semibold text-muted-foreground">
-              Company
-            </p>
-            <div className="mt-4 flex flex-col gap-2.5">
-              <a href="mailto:hello@vidora.ai" className="text-sm text-foreground/80 hover:text-primary">
+            <p className="rule-label">Company</p>
+            <div className="mt-5 flex flex-col gap-3">
+              <a href="mailto:hello@vidora.ai" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
                 hello@vidora.ai
               </a>
-              <Link to="/contact" className="text-sm text-foreground/80 hover:text-primary">
+              <Link to="/contact" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
                 Support
               </Link>
-              <Link to="/privacy" className="text-sm text-foreground/80 hover:text-primary">
+              <Link to="/privacy" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
                 Privacy
               </Link>
-              <Link to="/terms" className="text-sm text-foreground/80 hover:text-primary">
+              <Link to="/terms" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
                 Terms
               </Link>
-              <span className="text-sm text-muted-foreground">Remote · worldwide</span>
             </div>
           </div>
         </div>
 
-        <div className="mt-10 border-t border-border pt-6 text-sm text-muted-foreground">
-          © {new Date().getFullYear()} Vidora AI. All rights reserved.
+        <div className="mt-14 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-6 text-sm text-muted-foreground">
+          <span>© {new Date().getFullYear()} Vidora AI</span>
+          <span>Remote · worldwide</span>
         </div>
       </div>
     </footer>
   );
 }
+
 
