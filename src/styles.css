@@ -272,13 +272,19 @@
 
 @utility surface-card {
   background: var(--card);
-  border-radius: var(--radius);
+  border-radius: calc(var(--radius) + 4px);
   border: 1px solid var(--border);
-  transition: border-color 180ms cubic-bezier(0.32, 0.72, 0, 1);
+  box-shadow: var(--elev-1);
+  transition:
+    border-color 200ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 200ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
 
   &:hover {
     border-color: color-mix(in oklch, var(--accent) 35%, var(--border));
+    box-shadow: var(--elev-2);
   }
+
 }
 
 
