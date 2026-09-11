@@ -13,6 +13,7 @@ auth gates, storage paths, or integrations were changed.
 ## Changed
 
 ### `src/styles.css`
+
 - Dark theme retuned to a deep graphite canvas (`oklch(0.135 0.004 265)`) with warm
   off-white ink and higher-contrast muted text (AA-compliant secondary copy).
 - Added elevation tokens `--elev-1` / `--elev-2` for both themes; depth now comes
@@ -24,6 +25,7 @@ auth gates, storage paths, or integrations were changed.
 - `prefers-reduced-motion` handling retained.
 
 ### `src/routes/__root.tsx`
+
 - Header: full-width sticky bar with backdrop blur, underline active states,
   and a persistent primary creation action (`New video`) for signed-in users.
 - Mobile navigation uses 48px touch targets and closes on navigation.
@@ -31,6 +33,7 @@ auth gates, storage paths, or integrations were changed.
 - Route destinations, theme toggle, and session behavior unchanged.
 
 ### Product-wide unification — September 11, 2026
+
 - Added a dedicated authenticated header with Studio, Projects, live credits,
   theme controls, sign out, admin access, and persistent New video access.
 - Kept marketing navigation and footer on public pages only.
@@ -46,6 +49,7 @@ auth gates, storage paths, or integrations were changed.
 - Unit tests passed: 12 files and 70 tests. Production build passed.
 
 ### `src/routes/_authenticated/studio.tsx`
+
 - Split into a page header band (identity, actions, credit/plan/render stats)
   and a library section.
 - Library cards now lead with a 16:9 poster, status chip, title, format/voice
@@ -56,6 +60,7 @@ auth gates, storage paths, or integrations were changed.
 - All server functions, query keys and mutations untouched.
 
 ### `src/routes/index.tsx`
+
 - Hero reworked with a tighter measure, restrained headline, rule under the proof
   points, and stats presented as a bordered `dl` strip instead of a card grid.
 
