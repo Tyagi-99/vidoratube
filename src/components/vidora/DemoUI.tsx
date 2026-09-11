@@ -1,108 +1,71 @@
-import { Wand2, Play, Clock, ChevronDown, MonitorPlay, Languages, FileText } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Play } from "lucide-react";
 
-const timeline = [
-  { time: "0:00", label: "Cold open hook", active: true },
-  { time: "0:12", label: "Story setup", active: true },
-  { time: "0:45", label: "Rising action", active: false },
-  { time: "1:30", label: "Payoff", active: false },
-  { time: "2:10", label: "CTA outro", active: false },
+const scenes = [
+  { n: "01", line: "Amethyst steams up the Yangtze" },
+  { n: "02", line: "Nanking, April 1949" },
+  { n: "03", line: "Voice · Deneb EN · burned-in captions" },
 ];
 
-const scriptSnippet = `The frigate HMS Amethyst steamed up the Yangtze toward Nanking in April 1949...
-
-The crew thought they were on a routine resupply mission. Instead, they were sailing into the longest single-ship chase of the 20th century.`;
+const wave = [18, 40, 62, 34, 88, 52, 70, 28, 76, 44, 90, 36, 58, 22, 64, 48, 80, 30, 54, 72];
 
 export function DemoUI({ onGenerate }: { onGenerate: () => void }) {
   return (
-    <div className="relative w-full overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
-      {/* Mock toolbar */}
-      <div className="flex items-center justify-between border-b border-border px-4 py-3">
-        <div className="flex items-center gap-2">
-          <div className="h-3 w-3 rounded-full bg-red-400" />
-          <div className="h-3 w-3 rounded-full bg-amber-400" />
-          <div className="h-3 w-3 rounded-full bg-green-400" />
+    <div className="rounded-[22px] border border-border bg-foreground/5 p-1.5">
+      <div className="overflow-hidden rounded-2xl border border-border bg-card">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3 text-xs text-muted-foreground">
+          <b className="font-medium text-foreground">Untitled project</b>
+          <span>1080p · 16:9 · early access</span>
         </div>
-        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-          <MonitorPlay className="h-3.5 w-3.5" />
-          <span>Untitled project</span>
-        </div>
-        <div className="hidden items-center gap-2 sm:flex">
-          <span className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">1080p</span>
-          <span className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">16:9</span>
-        </div>
-      </div>
 
-      <div className="grid lg:grid-cols-[1fr_320px]">
-        {/* Preview */}
-        <div className="relative min-h-[280px] bg-gradient-to-br from-[#3a4a6e] to-[#1a2438] sm:min-h-[360px]">
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-white/10 backdrop-blur-sm">
-                <Play className="h-7 w-7 text-white/90 fill-current" />
+        <div className="grid lg:grid-cols-[1.4fr_0.9fr]">
+          <div className="relative min-h-[260px] bg-[radial-gradient(80%_70%_at_30%_20%,#2a3338,#121417_62%)] sm:min-h-[320px]">
+            <div className="absolute inset-x-0 top-[18%] bottom-[42%] grid place-items-center text-center text-foreground">
+              <div>
+                <div className="mx-auto mb-2 grid size-12 place-items-center rounded-full border border-white/15 bg-black/40">
+                  <Play className="size-5 fill-current" />
+                </div>
+                <p className="text-sm font-medium">Preview</p>
+                <p className="mt-1 text-xs text-white/55">Footage matched to your script</p>
               </div>
-              <p className="text-sm font-medium text-white/80">Preview</p>
-              <p className="mt-1 text-xs text-white/50">Footage matched to your script</p>
+            </div>
+            <div className="absolute inset-x-[8%] bottom-3.5 rounded-md bg-black/80 px-3 py-2 text-center text-sm font-semibold text-[#ece7dc]">
+              <span className="opacity-50">The crew thought they were on a routine</span>
+              <span className="text-accent"> resupply mission.</span>
             </div>
           </div>
 
-          {/* Floating caption mock */}
-          <div className="absolute bottom-16 left-1/2 w-3/4 max-w-lg -translate-x-1/2 rounded-lg bg-black/40 px-4 py-2 text-center text-sm font-semibold text-white backdrop-blur-sm">
-            <span className="opacity-40">The crew thought they were on a routine</span>
-            <span className="text-primary"> resupply mission.</span>
-          </div>
-
-          {/* Floating timeline markers */}
-          <div className="absolute bottom-4 left-4 right-4 flex items-center gap-1 rounded-lg bg-black/30 px-3 py-2 backdrop-blur-sm">
-            {timeline.map((item, index) => (
-              <div key={index} className="flex-1 text-center">
-                <div
-                  className={cn(
-                    "mb-1 h-1.5 rounded-full",
-                    item.active ? "bg-primary" : "bg-white/20"
-                  )}
-                />
-                <p className="text-[10px] text-white/60">{item.time}</p>
+          <div className="grid gap-2 bg-secondary p-4">
+            {scenes.map((scene) => (
+              <div
+                key={scene.n}
+                className="grid grid-cols-[2.2rem_1fr] gap-2 border-b border-border py-2 text-sm last:border-0"
+              >
+                <span className="font-display tabular-nums text-muted-foreground">{scene.n}</span>
+                <span>{scene.line}</span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Sidebar */}
-        <div className="border-t border-border p-4 lg:border-t-0 lg:border-l">
-          <div className="mb-4 flex items-center gap-2 text-xs font-medium text-muted-foreground">
-            <FileText className="h-4 w-4" />
-            Script
+        <div className="border-t border-border px-4 py-3">
+          <div className="mb-2 flex justify-between text-xs text-muted-foreground">
+            <span>Ready to generate</span>
+            <span>1 credit</span>
           </div>
-          <div className="rounded-lg border border-border bg-muted/50 p-3 text-sm leading-relaxed text-muted-foreground">
-            {scriptSnippet}
+          <div className="mb-3 flex h-9 items-end gap-0.5" aria-hidden="true">
+            {wave.map((h, i) => (
+              <span
+                key={i}
+                className="w-1 rounded-sm bg-accent/60"
+                style={{ height: `${h}%` }}
+              />
+            ))}
           </div>
-
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <div className="rounded-lg border border-border p-3">
-              <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                <Languages className="h-3.5 w-3.5" />
-                Voice
-              </div>
-              <div className="flex items-center gap-1 text-sm font-medium text-foreground">
-                Deneb · EN
-                <ChevronDown className="h-3.5 w-3.5" />
-              </div>
-            </div>
-            <div className="rounded-lg border border-border p-3">
-              <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                <Clock className="h-3.5 w-3.5" />
-                Duration
-              </div>
-              <div className="text-sm font-medium text-foreground">~11:42</div>
-            </div>
-          </div>
-
           <button
+            type="button"
             onClick={onGenerate}
-            className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+            className="flex h-11 w-full items-center justify-center rounded-[10px] bg-primary text-sm font-semibold text-primary-foreground transition-transform duration-150 hover:-translate-y-px"
           >
-            <Wand2 className="h-4 w-4" />
             Generate video
           </button>
         </div>

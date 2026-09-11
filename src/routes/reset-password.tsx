@@ -90,7 +90,7 @@ function ResetPasswordPage() {
 
   if (validLink === null) {
     return (
-      <main className="flex min-h-[80vh] items-center justify-center bg-top-glow px-4 py-20">
+      <main className="flex min-h-[80vh] items-center justify-center bg-background px-4 py-20">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
           <p className="text-sm text-muted-foreground">Verifying reset link…</p>
@@ -101,7 +101,7 @@ function ResetPasswordPage() {
 
   if (validLink === false) {
     return (
-      <main className="flex min-h-[80vh] items-center justify-center bg-top-glow px-4 py-20">
+      <main className="flex min-h-[80vh] items-center justify-center bg-background px-4 py-20">
         <div className="w-full max-w-md text-center">
           <span className="relative mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-foreground">
             <Aperture className="h-5 w-5 text-primary" strokeWidth={2.4} />
@@ -119,7 +119,7 @@ function ResetPasswordPage() {
   }
 
   return (
-    <main className="flex min-h-[80vh] items-center justify-center bg-top-glow px-4 py-20">
+    <main className="flex min-h-[80vh] items-center justify-center bg-background px-4 py-20">
       <div className="w-full max-w-md">
         <div className="mb-8 flex flex-col items-center text-center">
           <span className="relative mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-foreground">

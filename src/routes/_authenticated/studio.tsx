@@ -14,7 +14,7 @@ import { YouTubePanel } from "@/components/vidora/YouTubePanel";
 import { CapCutExportButton } from "@/components/vidora/CapCutExportButton";
 import { JobPreviewDialog } from "@/components/vidora/JobPreviewDialog";
 import { selectDownloadUrl } from "@/lib/jobs/final-video";
-import { studioSearchFromUnknown } from "@/lib/creation-modes";
+import { CREATION_MODES, studioSearchFromUnknown } from "@/lib/creation-modes";
 import { ResumeComposeButton, isStalledCompose } from "@/components/vidora/ResumeComposeButton";
 
 import { publishJobToYouTube } from "@/lib/youtube.functions";
@@ -118,11 +118,11 @@ function StudioPage() {
   }
 
   return (
-    <div className="min-h-screen bg-top-glow px-4 py-16 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-background px-4 py-16 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            <p className="text-xs font-semibold text-accent">
               Studio
             </p>
             <h1 className="mt-1 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
@@ -201,6 +201,13 @@ function StudioPage() {
                 <Plus className="h-4 w-4" />
                 Make your first video
               </Button>
+              <div className="flex flex-wrap justify-center gap-2">
+                {CREATION_MODES.map((mode) => (
+                  <Button key={mode.id} asChild variant="outline" size="sm">
+                    <a href={mode.href}>{mode.title}</a>
+                  </Button>
+                ))}
+              </div>
             </CardContent>
           </Card>
         ) : (

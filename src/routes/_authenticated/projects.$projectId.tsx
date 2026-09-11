@@ -117,7 +117,7 @@ function ProjectEditor() {
   const creationMode = projectCreationMode(project);
   if (creationMode === "voiceover" || creationMode === "auto_edit") {
     return (
-      <main className="min-h-screen bg-top-glow px-4 py-10 sm:px-6 lg:px-8">
+      <main className="min-h-screen bg-background px-4 py-10 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-5xl space-y-6">
           <div className="flex flex-wrap items-center gap-3">
             <Button asChild variant="ghost" size="sm" className="gap-2">
@@ -226,7 +226,7 @@ function ProjectEditor() {
   };
 
   return (
-    <main className="min-h-screen bg-top-glow px-4 py-16 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-background px-4 py-16 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-5xl">
         <Link
           to="/projects"

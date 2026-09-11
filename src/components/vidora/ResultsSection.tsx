@@ -10,7 +10,7 @@ export function ResultsSection() {
     <section className="w-full bg-background py-24">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="mb-12 max-w-2xl">
-          <p className="mb-3 text-sm font-semibold uppercase tracking-wider text-primary">
+          <p className="mb-3 text-xs font-semibold text-accent">
             Built for
           </p>
           <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">

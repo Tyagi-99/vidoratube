@@ -5,7 +5,7 @@ export function HomeCreateModes() {
     <section id="create" className="w-full border-y border-border bg-background py-16 sm:py-20">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="mb-8 max-w-xl">
-          <p className="font-display text-xs font-semibold uppercase tracking-[0.22em] text-foreground/70">
+          <p className="text-xs font-semibold text-accent">
             Start here
           </p>
           <h2 className="mt-3 font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
@@ -23,11 +23,11 @@ export function HomeCreateModes() {
               href={mode.href}
               className="group grid gap-3 py-6 sm:grid-cols-[7rem_1fr_auto] sm:items-end sm:gap-8 sm:py-7"
             >
-              <p className="font-display text-sm font-semibold tabular-nums text-foreground/45">
+              <p className="font-display text-sm font-semibold tabular-nums text-accent">
                 {String(index + 1).padStart(2, "0")}
               </p>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground/55">
+                <p className="text-xs font-medium text-muted-foreground">
                   {mode.kicker}
                 </p>
                 <h3 className="mt-1 font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">

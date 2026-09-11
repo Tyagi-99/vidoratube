@@ -91,6 +91,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@vidoraai" },
+      { name: "theme-color", content: "#0f1012" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -172,7 +173,7 @@ function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full px-3 pt-3 sm:px-6 sm:pt-5">
-      <div className="mx-auto flex max-w-5xl items-center justify-between rounded-full border border-border/70 bg-card/80 py-2 pr-2 pl-4 shadow-[0_10px_30px_-24px_var(--shadow-tint-strong)] backdrop-blur-xl sm:pl-5">
+      <div className="mx-auto flex max-w-5xl items-center justify-between rounded-[14px] border border-border/70 bg-card/80 py-2 pr-2 pl-4 backdrop-blur-xl sm:pl-5">
         <Link to="/" aria-label="Vidora AI home">
           <Wordmark />
         </Link>
@@ -194,7 +195,7 @@ function Header() {
           {!loading && user ? (
             <Link
               to="/studio"
-              className="inline-flex items-center justify-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background transition-transform hover:-translate-y-0.5"
+              className="inline-flex items-center justify-center gap-1.5 rounded-[10px] bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
             >
               <LayoutDashboard className="h-4 w-4" />
               Studio
@@ -202,7 +203,7 @@ function Header() {
           ) : (
             <Link
               to="/studio"
-              className="inline-flex items-center justify-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background transition-transform hover:-translate-y-0.5"
+              className="inline-flex items-center justify-center gap-1.5 rounded-[10px] bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
             >
               Open studio
               <ArrowUpRight className="h-4 w-4" />
@@ -213,7 +214,7 @@ function Header() {
         <div className="flex items-center gap-1 md:hidden">
           <ThemeToggle />
           <button
-            className="inline-flex items-center justify-center rounded-full p-2 text-foreground"
+            className="inline-flex size-11 items-center justify-center rounded-[10px] border border-border text-foreground"
             onClick={() => setMobileOpen(!mobileOpen)}
             aria-label="Toggle menu"
           >
@@ -223,7 +224,7 @@ function Header() {
       </div>
 
       {mobileOpen && (
-        <div className="mx-auto mt-2 max-w-5xl rounded-3xl border border-border bg-card p-5 shadow-lg md:hidden">
+        <div className="mx-auto mt-2 max-w-5xl rounded-[14px] border border-border bg-card p-5 md:hidden">
           <nav className="flex flex-col gap-3">
             {navItems.map((item) => (
               <Link
@@ -237,7 +238,7 @@ function Header() {
             ))}
             <Link
               to="/studio"
-              className="mt-2 inline-flex items-center justify-center gap-2 rounded-full bg-foreground px-4 py-2.5 text-base font-semibold text-background"
+              className="mt-2 inline-flex min-h-11 items-center justify-center gap-2 rounded-[10px] bg-primary px-4 py-2.5 text-base font-semibold text-primary-foreground"
               onClick={() => setMobileOpen(false)}
             >
               Open studio
@@ -252,7 +253,7 @@ function Header() {
 
 function Footer() {
   return (
-    <footer className="w-full border-t border-border bg-muted/40 py-14">
+    <footer className="w-full border-t border-border bg-background py-14">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="grid gap-10 md:grid-cols-3">
           <div className="max-w-xs">
@@ -264,7 +265,7 @@ function Footer() {
           </div>
 
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            <p className="text-xs font-semibold text-muted-foreground">
               Product
             </p>
             <div className="mt-4 flex flex-col gap-2.5">
@@ -281,7 +282,7 @@ function Footer() {
           </div>
 
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            <p className="text-xs font-semibold text-muted-foreground">
               Company
             </p>
             <div className="mt-4 flex flex-col gap-2.5">

@@ -26,8 +26,8 @@ export function PricingSection({ compact = false }: { compact?: boolean }) {
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="mb-12 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div className="max-w-2xl">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-primary">
-              Pricing
+            <p className="mb-3 text-xs font-semibold text-accent">
+              Future packaging
             </p>
             <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
               Less than a coffee per finished cut
@@ -61,13 +61,12 @@ export function PricingSection({ compact = false }: { compact?: boolean }) {
                 <div
                   key={plan.id}
                   className={cn(
-                    "relative flex flex-col rounded-3xl border border-border bg-card p-7",
-                    popular &&
-                      "border-transparent bg-foreground text-background shadow-[0_30px_60px_-40px_var(--shadow-tint-strong)] lg:-mt-4 lg:pb-10",
+                    "relative flex flex-col rounded-2xl border border-border bg-card p-7",
+                    popular && "border-accent/40 bg-secondary",
                   )}
                 >
                   {popular && (
-                    <span className="absolute -top-3 left-7 rounded-full bg-accent px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-accent-foreground">
+                    <span className="absolute -top-3 left-7 rounded-md bg-accent px-3 py-1 text-[11px] font-semibold text-accent-foreground">
                       Most popular
                     </span>
                   )}
@@ -84,7 +83,7 @@ export function PricingSection({ compact = false }: { compact?: boolean }) {
                       <span className="font-display text-4xl font-bold">
                         ${Number(plan.price_monthly).toFixed(0)}
                       </span>
-                      <span className={popular ? "text-background/60" : "text-muted-foreground"}>
+                      <span className="text-muted-foreground">
                         /mo
                       </span>
                     </div>
@@ -98,12 +97,7 @@ export function PricingSection({ compact = false }: { compact?: boolean }) {
                         {perVideo}
                       </p>
                     )}
-                    <p
-                      className={cn(
-                        "mt-2 text-sm",
-                        popular ? "text-background/70" : "text-muted-foreground",
-                      )}
-                    >
+                    <p className="mt-2 text-sm text-muted-foreground">
                       {plan.blurb}
                     </p>
                   </div>
@@ -118,12 +112,7 @@ export function PricingSection({ compact = false }: { compact?: boolean }) {
                       <Check className={cn("h-4 w-4", popular ? "text-accent" : "text-primary")} />
                       {plan.credits.toLocaleString()} credits
                     </div>
-                    <p
-                      className={cn(
-                        "ml-6 text-sm",
-                        popular ? "text-background/60" : "text-muted-foreground",
-                      )}
-                    >
+                    <p className="ml-6 text-sm text-muted-foreground">
                       1 credit = 1 finished video
                     </p>
                   </div>
@@ -145,8 +134,8 @@ export function PricingSection({ compact = false }: { compact?: boolean }) {
                   <Link
                     to="/auth"
                     className={cn(
-                      "w-full rounded-full px-4 py-3 text-center text-sm font-semibold transition-transform hover:-translate-y-0.5",
-                      popular ? "bg-accent text-accent-foreground" : "bg-foreground text-background",
+                      "w-full rounded-[10px] px-4 py-3 text-center text-sm font-semibold transition-transform hover:-translate-y-0.5",
+                      "bg-primary text-primary-foreground",
                     )}
                   >
                     Start with {plan.name}

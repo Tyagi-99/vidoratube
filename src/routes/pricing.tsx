@@ -26,6 +26,9 @@ function PricingPage() {
         <p className="mx-auto mt-4 max-w-2xl text-center text-lg text-muted-foreground">
           Credit packs we intend to sell. Checkout is not live — start with 10 free credits.
         </p>
+        <p className="mx-auto mt-6 max-w-2xl rounded-[10px] border border-dashed border-accent/40 px-4 py-3 text-center text-sm text-foreground">
+          Early access: create a free account for 10 render credits — no card needed. Checkout is not live yet.
+        </p>
       </div>
       <PricingSection />
       <FaqSection />

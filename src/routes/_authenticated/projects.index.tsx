@@ -98,7 +98,7 @@ function ProjectsPage() {
   });
 
   return (
-    <main className="min-h-screen bg-top-glow px-4 py-16 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-background px-4 py-16 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>

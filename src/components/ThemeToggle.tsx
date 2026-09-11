@@ -14,7 +14,7 @@ export function ThemeToggle({ className }: { className?: string }) {
       onClick={toggle}
       aria-label="Toggle dark mode"
       className={cn(
-        "inline-flex h-9 w-9 items-center justify-center rounded-full border border-border/70 bg-card text-foreground transition-colors hover:bg-muted",
+        "inline-flex size-9 items-center justify-center rounded-[10px] border border-border/70 bg-card text-foreground transition-colors hover:bg-muted",
         className,
       )}
     >

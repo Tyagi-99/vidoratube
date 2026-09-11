@@ -13,20 +13,20 @@
 }
 .ae-app{
   /* TryAIToday Flow theme — silver on near-black (matches Flow Automator). */
-  --bg: #101012;
-  --panel: #17171a;
-  --panel-2: #202024;
-  --elev: #2a2a30;
-  --line: #34343a;
-  --line-soft: #26262c;
-  --text: #e7e8ec;
-  --muted: #8b8b94;
-  --faint: #5f606a;
-  --amber: #d7d9dd;      /* "now" marker: playhead + current time — silver (was amber) */
-  --amber-dim: #55565e;  /* dim silver — subtle borders that were amber */
-  --teal: #a2a6ae;       /* audio waveform — silver-gray */
-  --accent: #f6f7f9;     /* silver primary action */
-  --accent-ink: #161618; /* dark text on the silver action */
+  --bg: #0f1012;
+  --panel: #16171b;
+  --panel-2: #1e1f24;
+  --elev: #26272d;
+  --line: rgba(232, 226, 214, 0.12);
+  --line-soft: rgba(232, 226, 214, 0.08);
+  --text: #ece7dc;
+  --muted: #9b9589;
+  --faint: #6f6a62;
+  --amber: #ece7dc;
+  --amber-dim: #5c5850;
+  --teal: #8fd4c8;
+  --accent: #ece7dc;
+  --accent-ink: #0f1012;
   --green: #a0c2b4;      /* success — Flow sage */
   --bad: #d99488;        /* danger — Flow salmon */
   --font-ui: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;

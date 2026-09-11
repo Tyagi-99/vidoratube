@@ -138,7 +138,7 @@ function AuthPage() {
   };
 
   return (
-    <main className="flex min-h-[80vh] items-center justify-center bg-top-glow px-4 py-20">
+    <main className="flex min-h-[80vh] items-center justify-center bg-background px-4 py-20">
       <div className="w-full max-w-md">
         <div className="mb-8 flex flex-col items-center text-center">
           <span className="relative mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-foreground">
