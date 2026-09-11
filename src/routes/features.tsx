@@ -25,9 +25,7 @@ function FeaturesPage() {
   return (
     <main className="min-h-screen bg-background pt-16">
       <div className="mx-auto max-w-6xl px-4 pt-16 pb-8 sm:px-6 lg:px-8">
-        <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
-          Features
-        </h1>
+        <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">Features</h1>
         <p className="mt-4 max-w-2xl text-lg text-muted-foreground">
           A script-to-MP4 studio in early access. The mock below is a product sketch, not a finished
           render.
@@ -35,7 +33,11 @@ function FeaturesPage() {
       </div>
 
       <div className="mx-auto max-w-5xl px-4 pb-24 sm:px-6 lg:px-8">
-        <DemoUI onGenerate={() => { window.location.href = "/studio?create=script"; }} />
+        <DemoUI
+          onGenerate={() => {
+            window.location.href = "/studio?create=script";
+          }}
+        />
       </div>
 
       <FeatureSection />

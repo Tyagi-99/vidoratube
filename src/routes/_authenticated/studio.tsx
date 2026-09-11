@@ -19,7 +19,16 @@ import { ResumeComposeButton, isStalledCompose } from "@/components/vidora/Resum
 
 import { publishJobToYouTube } from "@/lib/youtube.functions";
 import { getMyAccount, listMyJobs, deleteMyJob } from "@/lib/jobs.functions";
-import { Coins, Film, LayoutDashboard, Plus, Trash2, Youtube, Loader2, Download } from "lucide-react";
+import {
+  Coins,
+  Film,
+  LayoutDashboard,
+  Plus,
+  Trash2,
+  Youtube,
+  Loader2,
+  Download,
+} from "lucide-react";
 
 import { toast } from "sonner";
 
@@ -28,7 +37,10 @@ export const Route = createFileRoute("/_authenticated/studio")({
   head: () => ({
     meta: [
       { title: "Studio dashboard — Vidora AI" },
-      { name: "description", content: "Your Vidora AI studio: render videos, track jobs and manage credits." },
+      {
+        name: "description",
+        content: "Your Vidora AI studio: render videos, track jobs and manage credits.",
+      },
       { property: "og:title", content: "Studio dashboard — Vidora AI" },
       { property: "og:description", content: "Render videos and track your jobs." },
       { property: "og:type", content: "website" },
@@ -91,12 +103,8 @@ function StudioPage() {
     }
     return (
       <main className="min-h-[calc(100dvh-4rem)] bg-background px-4 py-10 sm:px-6">
-        {pageMode === "script" && (
-          <GenerateVideoDialog asPage open onOpenChange={closePage} />
-        )}
-        {pageMode === "voiceover" && (
-          <VoiceoverCreateDialog asPage open onOpenChange={closePage} />
-        )}
+        {pageMode === "script" && <GenerateVideoDialog asPage open onOpenChange={closePage} />}
+        {pageMode === "voiceover" && <VoiceoverCreateDialog asPage open onOpenChange={closePage} />}
       </main>
     );
   }
@@ -192,8 +200,8 @@ function StudioPage() {
                   Nothing rendered yet
                 </p>
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                  Start from a script, a voiceover, or an automatic edit. Your finished MP4s
-                  collect here.
+                  Start from a script, a voiceover, or an automatic edit. Your finished MP4s collect
+                  here.
                 </p>
               </div>
               <Button onClick={() => setModeChooserOpen(true)} className="gap-2">
@@ -286,8 +294,9 @@ function StudioPage() {
                       )}
                       <CapCutExportButton job={job} className="flex-1 gap-1" />
 
-                      {job.status === "completed" && downloadUrl && (
-                        job.youtube_video_id ? (
+                      {job.status === "completed" &&
+                        downloadUrl &&
+                        (job.youtube_video_id ? (
                           <Button asChild size="sm" variant="secondary" className="flex-1 gap-1">
                             <a
                               href={`https://youtu.be/${job.youtube_video_id}`}
@@ -313,8 +322,7 @@ function StudioPage() {
                             )}
                             Publish
                           </Button>
-                        )
-                      )}
+                        ))}
                       <Button
                         size="sm"
                         variant="ghost"
@@ -371,4 +379,3 @@ function StatCard({
     </div>
   );
 }
-

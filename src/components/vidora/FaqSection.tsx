@@ -43,9 +43,7 @@ export function FaqSection() {
     <section className="w-full bg-background py-20 sm:py-24">
       <div className="mx-auto grid max-w-6xl gap-10 px-4 sm:px-6 md:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)] lg:px-8">
         <div>
-          <p className="mb-3 text-xs font-semibold text-accent">
-            Questions
-          </p>
+          <p className="mb-3 text-xs font-semibold text-accent">Questions</p>
           <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
             Answered before you ask
           </h2>
@@ -56,11 +54,7 @@ export function FaqSection() {
 
         <Accordion type="single" collapsible className="w-full border-t border-border">
           {faqs.map((faq, index) => (
-            <AccordionItem
-              key={index}
-              value={`item-${index}`}
-              className="border-b border-border"
-            >
+            <AccordionItem key={index} value={`item-${index}`} className="border-b border-border">
               <AccordionTrigger className="min-h-14 py-5 text-left text-base font-semibold text-foreground hover:no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent">
                 {faq.question}
               </AccordionTrigger>

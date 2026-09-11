@@ -28,7 +28,11 @@ export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
       { title: "Sign in — Vidora AI" },
-      { name: "description", content: "Sign in to your Vidora AI studio to generate videos, track renders and manage credits." },
+      {
+        name: "description",
+        content:
+          "Sign in to your Vidora AI studio to generate videos, track renders and manage credits.",
+      },
       { property: "og:title", content: "Sign in — Vidora AI" },
       { property: "og:description", content: "Access your Vidora AI studio dashboard." },
       { property: "og:type", content: "website" },
@@ -112,10 +116,10 @@ function AuthPage() {
     } catch (error) {
       const message = error instanceof Error ? error.message : "Something went wrong";
       const friendly = message.includes("Invalid login credentials")
-          ? "Wrong email or password."
-          : message.includes("already registered")
-            ? "That email already has an account — sign in instead."
-            : message;
+        ? "Wrong email or password."
+        : message.includes("already registered")
+          ? "That email already has an account — sign in instead."
+          : message;
       setFormError(friendly);
       toast.error(friendly);
     } finally {
@@ -178,10 +182,14 @@ function AuthPage() {
                     onChange={(e) => setDisplayName(e.target.value)}
                     placeholder="Your name"
                     maxLength={80}
-                    aria-invalid={Boolean(fieldErrors.displayName)}
-                    aria-describedby={fieldErrors.displayName ? "displayName-error" : undefined}
+                    aria-invalid={Boolean(fieldErrors["displayName"])}
+                    aria-describedby={fieldErrors["displayName"] ? "displayName-error" : undefined}
                   />
-                  {fieldErrors.displayName && <p id="displayName-error" className="text-sm text-destructive">{fieldErrors.displayName}</p>}
+                  {fieldErrors["displayName"] && (
+                    <p id="displayName-error" className="text-sm text-destructive">
+                      {fieldErrors["displayName"]}
+                    </p>
+                  )}
                 </div>
               )}
               <div className="space-y-2">
@@ -194,10 +202,14 @@ function AuthPage() {
                   placeholder="you@studio.com"
                   autoComplete="email"
                   required
-                    aria-invalid={Boolean(fieldErrors.email)}
-                    aria-describedby={fieldErrors.email ? "email-error" : undefined}
+                  aria-invalid={Boolean(fieldErrors["email"])}
+                  aria-describedby={fieldErrors["email"] ? "email-error" : undefined}
                 />
-                  {fieldErrors.email && <p id="email-error" className="text-sm text-destructive">{fieldErrors.email}</p>}
+                {fieldErrors["email"] && (
+                  <p id="email-error" className="text-sm text-destructive">
+                    {fieldErrors["email"]}
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -223,15 +235,32 @@ function AuthPage() {
                   placeholder="••••••••"
                   autoComplete={mode === "signin" ? "current-password" : "new-password"}
                   required
-                    aria-invalid={Boolean(fieldErrors.password)}
-                    aria-describedby={fieldErrors.password ? "password-error" : undefined}
+                  aria-invalid={Boolean(fieldErrors["password"])}
+                  aria-describedby={fieldErrors["password"] ? "password-error" : undefined}
                 />
-                  {fieldErrors.password && <p id="password-error" className="text-sm text-destructive">{fieldErrors.password}</p>}
+                {fieldErrors["password"] && (
+                  <p id="password-error" className="text-sm text-destructive">
+                    {fieldErrors["password"]}
+                  </p>
+                )}
               </div>
-              {formError && <div role="alert" className="border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{formError}</div>}
+              {formError && (
+                <div
+                  role="alert"
+                  className="border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+                >
+                  {formError}
+                </div>
+              )}
               <Button type="submit" disabled={busy} className="w-full gap-2">
                 {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-                {busy ? (mode === "signin" ? "Signing in…" : "Creating account…") : mode === "signin" ? "Sign in" : "Create account"}
+                {busy
+                  ? mode === "signin"
+                    ? "Signing in…"
+                    : "Creating account…"
+                  : mode === "signin"
+                    ? "Sign in"
+                    : "Create account"}
               </Button>
             </form>
 
@@ -291,7 +320,11 @@ function AuthPage() {
                   aria-invalid={Boolean(resetError)}
                   aria-describedby={resetError ? "resetEmail-error" : undefined}
                 />
-                {resetError && <p id="resetEmail-error" className="text-sm text-destructive" role="alert">{resetError}</p>}
+                {resetError && (
+                  <p id="resetEmail-error" className="text-sm text-destructive" role="alert">
+                    {resetError}
+                  </p>
+                )}
               </div>
               <DialogFooter>
                 <Button type="submit" disabled={resetBusy} className="w-full gap-2 sm:w-auto">

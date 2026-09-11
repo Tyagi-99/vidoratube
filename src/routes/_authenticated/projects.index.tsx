@@ -49,7 +49,10 @@ export const Route = createFileRoute("/_authenticated/projects/")({
   head: () => ({
     meta: [
       { title: "Projects — Vidora AI" },
-      { name: "description", content: "Plan, generate and manage every faceless video project in your Vidora AI studio." },
+      {
+        name: "description",
+        content: "Plan, generate and manage every faceless video project in your Vidora AI studio.",
+      },
       { property: "og:title", content: "Projects — Vidora AI" },
       { property: "og:description", content: "Your Vidora AI video projects." },
       { property: "og:type", content: "website" },
@@ -140,7 +143,8 @@ function ProjectsPage() {
               <div>
                 <p className="font-semibold text-foreground">No projects yet</p>
                 <p className="text-sm text-muted-foreground">
-                  Pick a topic and Vidora writes the script, finds the visuals and records the voice.
+                  Pick a topic and Vidora writes the script, finds the visuals and records the
+                  voice.
                 </p>
               </div>
               <Button onClick={() => setModeChooserOpen(true)} className="gap-2">
@@ -298,7 +302,8 @@ function NewProjectDialog({
         <DialogHeader>
           <DialogTitle>New project</DialogTitle>
           <DialogDescription>
-            Give Vidora a topic, or paste your own script and it will only handle the visuals and voice.
+            Give Vidora a topic, or paste your own script and it will only handle the visuals and
+            voice.
           </DialogDescription>
         </DialogHeader>
 
@@ -373,7 +378,10 @@ function NewProjectDialog({
             </Field>
 
             <Field label="Category">
-              <Select value={category || "none"} onValueChange={(v) => setCategory(v === "none" ? "" : v)}>
+              <Select
+                value={category || "none"}
+                onValueChange={(v) => setCategory(v === "none" ? "" : v)}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Optional" />
                 </SelectTrigger>

@@ -99,50 +99,50 @@ export function AutoEditStudio({
       </div>
 
       <div className="content">
-      <section className="onboard">
-        <h1 className="onboard__h">Sync your images to a voiceover, automatically.</h1>
-        <p className="onboard__p">
-          Name each image or video clip with the second it appears — <code>0-03.png</code> or
-          <code>0-03.mp4</code> cuts in at 0:03 — then import them with your voiceover. Video clips
-          can be trimmed, zoomed, and their sound mixed under the narration. Review everything below,
-          then build the timeline.
-        </p>
-
-        <div className="onboard__zones">
-          <Dropzone
-            accept="audio/*"
-            icon="♪"
-            title="Voiceover audio"
-            hint="One MP3 or WAV — sets the total length"
-            filled={Boolean(audioName)}
-            filledLabel={audioName || ""}
-            onFile={onPickAudio}
-          />
-          <Dropzone
-            accept="video/*,image/*"
-            icon="▦"
-            title={file ? "Add more media" : "Storyboard images & video"}
-            hint="Images or video clips, named by timestamp (0-00, 0-06…). Drop files or whole folders — even several at once."
-            filled={Boolean(file)}
-            filledLabel={file ? file.name : ""}
-            onFile={onPickFile}
-          />
-        </div>
-
-        <div className="build-row">
-          <button
-            type="button"
-            className="render build"
-            disabled={!ready || busy}
-            onClick={onGenerate}
-          >
-            {busy ? "Working…" : "Build timeline →"}
-          </button>
-          <p className="build-hint">
-            {ready ? "Ready to generate." : "Import your storyboard images to begin."}
+        <section className="onboard">
+          <h1 className="onboard__h">Sync your images to a voiceover, automatically.</h1>
+          <p className="onboard__p">
+            Name each image or video clip with the second it appears — <code>0-03.png</code> or
+            <code>0-03.mp4</code> cuts in at 0:03 — then import them with your voiceover. Video
+            clips can be trimmed, zoomed, and their sound mixed under the narration. Review
+            everything below, then build the timeline.
           </p>
-        </div>
-      </section>
+
+          <div className="onboard__zones">
+            <Dropzone
+              accept="audio/*"
+              icon="♪"
+              title="Voiceover audio"
+              hint="One MP3 or WAV — sets the total length"
+              filled={Boolean(audioName)}
+              filledLabel={audioName || ""}
+              onFile={onPickAudio}
+            />
+            <Dropzone
+              accept="video/*,image/*"
+              icon="▦"
+              title={file ? "Add more media" : "Storyboard images & video"}
+              hint="Images or video clips, named by timestamp (0-00, 0-06…). Drop files or whole folders — even several at once."
+              filled={Boolean(file)}
+              filledLabel={file ? file.name : ""}
+              onFile={onPickFile}
+            />
+          </div>
+
+          <div className="build-row">
+            <button
+              type="button"
+              className="render build"
+              disabled={!ready || busy}
+              onClick={onGenerate}
+            >
+              {busy ? "Working…" : "Build timeline →"}
+            </button>
+            <p className="build-hint">
+              {ready ? "Ready to generate." : "Import your storyboard images to begin."}
+            </p>
+          </div>
+        </section>
       </div>
     </main>
   );

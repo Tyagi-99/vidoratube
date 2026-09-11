@@ -167,148 +167,157 @@ export function VoiceoverCreateDialog({
       description="Upload footage you own, declare rights, then add commentary and captions. We never scrape or download videos from other platforms."
       className="max-w-xl"
     >
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="vo-file">Upload video (primary)</Label>
-            <input
-              ref={fileRef}
-              id="vo-file"
-              type="file"
-              accept="video/*"
-              className="hidden"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              className="min-h-20 w-full justify-start gap-3 border-dashed px-4"
-              onClick={() => fileRef.current?.click()}
-            >
-              {file ? <CheckCircle2 className="h-5 w-5 text-accent" /> : <Upload className="h-5 w-5" />}
-              <span className="min-w-0 text-left">
-                <span className="block truncate">{file ? file.name : "Choose video file"}</span>
-                <span className="block text-xs font-normal text-muted-foreground">
-                  {file ? `${(file.size / 1024 / 1024).toFixed(1)} MB selected` : "MP4, MOV, or another browser-supported video"}
-                </span>
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="vo-file">Upload video (primary)</Label>
+          <input
+            ref={fileRef}
+            id="vo-file"
+            type="file"
+            accept="video/*"
+            className="hidden"
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            className="min-h-20 w-full justify-start gap-3 border-dashed px-4"
+            onClick={() => fileRef.current?.click()}
+          >
+            {file ? (
+              <CheckCircle2 className="h-5 w-5 text-accent" />
+            ) : (
+              <Upload className="h-5 w-5" />
+            )}
+            <span className="min-w-0 text-left">
+              <span className="block truncate">{file ? file.name : "Choose video file"}</span>
+              <span className="block text-xs font-normal text-muted-foreground">
+                {file
+                  ? `${(file.size / 1024 / 1024).toFixed(1)} MB selected`
+                  : "MP4, MOV, or another browser-supported video"}
               </span>
-            </Button>
-          </div>
+            </span>
+          </Button>
+        </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="vo-meta-url">URL (metadata only, optional)</Label>
-            <Input
-              id="vo-meta-url"
-              placeholder="https://… — stored as reference, not downloaded"
-              value={metaUrl}
-              onChange={(e) => setMetaUrl(e.target.value)}
-            />
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="vo-meta-url">URL (metadata only, optional)</Label>
+          <Input
+            id="vo-meta-url"
+            placeholder="https://… — stored as reference, not downloaded"
+            value={metaUrl}
+            onChange={(e) => setMetaUrl(e.target.value)}
+          />
+        </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="vo-title">Title</Label>
-            <Input
-              id="vo-title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Optional — defaults to file name"
-            />
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="vo-title">Title</Label>
+          <Input
+            id="vo-title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Optional — defaults to file name"
+          />
+        </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="vo-notes">Notes for the writer</Label>
-            <Textarea
-              id="vo-notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="What should the commentary cover?"
-              rows={3}
-            />
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="vo-notes">Notes for the writer</Label>
+          <Textarea
+            id="vo-notes"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="What should the commentary cover?"
+            rows={3}
+          />
+        </div>
 
+        <div className="space-y-2">
+          <Label>Rights status (required)</Label>
+          <Select value={rights} onValueChange={setRights}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PERMISSION_STATUSES.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {RIGHTS_LABELS[s] ?? s}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Final render requires owned, licensed, permission_granted, or public_domain.
+          </p>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label>Rights status (required)</Label>
-            <Select value={rights} onValueChange={setRights}>
+            <Label>Target duration</Label>
+            <Select value={preset} onValueChange={setPreset}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {PERMISSION_STATUSES.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {RIGHTS_LABELS[s] ?? s}
+                {DURATION_PRESETS.map((s) => (
+                  <SelectItem key={s} value={String(s)}>
+                    {s}s
+                  </SelectItem>
+                ))}
+                <SelectItem value="custom">Custom</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {preset === "custom" && (
+            <div className="space-y-2">
+              <Label htmlFor="vo-custom">Custom seconds</Label>
+              <Input
+                id="vo-custom"
+                type="number"
+                min={5}
+                max={600}
+                value={customSec}
+                onChange={(e) => setCustomSec(e.target.value)}
+              />
+            </div>
+          )}
+          <div className="space-y-2">
+            <Label>Commentary style</Label>
+            <Select value={style} onValueChange={(v) => setStyle(v as typeof style)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {COMMENTARY_STYLES.map((s) => (
+                  <SelectItem key={s} value={s} className="capitalize">
+                    {s}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-xs text-muted-foreground">
-              Final render requires owned, licensed, permission_granted, or public_domain.
-            </p>
           </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Target duration</Label>
-              <Select value={preset} onValueChange={setPreset}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {DURATION_PRESETS.map((s) => (
-                    <SelectItem key={s} value={String(s)}>
-                      {s}s
-                    </SelectItem>
-                  ))}
-                  <SelectItem value="custom">Custom</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {preset === "custom" && (
-              <div className="space-y-2">
-                <Label htmlFor="vo-custom">Custom seconds</Label>
-                <Input
-                  id="vo-custom"
-                  type="number"
-                  min={5}
-                  max={600}
-                  value={customSec}
-                  onChange={(e) => setCustomSec(e.target.value)}
-                />
-              </div>
-            )}
-            <div className="space-y-2">
-              <Label>Commentary style</Label>
-              <Select value={style} onValueChange={(v) => setStyle(v as typeof style)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {COMMENTARY_STYLES.map((s) => (
-                    <SelectItem key={s} value={s} className="capitalize">
-                      {s}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between rounded-xl border border-border px-3 py-2">
-            <div>
-              <Label htmlFor="vo-mute">Mute original audio</Label>
-              <p className="text-xs text-muted-foreground">Recommended when adding commentary VO</p>
-            </div>
-            <Switch id="vo-mute" checked={muteOriginal} onCheckedChange={setMuteOriginal} />
-          </div>
-
-          {formError && (
-            <div className="border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive" role="alert">
-              {formError}
-            </div>
-          )}
-          <Button className="w-full gap-2" disabled={busy} onClick={onSubmit}>
-            {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-            {busy ? "Uploading and creating…" : "Create voiceover project"}
-          </Button>
         </div>
+
+        <div className="flex items-center justify-between rounded-xl border border-border px-3 py-2">
+          <div>
+            <Label htmlFor="vo-mute">Mute original audio</Label>
+            <p className="text-xs text-muted-foreground">Recommended when adding commentary VO</p>
+          </div>
+          <Switch id="vo-mute" checked={muteOriginal} onCheckedChange={setMuteOriginal} />
+        </div>
+
+        {formError && (
+          <div
+            className="border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+            role="alert"
+          >
+            {formError}
+          </div>
+        )}
+        <Button className="w-full gap-2" disabled={busy} onClick={onSubmit}>
+          {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+          {busy ? "Uploading and creating…" : "Create voiceover project"}
+        </Button>
+      </div>
     </CreateSurface>
   );
 }

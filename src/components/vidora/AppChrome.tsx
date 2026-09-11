@@ -63,11 +63,19 @@ export function AppChrome() {
         <div className="ml-auto hidden items-center gap-2 md:flex">
           <div className="flex min-h-11 items-center gap-2 border-r border-border pr-4 text-sm text-muted-foreground">
             <Coins className="size-4 text-accent" aria-hidden="true" />
-            <span className="tabular-nums">{account.isLoading ? "—" : (account.data?.profile?.credits ?? 0)}</span>
+            <span className="tabular-nums">
+              {account.isLoading ? "—" : (account.data?.profile?.credits ?? 0)}
+            </span>
             <span>credits</span>
           </div>
           <ThemeToggle />
-          <Button variant="ghost" size="icon" onClick={signOut} aria-label="Sign out" className="size-11">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={signOut}
+            aria-label="Sign out"
+            className="size-11"
+          >
             <LogOut className="size-4" />
           </Button>
           <Button asChild className="gap-2">
@@ -93,17 +101,40 @@ export function AppChrome() {
       </div>
 
       {mobileOpen && (
-        <nav aria-label="Mobile studio" className="border-t border-border bg-background px-4 py-3 md:hidden">
+        <nav
+          aria-label="Mobile studio"
+          className="border-t border-border bg-background px-4 py-3 md:hidden"
+        >
           <div className="mx-auto grid max-w-[1440px] gap-1">
             {links.map((item) => (
-              <Link key={item.to} to={item.to} className="flex min-h-11 items-center gap-2 border-b border-border px-2 text-sm font-medium" onClick={() => setMobileOpen(false)}>
+              <Link
+                key={item.to}
+                to={item.to}
+                className="flex min-h-11 items-center gap-2 border-b border-border px-2 text-sm font-medium"
+                onClick={() => setMobileOpen(false)}
+              >
                 <Film className="size-4 text-muted-foreground" aria-hidden="true" /> {item.label}
               </Link>
             ))}
             <div className="flex items-center justify-between gap-2 pt-2">
-              <span className="text-sm text-muted-foreground"><span className="tabular-nums text-foreground">{account.data?.profile?.credits ?? 0}</span> credits</span>
-              <Button variant="ghost" onClick={signOut} className="gap-2"><LogOut className="size-4" /> Sign out</Button>
-              <Button asChild size="sm"><Link to="/studio" search={{ create: "script" }} onClick={() => setMobileOpen(false)}><Plus className="size-4" /> New video</Link></Button>
+              <span className="text-sm text-muted-foreground">
+                <span className="tabular-nums text-foreground">
+                  {account.data?.profile?.credits ?? 0}
+                </span>{" "}
+                credits
+              </span>
+              <Button variant="ghost" onClick={signOut} className="gap-2">
+                <LogOut className="size-4" /> Sign out
+              </Button>
+              <Button asChild size="sm">
+                <Link
+                  to="/studio"
+                  search={{ create: "script" }}
+                  onClick={() => setMobileOpen(false)}
+                >
+                  <Plus className="size-4" /> New video
+                </Link>
+              </Button>
             </div>
           </div>
         </nav>

@@ -29,7 +29,7 @@ function systemPrefersDark() {
 function applyTheme(theme: Theme) {
   const dark = theme === "dark" || (theme === "system" && systemPrefersDark());
   document.documentElement.classList.toggle("dark", dark);
-  document.documentElement.dataset.theme = dark ? "dark" : "light";
+  document.documentElement.dataset["theme"] = dark ? "dark" : "light";
   document.documentElement.style.colorScheme = dark ? "dark" : "light";
   return dark ? "dark" : "light";
 }
