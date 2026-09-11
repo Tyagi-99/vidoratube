@@ -172,38 +172,48 @@ function Header() {
   ] as const;
 
   return (
-    <header className="sticky top-0 z-50 w-full px-3 pt-3 sm:px-6 sm:pt-5">
-      <div className="mx-auto flex max-w-5xl items-center justify-between rounded-[14px] border border-border/70 bg-card/80 py-2 pr-2 pl-4 backdrop-blur-xl sm:pl-5">
-        <Link to="/" aria-label="Vidora AI home">
+    <header className="sticky top-0 z-50 w-full border-b border-border bg-background/85 backdrop-blur-xl">
+      <div className="mx-auto flex h-16 max-w-7xl items-center gap-6 px-4 sm:px-6 lg:px-8">
+        <Link to="/" aria-label="Vidora AI home" className="shrink-0">
           <Wordmark />
         </Link>
 
-        <nav className="hidden items-center gap-7 md:flex">
+        <nav aria-label="Main" className="hidden items-center gap-1 md:flex">
           {navItems.map((item) => (
             <Link
               key={item.label}
               to={item.to}
-              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              activeProps={{ className: "text-foreground after:opacity-100" }}
+              className="relative rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors duration-200 after:absolute after:inset-x-3 after:-bottom-[9px] after:h-px after:bg-accent after:opacity-0 after:transition-opacity after:duration-200 hover:text-foreground"
             >
               {item.label}
             </Link>
           ))}
         </nav>
 
-        <div className="hidden items-center gap-2 md:flex">
+        <div className="ml-auto hidden items-center gap-2 md:flex">
           <ThemeToggle />
           {!loading && user ? (
-            <Link
-              to="/studio"
-              className="inline-flex items-center justify-center gap-1.5 rounded-[10px] bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
-            >
-              <LayoutDashboard className="h-4 w-4" />
-              Studio
-            </Link>
+            <>
+              <Link
+                to="/studio"
+                className="inline-flex items-center justify-center gap-1.5 rounded-[10px] border border-border px-3.5 py-2 text-sm font-medium text-foreground transition-colors duration-200 hover:bg-muted"
+              >
+                <LayoutDashboard className="h-4 w-4" />
+                Studio
+              </Link>
+              <Link
+                to="/studio"
+                search={{ create: "script" }}
+                className="inline-flex items-center justify-center gap-1.5 rounded-[10px] bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors duration-200 hover:bg-primary/90"
+              >
+                New video
+              </Link>
+            </>
           ) : (
             <Link
               to="/studio"
-              className="inline-flex items-center justify-center gap-1.5 rounded-[10px] bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
+              className="inline-flex items-center justify-center gap-1.5 rounded-[10px] bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors duration-200 hover:bg-primary/90"
             >
               Open studio
               <ArrowUpRight className="h-4 w-4" />
@@ -211,11 +221,12 @@ function Header() {
           )}
         </div>
 
-        <div className="flex items-center gap-1 md:hidden">
+        <div className="ml-auto flex items-center gap-1 md:hidden">
           <ThemeToggle />
           <button
             className="inline-flex size-11 items-center justify-center rounded-[10px] border border-border text-foreground"
             onClick={() => setMobileOpen(!mobileOpen)}
+            aria-expanded={mobileOpen}
             aria-label="Toggle menu"
           >
             {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -224,13 +235,14 @@ function Header() {
       </div>
 
       {mobileOpen && (
-        <div className="mx-auto mt-2 max-w-5xl rounded-[14px] border border-border bg-card p-5 md:hidden">
-          <nav className="flex flex-col gap-3">
+        <div className="border-t border-border bg-background px-4 pb-5 pt-3 md:hidden">
+          <nav aria-label="Mobile" className="flex flex-col">
             {navItems.map((item) => (
               <Link
                 key={item.label}
                 to={item.to}
-                className="text-base font-medium text-muted-foreground transition-colors hover:text-foreground"
+                activeProps={{ className: "text-foreground" }}
+                className="flex min-h-12 items-center border-b border-border text-base font-medium text-muted-foreground transition-colors hover:text-foreground"
                 onClick={() => setMobileOpen(false)}
               >
                 {item.label}
@@ -238,7 +250,7 @@ function Header() {
             ))}
             <Link
               to="/studio"
-              className="mt-2 inline-flex min-h-11 items-center justify-center gap-2 rounded-[10px] bg-primary px-4 py-2.5 text-base font-semibold text-primary-foreground"
+              className="mt-4 inline-flex min-h-12 items-center justify-center gap-2 rounded-[10px] bg-primary px-4 text-base font-semibold text-primary-foreground"
               onClick={() => setMobileOpen(false)}
             >
               Open studio
@@ -247,9 +259,9 @@ function Header() {
         </div>
       )}
     </header>
-
   );
 }
+
 
 function Footer() {
   return (
