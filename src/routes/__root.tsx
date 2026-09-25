@@ -16,6 +16,7 @@ import { initClientSentry, captureError } from "../lib/sentry";
 import { Menu, X, Aperture, ArrowUpRight, LayoutDashboard } from "lucide-react";
 import { ThemeProvider, themeInitScript } from "@/components/ThemeProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { LanguageToggle } from "@/components/vidora/LanguageToggle";
 import { Toaster } from "@/components/ui/sonner";
 import { useSession } from "@/hooks/useSession";
 
@@ -207,6 +208,7 @@ function Header() {
         </nav>
 
         <div className="ml-auto hidden items-center gap-2 md:flex">
+          <LanguageToggle compact />
           <ThemeToggle />
           {!loading && user ? (
             <>
@@ -237,6 +239,7 @@ function Header() {
         </div>
 
         <div className="ml-auto flex items-center gap-1 md:hidden">
+          <LanguageToggle compact />
           <ThemeToggle />
           <button
             className="inline-flex size-11 items-center justify-center rounded-[10px] border border-border text-foreground"
