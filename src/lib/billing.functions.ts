@@ -176,28 +176,71 @@ export const createPortalSession = createServerFn({ method: "POST" })
   });
 
 /**
- * Reserve render minutes when a server render is enqueued.
+ * Reserve the exact quoted render cost when a server render is enqueued.
  * Idempotent per render id. Call BEFORE the worker picks the job up.
+ *
+ * The amount is the deterministic quote from quoteMultiAspectRender
+ * (finished minutes x mode multipliers) — the same number the UI showed
+ * before the render. Kept as a parameter (not computed here) so the
+ * caller and the UI share one pricing function.
  */
 export async function reserveRenderBilling(
   supabaseAdmin: SupabaseClient<Database>,
   userId: string,
   renderId: string,
-  estimatedMinutes: number = DEFAULT_RENDER_RESERVE_MINUTES,
+  quotedCredits: number = DEFAULT_RENDER_RESERVE_MINUTES,
 ): Promise<void> {
   const { error } = await supabaseAdmin.rpc("debit_credits_amount_once", {
     p_user_id: userId,
-    p_amount: estimatedMinutes,
-    p_reason: `Server render reserve (${estimatedMinutes} min)`,
+    p_amount: quotedCredits,
+    p_reason: `Server render reserve (${quotedCredits} credits)`,
     p_ref_id: renderId,
   });
   if (error) {
     const msg = error instanceof Error ? error.message : String((error as { message?: string })?.message ?? error);
     if (msg.includes("INSUFFICIENT_CREDITS")) {
       throw new Error(
-        `Not enough credits to start a server render (needs ${estimatedMinutes}). Top up or use the fast browser render.`,
+        `Not enough credits to start a server render (needs ${quotedCredits}). Top up or use the fast browser render.`,
       );
     }
     throw new Error(msg);
   }
 }
+
+/**
+ * Sprint 1: measured cost analytics for the /admin panel.
+ *
+ * These read the api_usage rows written by recordApiCost (every provider
+ * call) and turn them into investor-facing numbers. Admin-only: the admin
+ * UI calls these; never expose them to non-admins.
+ */
+
+/** Admin: measured provider cost per finished minute for a billing mode. */
+export const getMeasuredCostPerMinute = createServerFn({ method: "GET" })
+  .middleware([requireAppUser])
+  .inputValidator((i: unknown) =>
+    z.object({ mode: z.enum(["story", "cinema"]).default("story") }).parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { assertAdmin } = await import("./admin.server");
+    await assertAdmin(supabaseAdmin, context.userId);
+    const { measuredCostPerMinute } = await import("./billing/measured-cost");
+    const result = await measuredCostPerMinute(supabaseAdmin, data.mode);
+    return {
+      ...result,
+      estimateNote:
+        "Gateway (Lovable AI) rows are passthrough cost ESTIMATES — the gateway does not report exact USD. Direct-provider rows (ElevenLabs, Shotstack) use published rates.",
+    };
+  });
+
+/** Admin: plan price vs measured provider cost of each plan's credits. */
+export const getPlanMargins = createServerFn({ method: "GET" })
+  .middleware([requireAppUser])
+  .handler(async ({ context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { assertAdmin } = await import("./admin.server");
+    await assertAdmin(supabaseAdmin, context.userId);
+    const { planMargins } = await import("./billing/measured-cost");
+    return planMargins(supabaseAdmin);
+  });
