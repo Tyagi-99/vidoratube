@@ -833,6 +833,9 @@ export type Database = {
           user_id: string
           visual_bible: Json
           visual_style: string
+          music_track_id: string | null
+          music_volume: number
+          music_ducking: boolean
         }
         Insert: {
           aspect_ratio?: string
@@ -861,6 +864,9 @@ export type Database = {
           user_id: string
           visual_bible?: Json
           visual_style?: string
+          music_track_id?: string | null
+          music_volume?: number
+          music_ducking?: boolean
         }
         Update: {
           aspect_ratio?: string
@@ -889,6 +895,9 @@ export type Database = {
           user_id?: string
           visual_bible?: Json
           visual_style?: string
+          music_track_id?: string | null
+          music_volume?: number
+          music_ducking?: boolean
         }
         Relationships: [
           {
@@ -1069,6 +1078,8 @@ export type Database = {
           search_query: string | null
           status: string
           style_override: string | null
+          character_id: string | null
+          voice_id: string | null
           transition: string
           updated_at: string
           user_id: string
@@ -1091,6 +1102,8 @@ export type Database = {
           search_query?: string | null
           status?: string
           style_override?: string | null
+          character_id?: string | null
+          voice_id?: string | null
           transition?: string
           updated_at?: string
           user_id: string
@@ -1113,6 +1126,8 @@ export type Database = {
           search_query?: string | null
           status?: string
           style_override?: string | null
+          character_id?: string | null
+          voice_id?: string | null
           transition?: string
           updated_at?: string
           user_id?: string
@@ -1622,6 +1637,132 @@ export type Database = {
           user_id?: string
           payload?: unknown
           expires_at?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      characters: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          description: string
+          reference_image_url: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          description?: string
+          reference_image_url?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          description?: string
+          reference_image_url?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      music_tracks: {
+        Row: {
+          id: string
+          title: string
+          artist: string
+          mood: string
+          provider: string
+          provider_track_id: string | null
+          preview_url: string | null
+          download_url: string | null
+          license: string
+          license_url: string | null
+          duration_secs: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          artist?: string
+          mood: string
+          provider?: string
+          provider_track_id?: string | null
+          preview_url?: string | null
+          download_url?: string | null
+          license?: string
+          license_url?: string | null
+          duration_secs?: number | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          artist?: string
+          mood?: string
+          provider?: string
+          provider_track_id?: string | null
+          preview_url?: string | null
+          download_url?: string | null
+          license?: string
+          license_url?: string | null
+          duration_secs?: number | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      asset_provenance: {
+        Row: {
+          id: string
+          user_id: string
+          project_id: string | null
+          scene_id: string | null
+          kind: string
+          provider: string
+          model: string | null
+          prompt: string | null
+          seed: string | null
+          license: string | null
+          license_url: string | null
+          cost_credits: number
+          asset_url: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          project_id?: string | null
+          scene_id?: string | null
+          kind: string
+          provider: string
+          model?: string | null
+          prompt?: string | null
+          seed?: string | null
+          license?: string | null
+          license_url?: string | null
+          cost_credits?: number
+          asset_url?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          project_id?: string | null
+          scene_id?: string | null
+          kind?: string
+          provider?: string
+          model?: string | null
+          prompt?: string | null
+          seed?: string | null
+          license?: string | null
+          license_url?: string | null
+          cost_credits?: number
+          asset_url?: string | null
           created_at?: string
         }
         Relationships: []

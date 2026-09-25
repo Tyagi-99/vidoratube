@@ -9,13 +9,13 @@
 
 export type MusicMood = "uplifting" | "tense" | "calm" | "epic" | "playful";
 
-export const MUSIC_MOODS: MusicMood[] = [
+export const MUSIC_MOODS = [
   "uplifting",
   "tense",
   "calm",
   "epic",
   "playful",
-];
+] as const;
 
 export interface MusicTrack {
   providerTrackId: string;

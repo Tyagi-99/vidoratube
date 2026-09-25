@@ -37,6 +37,7 @@ const EnqueueSchema = z.object({
   burnCaptions: z.boolean().default(true),
   musicUrl: z.string().max(500).nullable().default(null),
   musicVolume: z.number().min(0).max(1).default(0.15),
+  musicDucking: z.boolean().default(true),
   voiceoverUrl: z.string().max(500).nullable().default(null),
 });
 
@@ -92,6 +93,7 @@ export const enqueueServerRender = createServerFn({ method: "POST" })
           burnCaptions: data.burnCaptions,
           musicUrl: data.musicUrl,
           musicVolume: data.musicVolume,
+          musicDucking: data.musicDucking,
           voiceoverUrl: data.voiceoverUrl,
         },
       })

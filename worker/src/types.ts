@@ -29,6 +29,7 @@ export const RenderJobMetaSchema = z.object({
   burnCaptions: z.boolean().default(true),
   musicUrl: z.string().nullable().default(null),
   musicVolume: z.number().min(0).max(1).default(0.15),
+  musicDucking: z.boolean().default(true),
   voiceoverUrl: z.string().nullable().default(null),
 });
 export type RenderJobMeta = z.infer<typeof RenderJobMetaSchema>;

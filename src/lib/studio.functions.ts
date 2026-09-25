@@ -249,6 +249,21 @@ export const regenerateScene = createServerFn({ method: "POST" })
 
     try {
       if (data.what === "visual" || data.what === "both") {
+        // P4: load the scene's character (if any) for prompt consistency.
+        let characterName: string | null = null;
+        let characterDescription: string | null = null;
+        if (scene.character_id) {
+          const { data: ch } = await supabaseAdmin
+            .from("characters")
+            .select("name,description")
+            .eq("id", scene.character_id)
+            .eq("user_id", userId)
+            .maybeSingle();
+          if (ch) {
+            characterName = ch.name;
+            characterDescription = ch.description;
+          }
+        }
         const visual = await resolveSceneVisual(supabaseAdmin, {
           userId,
           projectId: project.id,
@@ -262,6 +277,8 @@ export const regenerateScene = createServerFn({ method: "POST" })
           style: scene.style_override ?? project.visual_style,
           aspectRatio: project.aspect_ratio,
           visualBible: (project.visual_bible ?? {}) as Record<string, unknown>,
+          characterName,
+          characterDescription,
         });
         await supabase
           .from("scenes")
@@ -278,13 +295,17 @@ export const regenerateScene = createServerFn({ method: "POST" })
 
       if (data.what === "voice" || data.what === "both") {
         const settings = (project.settings ?? {}) as { voice?: Record<string, number | string> };
+        // P4: per-scene voice override wins over the project default.
+        const voiceSettings = scene.voice_id
+          ? { ...settings.voice, voiceId: scene.voice_id }
+          : settings.voice;
         const voice = await generateSceneVoice(supabaseAdmin, {
           userId,
           projectId: project.id,
           sceneId: scene.id,
           sceneNumber: scene.scene_number,
           narration: scene.narration,
-          settings: (settings.voice ?? {}) as never,
+          settings: voiceSettings as never,
         });
         await supabase.from("scenes").update({ duration: voice.duration }).eq("id", scene.id);
         const captionStyle = ((project.settings ?? {}) as { captionStyle?: string }).captionStyle ?? "documentary";

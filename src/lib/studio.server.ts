@@ -174,6 +174,9 @@ export async function resolveSceneVisual(
     style: string;
     aspectRatio: string;
     visualBible: Record<string, unknown>;
+    /** P4: character consistency — injected into the prompt. */
+    characterName?: string | null;
+    characterDescription?: string | null;
   },
 ): Promise<{ url: string; thumb: string; source: Record<string, unknown>; visualType: VisualType }> {
   const queries = (args.searchQuery ?? "").split("|").map((q) => q.trim()).filter(Boolean);
@@ -207,19 +210,37 @@ export async function resolveSceneVisual(
     // No usable stock result → fall back to an AI image.
   }
 
-  const style = styleById(args.style);
+  // P4: curated Studio v2 presets take precedence; legacy styles still work.
+  const { STUDIO_STYLES, buildStyledPrompt } = await import("./styles");
+  const studioStyle = STUDIO_STYLES.find((s) => s.id === args.style);
+  const legacyModifier = styleById(args.style).prompt;
   const bible = Object.entries(args.visualBible ?? {})
     .filter(([, v]) => typeof v === "string" && v)
     .map(([k, v]) => `${k}: ${String(v)}`)
     .join("; ");
-
-  const prompt = [
-    style.prompt,
+  const base = [
     args.imagePrompt ?? queries.join(", "),
     bible ? `Consistency notes — ${bible}.` : "",
   ]
     .filter(Boolean)
     .join(". ");
+
+  const prompt = studioStyle
+    ? buildStyledPrompt({
+        basePrompt: base,
+        styleId: studioStyle.id,
+        characterName: args.characterName ?? null,
+        characterDescription: args.characterDescription ?? null,
+      })
+    : [
+        legacyModifier,
+        base,
+        args.characterName
+          ? `featuring ${args.characterName}${args.characterDescription ? ` (${args.characterDescription})` : ""}`
+          : "",
+      ]
+        .filter(Boolean)
+        .join(". ");
 
   const provider = activeImageProvider();
   const bytes = await provider.generate({
@@ -233,6 +254,18 @@ export async function resolveSceneVisual(
     bytes,
     "image/png",
   );
+  // P4: provenance — recorded where the provider facts are known.
+  const { recordProvenance } = await import("./provenance");
+  await recordProvenance(admin as never, {
+    userId: args.userId,
+    projectId: args.projectId,
+    sceneId: args.sceneId,
+    kind: "image",
+    provider: provider.id,
+    model: provider.id === "gemini" ? "google/gemini-2.5-flash-image" : undefined,
+    prompt: base,
+    assetUrl: url,
+  });
   await logUsage(admin, {
     user_id: args.userId,
     project_id: args.projectId,
@@ -323,6 +356,19 @@ export async function generateSceneVoice(
     operation: "tts",
     units: args.narration.length,
     estimated_cost: (args.narration.length / 1000) * 0.03,
+  });
+
+  // P4: provenance for the generated voiceover.
+  const { recordProvenance } = await import("./provenance");
+  await recordProvenance(admin as never, {
+    userId: args.userId,
+    projectId: args.projectId,
+    sceneId: args.sceneId,
+    kind: "voice",
+    provider: "elevenlabs",
+    model,
+    prompt: args.narration.slice(0, 500),
+    assetUrl: url,
   });
 
   return { url, duration, cacheKey };

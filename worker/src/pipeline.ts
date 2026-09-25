@@ -205,42 +205,78 @@ async function assemble(ctx: Ctx, segments: string[], scenes: SceneInput[]): Pro
     isCancelled: () => hooks.isCancelled(),
   });
 
-  // --- audio: scene narration + optional voiceover/music ---
+  // --- audio: scene narration + optional voiceover/music (P4: ducking) ---
   await hooks.onStage("audio", 0);
   const totalDur = scenes.reduce((a, s) => a + s.duration, 0);
   const audioInputs: string[] = [];
   const filterParts: string[] = [];
   let inputIdx = 1; // 0 is the combined video
 
-  const audioFiles: { path: string; at: number; dur: number; vol: number }[] = [];
+  // Voice bus: scene narration clips + optional full voiceover
+  const voiceFiles: { path: string; at: number; dur: number; vol: number }[] = [];
   let t = 0;
   for (const s of scenes) {
-    if (s.audio) audioFiles.push({ path: s.audio, at: t, dur: s.duration, vol: 1 });
+    if (s.audio) voiceFiles.push({ path: s.audio, at: t, dur: s.duration, vol: 1 });
     t += s.duration;
   }
   if (meta.voiceoverUrl) {
     const vo = join(dir, "voiceover.m4a");
     await downloadTo(await resolveAssetUrl(supabase, cfg.RENDER_BUCKET, meta.voiceoverUrl), vo);
-    audioFiles.push({ path: vo, at: 0, dur: totalDur, vol: 1 });
+    voiceFiles.push({ path: vo, at: 0, dur: totalDur, vol: 1 });
   }
+  // Music bus (optional)
+  let musicPath: string | null = null;
   if (meta.musicUrl) {
-    const mu = join(dir, "music.m4a");
-    await downloadTo(await resolveAssetUrl(supabase, cfg.RENDER_BUCKET, meta.musicUrl), mu);
-    audioFiles.push({ path: mu, at: 0, dur: totalDur, vol: meta.musicVolume });
+    musicPath = join(dir, "music.m4a");
+    await downloadTo(await resolveAssetUrl(supabase, cfg.RENDER_BUCKET, meta.musicUrl), musicPath);
   }
 
   let withAudio = combined;
-  if (audioFiles.length > 0) {
-    for (const a of audioFiles) {
+  if (voiceFiles.length > 0 || musicPath) {
+    const voiceLabels: string[] = [];
+    for (const a of voiceFiles) {
       audioInputs.push("-i", a.path);
-      // delay + volume + trim to slot
+      const lbl = `v${inputIdx}`;
       filterParts.push(
-        `[${inputIdx}:a]adelay=${Math.round(a.at * 1000)}|${Math.round(a.at * 1000)},volume=${a.vol},apad[a${inputIdx}]`,
+        `[${inputIdx}:a]adelay=${Math.round(a.at * 1000)}|${Math.round(a.at * 1000)},volume=${a.vol},apad[${lbl}]`,
       );
+      voiceLabels.push(`[${lbl}]`);
       inputIdx++;
     }
-    const mixInputs = audioFiles.map((_, i) => `[a${i + 1}]`).join("");
-    filterParts.push(`${mixInputs}amix=inputs=${audioFiles.length}:normalize=0[aout]`);
+    // Collapse voice bus to a single [voice] stream
+    let voiceBus = "";
+    if (voiceLabels.length === 1) {
+      voiceBus = voiceLabels[0]!;
+    } else if (voiceLabels.length > 1) {
+      filterParts.push(`${voiceLabels.join("")}amix=inputs=${voiceLabels.length}:normalize=0[voice]`);
+      voiceBus = "[voice]";
+    }
+
+    let finalAudio = voiceBus;
+    if (musicPath) {
+      audioInputs.push("-i", musicPath);
+      const mIdx = inputIdx++;
+      // Music: volume + fade in/out, trim to total duration
+      filterParts.push(
+        `[${mIdx}:a]volume=${meta.musicVolume},afade=t=in:st=0:d=1,afade=t=out:st=${Math.max(0, totalDur - 2).toFixed(2)}:d=2,apad,atrim=0:${totalDur.toFixed(2)}[music]`,
+      );
+      if (voiceBus && meta.musicDucking) {
+        // P4: duck music under the voice bus via sidechain compression
+        filterParts.push(
+          `[music]${voiceBus}sidechaincompress=threshold=0.02:ratio=8:attack=200:release=800:makeup=1[ducked]`,
+        );
+        filterParts.push(`${voiceBus}[ducked]amix=inputs=2:normalize=0[aout]`);
+      } else if (voiceBus) {
+        filterParts.push(`${voiceBus}[music]amix=inputs=2:normalize=0[aout]`);
+      } else {
+        filterParts.push(`[music]anull[aout]`);
+      }
+      finalAudio = "[aout]";
+    } else if (voiceBus) {
+      filterParts.push(`${voiceBus}anull[aout]`);
+      finalAudio = "[aout]";
+    }
+
     withAudio = join(dir, "with-audio.mp4");
     await runFFmpeg({
       ffmpegPath: cfg.FFMPEG_PATH,
@@ -254,7 +290,7 @@ async function assemble(ctx: Ctx, segments: string[], scenes: SceneInput[]): Pro
         "-map",
         "0:v",
         "-map",
-        "[aout]",
+        finalAudio,
         "-c:v",
         "copy",
         "-c:a",

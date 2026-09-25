@@ -63,6 +63,8 @@ const OWNER_SCOPED_TABLES = [
   "outlier_videos",
   "video_ideas",
   "youtube_api_cache",
+  "characters",
+  "asset_provenance",
 ];
 
 /** Tables intentionally readable/writable without auth (documented exceptions). */
@@ -76,6 +78,8 @@ const PUBLIC_BY_DESIGN: Record<string, string> = {
   niches: "public read",
   // Static blocklist checked at signup; no sensitive data, read-only.
   disposable_email_domains: "public read",
+  // Royalty-free music catalog; no user data, read-only for authenticated.
+  music_tracks: "authenticated read",
 };
 
 describe("RLS static audit", () => {

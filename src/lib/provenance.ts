@@ -18,17 +18,17 @@ export type ProvenanceKind =
 
 export interface ProvenanceRecord {
   userId: string;
-  projectId?: string | null;
-  sceneId?: string | null;
+  projectId?: string | null | undefined;
+  sceneId?: string | null | undefined;
   kind: ProvenanceKind;
   provider: string;
-  model?: string | null;
-  prompt?: string | null;
-  seed?: string | null;
-  license?: string | null;
-  licenseUrl?: string | null;
-  costCredits?: number;
-  assetUrl?: string | null;
+  model?: string | null | undefined;
+  prompt?: string | null | undefined;
+  seed?: string | null | undefined;
+  license?: string | null | undefined;
+  licenseUrl?: string | null | undefined;
+  costCredits?: number | undefined;
+  assetUrl?: string | null | undefined;
 }
 
 /** Inserts a provenance row (service-role client). Never throws — logs only. */
