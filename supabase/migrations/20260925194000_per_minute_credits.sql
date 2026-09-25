@@ -117,14 +117,13 @@ $$;
 
 -- One-time conversion: 1 legacy credit -> 1 finished minute (1:1).
 -- Append-only documentary entries (delta = 0); balances are NOT touched and
--- no existing rows are modified. Safe to re-run.
+-- no existing rows are modified. Safe to re-run. Reason is exactly
+-- 'migration_per_minute' (investor-required wording).
 INSERT INTO public.credit_ledger (user_id, delta, reason)
 SELECT
   p.id,
   0,
-  'migration_per_minute: converted ' || p.credits ||
-  ' legacy credit(s) to ' || p.credits ||
-  ' finished minute(s) at 1:1 (1 credit = 1 finished minute of Story Mode, standard voice)'
+  'migration_per_minute'
 FROM public.profiles p
 WHERE p.credits > 0
   AND NOT EXISTS (
