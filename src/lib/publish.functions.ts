@@ -579,3 +579,48 @@ export const updateSEOMetadata = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+const uploadFinalThumbnailSchema = z.object({
+  thumbnail_id: z.string().uuid(),
+  /** JPEG data URL (data:image/jpeg;base64,...) with the overlay burned in. Max ~2MB. */
+  image_data_url: z.string().startsWith("data:image/jpeg;base64,").max(3_000_000),
+});
+
+/**
+ * Stores the client-burned final thumbnail (text overlay applied via canvas).
+ * Updates final_url so YouTube thumbnails.set uses the burned version.
+ */
+export const uploadFinalThumbnailImage = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => uploadFinalThumbnailSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: thumb } = await supabase
+      .from("thumbnails")
+      .select("id, project_id, variant, aspect")
+      .eq("id", data.thumbnail_id)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (!thumb) throw new Error("Thumbnail not found");
+
+    const bytes = Uint8Array.from(
+      Buffer.from(data.image_data_url.split(",")[1]!, "base64"),
+    );
+    const { uploadFinalThumbnail } = await import("./thumbnails.server");
+    const path = await uploadFinalThumbnail(
+      supabaseAdmin,
+      userId,
+      thumb.project_id,
+      thumb.variant,
+      thumb.aspect,
+      bytes,
+    );
+    const { error } = await supabase
+      .from("thumbnails")
+      .update({ final_url: path })
+      .eq("id", thumb.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });

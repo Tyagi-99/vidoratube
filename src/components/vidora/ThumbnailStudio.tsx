@@ -19,11 +19,79 @@ import {
   listThumbnails,
   selectThumbnail,
   updateThumbnailOverlay,
+  uploadFinalThumbnailImage,
 } from "@/lib/publish.functions";
 import type { TextOverlay, ThumbnailAspect } from "@/lib/thumbnails";
 
 const FONTS: TextOverlay["font"][] = ["bold-sans", "condensed", "serif-display", "mono"];
 const POSITIONS: TextOverlay["position"][] = ["top", "center", "bottom"];
+
+const FONT_STACKS: Record<TextOverlay["font"], string> = {
+  "bold-sans": "900 96px system-ui, sans-serif",
+  condensed: "800 96px 'Arial Narrow', sans-serif",
+  "serif-display": "900 96px Georgia, serif",
+  mono: "800 88px ui-monospace, monospace",
+};
+
+/** Burns the text overlay onto the image via canvas, returns a JPEG data URL. */
+async function burnOverlay(
+  imageUrl: string,
+  overlay: { headline: string; font: TextOverlay["font"]; color: string; position: TextOverlay["position"] },
+): Promise<string> {
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const el = new Image();
+    el.crossOrigin = "anonymous";
+    el.onload = () => resolve(el);
+    el.onerror = () => reject(new Error("Could not load thumbnail image."));
+    el.src = imageUrl;
+  });
+  const canvas = document.createElement("canvas");
+  canvas.width = img.naturalWidth;
+  canvas.height = img.naturalHeight;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas not available.");
+  ctx.drawImage(img, 0, 0);
+
+  const fontSize = Math.round(canvas.width / 12);
+  const stack = FONT_STACKS[overlay.font].replace(/\d+px/, `${fontSize}px`);
+  ctx.font = stack;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  // Word-wrap the headline.
+  const words = overlay.headline.toUpperCase().split(/\s+/);
+  const lines: string[] = [];
+  let line = "";
+  for (const w of words) {
+    const test = line ? `${line} ${w}` : w;
+    if (ctx.measureText(test).width > canvas.width * 0.9 && line) {
+      lines.push(line);
+      line = w;
+    } else {
+      line = test;
+    }
+  }
+  if (line) lines.push(line);
+
+  const lineHeight = fontSize * 1.15;
+  const blockHeight = lines.length * lineHeight;
+  const yBase =
+    overlay.position === "top"
+      ? blockHeight / 2 + canvas.height * 0.08
+      : overlay.position === "bottom"
+        ? canvas.height - blockHeight / 2 - canvas.height * 0.08
+        : canvas.height / 2;
+
+  ctx.lineWidth = Math.max(4, fontSize / 12);
+  ctx.strokeStyle = "rgba(0,0,0,0.85)";
+  ctx.fillStyle = overlay.color;
+  lines.forEach((ln, i) => {
+    const y = yBase - blockHeight / 2 + lineHeight / 2 + i * lineHeight;
+    ctx.strokeText(ln, canvas.width / 2, y);
+    ctx.fillText(ln, canvas.width / 2, y);
+  });
+  return canvas.toDataURL("image/jpeg", 0.92);
+}
 
 export function ThumbnailStudio({
   projectId,
@@ -87,6 +155,28 @@ export function ThumbnailStudio({
         },
       }),
     onSuccess: () => toast.success("Text overlay saved"),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const [burnPreview, setBurnPreview] = useState<string | null>(null);
+  const burnFn = useServerFn(uploadFinalThumbnailImage);
+
+  const burnAndUpload = useMutation({
+    mutationFn: async (thumb: { id: string; viewUrl: string | null }) => {
+      if (!thumb.viewUrl) throw new Error("Thumbnail image not loaded yet.");
+      if (!headline.trim()) throw new Error("Add a headline first.");
+      const dataUrl = await burnOverlay(thumb.viewUrl, { headline, font, color, position });
+      setBurnPreview(dataUrl);
+      await burnFn({ data: { thumbnail_id: thumb.id, image_data_url: dataUrl } });
+      // Persist the overlay spec too.
+      await overlayFn({
+        data: { thumbnail_id: thumb.id, headline, font, color, position, fontSize: "lg" },
+      });
+    },
+    onSuccess: () => {
+      toast.success("Overlay burned and saved");
+      queryClient.invalidateQueries({ queryKey: ["thumbnails", projectId] });
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -194,17 +284,34 @@ export function ThumbnailStudio({
               </Select>
             </div>
           </div>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => saveOverlay.mutate(selected.id)}
-            disabled={saveOverlay.isPending || !headline.trim()}
-          >
-            {saveOverlay.isPending && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}
-            Save overlay
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => saveOverlay.mutate(selected.id)}
+              disabled={saveOverlay.isPending || !headline.trim()}
+            >
+              {saveOverlay.isPending && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}
+              Save overlay
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => burnAndUpload.mutate(selected)}
+              disabled={burnAndUpload.isPending || !headline.trim()}
+            >
+              {burnAndUpload.isPending && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}
+              Burn text into image
+            </Button>
+          </div>
+          {burnPreview && (
+            <div className="space-y-1.5">
+              <Label>Preview (what YouTube will show)</Label>
+              <img src={burnPreview} alt="Burned thumbnail preview" className="w-full rounded-lg border" />
+            </div>
+          )}
           <p className="text-xs text-muted-foreground">
-            The text is burned onto the thumbnail image when you publish.
+            “Burn text into image” bakes the headline onto the thumbnail — this is the
+            version uploaded to YouTube.
           </p>
         </div>
       )}
