@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compliantVideoSource, providerHealthSnapshot } from "./registry";
+import { compliantVideoSource, providerHealthSnapshot } from "./registry.server";
 
 describe("provider registry", () => {
   it("forbids YouTube download on the v1 video source policy", () => {
