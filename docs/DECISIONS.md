@@ -115,6 +115,15 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
 - **Reverse:** Replace the query with a dedicated health check or remove the
   fallback to force server-only.
 
+### D14. Character-consistency claim restored after honest 6-scene proof (2026-09-25)
+- **Decision:** The claim "characters stay consistent throughout" was removed pending
+  proof; the 60s demo's 6 AI stills were judged honestly (same woman, early 30s,
+  short black hair, rust-orange jacket in every scene — see `demo-assets/proof.txt`)
+  and the claim is restored. If a future render fails the same test, the claim
+  comes back off.
+- **Reason:** Claims must track evidence, in both directions.
+- **Reverse:** Remove the sentence from `StyleGallery.tsx` again.
+
 ### D13. Root `.env.example` extended (not a separate worker/.env.example)
 - **Decision:** Worker env vars were appended to the existing root `.env.example`;
   `docker-compose.yml` reads root `.env`.

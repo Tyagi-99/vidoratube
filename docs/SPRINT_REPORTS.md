@@ -90,11 +90,16 @@ Lovable publish after this handoff; all verification below is local unless noted
 
 **Proof:**
 
-- Tests: **382 passed** (`npx vitest run`), 0 failed — includes 15 Dodo, 12
+- Tests: **382 passed** (`npx vitest run`), 0 failed — includes 16 Dodo, 12
   per-minute math, 7 currency, 9 credits, RLS audit, language-neutrality guardrail.
 - `npx tsc --noEmit`: clean. Production build: _(run before push — see below)_.
-- Demo video: ffprobe + loudness output recorded in `demo-assets/proof.txt`
-  _(pending subagent completion)_.
+- Demo video (`public/demo/vidora-demo-60s.mp4`, proof in `demo-assets/proof.txt`):
+  ffprobe-verified 1920×1080 H.264 + AAC stereo 48kHz, **60.000s**, 18.5 MB
+  (under 25 MB budget); loudness measured **−14.04 LUFS** integrated, −2.19 dBTP
+  true peak, 2.7 LU LRA; captions burned in (spot-checked at 25s); 6-scene
+  character-consistency test **PASS** (same woman, early 30s, short black hair,
+  rust-orange jacket in every scene) — the consistency claim is restored on the
+  homepage.
 - Screenshots at 375/768/1280: **pending parent publish + verification**.
 
 **Grep confirmations:**

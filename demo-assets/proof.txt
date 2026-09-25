@@ -1,0 +1,33 @@
+VidoraTube 60-second demo — proof of render
+===========================================
+Generated: 2026-09-25 (UTC)
+Pipeline: demo-assets/mux.sh (reproducible; narration + 6 AI stills + burned SRT)
+
+SOURCE FILES
+- script.txt            English narration script (6 scenes)
+- narration.mp3         Real TTS audio (no silence, no placeholders)
+- stills/scene-1..6.webp  6 AI-generated 16:9 scene stills
+- captions.srt          Word-timed captions, burned into the picture
+
+FFPROBE (public/demo/vidora-demo-60s.mp4)
+- container: MP4 (faststart enabled)
+- video: h264, 1920x1080, 25fps, yuv420p
+- audio: aac, 48000 Hz, stereo, 128 kbps
+- duration: 60.000000 s
+- size: 19433900 bytes (18.5 MB) — under the 25 MB budget
+
+LOUDNESS (ffmpeg loudnorm measure, final file)
+- integrated: -14.04 LUFS (target -14)
+- true peak:  -2.19 dBTP (ceiling -1.5)
+- LRA:        2.7 LU
+
+CHARACTER CONSISTENCY (honest verdict): PASS
+- All 6 scenes show the same woman: early thirties, short black hair,
+  rust-orange jacket. Faces visible in scenes 1, 2, 4, 5 read as the same
+  person; scenes 3 and 6 are back/side views with matching hair + jacket.
+- No claim is made beyond what is visible in the video.
+
+REPRODUCE
+  cd demo-assets && bash mux.sh
+  # outputs demo-assets/vidora-demo-60s.mp4; final gain trim applied with
+  # ffmpeg -af volume=-1.43dB before copying to public/demo/

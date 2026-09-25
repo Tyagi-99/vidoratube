@@ -46,3 +46,12 @@ public/wasm/ffmpeg-core.wasm
 /test-results/
 /playwright-report/
 /playwright/.cache/
+
+# demo-assets scratch (regenerable via demo-assets/mux.sh)
+demo-assets/video60.mp4
+demo-assets/audio_final.m4a
+demo-assets/*-pregain.mp4
+demo-assets/seg-*.mp4
+demo-assets/concat.txt
+demo-assets/loudnorm-*.json
+demo-assets/make_srt.py
