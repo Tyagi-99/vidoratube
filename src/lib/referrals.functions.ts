@@ -88,7 +88,7 @@ export const submitPendingReferral = createServerFn({ method: "POST" })
     return claimReferralOnVerification({
       code: data.code,
       inviteeId: context.userId,
-      deviceHash: data.deviceHash,
+      ...(data.deviceHash ? { deviceHash: data.deviceHash } : {}),
     });
   });
 
