@@ -16,6 +16,11 @@
  *   Google OAuth/API endpoints used during YouTube connect. Server-to-provider
  *   calls (ElevenLabs, Lovable gateway) happen in .server.ts modules and are
  *   not subject to CSP.
+ * - Razorpay checkout (INR payments, /billing) injects
+ *   https://checkout.razorpay.com/v1/checkout.js, which renders its payment UI
+ *   in an iframe from https://api.razorpay.com — both are allowlisted below.
+ *   Stripe uses server-side redirect checkout (no client SDK), so no Stripe
+ *   script source is needed.
  */
 
 const SUPABASE_HOSTS = "https://*.supabase.co wss://*.supabase.co";
@@ -26,7 +31,7 @@ const CSP_DIRECTIVES: Record<string, string[]> = {
   "object-src": ["'none'"],
   "frame-ancestors": ["'none'"],
   "form-action": ["'self'", "https://accounts.google.com"],
-  "script-src": ["'self'", "'unsafe-inline'"],
+  "script-src": ["'self'", "'unsafe-inline'", "https://checkout.razorpay.com"],
   "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
   "font-src": ["'self'", "https://fonts.gstatic.com", "data:"],
   "img-src": ["'self'", "data:", "blob:", "https:"],
@@ -38,8 +43,9 @@ const CSP_DIRECTIVES: Record<string, string[]> = {
     "https://accounts.google.com",
     "https://oauth2.googleapis.com",
     "https://www.googleapis.com",
+    "https://api.razorpay.com",
   ],
-  "frame-src": ["https://www.youtube.com"],
+  "frame-src": ["https://www.youtube.com", "https://api.razorpay.com"],
 };
 
 export function buildContentSecurityPolicy(): string {
