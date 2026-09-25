@@ -102,6 +102,8 @@ const publishSchema = z.object({
   title: z.string().trim().min(1).max(100).optional(),
   description: z.string().trim().max(4900).optional(),
   privacy: z.enum(["private", "unlisted", "public"]).default("private"),
+  /** Required by YouTube: the uploader's own "made for kids" declaration (COPPA). */
+  madeForKids: z.boolean(),
 });
 
 export const publishJobToYouTube = createServerFn({ method: "POST" })
@@ -116,6 +118,8 @@ export const publishJobToYouTube = createServerFn({ method: "POST" })
       publishPrecheck,
       claimJobForUpload,
       encryptToken,
+      hasUploadScope,
+      YouTubeRevokedError,
     } = await import("./youtube.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -168,6 +172,15 @@ export const publishJobToYouTube = createServerFn({ method: "POST" })
       .eq("user_id", userId)
       .maybeSingle();
     if (!connection) throw new Error("Connect your YouTube channel first.");
+    // Incremental scope: the connection may only have read-only access. The
+    // client catches this and starts the upload-scope upgrade flow.
+    if (!hasUploadScope(connection.scope)) {
+      const error = new Error(
+        "YouTube upload permission is missing. Grant it to publish.",
+      ) as Error & { code?: string };
+      error.code = "NEEDS_UPLOAD_SCOPE";
+      throw error;
+    }
 
     try {
       // Reuses the stored access token while valid; refreshes only when needed.
@@ -180,6 +193,7 @@ export const publishJobToYouTube = createServerFn({ method: "POST" })
         title: data.title ?? job.title ?? "Vidora video",
         description: data.description ?? job.narration ?? "",
         privacyStatus: data.privacy,
+        madeForKids: data.madeForKids,
         tags: ["vidora", job.format].filter(Boolean) as string[],
       });
 
@@ -203,11 +217,16 @@ export const publishJobToYouTube = createServerFn({ method: "POST" })
 
       return { videoId, url: `https://youtu.be/${videoId}`, job: updated };
     } catch (error) {
+      // The grant is dead (user revoked at Google, or it expired): delete the
+      // row so the panel stops showing "Connected" and offers a reconnect.
+      if (error instanceof YouTubeRevokedError) {
+        await supabaseAdmin.from("youtube_connections").delete().eq("user_id", userId);
+      }
       const message = error instanceof Error ? error.message : "Upload failed";
       await supabase
         .from("video_jobs")
         .update({ youtube_status: `failed: ${message}`.slice(0, 200) })
         .eq("id", job.id);
-      throw new Error(message);
+      throw error instanceof Error ? error : new Error(message);
     }
   });

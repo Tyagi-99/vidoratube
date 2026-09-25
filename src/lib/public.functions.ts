@@ -34,6 +34,9 @@ const contactSchema = z.object({
   message: z.string().trim().min(5, "Tell us a little more").max(2000),
 });
 
+/** 5 messages per hour per IP on the anonymous contact form. Exported for tests. */
+export const contactLimiter = createRateLimiter({ windowMs: 60 * 60 * 1000, max: 5 });
+
 export const submitContactMessage = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => contactSchema.parse(input))
   .handler(async ({ data }) => {
@@ -54,8 +57,6 @@ export const submitContactMessage = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
-
-const contactLimiter = createRateLimiter({ windowMs: 60 * 60 * 1000, max: 5 });
 
 function clientIp(): string {
   const headers = getRequest()?.headers;

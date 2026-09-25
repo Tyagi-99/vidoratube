@@ -63,7 +63,14 @@ const createSchema = z.object({
   script: z.string().trim().min(20, "Script needs at least 20 characters").max(12000),
   voice: z.string().trim().min(1).max(40),
   format: z.string().trim().min(1).max(40),
+  /** Client-generated UUID per submit click; a retry with the same key returns the existing job. */
+  idempotency_key: z.string().uuid().optional(),
+  /** Opaque per-browser id for free-credit abuse correlation (optional). */
+  device_hash: z.string().max(100).optional(),
 });
+
+/** Idempotency window: a retry with the same key returns the in-flight job. */
+const IDEMPOTENCY_WINDOW_MS = 10 * 60 * 1000;
 
 /** Step 1 — reserve a credit, write the plan (title, narration, scenes). */
 export const createVideoJob = createServerFn({ method: "POST" })
@@ -80,6 +87,43 @@ export const createVideoJob = createServerFn({ method: "POST" })
     if (profileError) throw new Error(profileError.message);
     if (!profile) throw new Error("Profile not found");
     if (profile.status === "suspended") throw new Error("Your account is suspended.");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Idempotent retry: a double-click / network retry with the same key
+    // returns the already-created job instead of spending another credit.
+    if (data.idempotency_key) {
+      const { data: existing, error: existingError } = await supabase
+        .from("video_jobs")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("idempotency_key", data.idempotency_key)
+        .gte("created_at", new Date(Date.now() - IDEMPOTENCY_WINDOW_MS).toISOString())
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (existingError) throw new Error(existingError.message);
+      if (existing) return existing;
+    }
+
+    // Hard global rate limit: 10 job creates per hour per user.
+    const { enforcePostgresRateLimit } = await import("./rate-limit");
+    await enforcePostgresRateLimit(
+      supabaseAdmin,
+      `job:create:${userId}`,
+      { max: 10, windowSeconds: 3600 },
+      "You're creating videos too fast. Please wait a bit and try again.",
+    );
+
+    // Free-credit farming check: >2 distinct free-tier users on the same
+    // network/device get blocked.
+    const { checkAbuseCluster } = await import("./abuse");
+    await checkAbuseCluster(supabaseAdmin, {
+      userId,
+      signalType: "job_create",
+      deviceHash: data.device_hash,
+    });
+
     if (profile.credits < 1)
       throw new Error("You're out of credits. Upgrade your plan to keep rendering.");
 
@@ -90,6 +134,7 @@ export const createVideoJob = createServerFn({ method: "POST" })
         script: data.script,
         voice: data.voice,
         format: data.format,
+        idempotency_key: data.idempotency_key ?? null,
         status: "running",
         stage: "planning",
         progress: 8,
@@ -120,7 +165,6 @@ export const createVideoJob = createServerFn({ method: "POST" })
       // Reserve the credit once the plan exists. The debit is a single atomic
       // RPC (balance check + update + ledger insert in one transaction), so
       // concurrent requests can never double-spend the same credit.
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { error: debitError } = await supabaseAdmin.rpc("debit_credits_for_job", {
         p_user_id: userId,
         p_reason: `Video render: ${plan.title}`,

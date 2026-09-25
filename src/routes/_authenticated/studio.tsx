@@ -22,13 +22,13 @@ import { ModeChooser } from "@/components/vidora/ModeChooser";
 import { VoiceoverCreateDialog } from "@/components/vidora/VoiceoverCreateDialog";
 import { AutoEditCreateDialog } from "@/components/vidora/AutoEditCreateDialog";
 import { YouTubePanel } from "@/components/vidora/YouTubePanel";
+import { PublishDialog } from "@/components/vidora/PublishDialog";
 import { CapCutExportButton } from "@/components/vidora/CapCutExportButton";
 import { JobPreviewDialog } from "@/components/vidora/JobPreviewDialog";
 import { selectDownloadUrl } from "@/lib/jobs/final-video";
 import { CREATION_MODES, studioSearchFromUnknown } from "@/lib/creation-modes";
 import { ResumeComposeButton, isStalledCompose } from "@/components/vidora/ResumeComposeButton";
 
-import { publishJobToYouTube } from "@/lib/youtube.functions";
 import { getMyAccount, listMyJobs, deleteMyJob, reapStaleVideoJobs } from "@/lib/jobs.functions";
 import {
   Coins,
@@ -72,6 +72,7 @@ const statusStyles: Record<string, string> = {
 function StudioPage() {
   const { create: pageMode, youtube, reason } = Route.useSearch();
   const [modeChooserOpen, setModeChooserOpen] = useState(false);
+  const [publishTarget, setPublishTarget] = useState<{ id: string; title: string } | null>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -363,14 +364,11 @@ function StudioPage() {
                             size="sm"
                             variant="secondary"
                             className="flex-1 gap-1"
-                            onClick={() => publish.mutate(job.id)}
-                            disabled={publish.isPending && publish.variables === job.id}
+                            onClick={() =>
+                              setPublishTarget({ id: job.id, title: job.title ?? "" })
+                            }
                           >
-                            {publish.isPending && publish.variables === job.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Youtube className="h-4 w-4" />
-                            )}
+                            <Youtube className="h-4 w-4" />
                             Publish
                           </Button>
                         ))}

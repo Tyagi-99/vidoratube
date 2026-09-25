@@ -30,6 +30,7 @@ import {
   failVideoJobCompose,
 } from "@/lib/jobs.functions";
 import { isFinalVideoReady, needsClientCompose } from "@/lib/jobs/final-video";
+import { getDeviceHash } from "@/lib/device";
 import { toast } from "sonner";
 
 const PIPELINE = [
@@ -262,7 +263,18 @@ export function GenerateVideoDialog({
       setResumableJob(null);
       cancelLoopRef.current = false;
 
-      const job = (await create({ data: { script, voice, format } })) as JobResult;
+      const job = (await create({
+        data: {
+          script,
+          voice,
+          format,
+          // Fresh UUID per submit click: a double-click or network retry with
+          // the same key returns the already-created job instead of charging
+          // a second credit.
+          idempotency_key: crypto.randomUUID(),
+          device_hash: getDeviceHash(),
+        },
+      })) as JobResult;
       setProgress(job.progress ?? 20);
       setStepLabel(job.step ?? "Recording voiceover");
       return driveJob(job);
