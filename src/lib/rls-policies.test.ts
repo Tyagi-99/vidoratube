@@ -87,6 +87,7 @@ const OWNER_SCOPED_TABLES = [
   "creators",
   "creator_accounts",
   "content_duplicate_flags",
+  "notifications",
 ];
 
 /** Tables intentionally readable/writable without auth (documented exceptions). */

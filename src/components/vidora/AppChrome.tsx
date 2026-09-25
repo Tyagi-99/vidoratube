@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Aperture, Coins, Film, LogOut, Menu, Plus, Shield, X } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageToggle } from "@/components/vidora/LanguageToggle";
+import { NotificationsBell } from "@/components/vidora/NotificationsBell";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyAccount } from "@/lib/jobs.functions";
@@ -74,6 +75,7 @@ export function AppChrome() {
           </div>
           <ThemeToggle />
           <LanguageToggle compact />
+          <NotificationsBell />
           <Button
             variant="ghost"
             size="icon"
@@ -93,6 +95,7 @@ export function AppChrome() {
         <div className="ml-auto flex items-center gap-1 md:hidden">
           <LanguageToggle compact />
           <ThemeToggle />
+          <NotificationsBell />
           <Button
             variant="ghost"
             size="icon"

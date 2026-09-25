@@ -213,6 +213,27 @@ export const completeRender = createServerFn({ method: "POST" })
         .is("result_url", null);
     }
 
+    // "Close the tab" promise: record a notification row (always) and email
+    // the user when a provider is configured. Fire-and-forget with a catch —
+    // notification delivery must never fail a render completion.
+    void (async () => {
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { sendRenderCompleteEmail } = await import("./notifications.server");
+        const { data: userData } = await supabase.auth.getUser();
+        await sendRenderCompleteEmail(supabaseAdmin, {
+          userId,
+          userEmail: userData.user?.email ?? null,
+          renderId: data.id,
+          title: `Render ${data.id.slice(0, 8)}`,
+          downloadPath: "/studio",
+          durationSeconds: row?.duration ?? null,
+        });
+      } catch (e) {
+        console.error("[completeRender] notification failed", data.id, e);
+      }
+    })();
+
     return row;
   });
 

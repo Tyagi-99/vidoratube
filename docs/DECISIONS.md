@@ -3,16 +3,75 @@
 Non-obvious decisions made under autopilot (Investor Reply #3: "Decide, don't
 ask"). Each entry: decision, reason, how to reverse. Newest first.
 
+## 2026-09-25 — Sprint 1–2 (verification/docs)
+
+### D31. "Maker plan" purchase tests use Growth pack (pack_m)
+- **Decision:** The investor asked for a "Maker-plan" purchase round trip, but
+  no Maker plan exists in `src/lib/billing/plans.ts`. The tests drive
+  `pack_m` (Growth pack: 70 credits, one-time) on both providers.
+- **Reason:** One-time packs are the only purchase flow fully supported on
+  both providers — Razorpay subscriptions throw ("not set up yet"), and Dodo
+  pack purchases are the `payment.succeeded` path. Pack_m is the $19-class
+  purchase, closest to a "Maker" tier.
+- **Reverse:** Add a `maker` plan to the catalog and point the round-trip
+  tests at its slug.
+
+### D32. Completion email: Resend-only, in-app row is the reliable channel
+- **Decision:** `sendRenderCompleteEmail` ALWAYS stores a `notifications` row
+  (the studio bell reads it); it sends email only when `RESEND_API_KEY` is
+  set, via the Resend REST API directly (no SDK). SMTP is not implemented.
+  Delivery is fire-and-forget with a catch — it can never fail a render
+  completion. The email links to `/studio`, never embedding the signed
+  download URL (signed URLs are bearer tokens; they don't belong in email).
+- **Reason:** Resend covers the founder's path with zero new dependencies;
+  a second provider doubles the test surface for a pre-launch notification.
+  The in-app row is the source of truth, so a mail outage can't lose the
+  "close the tab" signal.
+- **Reverse:** Add an SMTP branch in `src/lib/notifications.server.ts`
+  (nodemailer) selected by `SMTP_HOST`, or swap the Resend call.
+
+### D33. Stranger e2e: signup opt-in, render behind a money gate
+- **Decision:** `e2e/stranger.spec.ts` runs homepage/pricing checks always;
+  signup runs only when `TEST_USER_PASSWORD` is set or the target is
+  localhost; the real render + download + ffprobe runs only with
+  `E2E_RUN_RENDER=1`. Everything else is `test.skip` with a reason.
+- **Reason:** Creating prod accounts and spending paid credits/provider calls
+  must be explicit opt-ins, never CI defaults. A suite that skips gracefully
+  stays green everywhere and honest about what it didn't cover.
+- **Reverse:** Change the skip conditions at the top of each describe block.
+
+### D34. Notifications table: user reads, service-role writes
+- **Decision:** New `notifications` table (migration
+  `20260925200000_notifications.sql`): RLS on; users SELECT their own rows
+  and may UPDATE only their own `read_at`; inserts go through the
+  service-role client in server code only — no INSERT policy for
+  anon/authenticated.
+- **Reason:** A completion notice must be unforgeable by the client (it's
+  also the fallback for the "close the tab" promise); users only need to
+  read and dismiss.
+- **Reverse:** Add an INSERT policy if a client path ever needs to write
+  notifications directly.
+
+### D35. Stranger test asserts cost copy, not a cost widget
+- **Decision:** The "exact cost before rendering" stranger check asserts the
+  `1 credit = 1 finished minute` statement is visible in the make-a-video
+  dialog before the Generate button — there is no per-render cost widget in
+  the studio UI today.
+- **Reason:** Copy honesty: the test verifies what the product actually
+  promises pre-render. If a per-render quote widget ships, the test should
+  assert the quoted number instead.
+- **Reverse:** Point the assertion at the widget's selector when it exists.
+
 ## 2026-09-25 — Sprint 1–2 (app/UI)
 
-### D7. Worker panel lives on the admin Overview, not the Renders page
+### D25. Worker panel lives on the admin Overview, not the Renders page
 - **Decision:** The worker heartbeat / queue-depth panel went into
   `admin.index.tsx` (Overview), next to Diagnostics — not `admin.jobs.tsx`.
 - **Reason:** Heartbeat + queue depth is infrastructure health, not a render
   row. The founder checks one dashboard; the Renders page stays a pure job table.
 - **Reverse:** Move the `<WorkerPanel />` component into `admin.jobs.tsx`.
 
-### D8. Exact render settlement replaces wall-clock settlement (non-destructive)
+### D26. Exact render settlement replaces wall-clock settlement (non-destructive)
 - **Decision:** `finalize_render_billing` was replaced via
   `20260925220000_exact_render_settle.sql`: rows enqueued with
   `meta.expected_credits` settle deterministically at exactly the quoted
@@ -27,7 +86,7 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
 - **Reverse:** Re-apply the pre-20260925220000 function body from
   `20260925120000_schema_reconciliation.sql`.
 
-### D9. Server-render quote is story/standard only — no premium toggles yet
+### D27. Server-render quote is story/standard only — no premium toggles yet
 - **Decision:** `quoteMultiAspectRender` is called with `mode: "story"` and
   all add-ons off; the RenderPanel shows no premium-voice / cinema-stock /
   2.5D / dubbing toggles.
@@ -38,7 +97,7 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
 - **Reverse:** Add the toggles to the RenderPanel cost box and pass the
   options through to the quote + enqueue.
 
-### D10. Stale queue thresholds: queued > 60 min, running > 120 min
+### D28. Stale queue thresholds: queued > 60 min, running > 120 min
 - **Decision:** `STALE_QUEUED_MS` / `STALE_RUNNING_MS` in
   `src/lib/worker-health.ts`; the admin worker panel counts stale jobs and
   warns above zero.
@@ -47,7 +106,7 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
   hours running exceeds any plausible single render.
 - **Reverse:** Change the constants in `src/lib/worker-health.ts`.
 
-### D11. Unit economics uses measured data only, with an honest empty state
+### D29. Unit economics uses measured data only, with an honest empty state
 - **Decision:** `adminUnitEconomics` divides recorded `api_usage` costs by
   finished minutes from completed `renders`; cost-per-credit comes from
   render-attributed ledger debits; margins use USD plan prices. With no
@@ -58,7 +117,7 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
   comparison.
 - **Reverse:** Change the aggregation in `admin.functions.ts`.
 
-### D12. One renders row per aspect, one reserve per row
+### D30. One renders row per aspect, one reserve per row
 - **Decision:** A multi-aspect enqueue creates one `renders` row per aspect
   (shared `meta.group_id`), and each row reserves its own exact per-aspect
   quote via `reserveRenderBilling` (idempotent per render id).
@@ -230,7 +289,7 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
   Precedence: `aspects` > `aspect` > all three. (Billing side evolved in parallel:
   each row now reserves the EXACT per-aspect quote from `quoteMultiAspectRender`,
   stored as `meta.expected_credits` / `expected_minutes` / `mode` — see the
-  billing sprint's D8/D9/D12. The row builder stays pure and unit-tested.)
+  billing sprint's D26/D27/D30. The row builder stays pure and unit-tested.)
 - **Reason:** The row builder (`buildServerRenderRows`) is pure and unit-tested; the
   worker already renders per-aspect dimensions from `meta.aspect`, so no worker
   change was needed. Per-row reservation keeps the ledger honest instead of
@@ -270,7 +329,7 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
   unit costs are best-known model estimates (e.g. $0.03/image), because the
   gateway does not report exact USD per call. Direct-provider rows
   (ElevenLabs, Shotstack) use published rates.
-- **Reason:** Copy honesty (D11): measured economics must not present
+- **Reason:** Copy honesty (D29): measured economics must not present
   guesses as measurements. An estimate labeled as an estimate is fine; an
   estimate presented as a measurement is a lie.
 - **Reverse:** If the gateway ever reports exact per-call USD, switch
@@ -284,7 +343,7 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
 - **Reason:** Public ElevenLabs pricing, verified 2026-09-25.
 - **Reverse:** Change the constant in `src/lib/api-cost.ts`.
 
-### D22. Legacy settlement prefers finished output duration (amends D8)
+### D22. Legacy settlement prefers finished output duration (amends D26)
 - **Decision:** The legacy branch of `finalize_render_billing` (rows without
   `meta.expected_credits`) now bills `CEIL(renders.duration / 60)` — the
   finished OUTPUT duration — minimum 1. Worker wall-clock elapsed
@@ -323,7 +382,7 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
   (debits and settle/refund grants, so reserve→actual settlement nets to
   true finished minutes) and compare against DB plan prices. Divide-by-zero
   returns null, never NaN; empty data returns an honest null, not zeros.
-- **Note:** `adminUnitEconomics` (D11) already covers similar ground as an
+- **Note:** `adminUnitEconomics` (D29) already covers similar ground as an
   all-time, catalog-price variant wired into the admin UI. These two are
   the 30-day-windowed, DB-price variants the cost sprint specified.
   Consolidate the two into one canonical implementation as a follow-up —

@@ -87,7 +87,7 @@ takes, and what it unblocks.
 - **Unblocks:** Trust — users should hear about unit changes from you, not discover
   them on the pricing page.
 
-## 9. Apply the four new Supabase migrations
+## 9. Apply the five new Supabase migrations
 - **What:** Apply, in order:
   - `supabase/migrations/20260925194000_per_minute_credits.sql`
     (minute-based debit/refund RPCs + append-only conversion entries)
@@ -99,9 +99,35 @@ takes, and what it unblocks.
     `migration_per_minute`)
   - `supabase/migrations/20260925197000_worker_heartbeats.sql`
     (worker liveness table for server-render feature detection)
+  - `supabase/migrations/20260925200000_notifications.sql`
+    (NEW: `notifications` table + RLS — powers the studio notification bell
+    for render completion; new table only, nothing else touched)
 - **Where:** Supabase SQL editor or `supabase db push`. All are non-destructive
   (new functions/table, one new nullable column, insert-only or narrowly
   targeted UPDATE of ledger rows).
 - **Time:** 10 min. Verify: `select * from credit_ledger where reason =
   'migration_per_minute' limit 5;` and the pricing page toggle.
 - **Unblocks:** Per-minute charging and INR pricing in production.
+
+## 10. Transactional email for render completion (Resend)
+- **What:** Without this, "your video is ready" is delivered as an in-app
+  notification only (the studio bell — works today, zero setup). To also send
+  email when a render finishes:
+  1. Create a Resend account at https://resend.com and verify a sending
+     domain (or use their test domain for trials).
+  2. Create an API key (Dashboard → API Keys) — it starts with `re_`.
+  3. Add `RESEND_API_KEY=re_...` to Lovable Cloud Secrets (and to your local
+     `.env` for dev). Optional: `EMAIL_FROM="Vidora <updates@yourdomain.com>"`
+     — must be on the verified domain; defaults to `Vidora
+     <updates@vidora.ai>` which will NOT deliver until vidora.ai is verified
+     (see item 5).
+  4. Finish any render (or run the test account through one) and confirm the
+     email arrives; check the notification bell regardless.
+- **Where:** Resend dashboard + Lovable Cloud Secrets. Code is already live:
+  `src/lib/notifications.server.ts` (`sendRenderCompleteEmail`), feature flag
+  is automatic (key present → emails send; key absent → in-app only).
+- **Time:** 20–30 min (domain DNS verification is the long pole; the in-app
+  fallback works with 0 min).
+- **Unblocks:** The "close the tab" email promise. Until then the promise
+  holds via the in-app notification bell only — do not advertise email
+  notifications in copy.

@@ -147,7 +147,6 @@ describe("Dodo USD purchase round trip (test mode)", () => {
     expect(first).toBe(true);
 
     const domain = normalizeDodoEvent(JSON.parse(body));
-    expect(domain?.kind).toBe("purchase.completed");
     // Credits come from OUR catalog, never the payload.
     if (domain?.kind !== "purchase.completed") throw new Error("expected purchase.completed");
     await processDomainEvent(admin, { ...domain, credits: plan.credits });
@@ -205,7 +204,6 @@ describe("Dodo USD purchase round trip (test mode)", () => {
     const admin = mockAdmin(state);
     expect(await claimBillingEvent(admin, "dodo", "wh_test_2", "subscription.active", {})).toBe(true);
     const domain = normalizeDodoEvent(JSON.parse(body));
-    expect(domain?.kind).toBe("subscription.renewed");
     if (domain?.kind !== "subscription.renewed") throw new Error("expected subscription.renewed");
     await processDomainEvent(admin, { ...domain, credits: plan.credits });
 
