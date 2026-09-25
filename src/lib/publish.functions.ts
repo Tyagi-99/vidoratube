@@ -306,6 +306,12 @@ const approvePublishJobSchema = z.object({
   thumbnail_id: z.string().uuid().optional(),
   /** If set, the video goes live at this time; otherwise publishes immediately. */
   scheduled_for: z.string().datetime().optional(),
+  /**
+   * P6 safety gate: when the project's latest safety score is < 50
+   * (high demonetization risk), approval requires this explicit
+   * acknowledgment. Recorded on the job for audit.
+   */
+  safety_override: z.boolean().default(false),
 });
 
 /**
@@ -321,13 +327,33 @@ export const approvePublishJob = createServerFn({ method: "POST" })
 
     const { data: job } = await supabase
       .from("publish_jobs")
-      .select("id, status")
+      .select("id, status, project_id")
       .eq("id", data.publish_job_id)
       .eq("user_id", userId)
       .maybeSingle();
     if (!job) throw new Error("Publish job not found");
     if (job.status !== "draft") {
       throw new Error(`Only draft jobs can be approved (current: ${job.status}).`);
+    }
+
+    // P6 SAFETY GATE (server-enforced): a high-risk score (< 50) blocks
+    // approval unless the user explicitly acknowledges the override.
+    // No score on record = allowed (scoring is advisory, not mandatory).
+    const { data: latestScore } = await supabase
+      .from("safety_scores")
+      .select("score")
+      .eq("project_id", job.project_id)
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const safetyScore: number | null = latestScore?.score ?? null;
+    const { evaluatePublishGate } = await import("./safety");
+    const gate = evaluatePublishGate(safetyScore, data.safety_override);
+    if (gate.blocked) {
+      throw new Error(
+        `Safety score ${safetyScore}/100 is high demonetization risk. Fix the flagged issues and re-check, or explicitly acknowledge the risk to proceed.`
+      );
     }
 
     if (data.thumbnail_id) {
@@ -358,6 +384,8 @@ export const approvePublishJob = createServerFn({ method: "POST" })
         scheduled_for: scheduledFor?.toISOString() ?? null,
         approved_by: userId,
         approved_at: new Date().toISOString(),
+        safety_score: safetyScore,
+        safety_override: data.safety_override && safetyScore !== null && safetyScore < 50,
       })
       .eq("id", job.id)
       .select()

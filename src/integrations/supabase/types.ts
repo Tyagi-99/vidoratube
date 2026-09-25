@@ -1860,6 +1860,45 @@ export type Database = {
         }
         Relationships: []
       }
+      safety_scores: {
+        Row: {
+          id: string
+          user_id: string
+          project_id: string
+          version: string
+          score: number
+          band: string
+          dimensions: Json
+          issues: Json
+          ai_review: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          project_id: string
+          version: string
+          score: number
+          band: string
+          dimensions?: Json
+          issues?: Json
+          ai_review?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          project_id?: string
+          version?: string
+          score?: number
+          band?: string
+          dimensions?: Json
+          issues?: Json
+          ai_review?: Json | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       publish_jobs: {
         Row: {
           id: string
@@ -1879,6 +1918,8 @@ export type Database = {
           error: string | null
           approved_by: string | null
           approved_at: string | null
+          safety_score: number | null
+          safety_override: boolean
           created_at: string
           updated_at: string
         }
@@ -1900,6 +1941,8 @@ export type Database = {
           error?: string | null
           approved_by?: string | null
           approved_at?: string | null
+          safety_score?: number | null
+          safety_override?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -1921,6 +1964,8 @@ export type Database = {
           error?: string | null
           approved_by?: string | null
           approved_at?: string | null
+          safety_score?: number | null
+          safety_override?: boolean
           created_at?: string
           updated_at?: string
         }

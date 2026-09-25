@@ -65,6 +65,7 @@ const OWNER_SCOPED_TABLES = [
   "youtube_api_cache",
   "characters",
   "asset_provenance",
+  "safety_scores",
 ];
 
 /** Tables intentionally readable/writable without auth (documented exceptions). */

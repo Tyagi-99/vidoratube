@@ -576,3 +576,37 @@ export function computeSafetyScore(inputs: SafetyInputs): SafetyScoreResult {
 /** Honesty disclaimer shown next to every score. */
 export const SAFETY_DISCLAIMER =
   "Risk estimate based on public YouTube policy signals — YouTube decides monetization, this is not a guarantee.";
+
+/** Score below which publishing is blocked without explicit override. */
+export const SAFETY_PUBLISH_BLOCK_THRESHOLD = 50;
+
+export interface PublishGateDecision {
+  /** True when approval must be refused. */
+  blocked: boolean;
+  /** The score that drove the decision (null = never scored). */
+  score: number | null;
+  /** True when an explicit user override was recorded. */
+  overridden: boolean;
+}
+
+/**
+ * Pure publish-gate decision. Server-enforced in approvePublishJob.
+ * No score on record = advisory only (allowed); score < 50 requires
+ * an explicit user acknowledgment of the risk.
+ */
+export function evaluatePublishGate(
+  score: number | null,
+  overrideAcknowledged: boolean
+): PublishGateDecision {
+  if (score === null) {
+    return { blocked: false, score: null, overridden: false };
+  }
+  if (score < SAFETY_PUBLISH_BLOCK_THRESHOLD) {
+    return {
+      blocked: !overrideAcknowledged,
+      score,
+      overridden: overrideAcknowledged,
+    };
+  }
+  return { blocked: false, score, overridden: false };
+}

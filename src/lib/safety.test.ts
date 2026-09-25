@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   SAFETY_DISCLAIMER,
+  SAFETY_PUBLISH_BLOCK_THRESHOLD,
   SAFETY_SCORE_VERSION,
   bandForScore,
   computeSafetyScore,
+  evaluatePublishGate,
   scoreAdvertiser,
   scoreMetadata,
   scorePolicy,
@@ -195,6 +197,37 @@ describe("textSimilarity", () => {
   });
 });
 
+describe("evaluatePublishGate", () => {
+  it("blocks <50 without override", () => {
+    const d = evaluatePublishGate(42, false);
+    expect(d.blocked).toBe(true);
+    expect(d.overridden).toBe(false);
+  });
+
+  it("allows <50 with explicit override (logged)", () => {
+    const d = evaluatePublishGate(42, true);
+    expect(d.blocked).toBe(false);
+    expect(d.overridden).toBe(true);
+    expect(d.score).toBe(42);
+  });
+
+  it("allows >=50 without override", () => {
+    expect(evaluatePublishGate(50, false).blocked).toBe(false);
+    expect(evaluatePublishGate(95, false).blocked).toBe(false);
+  });
+
+  it("allows unscored projects (advisory, not mandatory)", () => {
+    const d = evaluatePublishGate(null, false);
+    expect(d.blocked).toBe(false);
+    expect(d.score).toBeNull();
+  });
+
+  it("threshold is 50", () => {
+    expect(SAFETY_PUBLISH_BLOCK_THRESHOLD).toBe(50);
+    expect(evaluatePublishGate(49, false).blocked).toBe(true);
+    expect(evaluatePublishGate(50, false).blocked).toBe(false);
+  });
+});
 describe("scorePolicy", () => {
   it("financial advice without disclaimer is critical", () => {
     const d = scorePolicy({
