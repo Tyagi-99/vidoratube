@@ -42,6 +42,8 @@ const createAutoEditSchema = z.object({
   enable_voiceover: z.boolean().default(false),
   mute_original: z.boolean().default(false),
   caption_style: z.enum(["highlight", "karaoke", "box"]).default("karaoke"),
+  /** Opaque per-browser id for free-credit abuse correlation (optional). */
+  device_hash: z.string().max(100).optional(),
 });
 
 const idSchema = z.object({ id: z.string().uuid() });
@@ -83,6 +85,25 @@ export const createAutoEditProject = createServerFn({ method: "POST" })
       enableVoiceover: data.enable_voiceover,
       notes: data.userNotes ?? null,
       title: data.title,
+    });
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Hard global rate limit: 10 auto-edit projects per hour per user.
+    const { enforcePostgresRateLimit } = await import("@/lib/rate-limit");
+    await enforcePostgresRateLimit(
+      supabaseAdmin,
+      `autoedit:create:${context.userId}`,
+      { max: 10, windowSeconds: 3600 },
+      "You're creating edits too fast. Please wait a bit and try again.",
+    );
+
+    // Free-credit farming check.
+    const { checkAbuseCluster } = await import("@/lib/abuse");
+    await checkAbuseCluster(supabaseAdmin, {
+      userId: context.userId,
+      signalType: "autoedit_create",
+      deviceHash: data.device_hash,
     });
 
     const title =
@@ -133,9 +154,24 @@ export const createAutoEditProject = createServerFn({ method: "POST" })
       .single();
     if (error) throw new Error(error.message);
 
+    // 1 credit per auto-edit project (flat rate until per-minute metering).
+    // On INSUFFICIENT_CREDITS the just-created project is removed so a failed
+    // charge never leaves a phantom project behind.
+    const { debitOneCreditForProject } = await import("@/lib/credits");
+    try {
+      await debitOneCreditForProject(
+        supabaseAdmin,
+        context.userId,
+        project.id,
+        `Auto-edit project: ${title}`,
+      );
+    } catch (debitError) {
+      await supabaseAdmin.from("projects").delete().eq("id", project.id);
+      throw debitError;
+    }
+
     // Persist caption cues when burn is on (no VO path still wants overlays).
     if (data.burn_captions && plan.cues.length) {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       await supabaseAdmin.from("captions").delete().eq("project_id", project.id);
       await supabaseAdmin.from("captions").insert({
         project_id: project.id,

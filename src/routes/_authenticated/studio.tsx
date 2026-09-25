@@ -98,8 +98,24 @@ function StudioPage() {
     if (!youtube) return;
     if (youtube === "connected") {
       toast.success("YouTube connected", {
-        description: "You can now publish finished videos straight to your channel.",
+        description:
+          "Read-only access for now — we'll ask for upload permission the first time you publish.",
       });
+    } else if (youtube === "upload_granted") {
+      toast.success("Upload permission granted", {
+        description: "You can publish to YouTube now.",
+      });
+      // Resume the publish the user started before the Google redirect.
+      try {
+        const pendingId = sessionStorage.getItem("vidora:yt-pending-publish");
+        sessionStorage.removeItem("vidora:yt-pending-publish");
+        if (pendingId) {
+          const job = jobs.data?.find((j) => j.id === pendingId);
+          setPublishTarget({ id: pendingId, title: job?.title ?? "" });
+        }
+      } catch {
+        /* ignore */
+      }
     } else {
       const detail = (reason ?? "unknown_error").replace(/_/g, " ");
       toast.error("YouTube connection failed", { description: detail });
@@ -112,18 +128,6 @@ function StudioPage() {
     mutationFn: (id: string) => removeFn({ data: { id } }),
     onSuccess: () => {
       toast.success("Video deleted");
-      queryClient.invalidateQueries({ queryKey: ["my-jobs"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const publishFn = useServerFn(publishJobToYouTube);
-  const publish = useMutation({
-    mutationFn: (id: string) => publishFn({ data: { id, privacy: "private" as const } }),
-    onSuccess: (res) => {
-      toast.success("Published to YouTube (private)", {
-        description: res.url,
-      });
       queryClient.invalidateQueries({ queryKey: ["my-jobs"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -425,6 +429,16 @@ function StudioPage() {
           void navigate({ to: "/studio", search: { create: mode } });
         }}
       />
+      {publishTarget && (
+        <PublishDialog
+          jobId={publishTarget.id}
+          jobTitle={publishTarget.title}
+          open
+          onOpenChange={(open) => {
+            if (!open) setPublishTarget(null);
+          }}
+        />
+      )}
     </main>
   );
 }

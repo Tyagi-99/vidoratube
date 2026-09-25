@@ -37,6 +37,15 @@ export const getYouTubeConnection = createServerFn({ method: "GET" })
 export const startYouTubeConnect = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // 5 connect attempts per hour per user (OAuth abuse + quota protection).
+    const { enforcePostgresRateLimit } = await import("./rate-limit");
+    await enforcePostgresRateLimit(
+      supabaseAdmin,
+      `youtube:connect:${context.userId}`,
+      { max: 5, windowSeconds: 3600 },
+      "Too many YouTube connection attempts. Please wait a bit and try again.",
+    );
     const { googleCredentials, signState, buildConsentUrl, YOUTUBE_CONNECT_SCOPES } = await import(
       "./youtube.server"
     );

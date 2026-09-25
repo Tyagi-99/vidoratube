@@ -52,7 +52,7 @@ export interface AbuseCheckOptions {
   /** e.g. "job_create", "voiceover_create", "autoedit_create" */
   signalType: string;
   /** Opaque per-browser id sent by the client; null when the client didn't send one. */
-  deviceHash?: string | null;
+  deviceHash?: string | null | undefined;
 }
 
 /**

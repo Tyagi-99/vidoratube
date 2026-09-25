@@ -39,6 +39,8 @@ const createVoiceoverSchema = z.object({
   aspect_ratio: z.enum(["16:9", "9:16", "1:1"]).default("16:9"),
   language: z.string().trim().max(40).default("English"),
   mute_original: z.boolean().default(true),
+  /** Opaque per-browser id for free-credit abuse correlation (optional). */
+  device_hash: z.string().max(100).optional(),
 });
 
 const idSchema = z.object({ id: z.string().uuid() });
@@ -76,6 +78,25 @@ export const createVoiceoverProject = createServerFn({ method: "POST" })
         : (Number(data.duration_preset) as (typeof DURATION_PRESETS)[number]);
     const resolved = resolveTargetDuration(preset, data.custom_duration_seconds);
     if (!resolved.ok) throw new Error(resolved.reason);
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Hard global rate limit: 10 voiceover projects per hour per user.
+    const { enforcePostgresRateLimit } = await import("@/lib/rate-limit");
+    await enforcePostgresRateLimit(
+      supabaseAdmin,
+      `voiceover:create:${context.userId}`,
+      { max: 10, windowSeconds: 3600 },
+      "You're creating voiceovers too fast. Please wait a bit and try again.",
+    );
+
+    // Free-credit farming check.
+    const { checkAbuseCluster } = await import("@/lib/abuse");
+    await checkAbuseCluster(supabaseAdmin, {
+      userId: context.userId,
+      signalType: "voiceover_create",
+      deviceHash: data.device_hash,
+    });
 
     const title =
       data.title.trim() ||
@@ -200,6 +221,27 @@ export const generateVoiceoverScript = createServerFn({ method: "POST" })
       settings.target_duration_seconds ??
       Math.max(15, (project.duration_minutes || 1) * 60);
 
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // 30 script generations per hour per user (LLM spend).
+    const { enforcePostgresRateLimit } = await import("@/lib/rate-limit");
+    await enforcePostgresRateLimit(
+      supabaseAdmin,
+      `voiceover:script:${context.userId}`,
+      { max: 30, windowSeconds: 3600 },
+      "You're generating scripts too fast. Please wait a bit and try again.",
+    );
+
+    // 1 credit per project, charged once no matter which billable step runs
+    // first (idempotent on the project id). Charged BEFORE the provider call.
+    const { debitOneCreditForProject } = await import("@/lib/credits");
+    await debitOneCreditForProject(
+      supabaseAdmin,
+      context.userId,
+      project.id,
+      `Voiceover project: ${project.title}`,
+    );
+
     const plan = await generateCommentaryScript({
       title: project.title,
       description: typeof settings.source_file_name === "string" ? settings.source_file_name : null,
@@ -257,6 +299,25 @@ export const synthesizeVoiceoverAudio = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { synthesizeProjectVoiceover, readMode2Settings } = await import("./mode2.server");
     const settings = readMode2Settings(project.settings);
+
+    // 30 TTS syntheses per hour per user (ElevenLabs spend).
+    const { enforcePostgresRateLimit } = await import("@/lib/rate-limit");
+    await enforcePostgresRateLimit(
+      supabaseAdmin,
+      `voiceover:tts:${context.userId}`,
+      { max: 30, windowSeconds: 3600 },
+      "You're synthesizing voiceovers too fast. Please wait a bit and try again.",
+    );
+
+    // 1 credit per project; no-op when generateVoiceoverScript already charged
+    // it (idempotent on the project id). Charged BEFORE the provider call.
+    const { debitOneCreditForProject } = await import("@/lib/credits");
+    await debitOneCreditForProject(
+      supabaseAdmin,
+      context.userId,
+      project.id,
+      `Voiceover project: ${project.title}`,
+    );
 
     const voiceArgs: {
       userId: string;

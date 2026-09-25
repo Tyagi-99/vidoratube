@@ -3,14 +3,20 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  buildConsentUrl,
   claimJobForUpload,
   createPkcePair,
   decryptToken,
   encryptToken,
+  hasUploadScope,
   hmac,
+  isRevokedTokenResponse,
   publishPrecheck,
   signState,
   verifyState,
+  YouTubeRevokedError,
+  YOUTUBE_CONNECT_SCOPES,
+  YOUTUBE_UPLOAD_SCOPE,
 } from "./youtube.server";
 
 const ENC_KEY = randomBytes(32).toString("base64");
@@ -98,10 +104,16 @@ describe("PKCE", () => {
 });
 
 describe("signed OAuth state", () => {
-  it("round-trips userId and verifier", async () => {
+  it("round-trips userId, verifier and purpose", async () => {
     const { state, verifier } = await signState("user-123");
     const verified = await verifyState(state);
-    expect(verified).toEqual({ userId: "user-123", verifier });
+    expect(verified).toEqual({ userId: "user-123", verifier, purpose: "connect" });
+  });
+
+  it("round-trips the upload purpose for incremental scope grants", async () => {
+    const { state, verifier } = await signState("user-123", "upload");
+    const verified = await verifyState(state);
+    expect(verified).toEqual({ userId: "user-123", verifier, purpose: "upload" });
   });
 
   it("rejects a tampered signature", async () => {
@@ -113,12 +125,13 @@ describe("signed OAuth state", () => {
   it("rejects malformed states", async () => {
     expect(await verifyState("nope")).toBeNull();
     expect(await verifyState("a.b.c")).toBeNull();
-    expect(await verifyState("a.b.c.d.e")).toBeNull();
+    expect(await verifyState("a.b.c.d")).toBeNull(); // old 4-part format no longer valid
+    expect(await verifyState("a.b.c.d.e")).toBeNull(); // 5 parts but bad signature
   });
 
   it("rejects a non-numeric issued timestamp (NaN expiry bypass)", async () => {
     const verifier = "verifier-value";
-    const payload = `user-123.NaN.${verifier}`;
+    const payload = `user-123.connect.NaN.${verifier}`;
     const state = `${payload}.${await hmac(payload)}`;
     expect(await verifyState(state)).toBeNull();
   });
@@ -199,5 +212,63 @@ describe("claimJobForUpload", () => {
   it("returns false when another caller already claimed the job", async () => {
     const { client } = mockClient(null);
     expect(await claimJobForUpload(client, "job-1", null)).toBe(false);
+  });
+});
+
+describe("incremental OAuth scopes", () => {
+  it("connect scope is read-only only", () => {
+    expect(YOUTUBE_CONNECT_SCOPES).toContain("youtube.readonly");
+    expect(YOUTUBE_CONNECT_SCOPES).not.toContain("youtube.upload");
+  });
+
+  it("hasUploadScope detects the upload scope", () => {
+    expect(hasUploadScope(null)).toBe(false);
+    expect(hasUploadScope("")).toBe(false);
+    expect(hasUploadScope(YOUTUBE_CONNECT_SCOPES)).toBe(false);
+    expect(hasUploadScope(`${YOUTUBE_CONNECT_SCOPES} ${YOUTUBE_UPLOAD_SCOPE}`)).toBe(true);
+    expect(hasUploadScope(YOUTUBE_UPLOAD_SCOPE)).toBe(true);
+  });
+
+  it("does not match partial scope names", () => {
+    expect(hasUploadScope("https://www.googleapis.com/auth/youtube.upload.evil")).toBe(false);
+  });
+
+  it("buildConsentUrl includes the scopes and incremental-auth params", () => {
+    const url = new URL(
+      buildConsentUrl({
+        clientId: "cid",
+        origin: "https://example.com",
+        state: "st",
+        challenge: "ch",
+        scopes: YOUTUBE_UPLOAD_SCOPE,
+      }),
+    );
+    expect(url.origin + url.pathname).toBe("https://accounts.google.com/o/oauth2/v2/auth");
+    expect(url.searchParams.get("scope")).toBe(YOUTUBE_UPLOAD_SCOPE);
+    expect(url.searchParams.get("include_granted_scopes")).toBe("true");
+    expect(url.searchParams.get("access_type")).toBe("offline");
+    expect(url.searchParams.get("state")).toBe("st");
+  });
+});
+
+describe("revoked token detection", () => {
+  it("treats 401 as revoked", () => {
+    expect(isRevokedTokenResponse(401)).toBe(true);
+  });
+
+  it("treats 400 + invalid_grant as revoked", () => {
+    expect(isRevokedTokenResponse(400, "invalid_grant")).toBe(true);
+  });
+
+  it("does not treat other failures as revoked", () => {
+    expect(isRevokedTokenResponse(400, "invalid_request")).toBe(false);
+    expect(isRevokedTokenResponse(429)).toBe(false);
+    expect(isRevokedTokenResponse(500)).toBe(false);
+  });
+
+  it("YouTubeRevokedError carries a stable code", () => {
+    const error = new YouTubeRevokedError();
+    expect(error.code).toBe("YOUTUBE_REVOKED");
+    expect(error.message).toContain("revoked");
   });
 });

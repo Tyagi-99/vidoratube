@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      abuse_signals: {
+        Row: {
+          created_at: string
+          device_hash: string | null
+          id: string
+          ip: string | null
+          signal_type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          device_hash?: string | null
+          id?: string
+          ip?: string | null
+          signal_type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          device_hash?: string | null
+          id?: string
+          ip?: string | null
+          signal_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       api_usage: {
         Row: {
           created_at: string
@@ -520,6 +547,21 @@ export type Database = {
         }
         Relationships: []
       }
+      disposable_email_domains: {
+        Row: {
+          created_at: string
+          domain: string
+        }
+        Insert: {
+          created_at?: string
+          domain: string
+        }
+        Update: {
+          created_at?: string
+          domain?: string
+        }
+        Relationships: []
+      }
       credit_ledger: {
         Row: {
           admin_id: string | null
@@ -706,6 +748,24 @@ export type Database = {
         }
         Relationships: []
       }
+      rate_limit_buckets: {
+        Row: {
+          bucket_key: string
+          hit_count: number
+          window_start: string
+        }
+        Insert: {
+          bucket_key: string
+          hit_count?: number
+          window_start?: string
+        }
+        Update: {
+          bucket_key?: string
+          hit_count?: number
+          window_start?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -713,6 +773,7 @@ export type Database = {
           credits: number
           display_name: string | null
           email: string | null
+          free_credits_granted: boolean
           id: string
           plan: string
           status: Database["public"]["Enums"]["account_status"]
@@ -724,6 +785,7 @@ export type Database = {
           credits?: number
           display_name?: string | null
           email?: string | null
+          free_credits_granted?: boolean
           id: string
           plan?: string
           status?: Database["public"]["Enums"]["account_status"]
@@ -735,6 +797,7 @@ export type Database = {
           credits?: number
           display_name?: string | null
           email?: string | null
+          free_credits_granted?: boolean
           id?: string
           plan?: string
           status?: Database["public"]["Enums"]["account_status"]
@@ -1100,6 +1163,7 @@ export type Database = {
           error: string | null
           format: string
           id: string
+          idempotency_key: string | null
           narration: string | null
           progress: number
           render_id: string | null
@@ -1126,6 +1190,7 @@ export type Database = {
           error?: string | null
           format?: string
           id?: string
+          idempotency_key?: string | null
           narration?: string | null
           progress?: number
           render_id?: string | null
@@ -1152,6 +1217,7 @@ export type Database = {
           error?: string | null
           format?: string
           id?: string
+          idempotency_key?: string | null
           narration?: string | null
           progress?: number
           render_id?: string | null
@@ -1274,7 +1340,6 @@ export type Database = {
           error: string | null
           finished_at: string | null
           id: string
-          idempotency_key: string | null
           job_type: string
           locked_at: string | null
           locked_by: string | null
@@ -1297,7 +1362,6 @@ export type Database = {
           error?: string | null
           finished_at?: string | null
           id?: string
-          idempotency_key?: string | null
           job_type: string
           locked_at?: string | null
           locked_by?: string | null
@@ -1320,7 +1384,6 @@ export type Database = {
           error?: string | null
           finished_at?: string | null
           id?: string
-          idempotency_key?: string | null
           job_type?: string
           locked_at?: string | null
           locked_by?: string | null
@@ -1401,12 +1464,29 @@ export type Database = {
         Args: { p_user_id: string; p_delta: number; p_reason: string; p_admin_id?: string | null }
         Returns: number
       }
+      check_rate_limit: {
+        Args: { p_key: string; p_max: number; p_window_seconds: number }
+        Returns: boolean
+      }
+      debit_credits_for_job_once: {
+        Args: { p_user_id: string; p_reason: string; p_job_id?: string | null }
+        Returns: number
+      }
       content_rights_approved: {
         Args: { _content_id: string }
         Returns: boolean
       }
       debit_credits_for_job: {
         Args: { p_user_id: string; p_reason: string; p_job_id?: string | null }
+        Returns: number
+      }
+      log_abuse_signal: {
+        Args: {
+          p_user_id: string
+          p_ip: string | null
+          p_device_hash: string | null
+          p_signal_type: string
+        }
         Returns: number
       }
       has_role: {
