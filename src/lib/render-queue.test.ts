@@ -65,6 +65,8 @@ function makeInput(
     mode: "story" as const,
     storyMode: true,
     parallax25d: false,
+    stockFootage: false,
+    aiHeroSeconds: 0,
     ...overrides,
   };
 }

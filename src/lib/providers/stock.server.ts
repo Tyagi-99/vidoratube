@@ -1,7 +1,7 @@
 import { providerFetch } from "./http.server";
 
 export type StockAsset = {
-  provider: "pexels" | "pixabay";
+  provider: "pexels" | "pixabay" | "mock";
   asset_id: string;
   kind: "photo" | "video";
   url: string;
@@ -15,7 +15,8 @@ export type StockAsset = {
 };
 
 export interface StockProvider {
-  id: "pexels" | "pixabay";
+  /** "mock" is the clearly-marked fallback used when no API key is set. */
+  id: "pexels" | "pixabay" | "mock";
   configured(): boolean;
   search(query: string, kind: "photo" | "video", perPage?: number): Promise<StockAsset[]>;
 }

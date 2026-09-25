@@ -207,8 +207,34 @@ export async function resolveSceneVisual(
     /** P4: character consistency — injected into the prompt. */
     characterName?: string | null;
     characterDescription?: string | null;
+    /**
+     * Sprint 5-6, source priority tier 1: user-uploaded footage for this
+     * scene. When present it wins over stock and AI unconditionally —
+     * rights first — and is returned as-is with provenance recorded.
+     */
+    userFootageUrl?: string | null;
   },
 ): Promise<{ url: string; thumb: string; source: Record<string, unknown>; visualType: VisualType }> {
+  // Tier 1: user-uploaded footage always wins — never replaced by stock or AI.
+  if (args.userFootageUrl) {
+    const { recordProvenance } = await import("./provenance");
+    await recordProvenance(admin as never, {
+      userId: args.userId,
+      projectId: args.projectId,
+      sceneId: args.sceneId,
+      kind: /\.(mp4|mov|webm|m4v)(\?|#|$)/i.test(args.userFootageUrl) ? "video" : "image",
+      provider: "user_upload",
+      license: "User-owned footage",
+      assetUrl: args.userFootageUrl,
+    });
+    return {
+      url: args.userFootageUrl,
+      thumb: args.userFootageUrl,
+      source: { provider: "user_upload", kind: "user_footage", fetched_at: new Date().toISOString() },
+      visualType: args.visualType,
+    };
+  }
+
   const queries = (args.searchQuery ?? "").split("|").map((q) => q.trim()).filter(Boolean);
 
   // Stock first — it is free and preferred by the cost policy.
@@ -231,6 +257,20 @@ export async function resolveSceneVisual(
         units: 1,
         unitCostUsd: 0, // stock discovery is free; the license cost is measured separately
         meta: { visual_type: asset.kind },
+      });
+      // Sprint 5-6: provenance for licensed stock — provider, license,
+      // license URL, asset URL / asset id, and the scene link.
+      const { recordProvenance } = await import("./provenance");
+      await recordProvenance(admin as never, {
+        userId: args.userId,
+        projectId: args.projectId,
+        sceneId: args.sceneId,
+        kind: asset.kind === "video" ? "video" : "image",
+        provider: asset.provider,
+        model: asset.asset_id,
+        license: asset.license,
+        licenseUrl: asset.source_url,
+        assetUrl: asset.url,
       });
       return {
         url: asset.url,

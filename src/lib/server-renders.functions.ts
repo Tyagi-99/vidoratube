@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireAppUser } from "./server-auth";
 import type { Database } from "@/integrations/supabase/types";
 import { quoteMultiAspectRender } from "./billing/per-minute";
+import { applyHeroCap } from "./stock/source-select";
 
 /**
  * Server-side render job management (P2).
@@ -80,6 +81,17 @@ const EnqueueSchema = z.object({
   storyMode: z.boolean().default(true),
   /** 2.5D parallax treatment on stills. Off by default; +0.25 credits/min. */
   parallax25d: z.boolean().default(false),
+  /**
+   * Sprint 5-6: Cinema Mode uses licensed stock footage — bills ×1.5 per
+   * finished minute via renderCreditCost (the single source of truth).
+   */
+  stockFootage: z.boolean().default(false),
+  /**
+   * Sprint 5-6: billable AI hero seconds in the timeline. The server
+   * re-applies the 10% hero cap (applyHeroCap) so the client can never
+   * over-claim; see src/lib/stock/source-select.ts.
+   */
+  aiHeroSeconds: z.number().min(0).default(0),
 });
 
 /** Enqueue a server-side render. Rate-limited: 10/hour per user. */
@@ -170,12 +182,23 @@ export function buildServerRenderRows(params: {
   );
   // The enqueue input carries the billing mode (defaults to "story" — the
   // only render configuration the product offers today, so the only
-  // honest quote). Premium add-ons (premium voice, cinema stock, 2.5D,
-  // dubbing) are priced by the same function and flow through here when
-  // they ship as options.
+  // honest quote). Premium add-ons (premium voice, 2.5D, dubbing) are priced
+  // by the same function and flow through here when they ship as options.
+  //
+  // Sprint 5-6: Cinema Mode ships as a real tier — stockFootage flips the
+  // ×1.5 multiplier inside renderCreditCost, and the server re-applies the
+  // AI hero cap (never trust the client's hero-seconds number).
+  const hero = applyHeroCap({
+    // ?? 0: buildServerRenderRows is also called with hand-built fixtures
+    // that bypass the zod defaults.
+    aiHeroSeconds: params.input.aiHeroSeconds ?? 0,
+    totalSeconds: durationSeconds,
+  });
   const quote = quoteMultiAspectRender({
     durationSeconds,
     mode: params.input.mode,
+    stockFootage: params.input.stockFootage,
+    aiHeroSeconds: hero.aiHeroSeconds,
     aspectCount: aspects.length,
     parallax25d: params.input.parallax25d,
   });
@@ -211,6 +234,10 @@ export function buildServerRenderRows(params: {
       // or standard); parallax25d enables the premium filter chain.
       creationMode: params.input.storyMode ? "story" : "script",
       parallax25d: params.input.parallax25d,
+      // Sprint 5-6: Cinema Mode billing facts for the worker + cost attribution.
+      stockFootage: params.input.stockFootage,
+      aiHeroSeconds: hero.aiHeroSeconds,
+      heroCapTrimmed: hero.trimmed,
       expected_credits: quote.perAspect.totalCredits,
       expected_minutes: quote.perAspect.minutes,
     },

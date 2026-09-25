@@ -42,6 +42,8 @@ function makeInput(overrides: Partial<RenderInput> = {}): RenderInput {
     mode: "story",
     storyMode: true,
     parallax25d: false,
+    stockFootage: false,
+    aiHeroSeconds: 0,
     ...overrides,
   };
 }
@@ -84,6 +86,52 @@ describe("quote -> row consistency", () => {
     });
     expect(rows).toHaveLength(1);
     expect((rows[0]!.meta as Record<string, unknown>)["mode"]).toBe("cinema");
+  });
+
+  it("cinema + stockFootage reserves the x1.5 quote on every aspect row", () => {
+    const rows = buildServerRenderRows({
+      userId: "22222222-2222-4222-8222-222222222222",
+      groupId: "33333333-3333-4333-8333-333333333333",
+      input: makeInput({ mode: "cinema", stockFootage: true, aspects: ["16:9"] }),
+    });
+    // 600s = 10 finished minutes × 1.5 = 15 credits.
+    const quote = quoteMultiAspectRender({
+      durationSeconds: 600,
+      mode: "cinema",
+      stockFootage: true,
+      aspectCount: 1,
+    });
+    expect(quote.perAspect.totalCredits).toBe(15);
+    const meta = rows[0]!.meta as Record<string, unknown>;
+    expect(meta["expected_credits"]).toBe(15);
+    expect(meta["stockFootage"]).toBe(true);
+  });
+
+  it("bills AI hero seconds at 1 credit per 10s through the quote", () => {
+    const rows = buildServerRenderRows({
+      userId: "22222222-2222-4222-8222-222222222222",
+      groupId: "33333333-3333-4333-8333-333333333333",
+      input: makeInput({ mode: "cinema", stockFootage: true, aiHeroSeconds: 30, aspects: ["16:9"] }),
+    });
+    // 10 min × 1.5 = 15 + ceil(30/10) = 3 hero credits → 18.
+    const meta = rows[0]!.meta as Record<string, unknown>;
+    expect(meta["expected_credits"]).toBe(18);
+    expect(meta["aiHeroSeconds"]).toBe(30);
+    expect(meta["heroCapTrimmed"]).toBe(false);
+  });
+
+  it("the server re-applies the 10% hero cap — the client cannot over-claim", () => {
+    const rows = buildServerRenderRows({
+      userId: "22222222-2222-4222-8222-222222222222",
+      groupId: "33333333-3333-4333-8333-333333333333",
+      // 600s runtime, cap = 60s; the client claims 300s of heroes.
+      input: makeInput({ mode: "cinema", stockFootage: true, aiHeroSeconds: 300, aspects: ["16:9"] }),
+    });
+    const meta = rows[0]!.meta as Record<string, unknown>;
+    expect(meta["aiHeroSeconds"]).toBe(60);
+    expect(meta["heroCapTrimmed"]).toBe(true);
+    // 10 min × 1.5 = 15 + ceil(60/10) = 6 hero credits → 21.
+    expect(meta["expected_credits"]).toBe(21);
   });
 });
 
