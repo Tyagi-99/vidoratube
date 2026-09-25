@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Coins, CreditCard, XCircle } from "lucide-react";
+import { ReferralSection } from "@/components/vidora/ReferralSection";
 
 export const Route = createFileRoute("/_authenticated/billing/")({
   component: BillingPage,
@@ -370,6 +371,7 @@ function BillingPage() {
               </CardContent>
             </Card>
           </section>
+          <ReferralSection />
         </>
       )}
     </main>

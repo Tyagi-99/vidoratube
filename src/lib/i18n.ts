@@ -16,11 +16,14 @@ export function getLang(): Lang {
 }
 
 export function setLang(lang: Lang) {
+  if (typeof window === "undefined") return;
   try {
     localStorage.setItem(STORAGE_KEY, lang);
   } catch {
     // ignore
   }
+  // Notify same-tab listeners (storage events only fire across tabs).
+  window.dispatchEvent(new Event("storage"));
 }
 
 const en = {

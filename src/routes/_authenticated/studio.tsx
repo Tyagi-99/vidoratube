@@ -22,6 +22,7 @@ import { ModeChooser } from "@/components/vidora/ModeChooser";
 import { VoiceoverCreateDialog } from "@/components/vidora/VoiceoverCreateDialog";
 import { AutoEditCreateDialog } from "@/components/vidora/AutoEditCreateDialog";
 import { YouTubePanel } from "@/components/vidora/YouTubePanel";
+import { OnboardingChecklist } from "@/components/vidora/OnboardingChecklist";
 import { PublishDialog } from "@/components/vidora/PublishDialog";
 import { CapCutExportButton } from "@/components/vidora/CapCutExportButton";
 import { JobPreviewDialog } from "@/components/vidora/JobPreviewDialog";
@@ -155,6 +156,9 @@ function StudioPage() {
     <main className="min-h-[calc(100dvh-4rem)] bg-background">
       <div className="border-b border-border bg-card/40">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+          <div className="mb-8">
+            <OnboardingChecklist />
+          </div>
           <div className="flex flex-wrap items-end justify-between gap-6">
             <div className="min-w-0">
               <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">

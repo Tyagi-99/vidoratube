@@ -776,6 +776,7 @@ export type Database = {
           free_credits_granted: boolean
           id: string
           plan: string
+          preferred_language: string
           status: Database["public"]["Enums"]["account_status"]
           updated_at: string
         }
@@ -788,6 +789,7 @@ export type Database = {
           free_credits_granted?: boolean
           id: string
           plan?: string
+          preferred_language?: string
           status?: Database["public"]["Enums"]["account_status"]
           updated_at?: string
         }
@@ -800,6 +802,7 @@ export type Database = {
           free_credits_granted?: boolean
           id?: string
           plan?: string
+          preferred_language?: string
           status?: Database["public"]["Enums"]["account_status"]
           updated_at?: string
         }

@@ -386,12 +386,25 @@ export const deleteMyJob = createServerFn({ method: "POST" })
 export const updateMyProfile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
-    z.object({ display_name: z.string().trim().min(1).max(80) }).parse(input),
+    z
+      .object({
+        display_name: z.string().trim().min(1).max(80).optional(),
+        preferred_language: z.enum(["en", "hi"]).optional(),
+      })
+      .refine((v) => v.display_name !== undefined || v.preferred_language !== undefined, {
+        message: "Nothing to update",
+      })
+      .parse(input),
   )
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase
       .from("profiles")
-      .update({ display_name: data.display_name })
+      .update({
+        ...(data.display_name !== undefined ? { display_name: data.display_name } : {}),
+        ...(data.preferred_language !== undefined
+          ? { preferred_language: data.preferred_language }
+          : {}),
+      })
       .eq("id", context.userId);
     if (error) throw new Error(error.message);
     return { ok: true };
