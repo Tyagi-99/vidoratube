@@ -29,8 +29,11 @@ export const Route = createFileRoute("/")({
         content: "Turn a script into a 1080p MP4 with narration, scene stills, and captions.",
       },
       { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://vidoratube.lovable.app/" },
+      { property: "og:image", content: "https://vidoratube.lovable.app/og-image.png" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
+    links: [{ rel: "canonical", href: "https://vidoratube.lovable.app/" }],
   }),
   component: Index,
 });
