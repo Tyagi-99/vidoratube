@@ -27,11 +27,15 @@ export function initClientSentry(): void {
 /** Initialize Sentry on the server. Call once from src/server.ts. */
 export function initServerSentry(): void {
   if (serverReady) return;
-  const dsn = process.env["SENTRY_DSN_SERVER"] ?? process.env["SENTRY_DSN"];
+  // Guard: on Cloudflare Workers without nodejs_compat, `process` is undefined
+  // and accessing process.env throws ReferenceError at module load — which
+  // crashes the entire worker. This runs at import time in src/server.ts.
+  const env = typeof process !== "undefined" ? process.env : undefined;
+  const dsn = env?.["SENTRY_DSN_SERVER"] ?? env?.["SENTRY_DSN"];
   if (!dsn) return;
   Sentry.init({
     dsn,
-    environment: process.env["NODE_ENV"] ?? "production",
+    environment: env?.["NODE_ENV"] ?? "production",
     tracesSampleRate: 0,
   });
   serverReady = true;
