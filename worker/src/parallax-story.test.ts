@@ -18,9 +18,9 @@ import {
 
 describe("worker parallax mirror", () => {
   it("emits the same chain as the canonical builder", async () => {
-    const { buildParallaxFilter: canonical } = await import(
-      "../../src/lib/render/parallax.js"
-    );
+    // @ts-ignore — runtime-only mirror check: tsx resolves the TS source
+    // directly, but the canonical module lives outside the worker rootDir.
+    const { buildParallaxFilter: canonical } = await import("../../src/lib/render/parallax.js");
     // tsx resolves the TS source directly; compare on identical inputs.
     const opts = { width: 1920, height: 1080, frames: 150, intensity: 0.7, direction: "out" as const };
     assert.equal(buildParallaxFilter(opts), (canonical as (o: typeof opts) => string)(opts));
@@ -36,6 +36,8 @@ describe("worker parallax mirror", () => {
 
 describe("worker story mirror", () => {
   it("assigns the same beats as the canonical module", async () => {
+    // @ts-ignore — runtime-only mirror check: the canonical module
+    // lives outside the worker rootDir so tsc cannot include it.
     const canonical = await import("../../src/lib/story-template.js");
     const durations = [6, 6, 6, 6, 6, 6, 6, 6, 6, 6];
     assert.deepEqual(

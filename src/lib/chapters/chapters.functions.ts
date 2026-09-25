@@ -18,10 +18,9 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireAppUser } from "../server-auth";
-import type { Database } from "@/integrations/supabase/types";
+import type { Database, Json } from "@/integrations/supabase/types";
 import { quoteMultiAspectRender } from "../billing/per-minute";
 import {
-  ALL_ASPECTS,
   ASPECT_RESOLUTIONS,
   resolveRenderAspects,
   type AspectRatio,
@@ -156,7 +155,7 @@ export function buildRerenderChapterPatch(params: {
   paragraphs: CachedParagraph[];
 }): {
   script_text: string;
-  paragraphs: unknown;
+  paragraphs: Json;
   status: string;
   attempts: number;
   started_at: null;

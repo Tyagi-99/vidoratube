@@ -18,6 +18,7 @@ import { join } from "node:path";
 import { createServer, type Server } from "node:http";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { ASPECTS, runPipeline } from "./pipeline.js";
+import { defaultContinuityBrief } from "./chapters.js";
 import type { RenderJob, RenderJobMeta } from "./types.js";
 
 const FFMPEG = process.env.FFMPEG_PATH ?? "ffmpeg";
@@ -123,6 +124,10 @@ function makeCtx(aspect: "16:9" | "9:16" | "1:1", dir: string): Ctx {
     musicVolume: 0.15,
     musicDucking: true,
     voiceoverUrl: null,
+    creationMode: "script",
+    parallax25d: false,
+    chapterMode: false,
+    continuityBrief: defaultContinuityBrief(),
   };
   const job: RenderJob = {
     id: `fixture-${aspect.replace(":", "x")}`,
@@ -153,6 +158,7 @@ function makeCtx(aspect: "16:9" | "9:16" | "1:1", dir: string): Ctx {
       POLL_INTERVAL_SEC: 5,
       WORK_DIR: workDir,
       CONCURRENCY: 1,
+      WORKER_CHAPTER_CONCURRENCY: 2,
     },
     supabase: {} as unknown as SupabaseClient,
     job,

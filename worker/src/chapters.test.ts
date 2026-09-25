@@ -170,7 +170,7 @@ function makeFakeSupabase(state: FakeState): SupabaseClient {
         download: async (path: string) => {
           const b = state.storage.get(path);
           if (!b) return { data: null, error: { message: "not found" } };
-          return { data: new Blob([b]), error: null };
+          return { data: new Blob([new Uint8Array(b)]), error: null };
         },
         upload: async (path: string, body: Blob) => {
           state.uploaded.push(path);

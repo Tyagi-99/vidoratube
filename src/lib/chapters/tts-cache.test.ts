@@ -9,7 +9,9 @@ import {
 } from "./tts-cache.server";
 
 function makeDeps(
-  overrides: Partial<SynthesizeCachedDeps> = {},
+  overrides: Partial<SynthesizeCachedDeps> & {
+    store?: Map<string, { audioPath: string; durationSeconds: number }>;
+  } = {},
 ): SynthesizeCachedDeps & { calls: string[]; store: Map<string, { audioPath: string; durationSeconds: number }> } {
   const calls: string[] = [];
   const store = new Map<string, { audioPath: string; durationSeconds: number }>();
