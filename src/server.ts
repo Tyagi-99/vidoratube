@@ -4,10 +4,6 @@ import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { assertServerEnv } from "./lib/env.server";
 import { withSecurityHeaders } from "./lib/security-headers";
-import { initServerSentry, captureError } from "./lib/sentry";
-
-// Env-gated: no-op unless SENTRY_DSN_SERVER (or SENTRY_DSN) is set.
-initServerSentry();
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -62,7 +58,6 @@ export default {
       return withSecurityHeaders(await normalizeCatastrophicSsrResponse(response));
     } catch (error) {
       console.error(error);
-      captureError(error, { extra: { where: "server_fetch" } });
       return withSecurityHeaders(
         new Response(renderErrorPage(), {
           status: 500,
