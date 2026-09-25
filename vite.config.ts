@@ -6,10 +6,13 @@
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
-// Lovable Cloud always binds the server-side names. Mirror only the public
-// connection values into Vite's browser bundle when a deployment does not
-// provide their VITE_* aliases. The service-role key is intentionally never
-// exposed here.
+// SECURITY: these are the production project's *publishable* values, used ONLY as
+// a build-time fallback so the Lovable-hosted deployment keeps working when the
+// build environment does not provide them. They are public by design (the key
+// ships in every client bundle), but any non-Lovable build that reaches this
+// fallback is almost certainly misconfigured — the client throws a clear error
+// at startup in that case (see src/integrations/supabase/client.ts) instead of
+// silently reading/writing the production database.
 const managedCloudUrl = "https://paowbdzcrncsiyogwnys.supabase.co";
 const managedCloudPublishableKey = "sb_publishable_cpm_1zLpkcOfkUtdYfdVfw_9GrEtfhg";
 
@@ -19,6 +22,14 @@ const supabasePublishableKey =
   process.env["VITE_SUPABASE_PUBLISHABLE_KEY"] ??
   process.env["SUPABASE_PUBLISHABLE_KEY"] ??
   managedCloudPublishableKey;
+
+if (supabaseUrl === managedCloudUrl) {
+  console.warn(
+    "[vidora] No VITE_SUPABASE_URL/SUPABASE_URL at build time — baking in the production " +
+      "Supabase project. Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY to target " +
+      "your own project.",
+  );
+}
 
 export default defineConfig({
   vite: {

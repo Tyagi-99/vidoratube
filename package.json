@@ -12,9 +12,9 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "predev": "node scripts/fetch-ffmpeg-wasm.mjs",
-    "prebuild": "node scripts/fetch-ffmpeg-wasm.mjs",
-    "prebuild:dev": "node scripts/fetch-ffmpeg-wasm.mjs"
+    "predev": "node scripts/vendor-ffmpeg-core.mjs --dev",
+    "prebuild": "node scripts/vendor-ffmpeg-core.mjs --build",
+    "prebuild:dev": "node scripts/vendor-ffmpeg-core.mjs --build"
   },
   "dependencies": {
     "@ffmpeg/core": "0.12.10",
