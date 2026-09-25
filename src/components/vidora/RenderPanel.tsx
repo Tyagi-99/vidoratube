@@ -23,6 +23,8 @@ import {
   startRender,
   updateRenderProgress,
 } from "@/lib/renders.functions";
+import { enqueueServerRender } from "@/lib/server-renders.functions";
+import { ServerRenderQueue } from "./ServerRenderQueue";
 import type {
   RenderProgress,
   RenderResult,
@@ -99,6 +101,8 @@ export function RenderPanel({
   const [error, setError] = useState<string | null>(null);
   const [burnCaptions, setBurnCaptions] = useState(true);
   const [confirmPartial, setConfirmPartial] = useState(false);
+  const [engine, setEngine] = useState<"browser" | "server">("browser");
+  const [serverEnqueuing, setServerEnqueuing] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const lastPushRef = useRef(0);
 
@@ -278,6 +282,53 @@ export function RenderPanel({
     }
   };
 
+  const enqueueFn = useServerFn(enqueueServerRender);
+
+  /** Enqueue a server-side render (native FFmpeg worker). */
+  const runServer = async () => {
+    if (!user) return;
+    if (readyScenes.length === 0) {
+      toast.error("Generate the scene visuals before rendering.");
+      return;
+    }
+    setError(null);
+    setServerEnqueuing(true);
+    try {
+      const timeline = buildTimeline();
+      const settings = (project.settings ?? {}) as { music_url?: string | null };
+      const voiceover = voiceovers.find((v) => v.scene_id === null)?.audio_url ?? null;
+      await enqueueFn({
+        data: {
+          projectId: project.id,
+          title: project.title ?? "Untitled video",
+          scenes: timeline.map((s) => ({
+            id: s.id,
+            number: s.number,
+            narration: s.narration,
+            image: s.assetUrl,
+            audio: s.audioUrl,
+            duration: s.duration,
+            cues: s.cues.map((c) => ({ word: c.text, start: c.start, end: c.end })),
+          })),
+          aspect: (project.aspect_ratio === "9:16" || project.aspect_ratio === "1:1"
+            ? project.aspect_ratio
+            : "16:9") as "16:9" | "9:16" | "1:1",
+          burnCaptions,
+          musicUrl: settings.music_url ?? null,
+          voiceoverUrl: voiceover,
+        },
+      });
+      toast.success("Server render queued — you can close this tab.");
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Could not queue the server render.";
+      setError(message);
+      toast.error(message);
+      captureError(e, { extra: { projectId: project.id } });
+    } finally {
+      setServerEnqueuing(false);
+    }
+  };
+
   const activeIndex = progress ? STAGE_ORDER.indexOf(progress.stage) : -1;
   const completed = renders.data?.filter((r) => r.status === "completed" && r.file_url) ?? [];
 
@@ -290,11 +341,31 @@ export function RenderPanel({
             Render MP4
           </h2>
           <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-            Stitches every scene, motion, voiceover and caption into a finished MP4 right here in your
-            browser — no render service, no extra cost. Keep this tab open while it works.
+            {engine === "server"
+              ? "High-quality server render with native FFmpeg — multi-aspect, word-level captions, and resumable. You can close this tab; progress updates live."
+              : "Stitches every scene, motion, voiceover and caption into a finished MP4 right here in your browser — no render service, no extra cost. Keep this tab open while it works."}
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2" role="group" aria-label="Render engine">
+            <Button
+              size="sm"
+              variant={engine === "browser" ? "default" : "outline"}
+              onClick={() => setEngine("browser")}
+              disabled={rendering || serverEnqueuing}
+            >
+              Fast (browser)
+            </Button>
+            <Button
+              size="sm"
+              variant={engine === "server" ? "default" : "outline"}
+              onClick={() => setEngine("server")}
+              disabled={rendering || serverEnqueuing}
+              title="High-quality server render — works with the tab closed"
+            >
+              High quality (server)
+            </Button>
+          </div>
           <div className="flex items-center gap-2">
             <Switch id="burn" checked={burnCaptions} onCheckedChange={setBurnCaptions} disabled={rendering} />
             <Label htmlFor="burn" className="text-sm text-muted-foreground">
@@ -305,6 +376,24 @@ export function RenderPanel({
             <Button variant="outline" className="gap-2" onClick={() => abortRef.current?.abort()}>
               <X className="h-4 w-4" />
               Cancel
+            </Button>
+          ) : engine === "server" ? (
+            <Button
+              className="gap-2"
+              onClick={runServer}
+              disabled={readyScenes.length === 0 || serverEnqueuing || (missing > 0 && !confirmPartial)}
+              title={
+                missing > 0 && !confirmPartial
+                  ? "Some scenes are missing visuals — confirm a partial draft below to render anyway"
+                  : "Queue a server render (native FFmpeg, tab can close)"
+              }
+            >
+              {serverEnqueuing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Film className="h-4 w-4" />
+              )}
+              {serverEnqueuing ? "Queueing…" : "Queue server render"}
             </Button>
           ) : (
             <Button
@@ -429,6 +518,12 @@ export function RenderPanel({
               </span>
             )}
           </div>
+        </div>
+      )}
+
+      {engine === "server" && (
+        <div className="mt-6">
+          <ServerRenderQueue projectId={project.id} />
         </div>
       )}
     </section>

@@ -903,6 +903,11 @@ export type Database = {
       renders: {
         Row: {
           aspect_ratio: string | null
+          attempts: number
+          cancel_requested: boolean
+          checkpoint: Json
+          claimed_at: string | null
+          claimed_by: string | null
           created_at: string
           duration: number | null
           engine: string
@@ -912,6 +917,7 @@ export type Database = {
           format: string
           id: string
           job_id: string | null
+          max_attempts: number
           meta: Json
           progress: number
           project_id: string | null
@@ -926,6 +932,11 @@ export type Database = {
         }
         Insert: {
           aspect_ratio?: string | null
+          attempts?: number
+          cancel_requested?: boolean
+          checkpoint?: Json
+          claimed_at?: string | null
+          claimed_by?: string | null
           created_at?: string
           duration?: number | null
           engine?: string
@@ -935,6 +946,7 @@ export type Database = {
           format?: string
           id?: string
           job_id?: string | null
+          max_attempts?: number
           meta?: Json
           progress?: number
           project_id?: string | null
@@ -949,6 +961,11 @@ export type Database = {
         }
         Update: {
           aspect_ratio?: string | null
+          attempts?: number
+          cancel_requested?: boolean
+          checkpoint?: Json
+          claimed_at?: string | null
+          claimed_by?: string | null
           created_at?: string
           duration?: number | null
           engine?: string
@@ -958,6 +975,7 @@ export type Database = {
           format?: string
           id?: string
           job_id?: string | null
+          max_attempts?: number
           meta?: Json
           progress?: number
           project_id?: string | null
