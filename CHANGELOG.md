@@ -15,6 +15,12 @@
 - `/r/$code` stores the code in localStorage, then redirects to auth;
   `useReferralClaim` submits it after a verified session. `ReferralSection`
   (billing page) shows the link, QR-style copy button, and invite stats.
+- Security: `submitPendingReferral` requires `email_confirmed_at` server-side
+  (client hook is a trigger only, never a trust boundary); grant ref ids are
+  deterministic UUIDv5 (`referral:<row>:<user>`, RFC 4122 vector-tested) to
+  match `grant_credits_once(p_ref_id UUID)`; `UNIQUE(referrer_id, invitee_id)`
+  migration for idempotent submits; `getMyReferralLink` falls back to the
+  winner's row on concurrent insert races.
 - `docs/P9_PLAN.md`: 5-credit reward, idempotency, and abuse-fighting notes.
 
 ### Onboarding
