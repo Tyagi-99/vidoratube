@@ -110,3 +110,41 @@ concurrency only with enough RAM/CPU.
 - All media moves over signed URLs; the worker never needs public buckets.
 - `RenderJobMetaSchema` (zod) rejects malformed payloads before any FFmpeg
   invocation. Asset refs are storage paths or https URLs only.
+
+## Docker deploy (Oracle Cloud) — recommended
+
+The repo root ships everything the founder needs:
+
+- `worker/Dockerfile` — Node 20 + native FFmpeg, non-root, no exposed ports.
+- `docker-compose.yml` (repo root) — one `render-worker` service, `.env` as env_file.
+- `.env.example` (repo root) — copy to `.env`, fill `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`.
+- `scripts/deploy-worker.sh` — one-command deploy.
+
+### One-time host setup (Oracle Cloud, Ubuntu 22.04+)
+
+```bash
+# on the Oracle instance
+sudo apt-get update && sudo apt-get install -y docker.io docker-compose-plugin
+sudo usermod -aG docker ubuntu   # then re-login
+```
+
+### Deploy / redeploy
+
+```bash
+# from your laptop, repo root, with .env filled in:
+WORKER_HOST=ubuntu@<oracle-ip> ./scripts/deploy-worker.sh
+```
+
+The script builds the image, ships it as a tarball (no registry needed),
+copies `docker-compose.yml` + `.env`, and restarts the container. Heartbeats
+in the `renders` table (`stage`, `progress`, `updated_at`) are the health
+signal; the app keeps its browser FFmpeg.wasm fallback until the worker is
+verified live.
+
+### Queue guarantees
+
+- Claim: `claim_render_job()` — `FOR UPDATE SKIP LOCKED`, one worker wins.
+- Lease: 5-minute claim lease + `heartbeat_render_job()` progress pings; a
+  dead worker's jobs become claimable again automatically.
+- Retries: `attempts < max_attempts` (default 3 = initial try + 2 retries),
+  then the job is marked failed and the reserved minutes are refunded.

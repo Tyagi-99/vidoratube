@@ -1,0 +1,40 @@
+# VidoraTube render-worker deployment.
+#
+# One command from your laptop (after the one-time Oracle Cloud setup in
+# worker/README.md):
+#
+#   WORKER_HOST=ubuntu@<oracle-ip> ./scripts/deploy-worker.sh
+#
+# What it does:
+#   1. Builds the worker image locally (or --no-build to skip).
+#   2. Copies docker-compose.yml + .env to the host over SSH.
+#   3. On the host: docker compose pull/up, verifies the container is running.
+#
+# Prerequisites on the host (one-time): Docker Engine + compose plugin,
+# logged in to the container registry you use (default: local build shipped
+# as a tarball — no registry needed).
+#
+# Never pass secrets as CLI args (they leak into shell history). Put them in
+# .env (gitignored) at the repo root.
+
+services:
+  render-worker:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    image: vidora-render-worker:latest
+    container_name: vidora-render-worker
+    env_file:
+      - .env
+    environment:
+      WORKER_ID: "${WORKER_ID:-oracle-worker}"
+    restart: unless-stopped
+    # No ports published: the worker polls Postgres (Supabase) and needs no
+    # inbound traffic. Heartbeats in the renders table are the health signal.
+    tmpfs:
+      - /tmp/vidora-worker:rw,noexec,nosuid,size=8g
+    deploy:
+      resources:
+        limits:
+          cpus: "3.5"
+          memory: 6G

@@ -170,3 +170,32 @@ export const listServerRenders = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     return rows ?? [];
   });
+
+/**
+ * Feature-detection for the native-FFmpeg server worker.
+ *
+ * Returns available=true when a worker has heartbeated (claimed or finished a
+ * server render) within the last 15 minutes. The UI uses this to prefer the
+ * server engine only when a worker is actually alive, and automatically falls
+ * back to the browser FFmpeg.wasm path otherwise.
+ */
+export const getServerWorkerStatus = createServerFn({ method: "GET" })
+  .middleware([requireAppUser])
+  .handler(async () => {
+    // Global infrastructure signal (not user data): service-role read of the
+    // latest worker heartbeat across all renders. requireAppUser still gates
+    // the endpoint to logged-in users.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row } = await supabaseAdmin
+      .from("renders")
+      .select("updated_at")
+      .eq("engine", "server_ffmpeg")
+      .not("claimed_by", "is", null)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const lastSeenAt = row?.updated_at ?? null;
+    const available =
+      lastSeenAt != null && Date.now() - new Date(lastSeenAt).getTime() < 15 * 60 * 1000;
+    return { available, lastSeenAt };
+  });

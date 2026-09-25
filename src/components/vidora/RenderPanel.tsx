@@ -23,7 +23,7 @@ import {
   startRender,
   updateRenderProgress,
 } from "@/lib/renders.functions";
-import { enqueueServerRender } from "@/lib/server-renders.functions";
+import { enqueueServerRender, getServerWorkerStatus } from "@/lib/server-renders.functions";
 import { ServerRenderQueue } from "./ServerRenderQueue";
 import type {
   RenderProgress,
@@ -113,6 +113,19 @@ export function RenderPanel({
     queryKey: ["renders", project.id],
     queryFn: () => listFn({ data: { projectId: project.id } }),
   });
+
+  // Feature-detection: the server engine is offered only while a worker is
+  // actually alive. Until the worker is deployed, this stays false and the
+  // browser FFmpeg.wasm path is used automatically.
+  const workerStatusFn = useServerFn(getServerWorkerStatus);
+  const { data: workerStatus } = useQuery({
+    queryKey: ["server-worker-status"],
+    queryFn: () => workerStatusFn(),
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+  const workerAvailable = workerStatus?.available === true;
+  const effectiveEngine = engine === "server" && !workerAvailable ? "browser" : engine;
 
   useEffect(() => () => {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -361,9 +374,13 @@ export function RenderPanel({
               variant={engine === "server" ? "default" : "outline"}
               onClick={() => setEngine("server")}
               disabled={rendering || serverEnqueuing}
-              title="High-quality server render — works with the tab closed"
+              title={
+                workerAvailable
+                  ? "High-quality server render — works with the tab closed"
+                  : "Server renderer is offline — selecting this falls back to the browser engine"
+              }
             >
-              High quality (server)
+              High quality (server){!workerAvailable && " · offline"}
             </Button>
           </div>
           <div className="flex items-center gap-2">
@@ -377,7 +394,7 @@ export function RenderPanel({
               <X className="h-4 w-4" />
               Cancel
             </Button>
-          ) : engine === "server" ? (
+          ) : effectiveEngine === "server" ? (
             <Button
               className="gap-2"
               onClick={runServer}
@@ -521,10 +538,16 @@ export function RenderPanel({
         </div>
       )}
 
-      {engine === "server" && (
+      {effectiveEngine === "server" && (
         <div className="mt-6">
           <ServerRenderQueue projectId={project.id} />
         </div>
+      )}
+      {engine === "server" && !workerAvailable && (
+        <p className="mt-4 rounded-lg border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
+          The high-quality server renderer isn't online right now, so this render
+          will use the fast browser engine instead — same MP4, no extra cost.
+        </p>
       )}
     </section>
   );
