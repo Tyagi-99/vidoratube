@@ -1,17 +1,21 @@
 /**
  * P7: Billing provider abstraction.
  *
- * Stripe (global/USD) and Razorpay (India/INR) sit behind one interface so
- * the UI and webhook handlers never touch provider specifics. Both adapters
- * use direct REST calls (no SDK) so webhook signature verification and API
- * calls are explicit, testable, and dependency-free.
+ * Dodo Payments (USD, Merchant of Record) and Razorpay (India/INR) sit behind
+ * one interface so the UI and webhook handlers never touch provider specifics.
+ * Both adapters use direct REST calls (no SDK) so webhook signature
+ * verification and API calls are explicit, testable, and dependency-free.
+ *
+ * Stripe is NOT approved but stays in the type union: adding it later means
+ * writing one stripe.ts adapter implementing BillingProvider — no
+ * business-logic changes.
  *
  * TEST MODE ONLY: adapters read test-mode keys from env. Going live is a
- * documented user action (docs/BILLING.md).
+ * documented founder action (docs/FOUNDER_TODO.md).
  */
 import type { Currency, Plan } from "./plans";
 
-export type BillingProviderName = "stripe" | "razorpay";
+export type BillingProviderName = "dodo" | "razorpay" | "stripe";
 
 export interface CheckoutRequest {
   plan: Plan;
@@ -22,10 +26,10 @@ export interface CheckoutRequest {
   cancelUrl: string;
 }
 
-/** What the UI needs to send the buyer to the provider. */
+/** For Dodo: the hosted checkout URL. For Razorpay: order details the client SDK uses. */
 export interface CheckoutResult {
   provider: BillingProviderName;
-  /** For Stripe: the hosted Checkout Session URL. */
+  /** For Dodo/Stripe: the hosted checkout URL. */
   redirectUrl?: string;
   /** For Razorpay: order details the client SDK uses to open the modal. */
   razorpayOrder?: { orderId: string; amount: number; currency: string; keyId: string };

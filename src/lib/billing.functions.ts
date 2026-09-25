@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { requireAppUser } from "./server-auth";
 import { getPlan, type Currency } from "./billing/plans";
-import { isStripeConfigured } from "./billing/stripe";
+import { isDodoConfigured } from "./billing/dodo";
 import { isRazorpayConfigured } from "./billing/razorpay";
 import { DEFAULT_RENDER_RESERVE_MINUTES } from "./billing/billing-math";
 
@@ -39,7 +39,7 @@ async function enforceBillingRateLimit(userId: string) {
 
 /** Public: which payment providers are configured. */
 export const getBillingConfig = createServerFn({ method: "GET" }).handler(async () => ({
-  stripe: isStripeConfigured(),
+  dodo: isDodoConfigured(),
   razorpay: isRazorpayConfigured(),
 }));
 
@@ -94,7 +94,8 @@ export const createCheckout = createServerFn({ method: "POST" })
     const plan = getPlan(data.planSlug);
     if (!plan) throw new Error("Unknown plan.");
 
-    // Currency -> provider routing: INR -> Razorpay, USD -> Stripe.
+    // Currency -> provider routing: INR -> Razorpay, USD -> Dodo Payments.
+    // (Stripe is not approved; its adapter stays in the codebase for later.)
     const currency: Currency = data.currency;
     const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId);
     const email = userData.user?.email ?? "";
@@ -114,9 +115,9 @@ export const createCheckout = createServerFn({ method: "POST" })
       if (!razorpayProvider.isConfigured()) throw new Error("INR checkout is not set up yet.");
       return await razorpayProvider.createCheckout(req);
     }
-    const { stripeProvider } = await import("./billing/stripe");
-    if (!stripeProvider.isConfigured()) throw new Error("USD checkout is not set up yet.");
-    return await stripeProvider.createCheckout(req);
+    const { dodoProvider } = await import("./billing/dodo");
+    if (!dodoProvider.isConfigured()) throw new Error("USD checkout is not set up yet.");
+    return await dodoProvider.createCheckout(req);
   });
 
 /** Cancel the caller's own subscription (at the provider, then DB syncs via webhook). */
@@ -134,7 +135,10 @@ export const cancelSubscription = createServerFn({ method: "POST" })
     if (!sub) throw new Error("Subscription not found.");
     if (sub.status === "canceled") return { ok: true, already: true };
 
-    if (sub.provider === "stripe") {
+    if (sub.provider === "dodo") {
+      const { dodoProvider } = await import("./billing/dodo");
+      await dodoProvider.cancelSubscription(sub.external_id);
+    } else if (sub.provider === "stripe") {
       const { stripeProvider } = await import("./billing/stripe");
       await stripeProvider.cancelSubscription(sub.external_id);
     } else {

@@ -27,7 +27,7 @@ export function PricingSection({ compact = false }: { compact?: boolean }) {
   }, []);
 
   const plans = data ?? [];
-  const checkoutLive = Boolean(billingConfig?.stripe || billingConfig?.razorpay);
+  const checkoutLive = Boolean(billingConfig?.dodo || billingConfig?.razorpay);
 
   return (
     <section

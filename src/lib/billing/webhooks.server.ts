@@ -14,7 +14,7 @@ import type { Database } from "@/integrations/supabase/types";
 import type { DomainBillingEvent } from "./billing-math";
 import { eventRefUuid } from "./billing-math";
 
-export type WebhookProvider = "stripe" | "razorpay";
+export type WebhookProvider = "dodo" | "stripe" | "razorpay";
 
 /**
  * Try to claim a webhook event for processing. Returns true when this is

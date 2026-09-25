@@ -73,7 +73,7 @@ function BillingPage() {
       checkoutFn({ data: input }),
     onSuccess: async (result) => {
       if (result.redirectUrl) {
-        // Stripe: hosted checkout.
+        // Dodo: hosted checkout.
         window.location.href = result.redirectUrl;
         return;
       }
@@ -119,18 +119,22 @@ function BillingPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : t("billing_checkout_error")),
   });
 
-  const configured = Boolean(config.data?.stripe || config.data?.razorpay);
+  const configured = Boolean(config.data?.dodo || config.data?.razorpay);
   // Default currency from the provider that's actually configured.
   const effectiveCurrency: Currency =
     currency === "inr" && !config.data?.razorpay
       ? "usd"
-      : currency === "usd" && !config.data?.stripe && config.data?.razorpay
+      : currency === "usd" && !config.data?.dodo && config.data?.razorpay
         ? "inr"
         : currency;
+  // The provider behind the currently selected currency — its checkout button
+  // shows "Coming soon" until that provider's keys exist.
+  const currencyLive =
+    effectiveCurrency === "inr" ? Boolean(config.data?.razorpay) : Boolean(config.data?.dodo);
 
   useEffect(() => {
     // Pick a sane default once config loads.
-    if (config.data && currency === "usd" && !config.data.stripe && config.data.razorpay) {
+    if (config.data && currency === "usd" && !config.data.dodo && config.data.razorpay) {
       setCurrency("inr");
     }
   }, [config.data, currency]);
@@ -200,7 +204,7 @@ function BillingPage() {
                 <Button
                   variant={effectiveCurrency === "usd" ? "default" : "outline"}
                   size="sm"
-                  disabled={!config.data?.stripe}
+                  disabled={!config.data?.dodo}
                   onClick={() => setCurrency("usd")}
                 >
                   $ USD
@@ -247,10 +251,10 @@ function BillingPage() {
                       </p>
                       <Button
                         className="mt-4"
-                        disabled={checkout.isPending}
+                        disabled={checkout.isPending || !currencyLive}
                         onClick={() => checkout.mutate({ planSlug: p.slug, currency: effectiveCurrency })}
                       >
-                        {t("billing_subscribe")}
+                        {currencyLive ? t("billing_subscribe") : t("billing_coming_soon")}
                       </Button>
                     </CardContent>
                   </Card>
@@ -289,10 +293,10 @@ function BillingPage() {
                       <Button
                         className="mt-4"
                         variant="outline"
-                        disabled={checkout.isPending}
+                        disabled={checkout.isPending || !currencyLive}
                         onClick={() => checkout.mutate({ planSlug: p.slug, currency: effectiveCurrency })}
                       >
-                        {t("billing_buy")}
+                        {currencyLive ? t("billing_buy") : t("billing_coming_soon")}
                       </Button>
                     </CardContent>
                   </Card>

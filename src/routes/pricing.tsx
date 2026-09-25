@@ -32,7 +32,7 @@ function PricingPage() {
     queryKey: ["billing-config"],
     queryFn: () => configFn(),
   });
-  const checkoutLive = Boolean(billingConfig?.stripe || billingConfig?.razorpay);
+  const checkoutLive = Boolean(billingConfig?.dodo || billingConfig?.razorpay);
 
   return (
     <main className="min-h-screen bg-background pt-16">
