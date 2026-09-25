@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/select";
 import { ArrowLeft, Download, ImageIcon, Loader2, Play, RefreshCw, Trash2, Wand2, User, Mic } from "lucide-react";
 import { RenderPanel } from "@/components/vidora/RenderPanel";
+import { PublishPipeline } from "@/components/vidora/PublishPipeline";
 import { StudioV2Panel } from "@/components/vidora/StudioV2Panel";
 import { VoicePicker } from "@/components/vidora/VoicePicker";
 import { ProvenanceDrawer } from "@/components/vidora/ProvenanceDrawer";
@@ -75,6 +76,7 @@ function ProjectEditor() {
   const queryClient = useQueryClient();
   const getFn = useServerFn(getProject);
   const advanceFn = useServerFn(advanceProject);
+  const { t } = useI18n();
 
   const data = useQuery({
     queryKey: ["project", projectId],
@@ -390,6 +392,23 @@ function ProjectEditor() {
           voiceovers={voiceovers}
           captions={captions}
         />
+
+        {/* P5: Publish pipeline — thumbnail → SEO → schedule → review → approve */}
+        <div className="mt-10">
+          <h2 className="text-xl font-bold tracking-tight text-foreground">
+            {t("publish_tab")}
+          </h2>
+          <div className="mt-4">
+            <PublishPipeline
+              projectId={projectId}
+              videoTitle={project.title}
+              videoTopic={project.topic ?? project.title}
+              scriptSummary={scenes.map((s: { narration?: string }) => s.narration).filter(Boolean).join(" ").slice(0, 4000) || project.topic || project.title}
+              primaryKeyword={project.topic ?? project.title}
+              nicheKeywords={(project.topic ?? project.title).split(/\s+/).filter((w: string) => w.length > 3)}
+            />
+          </div>
+        </div>
       </div>
 
     </main>

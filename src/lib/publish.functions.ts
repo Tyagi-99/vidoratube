@@ -495,3 +495,87 @@ export const listPublishJobs = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     return { jobs: data };
   });
+
+const thumbnailsForProjectSchema = z.object({
+  project_id: z.string().uuid(),
+});
+
+/** Lists thumbnails for a project with signed view URLs. */
+export const listThumbnails = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => thumbnailsForProjectSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: thumbs, error } = await supabase
+      .from("thumbnails")
+      .select("id, variant, aspect, url, final_url, text_overlay, selected, created_at")
+      .eq("project_id", data.project_id)
+      .eq("user_id", userId)
+      .order("aspect")
+      .order("variant");
+    if (error) throw new Error(error.message);
+
+    // Sign each storage path for viewing.
+    const withUrls = await Promise.all(
+      (thumbs ?? []).map(async (t) => {
+        const path = (t.final_url ?? t.url) as string;
+        const { data: signed } = await supabase.storage
+          .from("generated-videos")
+          .createSignedUrl(path, 3600);
+        return { ...t, viewUrl: signed?.signedUrl ?? null };
+      }),
+    );
+    return { thumbnails: withUrls };
+  });
+
+const seoForProjectSchema = z.object({
+  project_id: z.string().uuid(),
+});
+
+/** Fetches saved SEO metadata for a project. */
+export const getSEOMetadata = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => seoForProjectSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: seo, error } = await supabase
+      .from("seo_metadata")
+      .select("*")
+      .eq("project_id", data.project_id)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return { seo };
+  });
+
+const selectSEOTitleSchema = z.object({
+  project_id: z.string().uuid(),
+  title: z.string().trim().min(1).max(100),
+});
+
+/** Updates the selected title / edited description / tags. */
+export const updateSEOMetadata = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (input: unknown) =>
+      selectSEOTitleSchema
+        .extend({
+          description: z.string().trim().max(4900).optional(),
+          tags: z.array(z.string().trim().max(60)).max(30).optional(),
+        })
+        .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { error } = await supabase
+      .from("seo_metadata")
+      .update({
+        selected_title: data.title,
+        ...(data.description !== undefined ? { description: data.description } : {}),
+        ...(data.tags !== undefined ? { tags: data.tags } : {}),
+      })
+      .eq("project_id", data.project_id)
+      .eq("user_id", userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });

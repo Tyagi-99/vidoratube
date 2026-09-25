@@ -1,5 +1,35 @@
 # Changelog
 
+## 2026-09-25 — P5: Thumbnail/SEO Studio + YouTube Publishing
+
+### Thumbnail studio
+- AI generates 3 variants × 2 aspects (16:9 + 9:16) via the Lovable gateway image model.
+- Text overlay editor: headline, font, color, position — validated, stored per variant.
+- Variant selection persisted; selected variant used at publish time.
+- Final overlay-burned image uploaded to YouTube via `thumbnails.set`.
+
+### SEO studio
+- LLM generates 3 title candidates; deterministic scoring (length/keyword/curiosity/clarity) ranks them.
+- Clickbait patterns penalized in scoring.
+- Description builder: hook + summary + chapters + CTA + hashtags (≤4900 chars).
+- Tag suggester merges niche keywords + outlier terms, deduped, within YouTube's 500-char budget.
+- All editable and saved per project.
+
+### YouTube publishing pipeline
+- Publish flow: Thumbnail → SEO → Schedule → Review → **Approve & Publish**.
+- State machine: draft → approved → scheduled → uploading → published (failed/canceled terminals).
+- HARD RULE: nothing publishes without the explicit human approval button. No auto-publish code path exists.
+- Scheduling via `publishAt`; made-for-kids declaration enforced (COPPA).
+- Reuses P1's resumable upload + incremental upload-scope OAuth.
+- Publish history list with status, YouTube links, and cancel.
+
+### Google verification paperwork
+- New `docs/GOOGLE_VERIFICATION.md`: scope justifications, demo video outline,
+  privacy/terms checklist, quota extension draft.
+
+### Data model
+- New tables: `thumbnails`, `seo_metadata`, `publish_jobs` — all owner RLS.
+
 ## 2026-09-25 — P4: Studio v2 Creative Upgrades
 
 ### Visual style system
