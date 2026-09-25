@@ -435,7 +435,7 @@ export const importOutliers = createServerFn({ method: "POST" })
         published_at: v.publishedAt,
         outlier_score: Math.round(outlierScore(v.viewCount, med) * 100) / 100,
         patterns: {
-          title_stats: titlePatternStats([v.title]),
+          title_stats: titlePatternStats([v.title]) as unknown as import("@/integrations/supabase/types").Json,
         },
       };
     });
