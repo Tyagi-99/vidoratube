@@ -18,7 +18,21 @@
 
 ## 2. Security review
 
-_(pending — workstream running; will fill in per-table RLS proofs, client-bundle grep, host-guard allow-list check, server fallback check, bucket policies, token-encryption check)_
+**Verdict: no critical issues.** RLS and secret handling are in good shape for a pre-launch product. Code-level review only — live `pg_policies` were not compared against migrations (dashboard showed RLS-enabled flags only); that's the remaining verification step.
+
+**Verified clean:**
+1. **RLS** — all 25 tables have RLS enabled with owner-scoped policies (`auth.uid() = user_id`, admin overrides via self-scoped `has_role`). Only `USING (true)` policies are intentionally public tables (site_content, categories, pricing plans). Client INSERTs into `credit_ledger`/`api_usage` removed; credit writes go through SECURITY DEFINER functions granted to `service_role` only, bound to the server-derived session userId.
+2. **Client bundle** — built bundle contains only the publishable key; no service-role, ElevenLabs, or OAuth secrets in non-server `src/` code.
+3. **Host guard** (`src/integrations/supabase/client.ts:57-74`) — explicit suffix allow-list, not a wildcard; arbitrary origins rejected.
+4. **Server fallback** (`src/lib/public.server.ts:5-41`) — fallback applies only to the publishable client; admin client (`client.server.ts:34-56`) fails closed without `SUPABASE_SERVICE_ROLE_KEY`.
+5. **Storage** — `generated-videos` forced private; object policies scope to owner folder; no anonymous access; no client DELETE.
+6. **YouTube tokens** — AES-256-GCM, random 12-byte IV, key validated as 32-byte base64, fail-closed; HMAC-SHA256 + PKCE state, 15-min expiry.
+
+| # | Finding | Severity | Location |
+|---|---------|----------|----------|
+| S1 | `providers/registry.ts` statically imports `.server.ts` modules (API keys). Only imported by its test today — no live leak — but any future client import would bundle secrets. Rename to `registry.server.ts` or use dynamic imports. | 🟡 Medium | `src/lib/providers/registry.ts` |
+| S2 | `contact_messages` allows anonymous INSERT (`WITH CHECK (true)`) with no SQL-level rate limit — spam vector if app-level throttling isn't wired. | 🟡 Medium | migration |
+| S3 | `decryptToken` legacy-plaintext fallback for pre-encryption rows (by design; refresh re-encrypts). Confirm live DB has no plaintext rows. | 🟡 Medium | token decrypt |
 
 ## 3. Billing integrity
 
