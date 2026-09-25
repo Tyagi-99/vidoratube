@@ -17,6 +17,15 @@ export interface PublishVideoInput {
   madeForKids: boolean;
   /** ISO datetime — YouTube holds the video private until this time. */
   publishAt?: string | null;
+  /**
+   * Sprint 7–8: the publish_jobs row being executed. When present, the
+   * adapter re-checks the human-approval record immediately before
+   * uploading — a second layer under workstream C's server-enforced
+   * approvals table (checked in runExecutePublishJob before this runs).
+   */
+  publishJobId?: string | undefined;
+  /** Project id for quota/cost attribution, when the caller knows one. */
+  projectId?: string | null | undefined;
 }
 
 /** Uploads the rendered video for a publish job. Returns the YouTube video id. */
@@ -28,9 +37,15 @@ export async function publishVideoJob(
     getValidAccessToken,
     streamStoredVideo,
     uploadToYouTube,
-    hasUploadScope,
+    hasPublishScopes,
     encryptToken,
   } = await import("./youtube.server");
+  const {
+    assertYouTubePublishingEnabled,
+    assertYouTubeChannelAllowed,
+    assertPublishJobApproved,
+  } = await import("./publishing-gates.server");
+  const { recordYouTubeQuota } = await import("./api-cost");
 
   const { data: connection } = await admin
     .from("youtube_connections")
@@ -38,8 +53,28 @@ export async function publishVideoJob(
     .eq("user_id", input.userId)
     .maybeSingle();
   if (!connection) throw new Error("Connect your YouTube channel first.");
-  if (!hasUploadScope(connection.scope)) {
-    throw new Error("YouTube upload permission is missing. Grant it to publish.");
+  if (!hasPublishScopes(connection.scope)) {
+    throw new Error(
+      "YouTube publish permissions are missing or incomplete. Grant them to publish.",
+    );
+  }
+
+  // Sprint 7–8 TEST-CHANNEL GATE: uploads go ONLY to the founder-designated
+  // test channel. Checked before any token refresh, network call, or quota
+  // spend — unset config disables publishing outright (fail closed).
+  assertYouTubePublishingEnabled();
+  assertYouTubeChannelAllowed(connection.channel_id);
+
+  // Approval re-check (adapter-level second layer): when executed through a
+  // publish job, the human-approval record must be present RIGHT NOW.
+  if (input.publishJobId) {
+    const { data: publishJob } = await admin
+      .from("publish_jobs")
+      .select("status, approved_by, approved_at")
+      .eq("id", input.publishJobId)
+      .eq("user_id", input.userId)
+      .maybeSingle();
+    assertPublishJobApproved(publishJob);
   }
 
   const { accessToken, refreshed } = await getValidAccessToken(connection);
@@ -52,6 +87,12 @@ export async function publishVideoJob(
     privacyStatus: input.privacy,
     madeForKids: input.madeForKids,
     tags: input.tags,
+  });
+  // Quota: videos.insert lives in its own 100-calls/day bucket (1/call).
+  await recordYouTubeQuota(admin, {
+    userId: input.userId,
+    projectId: input.projectId ?? null,
+    operation: "videos.insert",
   });
 
   if (refreshed?.access_token) {
@@ -68,6 +109,12 @@ export async function publishVideoJob(
   // Scheduling: set publishAt so the video goes live at the chosen time.
   if (input.publishAt) {
     await setScheduledPublishTime(accessToken, videoId, input.publishAt);
+    // Quota: videos.update costs 50 units from the shared pool.
+    await recordYouTubeQuota(admin, {
+      userId: input.userId,
+      projectId: input.projectId ?? null,
+      operation: "videos.update",
+    });
   }
 
   return { videoId };
@@ -118,7 +165,14 @@ export async function setVideoThumbnail(
   admin: SupabaseClient<Database>,
   input: SetThumbnailInput,
 ): Promise<void> {
-  const { getValidAccessToken, hasUploadScope } = await import("./youtube.server");
+  // Sprint 7–8 TEST-CHANNEL GATE first: fail before any DB I/O or network.
+  const { assertYouTubePublishingEnabled, assertYouTubeChannelAllowed } = await import(
+    "./publishing-gates.server"
+  );
+  assertYouTubePublishingEnabled();
+
+  const { getValidAccessToken, hasPublishScopes } = await import("./youtube.server");
+  const { recordYouTubeQuota } = await import("./api-cost");
 
   const { data: thumb } = await admin
     .from("thumbnails")
@@ -134,9 +188,11 @@ export async function setVideoThumbnail(
     .select("*")
     .eq("user_id", input.userId)
     .maybeSingle();
-  if (!connection || !hasUploadScope(connection.scope)) {
-    throw new Error("YouTube upload permission is missing.");
+  if (!connection || !hasPublishScopes(connection.scope)) {
+    throw new Error("YouTube publish permissions are missing or incomplete.");
   }
+  // The thumbnail lands on the same test channel the video went to.
+  assertYouTubeChannelAllowed(connection.channel_id);
   const { accessToken } = await getValidAccessToken(connection);
 
   // Fetch the image bytes via a signed URL.
@@ -165,4 +221,11 @@ export async function setVideoThumbnail(
       `YouTube rejected the thumbnail (${res.status}): ${(await res.text().catch(() => "")).slice(0, 200)}`,
     );
   }
+
+  // Quota: thumbnails.set costs 50 units from the shared pool.
+  await recordYouTubeQuota(admin, {
+    userId: input.userId,
+    projectId: null,
+    operation: "thumbnails.set",
+  });
 }

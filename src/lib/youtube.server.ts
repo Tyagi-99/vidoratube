@@ -11,10 +11,19 @@ export const YOUTUBE_CONNECT_SCOPES = ["https://www.googleapis.com/auth/youtube.
 );
 /** Requested incrementally, only when the user first clicks Publish. */
 export const YOUTUBE_UPLOAD_SCOPE = "https://www.googleapis.com/auth/youtube.upload";
+/**
+ * Sprint 7–8: second publish scope. videos.update (used for scheduled
+ * publishing via status.publishAt) does NOT accept youtube.upload — it needs
+ * youtube, youtube.force-ssl, or youtubepartner. force-ssl is the
+ * least-privileged of the three that covers it.
+ */
+export const YOUTUBE_FORCE_SSL_SCOPE = "https://www.googleapis.com/auth/youtube.force-ssl";
+/** Both publish scopes, requested together at the incremental upgrade step. */
+export const YOUTUBE_PUBLISH_SCOPES = `${YOUTUBE_UPLOAD_SCOPE} ${YOUTUBE_FORCE_SSL_SCOPE}`;
 
 /**
  * @deprecated Kept for reference only — connect now requests
- * {@link YOUTUBE_CONNECT_SCOPES} and upgrades to {@link YOUTUBE_UPLOAD_SCOPE}
+ * {@link YOUTUBE_CONNECT_SCOPES} and upgrades to {@link YOUTUBE_PUBLISH_SCOPES}
  * incrementally at publish time.
  */
 export const YOUTUBE_SCOPES = `${YOUTUBE_UPLOAD_SCOPE} ${YOUTUBE_CONNECT_SCOPES}`;
@@ -26,6 +35,21 @@ export type YouTubeOAuthPurpose = "connect" | "upload";
 export function hasUploadScope(scope: string | null | undefined): boolean {
   if (!scope) return false;
   return scope.split(/\s+/).includes(YOUTUBE_UPLOAD_SCOPE);
+}
+
+/** True when the granted scope string includes the force-ssl (scheduling) scope. */
+export function hasForceSslScope(scope: string | null | undefined): boolean {
+  if (!scope) return false;
+  return scope.split(/\s+/).includes(YOUTUBE_FORCE_SSL_SCOPE);
+}
+
+/**
+ * True when the connection holds BOTH publish scopes. Publishing requires
+ * the pair: videos.insert/thumbnails.set need youtube.upload, while
+ * videos.update (scheduled publish) needs youtube.force-ssl.
+ */
+export function hasPublishScopes(scope: string | null | undefined): boolean {
+  return hasUploadScope(scope) && hasForceSslScope(scope);
 }
 
 /** Thrown when Google reports the grant is dead (401 / invalid_grant). */

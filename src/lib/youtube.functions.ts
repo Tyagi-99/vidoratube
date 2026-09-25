@@ -62,14 +62,16 @@ export const startYouTubeConnect = createServerFn({ method: "POST" })
   });
 
 /**
- * Returns the consent URL that grants the upload scope on top of whatever the
+ * Returns the consent URL that grants the publish scopes on top of whatever the
  * user already granted (include_granted_scopes=true). Called when the user
  * first clicks Publish on a connection that only has read-only access.
+ * Requests youtube.upload (videos.insert, thumbnails.set) AND youtube.force-ssl
+ * (videos.update for scheduled publishing — youtube.upload alone gets a 403).
  */
 export const requestUploadScope = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { googleCredentials, signState, buildConsentUrl, YOUTUBE_UPLOAD_SCOPE } = await import(
+    const { googleCredentials, signState, buildConsentUrl, YOUTUBE_PUBLISH_SCOPES } = await import(
       "./youtube.server"
     );
     const { clientId } = googleCredentials();
@@ -79,7 +81,7 @@ export const requestUploadScope = createServerFn({ method: "POST" })
       origin: origin(),
       state,
       challenge,
-      scopes: YOUTUBE_UPLOAD_SCOPE,
+      scopes: YOUTUBE_PUBLISH_SCOPES,
     });
     return { url };
   });
@@ -127,7 +129,7 @@ export const publishJobToYouTube = createServerFn({ method: "POST" })
       publishPrecheck,
       claimJobForUpload,
       encryptToken,
-      hasUploadScope,
+      hasPublishScopes,
       YouTubeRevokedError,
     } = await import("./youtube.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -167,14 +169,23 @@ export const publishJobToYouTube = createServerFn({ method: "POST" })
       .maybeSingle();
     if (!connection) throw new Error("Connect your YouTube channel first.");
     // Incremental scope: the connection may only have read-only access. The
-    // client catches this and starts the upload-scope upgrade flow.
-    if (!hasUploadScope(connection.scope)) {
+    // client catches this and starts the publish-scope upgrade flow.
+    if (!hasPublishScopes(connection.scope)) {
       const error = new Error(
-        "YouTube upload permission is missing. Grant it to publish.",
+        "YouTube publish permissions are missing or incomplete. Grant them to publish.",
       ) as Error & { code?: string };
       error.code = "NEEDS_UPLOAD_SCOPE";
       throw error;
     }
+
+    // Sprint 7–8 TEST-CHANNEL GATE: the direct publish path uploads ONLY to
+    // the founder-designated test channel — never a real/user channel.
+    // Unset config disables publishing outright (fail closed).
+    const { assertYouTubePublishingEnabled, assertYouTubeChannelAllowed } = await import(
+      "./publishing-gates.server"
+    );
+    assertYouTubePublishingEnabled();
+    assertYouTubeChannelAllowed(connection.channel_id);
 
     // Atomic claim: the UPDATE only applies if the status hasn't changed since
     // we read it, so two racing publishes can't both proceed.

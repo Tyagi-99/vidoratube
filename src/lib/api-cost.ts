@@ -192,3 +192,74 @@ export async function recordApiCost(
     );
   }
 }
+
+/* --------------------------- YouTube API quota --------------------------- */
+
+/**
+ * YouTube Data API v3 quota model (verified against the official quota-cost
+ * page, last updated 2026-09-15 UTC). The old single-pool / 1,600-unit model
+ * is gone; there are now three daily buckets resetting at midnight PT:
+ *
+ * - videos.insert: 100 calls/day, 1 quota unit per call (own bucket)
+ * - search.list:   100 calls/day, 1 quota unit per call (own bucket)
+ * - everything else: 10,000 units/day shared pool
+ *
+ * YouTube quota is NOT billed in USD — it is a hard daily ceiling with no
+ * paid overage. We reuse the api_usage table (rather than a new quota table)
+ * so quota consumption is visible next to real spend; rows are marked with
+ * meta.cost_basis = "youtube-quota-units-not-usd" and cost 0 so the
+ * measured-cost-per-minute math never treats them as money.
+ */
+
+export const YOUTUBE_VIDEOS_INSERT_DAILY_CALLS = 100;
+export const YOUTUBE_SEARCH_LIST_DAILY_CALLS = 100;
+export const YOUTUBE_SHARED_POOL_UNITS_PER_DAY = 10000;
+
+/** Per-call quota costs in the shared pool (official quota-cost table). */
+export const YOUTUBE_QUOTA_COST = {
+  "videos.insert": { units: 1, bucket: "videos.insert" },
+  "videos.update": { units: 50, bucket: "shared-pool" },
+  "videos.list": { units: 1, bucket: "shared-pool" },
+  "channels.list": { units: 1, bucket: "shared-pool" },
+  "thumbnails.set": { units: 50, bucket: "shared-pool" },
+  "captions.insert": { units: 400, bucket: "shared-pool" },
+  "captions.delete": { units: 50, bucket: "shared-pool" },
+  "search.list": { units: 1, bucket: "search.list" },
+} as const;
+
+export type YouTubeQuotaOperation = keyof typeof YOUTUBE_QUOTA_COST;
+
+export type YouTubeQuotaInput = {
+  userId: string;
+  projectId?: string | null | undefined;
+  operation: YouTubeQuotaOperation;
+};
+
+/**
+ * Records one YouTube API call's quota consumption to api_usage.
+ * Never throws: quota accounting must not break a publish.
+ */
+export async function recordYouTubeQuota(
+  admin: SupabaseClient<Database>,
+  input: YouTubeQuotaInput,
+): Promise<void> {
+  const cost = YOUTUBE_QUOTA_COST[input.operation];
+  await recordApiCost(admin, {
+    userId: input.userId,
+    projectId: input.projectId ?? null,
+    provider: "youtube",
+    operation: input.operation,
+    units: cost.units,
+    unitCostUsd: 0,
+    meta: {
+      cost_basis: "youtube-quota-units-not-usd",
+      quota_bucket: cost.bucket,
+      daily_limit:
+        cost.bucket === "videos.insert"
+          ? YOUTUBE_VIDEOS_INSERT_DAILY_CALLS
+          : cost.bucket === "search.list"
+            ? YOUTUBE_SEARCH_LIST_DAILY_CALLS
+            : YOUTUBE_SHARED_POOL_UNITS_PER_DAY,
+    },
+  });
+}

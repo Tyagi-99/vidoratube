@@ -101,8 +101,8 @@ export const GUIDES: Guide[] = [
     slug: "youtube-api-app-review",
     title: "YouTube API app review: the founder checklist",
     description:
-      "Everything a founder must prepare and submit — in order — to get a YouTube Data API integration verified, audited, and quota-approved.",
-    readingMinutes: 9,
+      "Everything a founder must prepare and submit — in order — to get a YouTube Data API integration verified, audited, and quota-approved. Includes the exact OAuth scopes, the current quota model, and the audit rule that forces uploads private.",
+    readingMinutes: 11,
     sections: [
       {
         heading: "What you're actually applying for",
@@ -112,10 +112,33 @@ export const GUIDES: Guide[] = [
         ],
       },
       {
+        heading: "The exact OAuth scopes you need",
+        body: [
+          "Request scopes incrementally — the minimum at each step. At connect time, ask only for https://www.googleapis.com/auth/youtube.readonly (enough to read the channel, never to publish). When the user first clicks Publish, upgrade to the two publish scopes: https://www.googleapis.com/auth/youtube.upload and https://www.googleapis.com/auth/youtube.force-ssl.",
+          "Why two publish scopes: videos.insert (upload) and thumbnails.set accept youtube.upload, but scheduling a video — videos.update with status.publishAt — does NOT. It requires youtube, youtube.force-ssl, or youtubepartner, and youtube.upload alone gets a 403. youtube.force-ssl is the least-privileged of the three that covers it.",
+          "Scope classification matters for review: youtube.upload is a SENSITIVE scope (not restricted). That means your app must pass Google OAuth verification, but you do not need a third-party security assessment. The YouTube API compliance audit below is separate and still applies.",
+        ],
+      },
+      {
+        heading: "Quota: the current model (verified September 2026)",
+        body: [
+          "Google changed the quota model: there is no longer one 10,000-unit pool with videos.insert costing 1,600. The current default allocation per Cloud project is: 100 videos.insert calls per day (their own bucket, 1 quota per call), 100 search.list calls per day (their own bucket, 1 quota per call), and 10,000 units per day shared across all other endpoints. All buckets reset at midnight Pacific Time.",
+          "Typical per-call costs from the shared pool: channels.list 1, videos.list 1, videos.update 50, thumbnails.set 50, captions.insert 400, captions.delete 50, commentThreads.insert 50. A full publish (upload + schedule + thumbnail) costs 1 videos.insert bucket call plus about 100 shared-pool units.",
+          "Plan the quota ask with real math: expected uploads per user per day × expected users, against the 100-uploads/day default. A quota extension is a separate request with its own justification — it is granted, never automatic. Monitor usage so a growth spike doesn't start failing uploads at midnight.",
+        ],
+      },
+      {
+        heading: "The audit rule that forces uploads private",
+        body: [
+          "Since July 28, 2020, every video uploaded through an unaudited API project is forced to PRIVATE — permanently. It cannot be made public through the API or YouTube Studio until the project passes the YouTube API compliance audit. This is the single most common launch blocker: the upload 'works' in testing, then nothing can go public.",
+          "Budget the audit into the launch plan from day one. Until it passes, default every upload to private in the UI and say so plainly — users should never discover the limitation after clicking Publish.",
+        ],
+      },
+      {
         heading: "1. Set up a dedicated Google Cloud project",
         body: [
           "Create one Cloud project per product — never share the project with unrelated apps, because quota, audit findings, and violations attach to the project. Enable the YouTube Data API v3 on it.",
-          "Configure the OAuth consent screen as 'External', set the publishing status to 'In production', add every domain your app runs on as an authorized domain, and verify domain ownership in Search Console. Keep the scope list to the absolute minimum your feature needs (for uploads, typically the youtube.upload and youtube scopes) — every extra scope is extra review surface.",
+          "Configure the OAuth consent screen as 'External', set the publishing status to 'In production', add every domain your app runs on as an authorized domain, and verify domain ownership in Search Console. Keep the scope list to the absolute minimum your feature needs (for uploads: youtube.upload plus youtube.force-ssl for scheduling — see the scopes section above) — every extra scope is extra review surface.",
         ],
       },
       {
@@ -140,8 +163,9 @@ export const GUIDES: Guide[] = [
       {
         heading: "5. Submit OAuth verification, then the YouTube audit",
         body: [
-          "Submit brand verification through the Cloud console with the video, policy links, and scope justifications. Separately, YouTube requires an API compliance audit for apps using its API: demonstrate ToS compliance (no spam, no misleading metadata, real functionality — not a thin wrapper), and document your data handling and retention.",
-          "Request quota with a written justification tied to real usage math (uploads per user per day × expected users). New projects start at the default quota; extensions are granted, not automatic.",
+          "Submit brand verification through the Cloud console with the video, policy links, and scope justifications — one justification per scope, tied to the exact feature that uses it (e.g. 'youtube.force-ssl is used only for videos.update when the user schedules a publish time').",
+          "Separately, submit the YouTube API compliance audit: demonstrate ToS compliance (no spam, no misleading metadata, real functionality — not a thin wrapper), and document your data handling, retention, and deletion flows. Only after this audit passes can uploads go public.",
+          "Request quota with a written justification tied to the bucket math above (uploads per user per day × expected users against the 100/day default). New projects start at the default allocation; extensions are granted, not automatic.",
         ],
       },
       {
@@ -156,14 +180,44 @@ export const GUIDES: Guide[] = [
     slug: "meta-app-review",
     title: "Meta (Facebook/Instagram) app review: the founder checklist",
     description:
-      "Everything a founder must prepare and submit — in order — to get a Meta app approved for Facebook and Instagram publishing.",
-    readingMinutes: 8,
+      "Everything a founder must prepare and submit — in order — to get a Meta app approved for Facebook and Instagram publishing. Includes the exact permissions, the Page token flow, and both publish protocols.",
+    readingMinutes: 10,
     sections: [
       {
         heading: "What you're actually applying for",
         body: [
           "Meta's app review grants your app individual permissions (now called use cases), one by one. Business verification — proving your company is real — is a separate prerequisite for most publishing permissions. And Instagram content publishing additionally requires a Facebook Page connected to an Instagram Business or Creator account; a personal Instagram account can't publish through the API.",
           "Apply for permissions only when the feature that uses them is built and testable. Reviewers test the real flow.",
+        ],
+      },
+      {
+        heading: "The exact permissions you need",
+        body: [
+          "Facebook Page publishing needs three permissions: pages_show_list (list the Pages the user manages), pages_read_engagement (read posted content), and pages_manage_posts (create, edit, delete posts). The person granting the token must hold the CREATE_CONTENT task on the Page — without it, uploads fail with a permissions error.",
+          "Instagram publishing needs instagram_basic (read the account) and instagram_content_publish (publish through the container flow below). Request only what the app visibly uses — each permission needs its own written justification naming the exact feature and why it needs it.",
+        ],
+      },
+      {
+        heading: "Get the right token: Page tokens, not user tokens",
+        body: [
+          "This is the step that fails silently. Page operations need a Page access token, not the user token from Facebook Login. After OAuth, call GET /me/accounts with pages_show_list and take the Page's own access_token from the response — a user token against a Page edge returns permission errors that look like the object doesn't exist.",
+          "Exchange the short-lived user token for a long-lived one first (GET /oauth/access_token with grant_type=fb_exchange_token), then derive the Page token from it. Page tokens obtained this way are long-lived. Resolve the linked Instagram account via GET /{page-id}?fields=instagram_business_account — that IG user id (not the username) is what every Instagram endpoint needs.",
+        ],
+      },
+      {
+        heading: "Facebook video: two upload methods",
+        body: [
+          "Simple method: POST /{page-id}/videos with file_url (a publicly reachable HTTPS URL of the MP4), title, and description. Meta's servers fetch the file. This covers most test flows and finished renders hosted on a public URL.",
+          "Large-file method: the Resumable Upload API. POST /{app-id}/uploads with file_name, file_length, and file_type to start a session, transfer the bytes in chunks to the returned session, then publish with POST to https://graph-video.facebook.com/{page-id}/videos passing the file handle as fbuploader_video_file_chunk. Sessions survive interruptions — resume, don't restart.",
+          "Scheduling: pass published=false with scheduled_publish_time (a Unix timestamp). Facebook requires the time to be at least 10 minutes in the future and at most 75 days out.",
+        ],
+      },
+      {
+        heading: "Instagram: the two-step container flow",
+        body: [
+          "Instagram publishing is always two steps. Step 1: POST /{ig-user-id}/media with media_type=REELS, video_url (fully public HTTPS — Meta's servers fetch it, no auth, no bot protection), caption, and share_to_feed=true. This returns a container id, not a post.",
+          "Step 2: poll GET /{container-id}?fields=status_code until it reads FINISHED (video containers need 30–90 seconds; statuses are IN_PROGRESS, FINISHED, ERROR, EXPIRED, PUBLISHED). Only then call POST /{ig-user-id}/media_publish with creation_id set to the container id. Publishing before FINISHED fails; containers expire after 24 hours.",
+          "Know the limits before you promise them: check GET /{ig-user-id}/content_publishing_limit at runtime for the account's quota (the documented number has changed over time — never hardcode it). Reels are vertical video; keep the caption within Instagram's limits and verify the video meets the duration and format requirements in the current docs.",
         ],
       },
       {
@@ -179,9 +233,10 @@ export const GUIDES: Guide[] = [
         ],
       },
       {
-        heading: "3. Request the minimum permissions",
+        heading: "3. Request the permissions (see above), nothing more",
         body: [
-          "Typical publishing stacks need pages_manage_posts and pages_read_engagement for Facebook Pages, plus instagram_basic and instagram_content_publish for Instagram. Request only what the app visibly uses — each permission needs its own written justification explaining exactly which feature uses it and why.",
+          "Request exactly the permission set from 'The exact permissions you need' — pages_show_list, pages_read_engagement, pages_manage_posts for Facebook; instagram_basic and instagram_content_publish for Instagram. Each permission needs its own written justification naming the exact feature that uses it and why.",
+          "Remove any permission the app doesn't visibly use before submitting. Unused scopes are the most common avoidable delay in review.",
         ],
       },
       {
