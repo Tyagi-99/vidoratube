@@ -6,11 +6,17 @@ describe("getDeviceHash", () => {
 
   beforeEach(() => {
     const store = new Map<string, string>();
-    vi.stubGlobal("localStorage", {
+    const stub = {
       getItem: (k: string) => store.get(k) ?? null,
       setItem: (k: string, v: string) => void store.set(k, v),
       removeItem: (k: string) => void store.delete(k),
-    } satisfies Storage as unknown as Storage);
+      clear: () => void store.clear(),
+      key: (i: number) => [...store.keys()][i] ?? null,
+      get length() {
+        return store.size;
+      },
+    } satisfies Storage;
+    vi.stubGlobal("localStorage", stub);
   });
 
   afterEach(() => {
