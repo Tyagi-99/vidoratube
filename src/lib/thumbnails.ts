@@ -3,7 +3,7 @@
  * Pure functions — no I/O, fully unit-tested.
  */
 
-export const THUMBNAIL_VARIANTS = 3 as const;
+export const THUMBNAIL_VARIANTS = 4 as const;
 export type ThumbnailAspect = "16:9" | "9:16";
 
 export interface TextOverlay {
@@ -49,6 +49,7 @@ export function buildThumbnailPrompt(args: {
     "dramatic close-up composition with strong focal point",
     "wide establishing composition with bold negative space for text",
     "dynamic action composition with leading lines toward the subject",
+    "extreme close-up reaction-style composition with bold contrasting background",
   ];
   const angle = anglePhrases[(args.variant - 1) % anglePhrases.length];
   const dims = args.aspect === "16:9" ? "1280x720 landscape" : "720x1280 portrait";

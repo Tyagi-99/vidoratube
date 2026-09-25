@@ -2,18 +2,33 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Loader2, Sparkles, Check } from "lucide-react";
+import { Loader2, Sparkles, Check, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/lib/i18n";
+import { formatSEOPack } from "@/lib/seo";
 import {
   generateSEOMetadata,
   getSEOMetadata,
   updateSEOMetadata,
 } from "@/lib/publish.functions";
+
+/** Copies text to the clipboard, with a legacy fallback. */
+async function copyText(text: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const el = document.createElement("textarea");
+  el.value = text;
+  document.body.appendChild(el);
+  el.select();
+  document.execCommand("copy");
+  document.body.removeChild(el);
+}
 
 export function SeoStudio({
   projectId,
@@ -93,15 +108,46 @@ export function SeoStudio({
   });
 
   const titles = (saved?.titles ?? []) as { title: string; score: number }[];
+  const chapters = (saved?.chapters ?? []) as { time: string; label: string }[];
+
+  const copy = (text: string, label: string) => {
+    copyText(text).then(
+      () => toast.success(`${label} copied`),
+      () => toast.error("Copy failed"),
+    );
+  };
+
+  const fullPack = saved
+    ? formatSEOPack({
+        titles,
+        selectedTitle: saved.selected_title ?? null,
+        description,
+        tags: tags.split(",").map((x) => x.trim()).filter(Boolean),
+        hashtags: (saved.hashtags ?? []) as string[],
+        chapters,
+      })
+    : "";
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">{t("seo_studio")}</h3>
-        <Button size="sm" onClick={() => generate.mutate()} disabled={generate.isPending}>
-          {generate.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-          {generate.isPending ? t("generating_seo") : t("generate_seo")}
-        </Button>
+        <div className="flex gap-2">
+          {fullPack && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => copy(fullPack, "SEO pack")}
+            >
+              <Copy className="h-4 w-4" />
+              Copy full pack
+            </Button>
+          )}
+          <Button size="sm" onClick={() => generate.mutate()} disabled={generate.isPending}>
+            {generate.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            {generate.isPending ? t("generating_seo") : t("generate_seo")}
+          </Button>
+        </div>
       </div>
 
       {titles.length > 0 && (
@@ -131,7 +177,18 @@ export function SeoStudio({
       )}
 
       <div className="space-y-1.5">
-        <Label>{t("description_label")}</Label>
+        <div className="flex items-center justify-between">
+          <Label>{t("description_label")}</Label>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => copy(description, "Description")}
+            disabled={!description.trim()}
+          >
+            <Copy className="h-3.5 w-3.5" />
+            Copy
+          </Button>
+        </div>
         <Textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
@@ -141,13 +198,53 @@ export function SeoStudio({
       </div>
 
       <div className="space-y-1.5">
-        <Label>{t("tags_label")}</Label>
+        <div className="flex items-center justify-between">
+          <Label>{t("tags_label")}</Label>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => copy(tags, "Tags")}
+            disabled={!tags.trim()}
+          >
+            <Copy className="h-3.5 w-3.5" />
+            Copy
+          </Button>
+        </div>
         <Input
           value={tags}
           onChange={(e) => setTags(e.target.value)}
           placeholder="tag1, tag2, tag3"
         />
       </div>
+
+      {chapters.length > 0 && (
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <Label>YouTube chapters</Label>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() =>
+                copy(
+                  chapters.map((c) => `${c.time} ${c.label}`).join("\n"),
+                  "Chapters",
+                )
+              }
+            >
+              <Copy className="h-3.5 w-3.5" />
+              Copy
+            </Button>
+          </div>
+          <div className="rounded-lg border px-3 py-2 font-mono text-xs">
+            {chapters.map((c, i) => (
+              <div key={i} className="flex gap-3 py-0.5">
+                <span className="shrink-0 text-primary">{c.time}</span>
+                <span className="text-muted-foreground">{c.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <Button size="sm" variant="outline" onClick={() => save.mutate()} disabled={save.isPending}>
         {save.isPending && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}

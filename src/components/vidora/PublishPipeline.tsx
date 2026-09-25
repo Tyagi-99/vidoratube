@@ -18,11 +18,11 @@ import {
 import { useI18n } from "@/lib/i18n";
 import { ThumbnailStudio } from "./ThumbnailStudio";
 import { SeoStudio } from "./SeoStudio";
+import { ScheduleCalendar } from "./ScheduleCalendar";
 import {
   createPublishJob,
   approvePublishJob,
   executePublishJob,
-  cancelPublishJob,
   listPublishJobs,
   getSEOMetadata,
 } from "@/lib/publish.functions";
@@ -59,7 +59,6 @@ export function PublishPipeline({
   const createFn = useServerFn(createPublishJob);
   const approveFn = useServerFn(approvePublishJob);
   const executeFn = useServerFn(executePublishJob);
-  const cancelFn = useServerFn(cancelPublishJob);
   const listFn = useServerFn(listPublishJobs);
   const seoFn = useServerFn(getSEOMetadata);
   const jobsFn = useServerFn(listMyJobs);
@@ -69,8 +68,8 @@ export function PublishPipeline({
   const [madeForKids, setMadeForKids] = useState<boolean | null>(null);
   const [scheduledFor, setScheduledFor] = useState("");
   const [videoJobId, setVideoJobId] = useState<string | null>(null);
-  // P6 safety gate: explicit user acknowledgment when score < 50.
-  const [safetyOverride, setSafetyOverride] = useState(false);
+  // Sprint 7-8 C: score < 50 HARD-BLOCKS public publishing (server-enforced,
+  // no override). Private/unlisted may proceed with a recorded warning.
   const safetyFn = useServerFn(getSafetyScore);
 
   const safety = useQuery({
@@ -81,7 +80,9 @@ export function PublishPipeline({
     | { score: number; band: keyof typeof BAND_LABEL }
     | null
     | undefined;
-  const safetyBlocked = latestSafety != null && latestSafety.score < 50 && !safetyOverride;
+  const lowScore = latestSafety != null && latestSafety.score < 50;
+  const safetyBlocked = lowScore && privacy === "public";
+  const safetyWarnOnly = lowScore && privacy !== "public";
 
   const connection = useQuery({
     queryKey: ["youtube"],
@@ -131,7 +132,6 @@ export function PublishPipeline({
           privacy,
           madeForKids: madeForKids ?? false,
           scheduled_for: scheduledFor ? new Date(scheduledFor).toISOString() : undefined,
-          safety_override: safetyOverride,
         },
       }),
     onSuccess: (res) => {
@@ -159,15 +159,6 @@ export function PublishPipeline({
       toast.error(e.message);
       queryClient.invalidateQueries({ queryKey: ["publish-jobs", projectId] });
     },
-  });
-
-  const cancel = useMutation({
-    mutationFn: (publishJobId: string) => cancelFn({ data: { publish_job_id: publishJobId } }),
-    onSuccess: () => {
-      toast.success("Publish canceled");
-      queryClient.invalidateQueries({ queryKey: ["publish-jobs", projectId] });
-    },
-    onError: (e: Error) => toast.error(e.message),
   });
 
   const conn = connection.data?.connection;
@@ -337,11 +328,13 @@ export function PublishPipeline({
                   Please answer the “made for kids” question in the Schedule step.
                 </p>
               )}
-              {/* P6 safety gate: score shown at review; <50 blocks without override */}
+              {/* Sprint 7-8 C safety gate: <50 blocks PUBLIC publishing outright
+                  (server-enforced, no override); private/unlisted proceed with
+                  a recorded warning. */}
               {latestSafety != null && (
                 <div
                   className={`rounded-lg border p-3 text-sm ${
-                    latestSafety.score < 50
+                    lowScore
                       ? "border-red-300 bg-red-50/60 dark:border-red-900 dark:bg-red-950/20"
                       : "border-green-300 bg-green-50/60 dark:border-green-900 dark:bg-green-950/20"
                   }`}
@@ -353,21 +346,15 @@ export function PublishPipeline({
                     <Badge variant="outline">{BAND_LABEL[latestSafety.band]}</Badge>
                   </div>
                   <p className="mt-1 text-xs italic text-muted-foreground">{SAFETY_DISCLAIMER}</p>
-                  {latestSafety.score < 50 && (
-                    <div className="mt-2 space-y-2">
-                      <p className="text-xs font-medium text-red-700 dark:text-red-300">
-                        {t("safety_gate_blocked")}
-                      </p>
-                      <label className="flex cursor-pointer items-start gap-2 text-xs">
-                        <input
-                          type="checkbox"
-                          checked={safetyOverride}
-                          onChange={(e) => setSafetyOverride(e.target.checked)}
-                          className="mt-0.5"
-                        />
-                        <span>{t("safety_override_label")}</span>
-                      </label>
-                    </div>
+                  {safetyBlocked && (
+                    <p className="mt-2 text-xs font-medium text-red-700 dark:text-red-300">
+                      {t("safety_gate_blocked")}
+                    </p>
+                  )}
+                  {safetyWarnOnly && (
+                    <p className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-300">
+                      {t("safety_low_score_notice").replace("{score}", String(latestSafety.score))}
+                    </p>
                   )}
                 </div>
               )}
@@ -418,41 +405,8 @@ export function PublishPipeline({
         </>
       )}
 
-      {/* Publish history */}
-      {(history.data?.jobs ?? []).length > 0 && (
-        <div className="space-y-2">
-          <h3 className="text-sm font-semibold">{t("publish_history")}</h3>
-          {(history.data?.jobs ?? []).map((job) => (
-            <div key={job.id} className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm">
-              <div className="min-w-0">
-                <p className="truncate font-medium">{job.title ?? "Untitled"}</p>
-                <p className="text-xs text-muted-foreground">
-                  {new Date(job.created_at).toLocaleDateString()}
-                  {job.youtube_url && (
-                    <>
-                      {" · "}
-                      <a href={job.youtube_url} target="_blank" rel="noreferrer" className="text-primary underline">
-                        YouTube
-                      </a>
-                    </>
-                  )}
-                  {job.error && <span className="text-destructive"> · {job.error}</span>}
-                </p>
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <Badge variant={job.status === "published" ? "default" : job.status === "failed" ? "destructive" : "secondary"}>
-                  {job.status}
-                </Badge>
-                {["draft", "approved", "scheduled"].includes(job.status) && (
-                  <Button size="sm" variant="ghost" onClick={() => cancel.mutate(job.id)}>
-                    Cancel
-                  </Button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Scheduling calendar: scheduled publishes + history */}
+      <ScheduleCalendar projectId={projectId} />
     </div>
   );
 }

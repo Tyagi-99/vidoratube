@@ -85,6 +85,45 @@ export type Database = {
           },
         ]
       }
+      approvals: {
+        Row: {
+          approved_at: string
+          approver_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          project_id: string
+          publish_job_id: string | null
+          scope: string
+          user_id: string
+          video_id: string | null
+        }
+        Insert: {
+          approved_at?: string
+          approver_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          project_id: string
+          publish_job_id?: string | null
+          scope: string
+          user_id: string
+          video_id?: string | null
+        }
+        Update: {
+          approved_at?: string
+          approver_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          project_id?: string
+          publish_job_id?: string | null
+          scope?: string
+          user_id?: string
+          video_id?: string | null
+        }
+        Relationships: []
+      }
       asset_provenance: {
         Row: {
           asset_url: string | null
@@ -900,6 +939,48 @@ export type Database = {
           }
         ]
       }
+      meta_connections: {
+        Row: {
+          access_token: string
+          created_at: string
+          id: string
+          ig_user_id: string | null
+          ig_username: string | null
+          page_id: string
+          page_name: string | null
+          scope: string | null
+          token_expires_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          created_at?: string
+          id?: string
+          ig_user_id?: string | null
+          ig_username?: string | null
+          page_id: string
+          page_name?: string | null
+          scope?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          created_at?: string
+          id?: string
+          ig_user_id?: string | null
+          ig_username?: string | null
+          page_id?: string
+          page_name?: string | null
+          scope?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       music_tracks: {
         Row: {
           artist: string | null
@@ -1040,6 +1121,36 @@ export type Database = {
           body?: string | null
           link?: string | null
           read_at?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      nps_responses: {
+        Row: {
+          id: string
+          user_id: string
+          score: number
+          category: string
+          comment: string | null
+          context: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          score: number
+          category?: string
+          comment?: string | null
+          context?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          score?: number
+          category?: string
+          comment?: string | null
+          context?: string | null
           created_at?: string
         }
         Relationships: []
@@ -1203,6 +1314,39 @@ export type Database = {
         }
         Relationships: []
       }
+      platform_video_stats: {
+        Row: {
+          id: string
+          user_id: string
+          publish_job_id: string
+          youtube_video_id: string | null
+          platform: string
+          metrics: Json
+          captured_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          publish_job_id: string
+          youtube_video_id?: string | null
+          platform?: string
+          metrics?: Json
+          captured_at?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          publish_job_id?: string
+          youtube_video_id?: string | null
+          platform?: string
+          metrics?: Json
+          captured_at?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -1353,11 +1497,15 @@ export type Database = {
         Row: {
           approved_at: string | null
           approved_by: string | null
+          client_channel_id: string | null
           created_at: string
           description: string | null
           error: string | null
           id: string
           made_for_kids: boolean | null
+          meta_fb_post_id: string | null
+          meta_ig_media_id: string | null
+          meta_ig_permalink: string | null
           privacy: string | null
           project_id: string
           published_at: string | null
@@ -1371,17 +1519,22 @@ export type Database = {
           updated_at: string
           user_id: string
           video_job_id: string | null
+          workspace_id: string | null
           youtube_url: string | null
           youtube_video_id: string | null
         }
         Insert: {
           approved_at?: string | null
           approved_by?: string | null
+          client_channel_id?: string | null
           created_at?: string
           description?: string | null
           error?: string | null
           id?: string
           made_for_kids?: boolean | null
+          meta_fb_post_id?: string | null
+          meta_ig_media_id?: string | null
+          meta_ig_permalink?: string | null
           privacy?: string | null
           project_id: string
           published_at?: string | null
@@ -1395,17 +1548,22 @@ export type Database = {
           updated_at?: string
           user_id: string
           video_job_id?: string | null
+          workspace_id?: string | null
           youtube_url?: string | null
           youtube_video_id?: string | null
         }
         Update: {
           approved_at?: string | null
           approved_by?: string | null
+          client_channel_id?: string | null
           created_at?: string
           description?: string | null
           error?: string | null
           id?: string
           made_for_kids?: boolean | null
+          meta_fb_post_id?: string | null
+          meta_ig_media_id?: string | null
+          meta_ig_permalink?: string | null
           privacy?: string | null
           project_id?: string
           published_at?: string | null
@@ -1419,8 +1577,186 @@ export type Database = {
           updated_at?: string
           user_id?: string
           video_job_id?: string | null
+          workspace_id?: string | null
           youtube_url?: string | null
           youtube_video_id?: string | null
+        }
+        Relationships: []
+      }
+      publish_warnings: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          message: string
+          project_id: string
+          publish_job_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind: string
+          message: string
+          project_id: string
+          publish_job_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          message?: string
+          project_id?: string
+          publish_job_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      workspaces: {
+        Row: {
+          id: string
+          name: string
+          owner_id: string
+          plan_tier: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          owner_id: string
+          plan_tier?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          owner_id?: string
+          plan_tier?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      workspace_members: {
+        Row: {
+          id: string
+          workspace_id: string
+          user_id: string
+          role: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          workspace_id: string
+          user_id: string
+          role?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          workspace_id?: string
+          user_id?: string
+          role?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      client_channels: {
+        Row: {
+          id: string
+          workspace_id: string
+          platform: string
+          handle: string
+          is_test_channel: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          workspace_id: string
+          platform: string
+          handle: string
+          is_test_channel?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          workspace_id?: string
+          platform?: string
+          handle?: string
+          is_test_channel?: boolean
+          created_at?: string
+        }
+        Relationships: []
+      }
+      brand_kits: {
+        Row: {
+          id: string
+          workspace_id: string
+          logo_path: string | null
+          primary_color: string
+          secondary_color: string
+          font_family: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          workspace_id: string
+          logo_path?: string | null
+          primary_color?: string
+          secondary_color?: string
+          font_family?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          workspace_id?: string
+          logo_path?: string | null
+          primary_color?: string
+          secondary_color?: string
+          font_family?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      workspace_approvals: {
+        Row: {
+          id: string
+          workspace_id: string
+          publish_job_id: string
+          requested_by: string
+          status: string
+          decided_by: string | null
+          decided_at: string | null
+          note: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          workspace_id: string
+          publish_job_id: string
+          requested_by: string
+          status?: string
+          decided_by?: string | null
+          decided_at?: string | null
+          note?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          workspace_id?: string
+          publish_job_id?: string
+          requested_by?: string
+          status?: string
+          decided_by?: string | null
+          decided_at?: string | null
+          note?: string | null
+          created_at?: string
         }
         Relationships: []
       }
@@ -1606,6 +1942,7 @@ export type Database = {
           job_id: string | null
           max_attempts: number
           meta: Json
+          parent_id: string | null
           progress: number
           project_id: string | null
           render_completed_at: string | null
@@ -1638,6 +1975,7 @@ export type Database = {
           job_id?: string | null
           max_attempts?: number
           meta?: Json
+          parent_id?: string | null
           progress?: number
           project_id?: string | null
           render_completed_at?: string | null
@@ -1670,6 +2008,7 @@ export type Database = {
           job_id?: string | null
           max_attempts?: number
           meta?: Json
+          parent_id?: string | null
           progress?: number
           project_id?: string | null
           render_completed_at?: string | null
@@ -1743,6 +2082,51 @@ export type Database = {
         }
         Relationships: []
       }
+      retention_curves: {
+        Row: {
+          id: string
+          user_id: string
+          publish_job_id: string
+          youtube_video_id: string | null
+          platform: string
+          segments: Json
+          points: Json
+          overall_avg: number | null
+          strongest_segment: string | null
+          weakest_segment: string | null
+          captured_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          publish_job_id: string
+          youtube_video_id?: string | null
+          platform?: string
+          segments?: Json
+          points?: Json
+          overall_avg?: number | null
+          strongest_segment?: string | null
+          weakest_segment?: string | null
+          captured_at?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          publish_job_id?: string
+          youtube_video_id?: string | null
+          platform?: string
+          segments?: Json
+          points?: Json
+          overall_avg?: number | null
+          strongest_segment?: string | null
+          weakest_segment?: string | null
+          captured_at?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
       rights_decisions: {
         Row: {
           content_item_id: string
@@ -1807,6 +2191,7 @@ export type Database = {
           issues: Json | null
           model: string | null
           project_id: string
+          rule_version: number | null
           score: number
           suggestions: Json | null
           user_id: string
@@ -1821,6 +2206,7 @@ export type Database = {
           issues?: Json | null
           model?: string | null
           project_id: string
+          rule_version?: number | null
           score?: number
           suggestions?: Json | null
           user_id: string
@@ -1835,10 +2221,44 @@ export type Database = {
           issues?: Json | null
           model?: string | null
           project_id?: string
+          rule_version?: number | null
           score?: number
           suggestions?: Json | null
           user_id?: string
           version?: string | null
+        }
+        Relationships: []
+      }
+      safety_rules: {
+        Row: {
+          active: boolean
+          created_at: string
+          description: string
+          id: string
+          last_reviewed_at: string
+          params: Json
+          rule_key: string
+          version: number
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description: string
+          id?: string
+          last_reviewed_at?: string
+          params?: Json
+          rule_key: string
+          version: number
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description?: string
+          id?: string
+          last_reviewed_at?: string
+          params?: Json
+          rule_key?: string
+          version?: number
         }
         Relationships: []
       }
@@ -2046,10 +2466,12 @@ export type Database = {
           final_url: string | null
           id: string
           image_url: string | null
+          is_ai_generated: boolean
           license: string
           model: string | null
           project_id: string
           prompt: string | null
+          prompt_hash: string | null
           provider: string | null
           selected: boolean | null
           text_overlay: Json | null
@@ -2063,10 +2485,12 @@ export type Database = {
           final_url?: string | null
           id?: string
           image_url?: string | null
+          is_ai_generated?: boolean
           license?: string
           model?: string | null
           project_id: string
           prompt?: string | null
+          prompt_hash?: string | null
           provider?: string | null
           selected?: boolean | null
           text_overlay?: Json | null
@@ -2080,10 +2504,12 @@ export type Database = {
           final_url?: string | null
           id?: string
           image_url?: string | null
+          is_ai_generated?: boolean
           license?: string
           model?: string | null
           project_id?: string
           prompt?: string | null
+          prompt_hash?: string | null
           provider?: string | null
           selected?: boolean | null
           text_overlay?: Json | null

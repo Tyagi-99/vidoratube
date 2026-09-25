@@ -101,6 +101,44 @@ export function buildDescription(input: DescriptionInput): string {
   return parts.join("\n").slice(0, 4900);
 }
 
+export interface SEOPack {
+  titles: { title: string; score: number }[];
+  selectedTitle: string | null;
+  description: string | null;
+  tags: string[];
+  hashtags: string[];
+  chapters: { time: string; label: string }[];
+}
+
+/**
+ * Formats an SEO pack as copy-pasteable plain text for the clipboard —
+ * title, description, chapters, tags. Pure and deterministic.
+ */
+export function formatSEOPack(pack: SEOPack): string {
+  const lines: string[] = [];
+  const title = pack.selectedTitle ?? pack.titles[0]?.title ?? "";
+  if (title) {
+    lines.push("TITLE", title, "");
+  }
+  if (pack.description?.trim()) {
+    lines.push("DESCRIPTION", pack.description.trim(), "");
+  }
+  if (pack.chapters.length > 0) {
+    lines.push(
+      "CHAPTERS",
+      ...pack.chapters.map((c) => `${c.time} ${c.label}`),
+      "",
+    );
+  }
+  if (pack.tags.length > 0) {
+    lines.push("TAGS", pack.tags.join(", "), "");
+  }
+  if (pack.hashtags.length > 0) {
+    lines.push("HASHTAGS", pack.hashtags.join(" "));
+  }
+  return lines.join("\n").trim();
+}
+
 /**
  * Suggests tags: niche keywords + outlier-derived terms, deduped, lowercase,
  * YouTube's 500-char total limit respected.

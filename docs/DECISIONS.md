@@ -616,3 +616,54 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
 - **Decision:** `languages`, `language_voices`, `language_quality_gates`, and `music_tracks` keep `FOR SELECT USING (true)` policies. Lovable's pre-publish scan flags them ("Some access rules let everyone through") — this warning is accepted, not fixed, because every one of these tables is reference/catalog data with zero user PII: language metadata and quality-gate status (drives UI dropdowns and honest Beta labels), the voice catalog (names/verified flags only), and the royalty-free music catalog (D25).
 - **Reason:** Scoping reads to "the caller's rows" is meaningless for shared catalogs; the scanner's own guidance allows keeping a permissive policy "only if the data is meant to be shared across all users" — it is. Writes on all four remain service-role-only (no INSERT/UPDATE/DELETE policies for anon/authenticated), so the warning concerns reads of public data only.
 - **Reverse:** If any of these tables ever stores user data, add owner-scoped policies and re-run the scan.
+
+### D46. Four AI thumbnail variants per video (was three)
+- **Decision:** `THUMBNAIL_VARIANTS` is now 4; `generateThumbnails` loops
+  `1..THUMBNAIL_VARIANTS` and the `thumbnails.variant` CHECK is widened to
+  `BETWEEN 1 AND 4` (non-destructive migration
+  `20260926002000_thumbnail_variants_provenance.sql`). A fourth composition
+  angle was added to `buildThumbnailPrompt` so variant 4 is distinct instead
+  of repeating variant 1's angle via modulo.
+- **Reason:** Brief asked for 4 variants; 4 genuinely different angles gives
+  the picker real choice.
+- **Reverse:** Set the constant back to 3; the CHECK still permits 1..4 so no
+  migration is needed to go back.
+
+### D47. Reuse `seo_metadata` as the SEO pack table; no `seo_packs` table
+- **Decision:** The SEO pack (title variants + scores, selected title,
+  description, tags, hashtags, YouTube chapter timestamps) is stored in the
+  existing `seo_metadata` table (one row per project) rather than a new
+  `seo_packs` table. The workstream-B deliverable is the pack UI
+  (view/regenerate/copy in `SeoStudio`) plus `formatSEOPack`.
+- **Reason:** `seo_metadata` already stores exactly the pack shape with
+  owner-scoped RLS; a second table would duplicate data and policy surface
+  for zero benefit.
+- **Reverse:** If packs ever need versioning or per-video (not per-project)
+  granularity, introduce `seo_packs` then and migrate rows over.
+
+### D48. Scheduling never auto-publishes; "Publish now" is the human action
+- **Decision:** There is no background worker, cron, or queue consumer that
+  executes due scheduled jobs. A scheduled job leaves `scheduled` only via
+  the human-invoked `executePublishJob` (or `cancelPublishJob`), and it could
+  only reach `scheduled` through the human approval gate (`approvePublishJob`).
+  The scheduling calendar's "Publish now" button is that explicit human
+  action; it is disabled until the job's time arrives. The old
+  "will publish automatically at its scheduled time" error text was corrected
+  because it described behavior that does not exist.
+- **Reason:** Brief requirement; matches the P5 "NO unattended
+  auto-publishing" invariant. Integrates with the existing approval check —
+  no second approvals table built by this workstream.
+- **Reverse:** If unattended publishing is ever wanted, it needs its own
+  decision, an explicit user opt-in per job, and an audit trail — not a
+  silent change to this rule.
+
+### D49. Explicit provenance columns on `thumbnails`
+- **Decision:** Added `prompt_hash TEXT` (SHA-256 of the exact prompt sent to
+  the image model) and `is_ai_generated BOOLEAN NOT NULL DEFAULT true` to
+  `public.thumbnails`, written by `generateThumbnails` on every upsert.
+- **Reason:** `license='ai-generated'` existed but was implicit and the exact
+  prompt was stored without a stable fingerprint; per-variant provenance
+  (AI-generated, model name, prompt hash, created_at) is now queryable and
+  shown in the picker UI.
+- **Reverse:** Drop the columns; `provider`/`model`/`license` still record
+  the basics.

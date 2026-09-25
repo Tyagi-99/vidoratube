@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -13,6 +14,11 @@ function apiKey(): string {
   const key = process.env["LOVABLE_API_KEY"];
   if (!key) throw new Error("AI is not configured on this project.");
   return key;
+}
+
+/** Stable provenance fingerprint of the exact prompt sent to the image model. */
+export function hashThumbnailPrompt(prompt: string): string {
+  return createHash("sha256").update(prompt, "utf8").digest("hex");
 }
 
 /** Generates one thumbnail image, returns raw JPEG/PNG bytes. */

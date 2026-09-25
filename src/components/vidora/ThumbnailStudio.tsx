@@ -182,6 +182,15 @@ export function ThumbnailStudio({
 
   const visible = (thumbs.data?.thumbnails ?? []).filter((x) => x.aspect === aspect);
   const selected = visible.find((x) => x.selected);
+  const provenance = selected
+    ? [
+        selected.is_ai_generated ? "AI-generated" : "Uploaded",
+        selected.model,
+        selected.created_at ? new Date(selected.created_at).toLocaleDateString() : null,
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : null;
 
   return (
     <div className="space-y-4">
@@ -208,10 +217,10 @@ export function ThumbnailStudio({
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : visible.length === 0 ? (
         <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-          Generate 3 AI thumbnail variants to get started.
+          Generate 4 AI thumbnail variants to get started.
         </p>
       ) : (
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {visible.map((thumb) => (
             <button
               key={thumb.id}
@@ -243,6 +252,12 @@ export function ThumbnailStudio({
             </button>
           ))}
         </div>
+      )}
+
+      {provenance && (
+        <p className="text-xs text-muted-foreground">
+          Selected variant {selected?.variant}: {provenance}
+        </p>
       )}
 
       {selected && (
