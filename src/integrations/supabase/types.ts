@@ -1473,6 +1473,159 @@ export type Database = {
         }
         Relationships: []
       }
+      research_projects: {
+        Row: {
+          id: string
+          user_id: string
+          topic: string
+          language: string
+          niches: Json
+          status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          topic: string
+          language?: string
+          niches?: unknown
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          topic?: string
+          language?: string
+          niches?: unknown
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      outlier_videos: {
+        Row: {
+          id: string
+          user_id: string
+          project_id: string
+          youtube_id: string
+          title: string
+          channel_id: string
+          channel_title: string
+          channel_subs: number
+          view_count: number
+          published_at: string | null
+          outlier_score: number
+          patterns: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          project_id: string
+          youtube_id: string
+          title?: string
+          channel_id?: string
+          channel_title?: string
+          channel_subs?: number
+          view_count?: number
+          published_at?: string | null
+          outlier_score?: number
+          patterns?: unknown
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          project_id?: string
+          youtube_id?: string
+          title?: string
+          channel_id?: string
+          channel_title?: string
+          channel_subs?: number
+          view_count?: number
+          published_at?: string | null
+          outlier_score?: number
+          patterns?: unknown
+          created_at?: string
+        }
+        Relationships: []
+      }
+      video_ideas: {
+        Row: {
+          id: string
+          user_id: string
+          project_id: string
+          title: string
+          hook: string
+          angle: string
+          format: string
+          difficulty: string
+          safety_flag: string
+          status: string
+          project_ref: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          project_id: string
+          title: string
+          hook?: string
+          angle?: string
+          format?: string
+          difficulty?: string
+          safety_flag?: string
+          status?: string
+          project_ref?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          project_id?: string
+          title?: string
+          hook?: string
+          angle?: string
+          format?: string
+          difficulty?: string
+          safety_flag?: string
+          status?: string
+          project_ref?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      youtube_api_cache: {
+        Row: {
+          cache_key: string
+          user_id: string
+          payload: Json
+          expires_at: string
+          created_at: string
+        }
+        Insert: {
+          cache_key: string
+          user_id: string
+          payload: Json
+          expires_at: string
+          created_at?: string
+        }
+        Update: {
+          cache_key?: string
+          user_id?: string
+          payload?: unknown
+          expires_at?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
