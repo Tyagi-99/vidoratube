@@ -14,7 +14,9 @@
     "test:watch": "vitest",
     "predev": "node scripts/vendor-ffmpeg-core.mjs --dev",
     "prebuild": "node scripts/vendor-ffmpeg-core.mjs --build",
-    "prebuild:dev": "node scripts/vendor-ffmpeg-core.mjs --build"
+    "prebuild:dev": "node scripts/vendor-ffmpeg-core.mjs --build",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@ffmpeg/core": "0.12.10",
