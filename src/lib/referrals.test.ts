@@ -3,8 +3,10 @@ import {
   decideReferralClaim,
   generateReferralCode,
   isValidReferralCode,
+  REFERRAL_GRANT_NAMESPACE,
   REFERRAL_REWARD_CREDITS,
   referralPath,
+  uuidv5,
 } from "./referrals";
 
 describe("referral codes", () => {
@@ -73,5 +75,37 @@ describe("decideReferralClaim", () => {
 
   it("allows under the cluster limit", () => {
     expect(decideReferralClaim({ ...base, clusterCount: 2 })).toEqual({ ok: true });
+  });
+});
+
+describe("uuidv5 (grant ref ids)", () => {
+  // RFC 4122 test vector: uuidv5("www.example.com", DNS namespace)
+  const DNS_NS = "6ba7b810-9dad-11d1-80b4-00c04fd430c8";
+
+  it("matches the RFC 4122 test vector", () => {
+    expect(uuidv5("www.example.com", DNS_NS)).toBe(
+      "2ed6657d-e927-568b-95e1-2665a8aea6a2",
+    );
+  });
+
+  it("is deterministic for the same name", () => {
+    const a = uuidv5("referral:abc:user1", REFERRAL_GRANT_NAMESPACE);
+    const b = uuidv5("referral:abc:user1", REFERRAL_GRANT_NAMESPACE);
+    expect(a).toBe(b);
+  });
+
+  it("differs per grantee and per referral", () => {
+    const a = uuidv5("referral:abc:user1", REFERRAL_GRANT_NAMESPACE);
+    const b = uuidv5("referral:abc:user2", REFERRAL_GRANT_NAMESPACE);
+    const c = uuidv5("referral:xyz:user1", REFERRAL_GRANT_NAMESPACE);
+    expect(a).not.toBe(b);
+    expect(a).not.toBe(c);
+  });
+
+  it("produces a valid UUID v5", () => {
+    const id = uuidv5("referral:abc:user1", REFERRAL_GRANT_NAMESPACE);
+    expect(id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
   });
 });

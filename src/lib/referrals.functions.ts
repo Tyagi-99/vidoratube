@@ -11,10 +11,12 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireAppUser } from "./server-auth";
 import {
+  REFERRAL_GRANT_NAMESPACE,
   REFERRAL_REWARD_CREDITS,
   decideReferralClaim,
   generateReferralCode,
   isValidReferralCode,
+  uuidv5,
 } from "./referrals";
 import { checkAbuseCluster } from "./abuse";
 
@@ -42,6 +44,8 @@ export const getMyReferralLink = createServerFn({ method: "GET" })
     let code = existing?.code;
     if (!code) {
       // Retry a few times on (astronomically unlikely) code collision.
+      // The UNIQUE(referrer_id, invitee_id) constraint makes this race-safe:
+      // a concurrent call's insert loses and we fall back to the winner's row.
       for (let attempt = 0; attempt < 5 && !code; attempt++) {
         const candidate = generateReferralCode();
         const { error } = await admin.from("referrals").insert({
@@ -50,6 +54,17 @@ export const getMyReferralLink = createServerFn({ method: "GET" })
           status: "pending",
         });
         if (!error) code = candidate;
+      }
+      if (!code) {
+        const { data: winner } = await admin
+          .from("referrals")
+          .select("code")
+          .eq("referrer_id", context.userId)
+          .is("invitee_id", null)
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        code = winner?.code ?? undefined;
       }
       if (!code) throw new Error("Could not create a referral code right now");
     }
@@ -85,6 +100,15 @@ export const submitPendingReferral = createServerFn({ method: "POST" })
   .middleware([requireAppUser])
   .inputValidator((i: unknown) => SubmitSchema.parse(i))
   .handler(async ({ data, context }) => {
+    // Server-side verification gate: only a user whose email is confirmed
+    // can claim a referral. The client-side hook is a convenience trigger,
+    // not a trust boundary — this check is authoritative.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: authUser, error: authError } =
+      await supabaseAdmin.auth.admin.getUserById(context.userId);
+    if (authError || !authUser?.user?.email_confirmed_at) {
+      return { rewarded: false as const, reason: "email_unverified" as const };
+    }
     return claimReferralOnVerification({
       code: data.code,
       inviteeId: context.userId,
@@ -155,13 +179,14 @@ export async function claimReferralOnVerification(input: {
     .maybeSingle();
   if (!claimed) return { rewarded: false, reason: "already_claimed" };
 
-  const refId = `referral:${referral.id}`;
+  const refId = (userId: string) =>
+    uuidv5(`referral:${referral.id}:${userId}`, REFERRAL_GRANT_NAMESPACE);
   const grant = async (userId: string) =>
     supabaseAdmin.rpc("grant_credits_once", {
       p_user_id: userId,
       p_amount: REFERRAL_REWARD_CREDITS,
       p_reason: "referral_reward",
-      p_ref_id: `${refId}:${userId}`,
+      p_ref_id: refId(userId),
     });
 
   const [r1, r2] = await Promise.all([
