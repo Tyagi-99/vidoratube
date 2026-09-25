@@ -40,6 +40,7 @@ import { Route as AuthenticatedProjectsProjectIdRouteImport } from './routes/_au
 import { Route as AuthenticatedResearchIndexRouteImport } from './routes/_authenticated/research.index'
 import { Route as AuthenticatedResearchProjectIdRouteImport } from './routes/_authenticated/research.$projectId'
 import { Route as ApiPublicYoutubeCallbackRouteImport } from './routes/api/public/youtube-callback'
+import { Route as ApiWebhooksDodoRouteImport } from './routes/api/webhooks/dodo'
 import { Route as ApiWebhooksRazorpayRouteImport } from './routes/api/webhooks/razorpay'
 import { Route as ApiWebhooksStripeRouteImport } from './routes/api/webhooks/stripe'
 
@@ -207,6 +208,11 @@ const ApiPublicYoutubeCallbackRoute =
     path: '/api/public/youtube-callback',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiWebhooksDodoRoute = ApiWebhooksDodoRouteImport.update({
+  id: '/api/webhooks/dodo',
+  path: '/api/webhooks/dodo',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiWebhooksRazorpayRoute = ApiWebhooksRazorpayRouteImport.update({
   id: '/api/webhooks/razorpay',
   path: '/api/webhooks/razorpay',
@@ -244,6 +250,7 @@ export interface FileRoutesByFullPath {
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/research/$projectId': typeof AuthenticatedResearchProjectIdRoute
   '/api/public/youtube-callback': typeof ApiPublicYoutubeCallbackRoute
+  '/api/webhooks/dodo': typeof ApiWebhooksDodoRoute
   '/api/webhooks/razorpay': typeof ApiWebhooksRazorpayRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
@@ -277,6 +284,7 @@ export interface FileRoutesByTo {
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/research/$projectId': typeof AuthenticatedResearchProjectIdRoute
   '/api/public/youtube-callback': typeof ApiPublicYoutubeCallbackRoute
+  '/api/webhooks/dodo': typeof ApiWebhooksDodoRoute
   '/api/webhooks/razorpay': typeof ApiWebhooksRazorpayRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
@@ -313,6 +321,7 @@ export interface FileRoutesById {
   '/_authenticated/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/_authenticated/research/$projectId': typeof AuthenticatedResearchProjectIdRoute
   '/api/public/youtube-callback': typeof ApiPublicYoutubeCallbackRoute
+  '/api/webhooks/dodo': typeof ApiWebhooksDodoRoute
   '/api/webhooks/razorpay': typeof ApiWebhooksRazorpayRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
@@ -349,6 +358,7 @@ export interface FileRouteTypes {
     | '/projects/$projectId'
     | '/research/$projectId'
     | '/api/public/youtube-callback'
+    | '/api/webhooks/dodo'
     | '/api/webhooks/razorpay'
     | '/api/webhooks/stripe'
     | '/admin/'
@@ -382,6 +392,7 @@ export interface FileRouteTypes {
     | '/projects/$projectId'
     | '/research/$projectId'
     | '/api/public/youtube-callback'
+    | '/api/webhooks/dodo'
     | '/api/webhooks/razorpay'
     | '/api/webhooks/stripe'
     | '/admin'
@@ -417,6 +428,7 @@ export interface FileRouteTypes {
     | '/_authenticated/projects/$projectId'
     | '/_authenticated/research/$projectId'
     | '/api/public/youtube-callback'
+    | '/api/webhooks/dodo'
     | '/api/webhooks/razorpay'
     | '/api/webhooks/stripe'
     | '/_authenticated/admin/'
@@ -443,6 +455,7 @@ export interface RootRouteChildren {
   SitemapXmlRoute: typeof SitemapXmlRoute
   GuidesIndexRoute: typeof GuidesIndexRoute
   ApiPublicYoutubeCallbackRoute: typeof ApiPublicYoutubeCallbackRoute
+  ApiWebhooksDodoRoute: typeof ApiWebhooksDodoRoute
   ApiWebhooksRazorpayRoute: typeof ApiWebhooksRazorpayRoute
   ApiWebhooksStripeRoute: typeof ApiWebhooksStripeRoute
 }
@@ -666,6 +679,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicYoutubeCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/webhooks/dodo': {
+      id: '/api/webhooks/dodo'
+      path: '/api/webhooks/dodo'
+      fullPath: '/api/webhooks/dodo'
+      preLoaderRoute: typeof ApiWebhooksDodoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/webhooks/razorpay': {
       id: '/api/webhooks/razorpay'
       path: '/api/webhooks/razorpay'
@@ -748,6 +768,7 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapXmlRoute: SitemapXmlRoute,
   GuidesIndexRoute: GuidesIndexRoute,
   ApiPublicYoutubeCallbackRoute: ApiPublicYoutubeCallbackRoute,
+  ApiWebhooksDodoRoute: ApiWebhooksDodoRoute,
   ApiWebhooksRazorpayRoute: ApiWebhooksRazorpayRoute,
   ApiWebhooksStripeRoute: ApiWebhooksStripeRoute,
 }

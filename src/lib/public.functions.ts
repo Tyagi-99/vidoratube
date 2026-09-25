@@ -3,6 +3,20 @@ import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { createPublicSupabase } from "./public.server";
 import { createRateLimiter } from "./rate-limit";
+import { detectCurrencyFromHeaders, type DisplayCurrency } from "./currency";
+
+/**
+ * Best-effort currency for this visitor: INR only when a CDN country header
+ * says India, otherwise USD. The client can override with the manual toggle
+ * (stored in localStorage); this value is just the initial guess.
+ */
+export const getDisplayCurrency = createServerFn({ method: "GET" }).handler(
+  async (): Promise<DisplayCurrency> => {
+    const headers = getRequest()?.headers;
+    if (!headers) return "USD";
+    return detectCurrencyFromHeaders((name) => headers.get(name));
+  },
+);
 
 export const getSiteContent = createServerFn({ method: "GET" }).handler(async () => {
   const supabase = createPublicSupabase();
@@ -20,7 +34,9 @@ export const getPricingPlans = createServerFn({ method: "GET" }).handler(async (
   const supabase = createPublicSupabase();
   const { data, error } = await supabase
     .from("pricing_plans")
-    .select("id, slug, name, price_monthly, credits, blurb, features, highlighted, sort_order")
+    .select(
+      "id, slug, name, price_monthly, price_monthly_inr, credits, blurb, features, highlighted, sort_order",
+    )
     .eq("active", true)
     .order("sort_order", { ascending: true });
   if (error) throw new Error(error.message);

@@ -2,21 +2,21 @@
 
 const HONEST_FEATURES: Record<string, string[]> = {
   starter: [
-    "20 video credits / month",
+    "20 finished minutes / month",
     "1080p MP4 exports",
     "AI narration",
     "Burned-in captions",
     "Email support",
   ],
   studio: [
-    "70 video credits / month",
+    "70 finished minutes / month",
     "1080p MP4 exports",
     "More voices as we add them",
     "Burned-in captions",
     "Priority support",
   ],
   scale: [
-    "250 video credits / month",
+    "250 finished minutes / month",
     "1080p landscape and 9:16 exports",
     "Burned-in captions",
     "Volume help via email",

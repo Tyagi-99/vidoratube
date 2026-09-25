@@ -1050,6 +1050,7 @@ export type Database = {
           id: string
           name: string
           price_monthly: number
+          price_monthly_inr: number | null
           slug: string
           sort_order: number
           updated_at: string
@@ -1063,6 +1064,7 @@ export type Database = {
           highlighted?: boolean
           id?: string
           name: string
+          price_monthly_inr?: number | null
           price_monthly?: number
           slug: string
           sort_order?: number
@@ -1077,6 +1079,7 @@ export type Database = {
           highlighted?: boolean
           id?: string
           name?: string
+          price_monthly_inr?: number | null
           price_monthly?: number
           slug?: string
           sort_order?: number

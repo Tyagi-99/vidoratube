@@ -5,7 +5,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 
-const faqs = [
+export const faqs = [
   {
     question: "Can I monetize the video?",
     answer:
@@ -39,8 +39,21 @@ const faqs = [
 ];
 
 export function FaqSection() {
+  // FAQPage structured data: mirrors the visible questions/answers 1:1 and is
+  // server-rendered with the page (never client-only), so crawlers see it in
+  // the initial HTML.
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqs.map((faq) => ({
+      "@type": "Question",
+      name: faq.question,
+      acceptedAnswer: { "@type": "Answer", text: faq.answer },
+    })),
+  };
   return (
     <section className="w-full bg-background py-20 sm:py-24">
+      <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
       <div className="mx-auto grid max-w-6xl gap-10 px-4 sm:px-6 md:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)] lg:px-8">
         <div>
           <p className="mb-3 text-xs font-semibold text-accent">Questions</p>
