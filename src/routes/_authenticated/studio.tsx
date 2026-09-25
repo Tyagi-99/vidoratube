@@ -147,6 +147,9 @@ function StudioPage() {
     return (
       <main className="min-h-[calc(100dvh-4rem)] bg-background px-4 py-10 sm:px-6">
         {pageMode === "script" && <GenerateVideoDialog asPage open onOpenChange={closePage} />}
+        {pageMode === "story" && (
+          <GenerateVideoDialog asPage open onOpenChange={closePage} storyMode />
+        )}
         {pageMode === "voiceover" && <VoiceoverCreateDialog asPage open onOpenChange={closePage} />}
       </main>
     );

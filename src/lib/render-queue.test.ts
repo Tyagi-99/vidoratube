@@ -63,6 +63,8 @@ function makeInput(
     musicDucking: true,
     voiceoverUrl: null,
     mode: "story" as const,
+    storyMode: true,
+    parallax25d: false,
     ...overrides,
   };
 }

@@ -35,6 +35,8 @@ import { track } from "@/lib/analytics";
 import { captureError } from "@/lib/sentry";
 import { toast } from "sonner";
 
+import { STORY_BEATS } from "@/lib/story-template";
+
 const PIPELINE = [
   { label: "Writing narration", at: 22 },
   { label: "Recording voiceover", at: 45 },
@@ -71,10 +73,13 @@ export function GenerateVideoDialog({
   open,
   onOpenChange,
   asPage = false,
+  storyMode = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   asPage?: boolean;
+  /** Story Mode: the 5-beat narrative template shapes the plan and the compose. */
+  storyMode?: boolean;
 }) {
   const [script, setScript] = useState("");
   const [voice, setVoice] = useState("deneb");
@@ -134,6 +139,7 @@ export function GenerateVideoDialog({
       captions,
       narration: job.narration || job.script || "",
       durationSeconds: job.duration_seconds ?? Math.max(15, images.length * 6),
+      storyMode,
       runKey: `job:${job.id}`,
       signal: controller.signal,
       onProgress: (p) => {
@@ -279,6 +285,7 @@ export function GenerateVideoDialog({
           script,
           voice,
           format,
+          story_mode: storyMode,
           // Fresh UUID per submit click: a double-click or network retry with
           // the same key returns the already-created job instead of charging
           // a second credit.
@@ -287,7 +294,7 @@ export function GenerateVideoDialog({
         },
       })) as JobResult;
       activeJobIdRef.current = job.id;
-      track("render_started", { job_id: job.id, mode: "script" });
+      track("render_started", { job_id: job.id, mode: storyMode ? "story" : "script" });
       setProgress(job.progress ?? 20);
       setStepLabel(job.step ?? "Recording voiceover");
       return driveJob(job);
@@ -377,9 +384,15 @@ export function GenerateVideoDialog({
           ? "Your video is ready"
           : status === "failed"
             ? "Render failed"
-            : "Make a video"
+            : storyMode
+              ? "Story Mode"
+              : "Make a video"
       }
-      description="Paste a script, pick a voice, and Vidora writes narration, generates scene stills, and muxes a 1080p MP4 in this tab. 1 credit = 1 finished minute."
+      description={
+        storyMode
+          ? "Paste a script — Vidora structures it as hook → setup → rising tension → payoff → loop, and the pacing, captions and music follow the beats. 1 credit = 1 finished minute."
+          : "Paste a script, pick a voice, and Vidora writes narration, generates scene stills, and muxes a 1080p MP4 in this tab. 1 credit = 1 finished minute."
+      }
     >
       {!sessionLoading && !signedIn ? (
         <div className="space-y-4 py-6 text-center">
@@ -512,6 +525,21 @@ export function GenerateVideoDialog({
         </div>
       ) : (
         <div className="space-y-5 py-4">
+          {storyMode && (
+            <div className="rounded-xl border border-border bg-muted/30 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                The five beats
+              </p>
+              <ol className="mt-2 space-y-1.5">
+                {STORY_BEATS.map((beat, i) => (
+                  <li key={beat.id} className="text-sm text-foreground">
+                    <span className="font-semibold text-accent">{i + 1}. {beat.label}</span>
+                    <span className="text-muted-foreground"> — {beat.description}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
           <div className="space-y-2">
             <Label htmlFor="script">Your script</Label>
             <Textarea

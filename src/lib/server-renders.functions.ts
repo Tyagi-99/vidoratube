@@ -76,6 +76,10 @@ const EnqueueSchema = z.object({
   voiceoverUrl: z.string().max(500).nullable().default(null),
   /** Billing mode for measured cost-per-minute attribution. */
   mode: z.enum(["story", "cinema"]).default("story"),
+  /** Story Mode treatment (five-beat template: pacing, captions, ducking). Default on. */
+  storyMode: z.boolean().default(true),
+  /** 2.5D parallax treatment on stills. Off by default; +0.25 credits/min. */
+  parallax25d: z.boolean().default(false),
 });
 
 /** Enqueue a server-side render. Rate-limited: 10/hour per user. */
@@ -173,6 +177,7 @@ export function buildServerRenderRows(params: {
     durationSeconds,
     mode: params.input.mode,
     aspectCount: aspects.length,
+    parallax25d: params.input.parallax25d,
   });
   return aspects.map((aspect) => ({
     id: randomUUID(),
@@ -201,6 +206,11 @@ export function buildServerRenderRows(params: {
       // Sprint 1: billing-mode attribution for measured cost-per-minute.
       // The quote above uses this same mode, so expected_credits matches.
       mode: params.input.mode,
+      // Sprint 3-4: Story Mode treatment + 2.5D parallax for the worker.
+      // creationMode drives the worker's per-scene treatment (story beats
+      // or standard); parallax25d enables the premium filter chain.
+      creationMode: params.input.storyMode ? "story" : "script",
+      parallax25d: params.input.parallax25d,
       expected_credits: quote.perAspect.totalCredits,
       expected_minutes: quote.perAspect.minutes,
     },

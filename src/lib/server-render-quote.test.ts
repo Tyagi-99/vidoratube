@@ -40,6 +40,8 @@ function makeInput(overrides: Partial<RenderInput> = {}): RenderInput {
     musicDucking: true,
     voiceoverUrl: null,
     mode: "story",
+    storyMode: true,
+    parallax25d: false,
     ...overrides,
   };
 }

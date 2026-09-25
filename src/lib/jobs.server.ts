@@ -1,3 +1,5 @@
+import { STORY_SCRIPT_GUIDANCE } from "./story-template";
+
 const MODEL = "google/gemini-3.5-flash";
 
 export type GeneratedPlan = {
@@ -58,6 +60,20 @@ function fallbackPlan(script: string, format: string): GeneratedPlan {
   };
 }
 
+/**
+ * System prompt for the narration plan. Pure and unit-tested: Story Mode
+ * appends the five-beat narrative structure so the plan follows it.
+ */
+export function buildPlanSystemPrompt(format: string, voice: string, storyMode = false): string {
+  const base = `You are the pre-production crew of an AI video studio. Given a raw script you produce:
+- a short punchy video title (max 70 chars)
+- polished narration copy in a ${format} style, suited to the "${voice}" voice
+- a scene-by-scene breakdown (4-8 scenes) with timestamps, a visual description and an on-screen caption
+- an estimated duration in seconds
+Respond with JSON only.`;
+  return storyMode ? `${base}\n\n${STORY_SCRIPT_GUIDANCE}` : base;
+}
+
 /** Uses Lovable AI to turn a raw script into narration + a scene breakdown. */
 export async function generateVideoPlan(
   script: string,
@@ -65,16 +81,12 @@ export async function generateVideoPlan(
   voice: string,
   /** Cost ctx: when provided, the plan LLM call's measured cost is recorded. */
   cost?: PlanCostCtx,
+  options?: { storyMode?: boolean },
 ): Promise<GeneratedPlan> {
   const apiKey = process.env["LOVABLE_API_KEY"];
   if (!apiKey) return fallbackPlan(script, format);
 
-  const system = `You are the pre-production crew of an AI video studio. Given a raw script you produce:
-- a short punchy video title (max 70 chars)
-- polished narration copy in a ${format} style, suited to the "${voice}" voice
-- a scene-by-scene breakdown (4-8 scenes) with timestamps, a visual description and an on-screen caption
-- an estimated duration in seconds
-Respond with JSON only.`;
+  const system = buildPlanSystemPrompt(format, voice, options?.storyMode ?? false);
   const userPrompt = script.slice(0, 8000);
 
   try {

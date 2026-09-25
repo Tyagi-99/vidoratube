@@ -13,6 +13,17 @@
 
 import { segmentStore } from "./idb";
 import { measureMediaDuration, validatePlayback } from "./validate-playback";
+import { buildParallaxFilter, PARALLAX_DEFAULT_INTENSITY } from "./parallax";
+import {
+  assignStoryBeats,
+  storyBeatMotion,
+  storyCaptionStyle,
+  storyDuckParams,
+  storyMusicSegments,
+  storyMusicVolumeExpr,
+  storyParallaxMultiplier,
+  type StoryBeatId,
+} from "../story-template";
 
 /** Prefixes older than this with a resume manifest are swept at startup. */
 const RESUME_TTL_MS = 24 * 60 * 60 * 1000;
@@ -68,6 +79,19 @@ export type RenderOptions = {
   runKey?: string;
   mediaFit?: "cover" | "contain";
   fps?: number;
+  /**
+   * Creation mode driving the render treatment. "story" applies the Story
+   * Mode template: per-beat pacing/motion, caption emphasis and the story
+   * ducking profile. Anything else renders with the standard treatment.
+   */
+  creationMode?: string;
+  /**
+   * 2.5D parallax motion treatment on stills (premium add-on on the server
+   * engine; the browser preview applies it free). Off by default.
+   */
+  parallax25d?: boolean;
+  /** Base parallax intensity 0..1 (Story Mode scales it per beat). */
+  parallaxIntensity?: number;
   onProgress?: (p: RenderProgress) => void;
   signal?: AbortSignal;
 };
@@ -522,8 +546,19 @@ export async function renderScene(
         `[0:v]scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height},fps=${fps},setsar=1${transitionFades(options.transition, duration)}[base]`,
       );
     } else {
+      // 2.5D parallax replaces the preset motion when enabled; the Story
+      // Mode beat scales the per-scene intensity via parallaxIntensity.
+      const videoChain = options.parallax25d
+        ? buildParallaxFilter({
+            width,
+            height,
+            frames,
+            intensity: options.parallaxIntensity ?? PARALLAX_DEFAULT_INTENSITY,
+            direction: index % 2 === 0 ? "in" : "out",
+          })
+        : `${fit},setsar=1,${motionFilter(options.motion, frames, width, height)}`;
       chain.push(
-        `[0:v]${fit},setsar=1,${motionFilter(options.motion, frames, width, height)},fps=${fps}${transitionFades(options.transition, duration)}[base]`,
+        `[0:v]${videoChain},fps=${fps}${transitionFades(options.transition, duration)}[base]`,
       );
     }
 
@@ -631,6 +666,9 @@ function sceneFingerprint(scene: RenderScene, options: RenderOptions): string {
     options.captionStyle,
     options.burnCaptions !== false,
     options.mediaFit,
+    options.parallax25d === true,
+    options.parallaxIntensity ?? 0.5,
+    options.creationMode ?? "script",
   ]);
 }
 
@@ -681,11 +719,34 @@ export async function renderProject(scenes: RenderScene[], options: RenderOption
   let reusedSegments = 0;
 
   /* Stages 1–3: per-scene assets, normalisation and segment encoding. */
+  // Story Mode: every scene gets a narrative beat; the beat drives the
+  // per-scene motion (or parallax intensity), caption emphasis and later the
+  // music envelope. Standard renders keep the project-wide options.
+  const storyMode = options.creationMode === "story";
+  const storyBeats: StoryBeatId[] | null = storyMode
+    ? assignStoryBeats(usable.map((s) => s.duration))
+    : null;
+  const storyMusicSegs = storyMode ? storyMusicSegments(usable.map((s) => s.duration)) : null;
+
   for (const [i, scene] of usable.entries()) {
     throwIfCancelled(signal);
     report("segments", 8 + (62 * i) / usable.length, `Scene ${scene.number} of ${usable.length}`);
     const key = `${runId}/seg-${String(i).padStart(4, "0")}`;
-    const fp = sceneFingerprint(scene, options);
+    const beat = storyBeats?.[i];
+    // Per-scene story treatment. The fingerprint includes motion/caption
+    // style already, so resume stays correct across mode changes.
+    const beatStyle = beat ? storyCaptionStyle(beat) : undefined;
+    const sceneOptions: RenderOptions = beat
+      ? {
+          ...options,
+          motion: storyBeatMotion(beat),
+          ...(beatStyle !== undefined ? { captionStyle: beatStyle } : {}),
+          parallaxIntensity:
+            (options.parallaxIntensity ?? PARALLAX_DEFAULT_INTENSITY) *
+            storyParallaxMultiplier(beat),
+        }
+      : options;
+    const fp = sceneFingerprint(scene, sceneOptions);
     let duration: number;
     const reusable =
       sceneMeta[i]?.fp === fp ? await segmentStore.get(key).catch(() => undefined) : undefined;
@@ -698,7 +759,7 @@ export async function renderProject(scenes: RenderScene[], options: RenderOption
         `Scene ${scene.number} reused from the previous attempt`,
       );
     } else {
-      const { blob, duration: rendered } = await renderScene(ffmpeg, scene, options, i, fsTag);
+      const { blob, duration: rendered } = await renderScene(ffmpeg, scene, sceneOptions, i, fsTag);
       duration = rendered;
       await segmentStore.put(key, blob);
     }
@@ -822,6 +883,16 @@ export async function renderProject(scenes: RenderScene[], options: RenderOption
       const mixedName = `${fsTag}_mixed.mp4`;
       await ffmpeg.writeFile(musicName, music);
       const vol = options.musicVolume ?? 0.12;
+      // Story Mode: the bed follows the per-beat volume envelope and ducks
+      // under the voice with the story profile (deeper, faster). Standard
+      // renders keep the exact previous filter string.
+      const bedVolume =
+        storyMode && storyMusicSegs
+          ? `volume='${storyMusicVolumeExpr(storyMusicSegs, vol)}':eval=frame`
+          : `volume=${vol}`;
+      const duckChain = storyMode
+        ? `sidechaincompress=${storyDuckParams()}[duck]`
+        : `sidechaincompress=threshold=0.03:ratio=8:attack=25:release=400[duck]`;
       await execFfmpeg(
         ffmpeg,
         [
@@ -832,7 +903,7 @@ export async function renderProject(scenes: RenderScene[], options: RenderOption
           "-i",
           musicName,
           "-filter_complex",
-          `[1:a]volume=${vol},afade=t=in:st=0:d=2[bed];[bed][0:a]sidechaincompress=threshold=0.03:ratio=8:attack=25:release=400[duck];[0:a][duck]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.95[mix]`,
+          `[1:a]${bedVolume},afade=t=in:st=0:d=2[bed];[bed][0:a]${duckChain};[0:a][duck]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.95[mix]`,
           "-map",
           "0:v",
           "-map",

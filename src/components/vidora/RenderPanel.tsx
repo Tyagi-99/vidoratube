@@ -107,6 +107,10 @@ export function RenderPanel({
   const [confirmPartial, setConfirmPartial] = useState(false);
   const [engine, setEngine] = useState<"browser" | "server">("browser");
   const [serverEnqueuing, setServerEnqueuing] = useState(false);
+  /** Story Mode treatment (five-beat template). On by default. */
+  const [storyMode, setStoryMode] = useState(true);
+  /** 2.5D parallax treatment on stills. Off by default; +0.25 credits/min on server. */
+  const [parallax25d, setParallax25d] = useState(false);
   // Multi-aspect selection: one project outputs up to three formats
   // (16:9, 9:16, 1:1) — one server render row each. Default: all three.
   const [aspects, setAspects] = useState<AspectRatio[]>([...ALL_ASPECTS]);
@@ -145,13 +149,14 @@ export function RenderPanel({
 
   // Exact cost quote for the server engine: the same quoteMultiAspectRender
   // the server uses to reserve credits — the number shown here is the
-  // number charged. Story mode with a standard voice is the only render
-  // configuration the product offers today, so it is the only honest quote.
+  // number charged. Parallax flows into the quote; Story Mode bills at the
+  // standard 1.0 rate.
   const durationSeconds = readyScenes.reduce((sum, s) => sum + (Number(s.duration) || 0), 0);
   const quote = quoteMultiAspectRender({
     durationSeconds,
     mode: "story",
     aspectCount: aspects.length,
+    parallax25d,
   });
 
   const toggleAspect = (aspect: AspectRatio) => {
@@ -240,6 +245,8 @@ export function RenderPanel({
         burnCaptions,
         musicUrl: settings.music_url ?? null,
         musicVolume: preset.musicVolume,
+        ...(storyMode ? { creationMode: "story" } : {}),
+        parallax25d,
         signal: controller.signal,
         onProgress: (p) => {
           setProgress(p);
@@ -357,6 +364,8 @@ export function RenderPanel({
           burnCaptions,
           musicUrl: settings.music_url ?? null,
           voiceoverUrl: voiceover,
+          storyMode,
+          parallax25d,
         },
       });
       const count = queued.rows?.length ?? aspects.length;
@@ -484,6 +493,47 @@ export function RenderPanel({
         )}
       </div>
 
+      <div className="mt-4 rounded-xl border border-border bg-muted/30 p-4">
+        <p className="text-sm font-semibold text-foreground">Render treatment</p>
+        <div className="mt-3 space-y-3">
+          <div className="flex items-start gap-3">
+            <Switch
+              id="story-mode"
+              checked={storyMode}
+              onCheckedChange={setStoryMode}
+              disabled={rendering || serverEnqueuing}
+            />
+            <div>
+              <Label htmlFor="story-mode" className="text-sm font-medium text-foreground">
+                Story Mode
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Hook → setup → rising tension → payoff → loop. Pacing, caption
+                emphasis and music ducking follow the five beats. Same price as
+                a standard render.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <Switch
+              id="parallax"
+              checked={parallax25d}
+              onCheckedChange={setParallax25d}
+              disabled={rendering || serverEnqueuing}
+            />
+            <div>
+              <Label htmlFor="parallax" className="text-sm font-medium text-foreground">
+                2.5D parallax
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Subtle depth motion on stills. Server renders cost an extra
+                0.25 credits per minute; the browser preview is free.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {effectiveEngine === "server" && (
         <div className="mt-4 rounded-xl border border-border bg-muted/30 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -514,7 +564,7 @@ export function RenderPanel({
             <p className="text-sm text-muted-foreground">
               {aspects.length === 0
                 ? "Select at least one format to see the cost."
-                : `${formatRenderCost({ durationSeconds, mode: "story" })} × ${aspects.length} format${aspects.length === 1 ? "" : "s"}`}
+                : `${formatRenderCost({ durationSeconds, mode: "story", parallax25d })} × ${aspects.length} format${aspects.length === 1 ? "" : "s"}`}
             </p>
             <p className="text-sm font-bold text-foreground">
               Exact cost: {quote.grandTotal} credit{quote.grandTotal === 1 ? "" : "s"}

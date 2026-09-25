@@ -12,7 +12,7 @@ export function HomeCreateModes() {
             Pick the job. A new page opens.
           </h2>
           <p className="mt-3 text-base text-muted-foreground">
-            Same studio, three doors. Each one renders a finished MP4. Not a popup.
+            Same studio, four doors. Each one renders a finished MP4. Not a popup.
           </p>
         </div>
 

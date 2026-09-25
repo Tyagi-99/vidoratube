@@ -63,6 +63,8 @@ const createSchema = z.object({
   script: z.string().trim().min(20, "Script needs at least 20 characters").max(12000),
   voice: z.string().trim().min(1).max(40),
   format: z.string().trim().min(1).max(40),
+  /** Story Mode: the narration plan follows the five-beat narrative template. */
+  story_mode: z.boolean().default(false),
   /** Client-generated UUID per submit click; a retry with the same key returns the existing job. */
   idempotency_key: z.string().uuid().optional(),
   /** Opaque per-browser id for free-credit abuse correlation (optional). */
@@ -187,7 +189,7 @@ export const createVideoJob = createServerFn({ method: "POST" })
         admin: supabaseAdmin,
         userId,
         jobId: job.id,
-      });
+      }, { storyMode: data.story_mode });
       reserveMinutes = finishedMinutes(plan.durationSeconds);
       const { data: updated, error } = await supabase
         .from("video_jobs")
