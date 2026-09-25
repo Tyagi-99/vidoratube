@@ -24,6 +24,14 @@ import {
   storyParallaxMultiplier,
   type StoryBeatId,
 } from "../story-template";
+import { CINEMA_PARALLAX_INTENSITY, CINEMA_TRANSITION, cinemaSceneMotion } from "../stock/cinema";
+import {
+  exportAudioEncodeArgs,
+  exportEncodeArgs,
+  exportPresetById,
+  resolutionForExportPreset,
+  type ExportPreset,
+} from "../exports/presets";
 
 /** Prefixes older than this with a resume manifest are swept at startup. */
 const RESUME_TTL_MS = 24 * 60 * 60 * 1000;
@@ -63,6 +71,13 @@ export type RenderScene = {
 export type RenderOptions = {
   title: string;
   aspect: "16:9" | "9:16" | "1:1" | string;
+  /**
+   * Platform export preset id (see src/lib/exports/presets.ts), e.g.
+   * "youtube-shorts". When set, the preset fully determines the output frame
+   * and the ffmpeg encode flags (H.264 High, AAC 48 kHz, +faststart).
+   * Unset: legacy default (aspect-derived frame, ultrafast/crf-26/44.1 kHz).
+   */
+  exportPreset?: string;
   motion?: string;
   transition?: string;
   captionStyle?: string;
@@ -82,7 +97,9 @@ export type RenderOptions = {
   /**
    * Creation mode driving the render treatment. "story" applies the Story
    * Mode template: per-beat pacing/motion, caption emphasis and the story
-   * ducking profile. Anything else renders with the standard treatment.
+   * ducking profile. "cinema" applies the Cinema Mode treatment: slow
+   * deliberate per-scene motion, dip-to-black pacing, stronger parallax
+   * (see stock/cinema.ts). Anything else renders with the standard treatment.
    */
   creationMode?: string;
   /**
@@ -129,6 +146,29 @@ export function resolutionFor(aspect: string): { width: number; height: number }
   if (aspect === "9:16") return { width: 1080, height: 1920 };
   if (aspect === "1:1") return { width: 1080, height: 1080 };
   return { width: 1920, height: 1080 };
+}
+
+/**
+ * Resolves the effective output preset + frame for render options. A selected
+ * export preset fully determines the frame; otherwise the project aspect
+ * ratio decides (legacy behaviour).
+ */
+export function presetFor(options: Pick<RenderOptions, "exportPreset">): ExportPreset | undefined {
+  return exportPresetById(options.exportPreset);
+}
+
+export function resolutionForRender(options: Pick<RenderOptions, "aspect" | "exportPreset">): {
+  width: number;
+  height: number;
+  preset: ExportPreset | undefined;
+} {
+  const preset = presetFor(options);
+  if (preset) {
+    const { width, height } = resolutionForExportPreset(preset.id);
+    return { width, height, preset };
+  }
+  const { width, height } = resolutionFor(options.aspect);
+  return { width, height, preset: undefined };
 }
 
 export function safeFileName(title: string, suffix: string) {
@@ -457,7 +497,7 @@ export async function renderScene(
   index = 0,
   runTag = "",
 ): Promise<SceneRenderResult> {
-  const { width, height } = resolutionFor(options.aspect);
+  const { width, height, preset } = resolutionForRender(options);
   const fps = options.fps ?? 25;
   const signal = options.signal;
   throwIfCancelled(signal);
@@ -594,28 +634,34 @@ export async function renderScene(
       "[aout]",
       "-t",
       duration.toFixed(3),
-      "-c:v",
-      "libx264",
-      "-preset",
-      "ultrafast",
-      "-crf",
-      "26",
-      "-pix_fmt",
-      "yuv420p",
-      "-r",
-      String(fps),
-      "-g",
-      String(fps * 2),
-      "-c:a",
-      "aac",
-      "-b:a",
-      "128k",
-      "-ar",
-      "44100",
-      "-ac",
-      "2",
-      "-movflags",
-      "+faststart",
+      // Export preset pins the full platform output spec (H.264 High, AAC
+      // 48 kHz, +faststart). Default path keeps the fast free-preview encode.
+      ...(preset
+        ? exportEncodeArgs(preset, fps)
+        : [
+            "-c:v",
+            "libx264",
+            "-preset",
+            "ultrafast",
+            "-crf",
+            "26",
+            "-pix_fmt",
+            "yuv420p",
+            "-r",
+            String(fps),
+            "-g",
+            String(fps * 2),
+            "-c:a",
+            "aac",
+            "-b:a",
+            "128k",
+            "-ar",
+            "44100",
+            "-ac",
+            "2",
+            "-movflags",
+            "+faststart",
+          ]),
       "-y",
       output,
     );
@@ -661,6 +707,7 @@ function sceneFingerprint(scene: RenderScene, options: RenderOptions): string {
     scene.audioUrl,
     scene.cues.map((c) => `${c.start}|${c.end}|${c.text}`).join("~"),
     options.aspect,
+    options.exportPreset ?? null,
     options.motion,
     options.transition,
     options.captionStyle,
@@ -693,7 +740,7 @@ async function writeSegmentManifest(runId: string, scenes: SegmentMeta[]): Promi
 }
 
 export async function renderProject(scenes: RenderScene[], options: RenderOptions): Promise<RenderResult> {
-  const { width, height } = resolutionFor(options.aspect);
+  const { width, height, preset } = resolutionForRender(options);
   const signal = options.signal;
   const report = (stage: RenderStageId, progress: number, detail?: string) =>
     options.onProgress?.({ stage, label: STAGE_LABELS[stage], progress: Math.round(progress), detail });
@@ -723,6 +770,9 @@ export async function renderProject(scenes: RenderScene[], options: RenderOption
   // per-scene motion (or parallax intensity), caption emphasis and later the
   // music envelope. Standard renders keep the project-wide options.
   const storyMode = options.creationMode === "story";
+  // Sprint 5-6: Cinema Mode is the premium, stock-driven tier — slow,
+  // deliberate per-scene motion and dip-to-black pacing (see stock/cinema.ts).
+  const cinemaMode = options.creationMode === "cinema";
   const storyBeats: StoryBeatId[] | null = storyMode
     ? assignStoryBeats(usable.map((s) => s.duration))
     : null;
@@ -745,7 +795,16 @@ export async function renderProject(scenes: RenderScene[], options: RenderOption
             (options.parallaxIntensity ?? PARALLAX_DEFAULT_INTENSITY) *
             storyParallaxMultiplier(beat),
         }
-      : options;
+      : cinemaMode
+        ? {
+            ...options,
+            motion: cinemaSceneMotion(i),
+            transition: CINEMA_TRANSITION,
+            ...(options.parallax25d
+              ? { parallaxIntensity: CINEMA_PARALLAX_INTENSITY }
+              : {}),
+          }
+        : options;
     const fp = sceneFingerprint(scene, sceneOptions);
     let duration: number;
     const reusable =
@@ -820,14 +879,10 @@ export async function renderProject(scenes: RenderScene[], options: RenderOption
         "1:a",
         "-c:v",
         "copy",
-        "-c:a",
-        "aac",
-        "-b:a",
-        "160k",
-        "-ar",
-        "44100",
-        "-ac",
-        "2",
+        // Preset: 48 kHz stereo per platform spec; default keeps 44.1 kHz.
+        ...(preset
+          ? exportAudioEncodeArgs(preset)
+          : ["-c:a", "aac", "-b:a", "160k", "-ar", "44100", "-ac", "2"]),
         "-movflags",
         "+faststart",
       ];
@@ -914,6 +969,8 @@ export async function renderProject(scenes: RenderScene[], options: RenderOption
           "aac",
           "-b:a",
           "160k",
+          // Preset: pin the mix to 48 kHz stereo per platform spec.
+          ...(preset ? ["-ar", "48000", "-ac", "2"] : []),
           "-shortest",
           "-movflags",
           "+faststart",

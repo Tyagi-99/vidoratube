@@ -10,6 +10,13 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/useSession";
@@ -17,8 +24,17 @@ import { useRenderGuard } from "@/lib/render/useRenderGuard";
 import { track } from "@/lib/analytics";
 import { captureError } from "@/lib/sentry";
 import { PRESETS } from "@/lib/studio-config";
+import {
+  EXPORT_PRESETS,
+  EXPORT_PRESET_IDS,
+  defaultExportPresetForAspect,
+  resolutionForExportPreset,
+  type ExportPresetId,
+} from "@/lib/exports/presets";
 import { resolveEffectiveEngine } from "@/lib/engine-select";
 import { formatRenderCost, quoteMultiAspectRender } from "@/lib/billing/per-minute";
+import { CINEMA_MODE_BLURB } from "@/lib/stock/cinema";
+import { applyHeroCap } from "@/lib/stock/source-select";
 import {
   completeRender,
   failRender,
@@ -29,6 +45,7 @@ import {
 import { enqueueServerRender, getServerWorkerStatus, ALL_ASPECTS } from "@/lib/server-renders.functions";
 import type { AspectRatio } from "@/lib/server-renders.functions";
 import { ServerRenderQueue } from "./ServerRenderQueue";
+import { DubShortsQuote } from "./DubShortsQuote";
 import type {
   RenderProgress,
   RenderResult,
@@ -109,11 +126,33 @@ export function RenderPanel({
   const [serverEnqueuing, setServerEnqueuing] = useState(false);
   /** Story Mode treatment (five-beat template). On by default. */
   const [storyMode, setStoryMode] = useState(true);
+  /**
+   * Sprint 5-6: Cinema Mode is the premium stock-driven tier. The two
+   * treatments are mutually exclusive — one drives the render.
+   */
+  const [cinemaMode, setCinemaMode] = useState(false);
+  const setStoryModeExclusive = (on: boolean) => {
+    setStoryMode(on);
+    if (on) setCinemaMode(false);
+  };
+  const setCinemaModeExclusive = (on: boolean) => {
+    setCinemaMode(on);
+    if (on) setStoryMode(false);
+  };
   /** 2.5D parallax treatment on stills. Off by default; +0.25 credits/min on server. */
   const [parallax25d, setParallax25d] = useState(false);
   // Multi-aspect selection: one project outputs up to three formats
   // (16:9, 9:16, 1:1) — one server render row each. Default: all three.
   const [aspects, setAspects] = useState<AspectRatio[]>([...ALL_ASPECTS]);
+  /**
+   * Platform export preset for the browser engine: pins the output frame and
+   * the ffmpeg encode spec (H.264 High, AAC 48 kHz, +faststart). Defaults
+   * from the project aspect ratio; the server engine keeps its own
+   * per-format selection.
+   */
+  const [exportPreset, setExportPreset] = useState<ExportPresetId>(() =>
+    defaultExportPresetForAspect(project.aspect_ratio),
+  );
   const abortRef = useRef<AbortController | null>(null);
   const lastPushRef = useRef(0);
 
@@ -150,13 +189,26 @@ export function RenderPanel({
   // Exact cost quote for the server engine: the same quoteMultiAspectRender
   // the server uses to reserve credits — the number shown here is the
   // number charged. Parallax flows into the quote; Story Mode bills at the
-  // standard 1.0 rate.
+  // standard 1.0 rate; Cinema Mode bills licensed stock footage ×1.5 with
+  // AI hero shots capped at 10% of runtime (Sprint 5-6, single source of
+  // truth: billing/per-minute.ts renderCreditCost).
   const durationSeconds = readyScenes.reduce((sum, s) => sum + (Number(s.duration) || 0), 0);
-  const quote = quoteMultiAspectRender({
+  const plannedHeroSeconds = cinemaMode
+    ? readyScenes
+        .filter((s) => s.visual_type === "AI_IMAGE")
+        .reduce((sum, s) => sum + (Number(s.duration) || 0), 0)
+    : 0;
+  const heroCap = applyHeroCap({ aiHeroSeconds: plannedHeroSeconds, totalSeconds: durationSeconds });
+  const quoteInput = {
     durationSeconds,
-    mode: "story",
-    aspectCount: aspects.length,
+    mode: (cinemaMode ? "cinema" : "story") as "cinema" | "story",
+    stockFootage: cinemaMode,
+    aiHeroSeconds: cinemaMode ? heroCap.aiHeroSeconds : 0,
     parallax25d,
+  };
+  const quote = quoteMultiAspectRender({
+    ...quoteInput,
+    aspectCount: aspects.length,
   });
 
   const toggleAspect = (aspect: AspectRatio) => {
@@ -220,10 +272,12 @@ export function RenderPanel({
 
     try {
       const mod = await import("@/lib/render/browser-render");
-      const { renderProject, resolutionFor } = mod;
+      const { renderProject } = mod;
       RenderCancelled = mod.RenderCancelled;
       releaseFfmpeg = mod.releaseFfmpeg;
-      const { width, height } = resolutionFor(project.aspect_ratio);
+      // The export preset fully determines the output frame; the aspect
+      // fallback stays for safety (unknown preset ids resolve undefined).
+      const { width, height } = resolutionForExportPreset(exportPreset);
       const row = await startFn({
         data: {
           projectId: project.id,
@@ -238,6 +292,7 @@ export function RenderPanel({
       const output = await renderProject(buildTimeline(), {
         title: project.title,
         aspect: project.aspect_ratio,
+        exportPreset,
         runKey: `project:${project.id}`,
         motion: preset.motion,
         transition: preset.transition,
@@ -245,7 +300,7 @@ export function RenderPanel({
         burnCaptions,
         musicUrl: settings.music_url ?? null,
         musicVolume: preset.musicVolume,
-        ...(storyMode ? { creationMode: "story" } : {}),
+        ...(cinemaMode ? { creationMode: "cinema" } : storyMode ? { creationMode: "story" } : {}),
         parallax25d,
         signal: controller.signal,
         onProgress: (p) => {
@@ -364,6 +419,9 @@ export function RenderPanel({
           burnCaptions,
           musicUrl: settings.music_url ?? null,
           voiceoverUrl: voiceover,
+          mode: cinemaMode ? "cinema" : "story",
+          stockFootage: cinemaMode,
+          aiHeroSeconds: cinemaMode ? heroCap.aiHeroSeconds : 0,
           storyMode,
           parallax25d,
         },
@@ -373,6 +431,7 @@ export function RenderPanel({
         project_id: project.id,
         aspects: count,
         credits: quote.grandTotal,
+        mode: cinemaMode ? "cinema" : "story",
       });
       toast.success(
         `Server render queued (${count} format${count === 1 ? "" : "s"}, ${quote.grandTotal} credits) — you can close this tab.`,
@@ -434,6 +493,29 @@ export function RenderPanel({
               Burn captions
             </Label>
           </div>
+          {effectiveEngine !== "server" && (
+            <div className="flex items-center gap-2">
+              <Label htmlFor="export-preset" className="text-sm text-muted-foreground">
+                Export preset
+              </Label>
+              <Select
+                value={exportPreset}
+                onValueChange={(v) => setExportPreset(v as ExportPresetId)}
+                disabled={rendering}
+              >
+                <SelectTrigger id="export-preset" className="w-56" aria-label="Export preset">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {EXPORT_PRESET_IDS.map((id) => (
+                    <SelectItem key={id} value={id}>
+                      {EXPORT_PRESETS[id].label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           {rendering ? (
             <Button variant="outline" className="gap-2" onClick={() => abortRef.current?.abort()}>
               <X className="h-4 w-4" />
@@ -485,6 +567,9 @@ export function RenderPanel({
       <div className="mt-4 flex flex-wrap gap-2 text-xs">
         <Badge variant="secondary">{readyScenes.length} scenes ready</Badge>
         <Badge variant="secondary">{project.aspect_ratio}</Badge>
+        {effectiveEngine !== "server" && (
+          <Badge variant="secondary">{EXPORT_PRESETS[exportPreset].shortLabel}</Badge>
+        )}
         {missing > 0 && (
           <Badge variant="destructive" className="gap-1">
             <AlertTriangle className="h-3 w-3" />
@@ -500,7 +585,7 @@ export function RenderPanel({
             <Switch
               id="story-mode"
               checked={storyMode}
-              onCheckedChange={setStoryMode}
+              onCheckedChange={setStoryModeExclusive}
               disabled={rendering || serverEnqueuing}
             />
             <div>
@@ -529,6 +614,26 @@ export function RenderPanel({
                 Subtle depth motion on stills. Server renders cost an extra
                 0.25 credits per minute; the browser preview is free.
               </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <Switch
+              id="cinema-mode"
+              checked={cinemaMode}
+              onCheckedChange={setCinemaModeExclusive}
+              disabled={rendering || serverEnqueuing}
+            />
+            <div>
+              <Label htmlFor="cinema-mode" className="text-sm font-medium text-foreground">
+                Cinema Mode
+              </Label>
+              <p className="text-xs text-muted-foreground">{CINEMA_MODE_BLURB}</p>
+              {cinemaMode && (
+                <p className="mt-1 text-xs font-medium text-foreground">
+                  AI hero cap: ≤{Math.floor(heroCap.capSeconds)}s of {durationSeconds}s runtime
+                  {heroCap.trimmed ? " — your plan was trimmed to fit the cap" : ""}.
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -564,7 +669,7 @@ export function RenderPanel({
             <p className="text-sm text-muted-foreground">
               {aspects.length === 0
                 ? "Select at least one format to see the cost."
-                : `${formatRenderCost({ durationSeconds, mode: "story", parallax25d })} × ${aspects.length} format${aspects.length === 1 ? "" : "s"}`}
+                : `${formatRenderCost(quoteInput)} × ${aspects.length} format${aspects.length === 1 ? "" : "s"}`}
             </p>
             <p className="text-sm font-bold text-foreground">
               Exact cost: {quote.grandTotal} credit{quote.grandTotal === 1 ? "" : "s"}
@@ -577,6 +682,9 @@ export function RenderPanel({
           </p>
         </div>
       )}
+
+      {/* Sprint 5-6: dubbing + shorts quote (exact pricing, queue action ships next). */}
+      <DubShortsQuote durationSeconds={durationSeconds} parallax25d={parallax25d} />
 
       {missing > 0 && !rendering && (
         <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">

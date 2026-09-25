@@ -3,6 +3,11 @@ import { z } from "zod";
 import { requireAppUser } from "./server-auth";
 import { MUSIC_MOODS, searchJamendo, type MusicMood } from "./music.server";
 import { voiceById } from "./voices";
+import {
+  filterProvenCatalogTracks,
+  hasMusicProvenance,
+  logProvenanceExclusions,
+} from "./music-provenance";
 
 /**
  * Studio v2 (P4) server functions — characters, music library, voice preview.
@@ -33,6 +38,25 @@ export const updateProjectSettings = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => UpdateProjectInput.parse(i))
   .handler(async ({ data, context }) => {
     const { id, ...patch } = data;
+    // Provenance gate (defense in depth): a catalog track can only be
+    // attached to a project when its licensing provenance is recorded.
+    // BYO music (music_url in project settings) is unaffected.
+    if (patch.music_track_id) {
+      const { data: track, error: trackError } = await context.supabase
+        .from("music_tracks")
+        .select("id,provider,license,license_url")
+        .eq("id", patch.music_track_id)
+        .maybeSingle();
+      if (trackError || !track) throw new Error("That music track no longer exists.");
+      if (!hasMusicProvenance(track)) {
+        console.warn(
+          `[music-catalog] updateProjectSettings: rejected track ${patch.music_track_id} — missing licensing provenance`,
+        );
+        throw new Error(
+          "That music track is missing license information and can't be used. Pick another track or upload your own music.",
+        );
+      }
+    }
     const { error } = await context.supabase
       .from("projects")
       .update(patch as never)
@@ -135,11 +159,33 @@ export const searchMusic = createServerFn({ method: "POST" })
     }
     const { data: cached } = await supabaseAdmin
       .from("music_tracks")
-      .select("id,title,artist,mood,preview_url,duration_secs,license")
+      .select("id,title,artist,mood,preview_url,duration_secs,license,provider,license_url")
       .eq("mood", data.mood)
       .order("created_at", { ascending: false })
       .limit(30);
-    return (cached ?? []) as { id: string; title: string; artist: string; mood: string; preview_url: string | null; duration_secs: number | null; license: string }[];
+    // Provenance gate: only tracks with recorded licensing may be selected.
+    const rows = (cached ?? []) as {
+      id: string;
+      title: string;
+      artist: string;
+      mood: string;
+      preview_url: string | null;
+      duration_secs: number | null;
+      license: string | null;
+      provider: string | null;
+      license_url: string | null;
+    }[];
+    const { selectable, excluded } = filterProvenCatalogTracks(rows);
+    logProvenanceExclusions("searchMusic", excluded, (t) => `${t.id} "${t.title}"`);
+    return selectable.map(({ id, title, artist, mood, preview_url, duration_secs, license }) => ({
+      id,
+      title,
+      artist,
+      mood,
+      preview_url,
+      duration_secs,
+      license,
+    }));
   });
 
 export const listMusicTracks = createServerFn({ method: "GET" })
@@ -149,13 +195,35 @@ export const listMusicTracks = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     let q = supabaseAdmin
       .from("music_tracks")
-      .select("id,title,artist,mood,preview_url,duration_secs,license")
+      .select("id,title,artist,mood,preview_url,duration_secs,license,provider,license_url")
       .order("created_at", { ascending: false })
       .limit(60);
     if (data?.mood) q = q.eq("mood", data.mood);
     const { data: rows, error } = await q;
     if (error) throw new Error("Couldn't load music tracks.");
-    return (rows ?? []) as { id: string; title: string; artist: string; mood: string; preview_url: string | null; duration_secs: number | null; license: string }[];
+    // Provenance gate: only tracks with recorded licensing may be selected.
+    const typed = (rows ?? []) as {
+      id: string;
+      title: string;
+      artist: string;
+      mood: string;
+      preview_url: string | null;
+      duration_secs: number | null;
+      license: string | null;
+      provider: string | null;
+      license_url: string | null;
+    }[];
+    const { selectable, excluded } = filterProvenCatalogTracks(typed);
+    logProvenanceExclusions("listMusicTracks", excluded, (t) => `${t.id} "${t.title}"`);
+    return selectable.map(({ id, title, artist, mood, preview_url, duration_secs, license }) => ({
+      id,
+      title,
+      artist,
+      mood,
+      preview_url,
+      duration_secs,
+      license,
+    }));
   });
 
 // --- Voice preview ----------------------------------------------------------

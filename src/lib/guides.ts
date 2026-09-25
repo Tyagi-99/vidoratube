@@ -97,6 +97,114 @@ export const GUIDES: Guide[] = [
       },
     ],
   },
+  {
+    slug: "youtube-api-app-review",
+    title: "YouTube API app review: the founder checklist",
+    description:
+      "Everything a founder must prepare and submit — in order — to get a YouTube Data API integration verified, audited, and quota-approved.",
+    readingMinutes: 9,
+    sections: [
+      {
+        heading: "What you're actually applying for",
+        body: [
+          "Shipping a 'publish to YouTube' feature means passing three separate Google/YouTube gates: OAuth verification (your app's identity and data handling), the YouTube API compliance audit (your app follows the YouTube API Services terms), and quota approval (how many uploads your project may do per day). They are reviewed by different teams on different timelines — plan for all three.",
+          "Do this work before you promise users a launch date. Verification alone commonly takes several weeks, and a rejection restarts the clock.",
+        ],
+      },
+      {
+        heading: "1. Set up a dedicated Google Cloud project",
+        body: [
+          "Create one Cloud project per product — never share the project with unrelated apps, because quota, audit findings, and violations attach to the project. Enable the YouTube Data API v3 on it.",
+          "Configure the OAuth consent screen as 'External', set the publishing status to 'In production', add every domain your app runs on as an authorized domain, and verify domain ownership in Search Console. Keep the scope list to the absolute minimum your feature needs (for uploads, typically the youtube.upload and youtube scopes) — every extra scope is extra review surface.",
+        ],
+      },
+      {
+        heading: "2. Publish your privacy policy and terms",
+        body: [
+          "Your privacy policy and terms of service must be live at public URLs before you submit. The policy has to describe, accurately: what Google user data you access, why you need each scope, how long you store tokens and data, how users revoke access and delete their data, and a contact email.",
+          "Reviewers compare the policy against what the app actually does. Anything the app does that the policy doesn't mention — or vice versa — is a rejection.",
+        ],
+      },
+      {
+        heading: "3. Prepare brand assets and contacts",
+        body: [
+          "Use one consistent app name, logo, and support email across the consent screen, your homepage, and the verification form. Add a developer contact email you actually monitor — follow-up questions from the trust & safety team go there, and slow replies stall your review.",
+        ],
+      },
+      {
+        heading: "4. Record the demo video",
+        body: [
+          "Record an unlisted screencast (a few minutes) that shows: the full OAuth grant flow from the user's perspective, each requested scope being used in the app, how the user disconnects the integration and revokes access, and where their data gets deleted. Narrate what the reviewer is seeing — they review hundreds of these.",
+        ],
+      },
+      {
+        heading: "5. Submit OAuth verification, then the YouTube audit",
+        body: [
+          "Submit brand verification through the Cloud console with the video, policy links, and scope justifications. Separately, YouTube requires an API compliance audit for apps using its API: demonstrate ToS compliance (no spam, no misleading metadata, real functionality — not a thin wrapper), and document your data handling and retention.",
+          "Request quota with a written justification tied to real usage math (uploads per user per day × expected users). New projects start at the default quota; extensions are granted, not automatic.",
+        ],
+      },
+      {
+        heading: "6. After approval: stay approved",
+        body: [
+          "Adding a scope or changing data handling triggers re-verification. The YouTube audit recurs — keep your compliance evidence (policies, deletion flows, quota math) current year-round, not just at submission time. Monitor quota usage so a growth spike doesn't start failing uploads at midnight.",
+        ],
+      },
+    ],
+  },
+  {
+    slug: "meta-app-review",
+    title: "Meta (Facebook/Instagram) app review: the founder checklist",
+    description:
+      "Everything a founder must prepare and submit — in order — to get a Meta app approved for Facebook and Instagram publishing.",
+    readingMinutes: 8,
+    sections: [
+      {
+        heading: "What you're actually applying for",
+        body: [
+          "Meta's app review grants your app individual permissions (now called use cases), one by one. Business verification — proving your company is real — is a separate prerequisite for most publishing permissions. And Instagram content publishing additionally requires a Facebook Page connected to an Instagram Business or Creator account; a personal Instagram account can't publish through the API.",
+          "Apply for permissions only when the feature that uses them is built and testable. Reviewers test the real flow.",
+        ],
+      },
+      {
+        heading: "1. Create and configure the Meta app",
+        body: [
+          "Create the app in the Meta App Dashboard and add the products you need (Facebook Login, and the Instagram product for IG publishing). Fill in the app icon, category, and contact email, then add live URLs for the privacy policy, terms of service, and — critically — a working data-deletion callback endpoint. Meta checks that these URLs resolve.",
+        ],
+      },
+      {
+        heading: "2. Complete business verification",
+        body: [
+          "Submit legal business documents (registration, tax document, or utility bill in the business name), verify your domain, and confirm a business phone number or email. Verification routinely takes several business days, so start it before you need the permissions — app review can't finish without it.",
+        ],
+      },
+      {
+        heading: "3. Request the minimum permissions",
+        body: [
+          "Typical publishing stacks need pages_manage_posts and pages_read_engagement for Facebook Pages, plus instagram_basic and instagram_content_publish for Instagram. Request only what the app visibly uses — each permission needs its own written justification explaining exactly which feature uses it and why.",
+        ],
+      },
+      {
+        heading: "4. Make the app reviewer-ready",
+        body: [
+          "Create Meta test users with the right roles and make sure a reviewer can log in and reach the publishing flow with zero help from you: working test credentials, a seeded demo account with connected Pages, and no dead ends. If the reviewer can't complete the flow, that's an automatic rejection.",
+        ],
+      },
+      {
+        heading: "5. Record one screencast per permission",
+        body: [
+          "For every permission you request, record a short screencast showing: login, the exact feature that uses the permission (e.g. composing and scheduling a post), and logout/disconnect. Narrate which permission is being exercised and where. Generic product tours get rejected — the reviewer must see the permission in use.",
+        ],
+      },
+      {
+        heading: "6. Submit, respond, and stay approved",
+        body: [
+          "Submit and watch the developer inbox: most reviews land within days to a couple of weeks. The common rejections are a permission that isn't visibly used in the screencast, a broken test login, and missing policy or deletion URLs — all fixable, all resubmittable.",
+          "Staying approved is recurring work: Meta requires the annual Data Use Checkup to keep permissions, and adding a new permission means a new review. Keep your policies, test users, and deletion endpoint live year-round.",
+        ],
+      },
+    ],
+  },
 ];
 
 export function getGuide(slug: string): Guide | undefined {
