@@ -1398,6 +1398,110 @@ export type Database = {
         }
         Relationships: []
       }
+      render_chapters: {
+        Row: {
+          attempts: number
+          chapter_index: number
+          claimed_at: string | null
+          claimed_by: string | null
+          created_at: string
+          error: string | null
+          finished_at: string | null
+          id: string
+          output_path: string | null
+          paragraphs: Json
+          render_id: string
+          script_text: string
+          started_at: string | null
+          status: string
+          title: string
+          updated_at: string
+          max_attempts: number
+        }
+        Insert: {
+          attempts?: number
+          chapter_index: number
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          output_path?: string | null
+          paragraphs?: Json
+          render_id: string
+          script_text?: string
+          started_at?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          max_attempts?: number
+        }
+        Update: {
+          attempts?: number
+          chapter_index?: number
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          output_path?: string | null
+          paragraphs?: Json
+          render_id?: string
+          script_text?: string
+          started_at?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          max_attempts?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "render_chapters_render_id_fkey"
+            columns: ["render_id"]
+            isOneToOne: false
+            referencedRelation: "renders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tts_cache: {
+        Row: {
+          audio_path: string
+          byte_size: number | null
+          created_at: string
+          duration_seconds: number | null
+          id: string
+          language_code: string
+          paragraph_hash: string
+          provider: string
+          voice_id: string
+        }
+        Insert: {
+          audio_path: string
+          byte_size?: number | null
+          created_at?: string
+          duration_seconds?: number | null
+          id?: string
+          language_code: string
+          paragraph_hash: string
+          provider: string
+          voice_id: string
+        }
+        Update: {
+          audio_path?: string
+          byte_size?: number | null
+          created_at?: string
+          duration_seconds?: number | null
+          id?: string
+          language_code?: string
+          paragraph_hash?: string
+          provider?: string
+          voice_id?: string
+        }
+        Relationships: []
+      }
       renders: {
         Row: {
           aspect_ratio: string | null
