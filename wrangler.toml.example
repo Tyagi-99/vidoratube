@@ -1,0 +1,25 @@
+# Copy to wrangler.toml to deploy VidoraTube outside Lovable.
+# NOT committed as wrangler.toml: Lovable injects its own Cloudflare/worker
+# configuration at build time, and a live wrangler.toml in the repo could
+# conflict with it. For self-hosted deploys, copy this file and fill in vars.
+name = "vidoratube"
+main = ".output/server/index.mjs"
+compatibility_date = "2026-09-01"
+
+# Required: server code reads process.env in many places (Supabase keys,
+# provider API keys, OAuth secrets). Without nodejs_compat those reads
+# silently return undefined and everything fails confusingly downstream.
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = ".output/public"
+
+# Public (non-secret) vars. Secrets (SUPABASE_SERVICE_ROLE_KEY,
+# GOOGLE_OAUTH_CLIENT_SECRET, ELEVENLABS_API_KEY, LOVABLE_API_KEY,
+# YOUTUBE_TOKEN_ENCRYPTION_KEY) must be set via `wrangler secret put`,
+# never committed here.
+[vars]
+# VITE_SUPABASE_URL = "https://your-project.supabase.co"
+# VITE_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_..."
+# SUPABASE_URL = "https://your-project.supabase.co"
+# SUPABASE_PUBLISHABLE_KEY = "sb_publishable_..."
