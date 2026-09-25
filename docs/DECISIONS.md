@@ -453,3 +453,84 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
   Consolidate the two into one canonical implementation as a follow-up —
   do not let them drift.
 - **Reverse:** Change the window/queries in `measured-cost.ts`.
+
+### D40. Story Mode ships + 2.5D parallax toggle (supersedes D27's "no 2.5D toggle yet")
+
+### D41. Long-form chapter pipeline (Sprint 3–4)
+- **Decision:** Videos > 6 min (or explicitly requested) render as **4–8
+  chapters**, each an independent `render_chapters` row
+  (`queued/rendering/done/failed`) plus a paragraph-audio `tts_cache` keyed by
+  (provider, voice, language, paragraph_hash). The worker plans per chapter
+  (pure `planChapterWork`), renders up to `WORKER_CHAPTER_CONCURRENCY`
+  (default 2) chapters in parallel, validates resume checkpoints by
+  re-downloading each `done` chapter's output from storage (bytes present =
+  usable; missing/invalid = re-render), claims chapters with a lease
+  (`claimed_at`/`claimed_by`) plus heartbeat, and stitches finished chapter
+  MP4s with the FFmpeg **concat demuxer (`-c copy`)** — no re-encode. The
+  service-role-only SQL function `requeue_stale_chapters` (migration
+  `20260925230000_chapters.sql`) requeues stale `rendering` chapters and
+  terminally fails chapters whose `max_attempts` budget is exhausted.
+- **Reason:** One 20-minute timeline keeps the worker busy for tens of minutes
+  with no usable partial output; a crash near the end wastes all of it, and a
+  single scene fix forces a full re-render. Chapters bound the loss to
+  in-flight chapters.
+- **Reverse:** Delete the chapter branch in the worker and enqueue only
+  single-timeline renders.
+
+### D42. Exactly one continuity brief per long-form render
+- **Decision:** One `ContinuityBrief` (voice + language tag + TTS model,
+  pacing, background style, caption style, tone) is generated once on the app
+  side, stored on the parent render's metadata, and passed **by reference**
+  to every chapter render. Each chapter renders the parent aspect at the same
+  fps with identical codec settings (H.264 `yuv420p`, AAC 128k, same audio
+  sample rate), so the concat stitch is byte-compatible across chapters.
+- **Reason:** Drift between chapters (different voice pacing, caption style)
+  is the visible failure mode of long-form; one shared brief kills it.
+- **Reverse:** Allow per-chapter brief overrides if style changes per chapter
+  are ever wanted.
+
+### D43. Chapters never bill separately (parent-only accounting)
+- **Decision:** Chapters never debit or refund. The app enqueue path quotes
+  the parent with the exact per-minute price for the total finished duration
+  (`quoteMultiAspectRender`), holds the full amount up front, and on final
+  completion the parent's existing idempotent settlement RPC refunds the
+  difference. A chapter-only rerender does **not** create a new reserve:
+  chapters are an internal production step, and the parent settlement
+  already refunds unused minutes.
+- **Reason:** Retry storms cannot double-charge; the only money movement is
+  the parent hold and one idempotent settlement.
+- **Reverse:** Revisit if chapter rerenders get user-facing per-chapter
+  pricing.
+
+### D44. Chapter MP4 in storage is the resume checkpoint
+- **Decision:** The durable resume checkpoint is the chapter MP4 stored in
+  Supabase storage, referenced by `render_chapters.output_path`. The worker
+  treats `done` + present-and-valid output as reusable and re-renders
+  anything else; local temp files are never trusted across restarts.
+- **Reason:** Storage survives worker crashes; `/tmp` does not.
+- **Reverse:** Add a `chapter_mp4_sha256` column and verify hashes on resume
+  if silent storage corruption ever shows up.
+- **Decision:** Story Mode is now a first-class creation mode (`src/lib/creation-modes.ts`,
+  `/studio?create=story`, quick-job `story_mode` → five-beat plan prompt) and a render
+  treatment on both engines (RenderPanel "Render treatment" box: Story Mode switch on by
+  default, 2.5D parallax switch off by default). Story Mode template lives in
+  `src/lib/story-template.ts` (canonical) with a dependency-free mirror in
+  `worker/src/story.ts`; parallax in `src/lib/render/parallax.ts` mirrored by
+  `worker/src/parallax.ts`.
+- **Billing:** Story Mode is the standard 1.0 multiplier — same price as a standard
+  render. Parallax is a paid add-on on the server engine: `+0.25 credits/minute`
+  (via the pre-existing `parallax25d` option in `quoteMultiAspectRender`, whole-credit
+  ceil total); the browser preview applies it free. RenderPanel quote and
+  `formatRenderCost` both receive `parallax25d`, so the shown number is the charged number.
+- **Treatment:** hook (8%) → setup (20%) → rising tension (42%) → payoff (20%) →
+  loop/CTA (10%). Story Mode drives per-beat motion (or parallax intensity via
+  `storyParallaxMultiplier`), hook/payoff caption emphasis (larger `VidoraHook` ASS
+  style), a per-beat music volume envelope, and a deeper/faster duck profile
+  (threshold 0.02, ratio 10, attack 20ms, release 600ms).
+- **Parity:** browser and worker both implement story beats, parallax (cover-scale +
+  12%-per-intensity overscan + 10%-per-intensity slow zoom + center-biased diagonal
+  pan, alternating in/out per scene, intensity clamped 0..1, default 0.5) and the
+  story duck profile. Honest gap: parallax intensity is not user-adjustable in the
+  UI yet (fixed default 0.5, beat-scaled); the toggle is boolean only.
+- **Reverse:** Remove the RenderPanel treatment box (D27's exact reverse, restored);
+  remove `storyMode`/`parallax25d` from the enqueue schema and worker meta.

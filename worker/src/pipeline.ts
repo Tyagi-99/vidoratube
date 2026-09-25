@@ -130,13 +130,12 @@ function groupCuesByChars(
 
 export function buildWordAss(
   cues: { word: string; start: number; end: number; emphasis?: boolean }[],
-  opts: { fontSize?: number; language?: CaptionLanguage } = {},
+  opts: number | { fontSize?: number; language?: CaptionLanguage } = {},
 ): string {
-  const fontSize = opts.fontSize ?? 64;
-  const fontName = opts.language
-    ? primaryFontName(opts.language.fontStack)
-    : "Inter";
-  const directionComment = opts.language?.rtl ? "; Direction: RTL\n" : "";
+  const { fontSize = 64, language } =
+    typeof opts === "number" ? { fontSize: opts } : opts;
+  const fontName = language ? primaryFontName(language.fontStack) : "Inter";
+  const directionComment = language?.rtl ? "; Direction: RTL\n" : "";
   const header = `[Script Info]
 ScriptType: v4.00+
 PlayResX: 1920
@@ -152,8 +151,8 @@ Style: VidoraHook,${fontName},${Math.round(fontSize * 1.25)},&H00FFFFFF,&H0000FF
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 `;
   const lines: CaptionLine[] = [];
-  if (opts.language) {
-    lines.push(...groupCuesByChars(cues, Math.max(1, opts.language.captionMaxChars)));
+  if (language) {
+    lines.push(...groupCuesByChars(cues, Math.max(1, language.captionMaxChars)));
   } else {
     for (let i = 0; i < cues.length; i += 4) {
       const g = cues.slice(i, i + 4);

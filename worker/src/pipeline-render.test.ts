@@ -118,6 +118,7 @@ function makeCtx(aspect: "16:9" | "9:16" | "1:1", dir: string): Ctx {
     aspect,
     fps: 30,
     burnCaptions: false,
+    languageCode: "en",
     musicUrl: null,
     musicVolume: 0.15,
     musicDucking: true,
