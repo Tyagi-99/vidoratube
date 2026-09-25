@@ -20,7 +20,7 @@ export function StyleGallery() {
           </h2>
           <p className="mt-4 text-lg text-muted-foreground">
             One script, ten different films. Pick a visual style and every scene
-            follows it — characters stay consistent throughout.
+            follows it.
           </p>
         </div>
 
