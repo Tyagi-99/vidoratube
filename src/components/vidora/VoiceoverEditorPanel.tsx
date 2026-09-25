@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { FinalVideoPreview } from "@/components/vidora/FinalVideoPreview";
+import { useRenderGuard } from "@/lib/render/useRenderGuard";
 import { CapCutExportButton } from "@/components/vidora/CapCutExportButton";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/useSession";
@@ -74,6 +75,9 @@ export function VoiceoverEditorPanel({
   const [rights, setRights] = useState(String(settings.rights_status || "unknown"));
   const [busy, setBusy] = useState<string | null>(null);
   const [progress, setProgress] = useState<RenderProgress | null>(null);
+
+  // Keep the tab alive and warn before closing while the compose is running.
+  useRenderGuard(busy === "render");
   const abortRef = useRef<AbortController | null>(null);
 
   const cues: RenderCue[] = useMemo(() => {

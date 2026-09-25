@@ -53,6 +53,15 @@ export async function captionPngForCompose(
   height: number,
   style?: string,
 ): Promise<Uint8Array> {
+  // Wait for webfonts so captions don't silently fall back to a system font.
+  try {
+    await Promise.race([
+      document.fonts.ready,
+      new Promise((resolve) => setTimeout(resolve, 3000)),
+    ]);
+  } catch {
+    /* fonts API unavailable — proceed with fallbacks */
+  }
   const look = captionLook(style, height);
   const canvas = document.createElement("canvas");
   canvas.width = width;

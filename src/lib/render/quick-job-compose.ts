@@ -15,6 +15,8 @@ export type QuickJobComposeInput = {
   narration?: string | null;
   durationSeconds: number;
   burnCaptions?: boolean;
+  /** Stable key (e.g. `job:<id>`) so a failed compose resumes rendered scenes. */
+  runKey?: string;
   onProgress?: (p: RenderProgress) => void;
   signal?: AbortSignal;
 };
@@ -135,6 +137,7 @@ export async function composeQuickJobMp4(input: QuickJobComposeInput): Promise<R
     captionStyle: "subtitle",
     burnCaptions: input.burnCaptions !== false,
     voiceoverUrl: input.audioUrl,
+    ...(input.runKey ? { runKey: input.runKey } : {}),
     ...(input.onProgress ? { onProgress: input.onProgress } : {}),
     ...(input.signal ? { signal: input.signal } : {}),
   });

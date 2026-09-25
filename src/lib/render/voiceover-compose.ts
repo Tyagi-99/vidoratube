@@ -4,6 +4,20 @@
  */
 
 import type { RenderCue, RenderProgress } from "./browser-render";
+import { measureMediaDuration, validatePlayback } from "./validate-playback";
+
+/**
+ * Shifts caption cues by the head-trim so burned captions stay in sync with
+ * the trimmed video. Cues fully inside the trimmed region are dropped.
+ * Pure — covered by unit tests.
+ */
+export function adjustCuesForTrim(cues: RenderCue[], trimStart: number): RenderCue[] {
+  if (!(trimStart > 0)) return cues;
+  return cues
+    .map((cue) => ({ ...cue, start: cue.start - trimStart, end: cue.end - trimStart }))
+    .filter((cue) => cue.end > 0)
+    .map((cue) => (cue.start < 0 ? { ...cue, start: 0 } : cue));
+}
 
 export type VoiceoverComposeInput = {
   title: string;
@@ -64,6 +78,9 @@ export async function composeVoiceoverVideo(
 ): Promise<VoiceoverComposeResult> {
   const {
     loadFfmpeg,
+    execFfmpeg,
+    blobFromBytes,
+    mediaDuration,
     resolutionFor,
     safeFileName,
     RenderCancelled,
@@ -75,12 +92,16 @@ export async function composeVoiceoverVideo(
   const ffmpeg = await loadFfmpeg();
   const { width, height } = resolutionFor(input.aspect ?? "16:9");
   const fps = 25;
+  // Namespaced temp files so concurrent composes never share FS state.
+  const tag = `vc${Date.now().toString(36)}`;
+  const srcName = `${tag}_source.mp4`;
+  const outName = `${tag}_mode2_out.mp4`;
 
   report(input.onProgress, "assets", 10, "Downloading source video");
   const srcRes = await fetch(input.sourceVideoUrl, { mode: "cors" });
   if (!srcRes.ok) throw new Error(`Could not download source video (HTTP ${srcRes.status}).`);
   const srcBytes = new Uint8Array(await srcRes.arrayBuffer());
-  await ffmpeg.writeFile("source.mp4", srcBytes);
+  await ffmpeg.writeFile(srcName, srcBytes);
 
   let voName: string | null = null;
   if (input.voiceoverUrl) {
@@ -88,7 +109,7 @@ export async function composeVoiceoverVideo(
     const voRes = await fetch(input.voiceoverUrl, { mode: "cors" });
     if (!voRes.ok) throw new Error(`Could not download voiceover (HTTP ${voRes.status}).`);
     const voBytes = new Uint8Array(await voRes.arrayBuffer());
-    voName = "voiceover.mp3";
+    voName = `${tag}_voiceover.mp3`;
     await ffmpeg.writeFile(voName, voBytes);
   }
 
@@ -96,14 +117,18 @@ export async function composeVoiceoverVideo(
   const hasTrimEnd = input.trimEnd != null && Number(input.trimEnd) > trimStart;
   const trimDur = hasTrimEnd ? Number(input.trimEnd) - trimStart : null;
 
-  // Caption overlays
+  // Caption overlays — cue timestamps are shifted by the head-trim so they
+  // stay in sync with the trimmed video (untrimmed cues would all run late).
   const { captionPngForCompose } = await import("./voiceover-captions");
   const burn = input.burnCaptions !== false;
-  const cues = burn ? input.cues.filter((c) => c.text?.trim()) : [];
+  const cues = adjustCuesForTrim(
+    burn ? input.cues.filter((c) => c.text?.trim()) : [],
+    trimStart,
+  );
   const cueFiles: string[] = [];
   for (const [i, cue] of cues.entries()) {
     const png = await captionPngForCompose(cue.text, width, height, input.captionStyle);
-    const name = `cue${i}.png`;
+    const name = `${tag}_cue${i}.png`;
     await ffmpeg.writeFile(name, png);
     cueFiles.push(name);
   }
@@ -113,7 +138,7 @@ export async function composeVoiceoverVideo(
   const ffArgs: string[] = [];
   ffArgs.push("-ss", trimStart.toFixed(3));
   if (trimDur != null) ffArgs.push("-t", trimDur.toFixed(3));
-  ffArgs.push("-i", "source.mp4");
+  ffArgs.push("-i", srcName);
   if (voName) ffArgs.push("-i", voName);
   for (const f of cueFiles) ffArgs.push("-i", f);
 
@@ -151,12 +176,15 @@ export async function composeVoiceoverVideo(
       `[0:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[aout]`,
     );
   } else {
-    ffArgs.push("-f", "lavfi", "-t", "3600", "-i", "anullsrc=r=44100:cl=stereo");
+    // Muted with no voiceover: synthesize silence only as long as needed
+    // instead of a wasteful fixed 1-hour track.
+    const sourceLen = await mediaDuration(input.sourceVideoUrl);
+    const silenceLen = trimDur != null && trimDur > 0 ? trimDur : sourceLen > 0 ? sourceLen : 3600;
+    ffArgs.push("-f", "lavfi", "-t", silenceLen.toFixed(3), "-i", "anullsrc=r=44100:cl=stereo");
     const nullIdx = cueOffset + cues.length;
-    filters.push(`[${nullIdx}:a]atrim=0:3600[aout]`);
+    filters.push(`[${nullIdx}:a]atrim=0:${silenceLen.toFixed(3)}[aout]`);
   }
 
-  const outName = "mode2_out.mp4";
   ffArgs.push(
     "-filter_complex",
     filters.join(";"),
@@ -185,15 +213,16 @@ export async function composeVoiceoverVideo(
 
   if (input.signal?.aborted) throw new RenderCancelled();
   report(input.onProgress, "finalize", 70, "Encoding MP4");
-  await ffmpeg.exec(ffArgs);
+  await execFfmpeg(ffmpeg, ffArgs, "trimming and mixing voiceover", { signal: input.signal });
 
   report(input.onProgress, "validate", 92);
   const data = await ffmpeg.readFile(outName);
   if (typeof data === "string") throw new Error("Unexpected ffmpeg output");
-  const blob = new Blob([data.slice().buffer as ArrayBuffer], { type: "video/mp4" });
+  // No .slice(): the Blob copies the bytes itself — one less full heap copy.
+  const blob = blobFromBytes(data);
 
   // cleanup best-effort
-  for (const name of ["source.mp4", voName, outName, ...cueFiles].filter(Boolean) as string[]) {
+  for (const name of [srcName, voName, outName, ...cueFiles].filter(Boolean) as string[]) {
     try {
       await ffmpeg.deleteFile(name);
     } catch {
@@ -202,9 +231,9 @@ export async function composeVoiceoverVideo(
   }
 
   const duration =
-    trimDur != null && trimDur > 0
-      ? trimDur
-      : await measureBlobDuration(blob);
+    trimDur != null && trimDur > 0 ? trimDur : await measureMediaDuration(blob);
+  const playable = await validatePlayback(blob, duration);
+  if (!playable) throw new Error("The composed file failed playback validation. Please retry.");
 
   report(input.onProgress, "validate", 100, "Done");
   return {
@@ -214,22 +243,4 @@ export async function composeVoiceoverVideo(
     height,
     fileName: safeFileName(input.title, "-voiceover.mp4"),
   };
-}
-
-function measureBlobDuration(blob: Blob): Promise<number> {
-  return new Promise((resolve) => {
-    const url = URL.createObjectURL(blob);
-    const video = document.createElement("video");
-    video.preload = "metadata";
-    video.onloadedmetadata = () => {
-      const d = Number.isFinite(video.duration) ? video.duration : 0;
-      URL.revokeObjectURL(url);
-      resolve(d);
-    };
-    video.onerror = () => {
-      URL.revokeObjectURL(url);
-      resolve(0);
-    };
-    video.src = url;
-  });
 }

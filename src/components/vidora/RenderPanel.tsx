@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/useSession";
+import { useRenderGuard } from "@/lib/render/useRenderGuard";
 import { PRESETS } from "@/lib/studio-config";
 import {
   completeRender,
@@ -98,6 +99,9 @@ export function RenderPanel({
   const abortRef = useRef<AbortController | null>(null);
   const lastPushRef = useRef(0);
 
+  // Keep the tab alive and warn before closing while a render is running.
+  useRenderGuard(rendering);
+
   const renders = useQuery({
     queryKey: ["renders", project.id],
     queryFn: () => listFn({ data: { projectId: project.id } }),
@@ -170,6 +174,7 @@ export function RenderPanel({
       const output = await renderProject(buildTimeline(), {
         title: project.title,
         aspect: project.aspect_ratio,
+        runKey: `project:${project.id}`,
         motion: preset.motion,
         transition: preset.transition,
         captionStyle: preset.captionStyle,

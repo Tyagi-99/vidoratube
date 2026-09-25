@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -29,6 +29,19 @@ export function useComposeJobMp4(options?: { silent?: boolean }) {
   const failCompose = useServerFn(failVideoJobCompose);
   const [label, setLabel] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const composeActiveRef = useRef(false);
+
+  // Free the ffmpeg worker + 32 MB wasm when this hook unmounts with no
+  // compose in flight. (Skipped while active so a concurrent render elsewhere
+  // in the tab is never torn down from under itself.)
+  useEffect(
+    () => () => {
+      if (!composeActiveRef.current) {
+        void import("@/lib/render/browser-render").then((m) => m.releaseFfmpeg());
+      }
+    },
+    [],
+  );
 
   const run = useMutation({
     mutationFn: async (job: ComposableJob) => {
@@ -44,6 +57,7 @@ export function useComposeJobMp4(options?: { silent?: boolean }) {
 
       const controller = new AbortController();
       abortRef.current = controller;
+      composeActiveRef.current = true;
       setLabel("Composing final MP4…");
 
       const { composeQuickJobMp4 } = await import("@/lib/render/quick-job-compose");
@@ -54,6 +68,7 @@ export function useComposeJobMp4(options?: { silent?: boolean }) {
         captions,
         narration: job.narration || job.script || "",
         durationSeconds: job.duration_seconds ?? Math.max(15, images.length * 6),
+        runKey: `job:${job.id}`,
         signal: controller.signal,
         onProgress: (p) => setLabel(p.label),
       });
@@ -77,11 +92,13 @@ export function useComposeJobMp4(options?: { silent?: boolean }) {
       });
     },
     onSuccess: () => {
+      composeActiveRef.current = false;
       setLabel(null);
       if (!options?.silent) toast.success("Your MP4 is ready");
       queryClient.invalidateQueries();
     },
     onError: async (error: Error, job) => {
+      composeActiveRef.current = false;
       setLabel(null);
       const message = error.message || "Compose failed";
       try {

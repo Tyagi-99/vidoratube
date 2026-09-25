@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useSession } from "@/hooks/useSession";
 import { isAppUser } from "@/lib/auth-user";
 import { CreateSurface } from "@/components/vidora/CreateSurface";
+import { useRenderGuard } from "@/lib/render/useRenderGuard";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -81,6 +82,9 @@ export function GenerateVideoDialog({
   const [result, setResult] = useState<JobResult | null>(null);
   const [composeError, setComposeError] = useState<string | null>(null);
   const [pendingComposeJob, setPendingComposeJob] = useState<JobResult | null>(null);
+
+  // Keep the tab alive and warn before closing while the compose is running.
+  useRenderGuard(pendingComposeJob != null);
   const abortRef = useRef<AbortController | null>(null);
 
   const { user, loading: sessionLoading } = useSession();
@@ -120,6 +124,7 @@ export function GenerateVideoDialog({
       captions,
       narration: job.narration || job.script || "",
       durationSeconds: job.duration_seconds ?? Math.max(15, images.length * 6),
+      runKey: `job:${job.id}`,
       signal: controller.signal,
       onProgress: (p) => {
         setStepLabel(p.label);

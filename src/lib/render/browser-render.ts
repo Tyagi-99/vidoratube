@@ -12,6 +12,10 @@
  */
 
 import { segmentStore } from "./idb";
+import { measureMediaDuration, validatePlayback } from "./validate-playback";
+
+/** Prefixes older than this with a resume manifest are swept at startup. */
+const RESUME_TTL_MS = 24 * 60 * 60 * 1000;
 
 export type RenderStageId =
   | "init"
@@ -56,6 +60,12 @@ export type RenderOptions = {
   musicVolume?: number;
   /** Full-timeline voiceover mixed after scene join (quick-generate path). */
   voiceoverUrl?: string | null;
+  /**
+   * Stable run key (e.g. `project:<id>` / `job:<id>`). Segments are stored
+   * under this key so a failed render can resume instead of starting over.
+   * Defaults to a timestamped key (no resume).
+   */
+  runKey?: string;
   mediaFit?: "cover" | "contain";
   fps?: number;
   onProgress?: (p: RenderProgress) => void;
@@ -153,6 +163,15 @@ function captionLook(style: string | undefined, height: number): CaptionLook {
 
 /** Draws a caption cue to a transparent PNG so we never depend on ffmpeg fonts. */
 async function captionPng(text: string, width: number, height: number, style?: string): Promise<Uint8Array> {
+  // Wait for webfonts so captions don't silently fall back to a system font.
+  try {
+    await Promise.race([
+      document.fonts.ready,
+      new Promise((resolve) => setTimeout(resolve, 3000)),
+    ]);
+  } catch {
+    /* fonts API unavailable — proceed with fallbacks */
+  }
   const look = captionLook(style, height);
   const canvas = document.createElement("canvas");
   canvas.width = width;
@@ -216,6 +235,51 @@ function throwIfCancelled(signal?: AbortSignal) {
   if (signal?.aborted) throw new RenderCancelled();
 }
 
+/**
+ * Builds a Blob from ffmpeg.readFile output. The Blob constructor copies the
+ * view's bytes itself, so unlike `data.slice().buffer` this avoids one full
+ * extra heap copy of (potentially) a gigabyte-sized file.
+ */
+export function blobFromBytes(data: Uint8Array): Blob {
+  return new Blob([data as unknown as Uint8Array<ArrayBuffer>], { type: "video/mp4" });
+}
+
+/**
+ * Runs an ffmpeg command, enforcing the two things raw `exec()` doesn't:
+ * the v0.12 API resolves with an exit code instead of throwing on encode
+ * failure, and it accepts an AbortSignal for mid-command cancellation.
+ * Throws a descriptive error (with the ffmpeg log tail) on nonzero exit.
+ */
+export async function execFfmpeg(
+  ffmpeg: Ffmpeg,
+  args: string[],
+  step: string,
+  opts?: { signal?: AbortSignal | undefined },
+): Promise<void> {
+  throwIfCancelled(opts?.signal);
+  const tail: string[] = [];
+  const onLog = ({ message }: { message: string }) => {
+    tail.push(message);
+    if (tail.length > 60) tail.shift();
+  };
+  ffmpeg.on("log", onLog);
+  try {
+    const code = opts?.signal
+      ? await ffmpeg.exec(args, -1, { signal: opts.signal })
+      : await ffmpeg.exec(args);
+    if (code !== 0) {
+      throw new Error(
+        `ffmpeg failed during "${step}" (exit code ${code}).\nLast output:\n${tail.slice(-20).join("\n")}`,
+      );
+    }
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") throw new RenderCancelled();
+    throw error;
+  } finally {
+    ffmpeg.off("log", onLog);
+  }
+}
+
 async function fetchBytes(url: string): Promise<Uint8Array> {
   const res = await fetch(url, { mode: "cors" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -229,12 +293,23 @@ function extFromUrl(url: string, fallback: string) {
 }
 
 /** Measures real playback duration of an audio/video url in the browser. */
-export function mediaDuration(url: string): Promise<number> {
+export function mediaDuration(url: string, timeoutMs = 15000): Promise<number> {
   return new Promise((resolve) => {
     const el = document.createElement("audio");
     el.preload = "metadata";
-    el.onloadedmetadata = () => resolve(Number.isFinite(el.duration) ? el.duration : 0);
-    el.onerror = () => resolve(0);
+    let done = false;
+    const finish = (value: number) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      resolve(value);
+    };
+    const timer = setTimeout(() => {
+      console.warn(`[render] mediaDuration timed out for ${url.slice(0, 80)}`);
+      finish(0);
+    }, timeoutMs);
+    el.onloadedmetadata = () => finish(Number.isFinite(el.duration) ? el.duration : 0);
+    el.onerror = () => finish(0);
     el.src = url;
   });
 }
@@ -244,8 +319,14 @@ export function mediaDuration(url: string): Promise<number> {
 type Ffmpeg = import("@ffmpeg/ffmpeg").FFmpeg;
 
 let ffmpegSingleton: Ffmpeg | null = null;
+let sweptStaleSegments = false;
 
 export async function loadFfmpeg(onLog?: (line: string) => void): Promise<Ffmpeg> {
+  // Best-effort GC for segments orphaned by crashed tabs — once per session.
+  if (!sweptStaleSegments) {
+    sweptStaleSegments = true;
+    void segmentStore.sweepStaleSegments().catch(() => undefined);
+  }
   if (ffmpegSingleton) return ffmpegSingleton;
   const { FFmpeg } = await import("@ffmpeg/ffmpeg");
   // FFmpeg v0.12 spawns its worker with `type: "module"`, so it needs a module
@@ -350,13 +431,15 @@ export async function renderScene(
   scene: RenderScene,
   options: RenderOptions,
   index = 0,
+  runTag = "",
 ): Promise<SceneRenderResult> {
   const { width, height } = resolutionFor(options.aspect);
   const fps = options.fps ?? 25;
   const signal = options.signal;
   throwIfCancelled(signal);
 
-  const prefix = `s${index}`;
+  // Namespaced temp files so concurrent renders never stomp each other's FS.
+  const prefix = runTag ? `${runTag}_s${index}` : `s${index}`;
   const written: string[] = [];
   const write = async (name: string, bytes: Uint8Array) => {
     await ffmpeg.writeFile(name, bytes);
@@ -395,7 +478,18 @@ export async function renderScene(
         );
       }
     }
+    const rawDuration = duration;
     duration = Math.min(Math.max(duration, 1.5), 120);
+    if (rawDuration > 120) {
+      const warning = `Scene ${scene.number} is ${Math.round(rawDuration)}s — longer than the 120s scene limit, so it was truncated. Split long scenes to keep the full narration.`;
+      console.warn(`[render] ${warning}`);
+      options.onProgress?.({
+        stage: "segments",
+        label: STAGE_LABELS.segments,
+        progress: 0,
+        detail: warning,
+      });
+    }
     const frames = Math.max(2, Math.round(duration * fps));
 
     /* caption overlays as transparent PNGs (no ffmpeg font dependency) */
@@ -491,13 +585,14 @@ export async function renderScene(
       output,
     );
 
-    await ffmpeg.exec(args);
+    await execFfmpeg(ffmpeg, args, `scene ${scene.number} encode`, { signal });
     throwIfCancelled(signal);
 
     const data = (await ffmpeg.readFile(output)) as Uint8Array;
     if (!data || data.length === 0)
       throw new SceneAssetError(scene.number, `Scene ${scene.number} produced an empty segment.`);
-    const blob = new Blob([data.slice().buffer as ArrayBuffer], { type: "video/mp4" });
+    // No .slice(): the Blob copies the bytes itself — one less full heap copy.
+    const blob = blobFromBytes(data);
     written.push(output);
     return { blob, duration };
   } finally {
@@ -520,6 +615,45 @@ export type RenderResult = {
   fileName: string;
 };
 
+type SegmentMeta = { fp: string; duration: number };
+type SegmentManifest = { updatedAt: number; scenes: SegmentMeta[] };
+
+/** Fingerprint of everything that determines a scene segment's pixels. */
+function sceneFingerprint(scene: RenderScene, options: RenderOptions): string {
+  return JSON.stringify([
+    scene.assetUrl,
+    scene.duration,
+    scene.audioUrl,
+    scene.cues.map((c) => `${c.start}|${c.end}|${c.text}`).join("~"),
+    options.aspect,
+    options.motion,
+    options.transition,
+    options.captionStyle,
+    options.burnCaptions !== false,
+    options.mediaFit,
+  ]);
+}
+
+async function readSegmentManifest(runId: string): Promise<SegmentManifest | null> {
+  try {
+    const raw = await segmentStore.get(`${runId}/manifest`);
+    if (!raw) return null;
+    const parsed = JSON.parse(await raw.text()) as SegmentManifest;
+    if (!Array.isArray(parsed.scenes)) return null;
+    if (Date.now() - parsed.updatedAt > RESUME_TTL_MS) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+async function writeSegmentManifest(runId: string, scenes: SegmentMeta[]): Promise<void> {
+  const blob = new Blob([JSON.stringify({ updatedAt: Date.now(), scenes })], {
+    type: "application/json",
+  });
+  await segmentStore.put(`${runId}/manifest`, blob);
+}
+
 export async function renderProject(scenes: RenderScene[], options: RenderOptions): Promise<RenderResult> {
   const { width, height } = resolutionFor(options.aspect);
   const signal = options.signal;
@@ -534,92 +668,163 @@ export async function renderProject(scenes: RenderScene[], options: RenderOption
   throwIfCancelled(signal);
 
   report("assets", 6, `${usable.length} scenes queued`);
-  const runId = `r${Date.now()}`;
+  // Stable run key (project:/job:) so a failed render resumes instead of
+  // starting over; falls back to a timestamped key (no resume).
+  const runId = options.runKey ?? `r${Date.now()}`;
+  // Temp filenames are namespaced so concurrent renders never share FS state.
+  const fsTag = runId.replace(/[^a-zA-Z0-9_-]/g, "_");
   const segmentKeys: string[] = [];
   let totalDuration = 0;
 
-  try {
-    /* Stages 1–3: per-scene assets, normalisation and segment encoding. */
-    for (const [i, scene] of usable.entries()) {
-      throwIfCancelled(signal);
-      report("segments", 8 + (62 * i) / usable.length, `Scene ${scene.number} of ${usable.length}`);
-      const { blob, duration } = await renderScene(ffmpeg, scene, options, i);
-      totalDuration += duration;
-      const key = `${runId}/seg-${String(i).padStart(4, "0")}`;
+  const prior = await readSegmentManifest(runId);
+  const sceneMeta: SegmentMeta[] = prior?.scenes.slice() ?? [];
+  let reusedSegments = 0;
+
+  /* Stages 1–3: per-scene assets, normalisation and segment encoding. */
+  for (const [i, scene] of usable.entries()) {
+    throwIfCancelled(signal);
+    report("segments", 8 + (62 * i) / usable.length, `Scene ${scene.number} of ${usable.length}`);
+    const key = `${runId}/seg-${String(i).padStart(4, "0")}`;
+    const fp = sceneFingerprint(scene, options);
+    let duration: number;
+    const reusable =
+      sceneMeta[i]?.fp === fp ? await segmentStore.get(key).catch(() => undefined) : undefined;
+    if (reusable) {
+      duration = sceneMeta[i]?.duration ?? 0;
+      reusedSegments += 1;
+      report(
+        "segments",
+        8 + (62 * (i + 1)) / usable.length,
+        `Scene ${scene.number} reused from the previous attempt`,
+      );
+    } else {
+      const { blob, duration: rendered } = await renderScene(ffmpeg, scene, options, i, fsTag);
+      duration = rendered;
       await segmentStore.put(key, blob);
-      segmentKeys.push(key);
+    }
+    totalDuration += duration;
+    sceneMeta[i] = { fp, duration };
+    // Persist after every scene so a crash still resumes everything so far.
+    await writeSegmentManifest(runId, sceneMeta).catch(() => undefined);
+    segmentKeys.push(key);
+    if (!reusable) {
       report("segments", 8 + (62 * (i + 1)) / usable.length, `Scene ${scene.number} done`);
     }
+  }
+  if (reusedSegments > 0) {
+    report("segments", 70, `Resumed ${reusedSegments} already-rendered scene(s)`);
+  }
 
-    /* Stage 4: combine segments (stream copy — identical encode settings). */
+  /* Stage 4: combine segments (stream copy — identical encode settings). */
+  throwIfCancelled(signal);
+  report("combine", 74, "Joining scene segments");
+  const segName = (i: number) => `${fsTag}_seg${String(i).padStart(4, "0")}.mp4`;
+  const listName = `${fsTag}_list.txt`;
+  const joinedName = `${fsTag}_joined.mp4`;
+  const listLines: string[] = [];
+  for (const [i, key] of segmentKeys.entries()) {
+    const blob = await segmentStore.get(key);
+    if (!blob) throw new Error("A rendered segment went missing from browser storage.");
+    const name = segName(i);
+    await ffmpeg.writeFile(name, new Uint8Array(await blob.arrayBuffer()));
+    listLines.push(`file '${name}'`);
+  }
+  await ffmpeg.writeFile(listName, new TextEncoder().encode(listLines.join("\n")));
+  await execFfmpeg(
+    ffmpeg,
+    ["-f", "concat", "-safe", "0", "-i", listName, "-c", "copy", "-y", joinedName],
+    "joining scene segments",
+    { signal },
+  );
+  for (let i = 0; i < segmentKeys.length; i++) {
+    await ffmpeg.deleteFile(segName(i)).catch(() => undefined);
+  }
+
+  /* Stages 5–7: optional full-timeline voiceover, then music with ducking. */
+  report("narration", 82, options.voiceoverUrl ? "Mixing voiceover" : "Narration mixed per scene");
+  let finalName = joinedName;
+
+  if (options.voiceoverUrl) {
     throwIfCancelled(signal);
-    report("combine", 74, "Joining scene segments");
-    const listLines: string[] = [];
-    for (const [i, key] of segmentKeys.entries()) {
-      const blob = await segmentStore.get(key);
-      if (!blob) throw new Error("A rendered segment went missing from browser storage.");
-      const name = `seg${String(i).padStart(4, "0")}.mp4`;
-      await ffmpeg.writeFile(name, new Uint8Array(await blob.arrayBuffer()));
-      listLines.push(`file '${name}'`);
-    }
-    await ffmpeg.writeFile("list.txt", new TextEncoder().encode(listLines.join("\n")));
-    await ffmpeg.exec(["-f", "concat", "-safe", "0", "-i", "list.txt", "-c", "copy", "-y", "joined.mp4"]);
-    for (let i = 0; i < segmentKeys.length; i++) {
-      await ffmpeg.deleteFile(`seg${String(i).padStart(4, "0")}.mp4`).catch(() => undefined);
-    }
-
-    /* Stages 5–7: optional full-timeline voiceover, then music with ducking. */
-    report("narration", 82, options.voiceoverUrl ? "Mixing voiceover" : "Narration mixed per scene");
-    let finalName = "joined.mp4";
-
-    if (options.voiceoverUrl) {
-      throwIfCancelled(signal);
-      try {
-        const vo = await fetchBytes(options.voiceoverUrl);
-        const voName = `vo.${extFromUrl(options.voiceoverUrl, "mp3")}`;
-        await ffmpeg.writeFile(voName, vo);
-        await ffmpeg.exec([
-          "-i",
-          finalName,
-          "-i",
-          voName,
-          "-map",
-          "0:v",
-          "-map",
-          "1:a",
-          "-c:v",
-          "copy",
-          "-c:a",
-          "aac",
-          "-b:a",
-          "160k",
-          "-ar",
-          "44100",
-          "-ac",
-          "2",
-          "-shortest",
-          "-movflags",
-          "+faststart",
-          "-y",
-          "voiced.mp4",
-        ]);
-        await ffmpeg.deleteFile(voName).catch(() => undefined);
-        await ffmpeg.deleteFile(finalName).catch(() => undefined);
-        finalName = "voiced.mp4";
-      } catch (error) {
-        throw new Error(`Voiceover mux failed: ${(error as Error).message}`);
+    try {
+      const vo = await fetchBytes(options.voiceoverUrl);
+      const voName = `${fsTag}_vo.${extFromUrl(options.voiceoverUrl, "mp3")}`;
+      const voicedName = `${fsTag}_voiced.mp4`;
+      await ffmpeg.writeFile(voName, vo);
+      const voDuration = await mediaDuration(options.voiceoverUrl);
+      const muxBase = [
+        "-map",
+        "0:v",
+        "-map",
+        "1:a",
+        "-c:v",
+        "copy",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "160k",
+        "-ar",
+        "44100",
+        "-ac",
+        "2",
+        "-movflags",
+        "+faststart",
+      ];
+      if (voDuration > totalDuration + 1) {
+        // Voiceover outlasts the picture: loop the video to fit the
+        // narration instead of cutting it off mid-sentence.
+        report(
+          "narration",
+          82,
+          `Voiceover (${formatClock(voDuration)}) is longer than the video — extending the picture to match`,
+        );
+        await execFfmpeg(
+          ffmpeg,
+          [
+            "-stream_loop",
+            "-1",
+            "-i",
+            finalName,
+            "-i",
+            voName,
+            ...muxBase,
+            "-t",
+            voDuration.toFixed(3),
+            "-y",
+            voicedName,
+          ],
+          "mixing voiceover (extended video)",
+          { signal },
+        );
+        totalDuration = voDuration;
+      } else {
+        await execFfmpeg(
+          ffmpeg,
+          ["-i", finalName, "-i", voName, ...muxBase, "-shortest", "-y", voicedName],
+          "mixing voiceover",
+          { signal },
+        );
       }
+      await ffmpeg.deleteFile(voName).catch(() => undefined);
+      await ffmpeg.deleteFile(finalName).catch(() => undefined);
+      finalName = voicedName;
+    } catch (error) {
+      throw new Error(`Voiceover mux failed: ${(error as Error).message}`);
     }
+  }
 
-    if (options.musicUrl) {
-      throwIfCancelled(signal);
-      report("music", 86, "Mixing background music with ducking");
-      try {
-        const music = await fetchBytes(options.musicUrl);
-        const musicName = `music.${extFromUrl(options.musicUrl, "mp3")}`;
-        await ffmpeg.writeFile(musicName, music);
-        const vol = options.musicVolume ?? 0.12;
-        await ffmpeg.exec([
+  if (options.musicUrl) {
+    throwIfCancelled(signal);
+    report("music", 86, "Mixing background music with ducking");
+    try {
+      const music = await fetchBytes(options.musicUrl);
+      const musicName = `${fsTag}_music.${extFromUrl(options.musicUrl, "mp3")}`;
+      const mixedName = `${fsTag}_mixed.mp4`;
+      await ffmpeg.writeFile(musicName, music);
+      const vol = options.musicVolume ?? 0.12;
+      await execFfmpeg(
+        ffmpeg,
+        [
           "-i",
           finalName,
           "-stream_loop",
@@ -642,56 +847,48 @@ export async function renderProject(scenes: RenderScene[], options: RenderOption
           "-movflags",
           "+faststart",
           "-y",
-          "mixed.mp4",
-        ]);
-        await ffmpeg.deleteFile(musicName).catch(() => undefined);
-        await ffmpeg.deleteFile(finalName).catch(() => undefined);
-        finalName = "mixed.mp4";
-      } catch (error) {
-        report("music", 88, `Music skipped: ${(error as Error).message}`);
-      }
+          mixedName,
+        ],
+        "mixing background music",
+        { signal },
+      );
+      await ffmpeg.deleteFile(musicName).catch(() => undefined);
+      await ffmpeg.deleteFile(finalName).catch(() => undefined);
+      finalName = mixedName;
+    } catch (error) {
+      report("music", 88, `Music skipped: ${(error as Error).message}`);
     }
-
-    report("captions", 90, "Captions burned into each scene");
-
-    /* Stage 8–9: finalise and validate. */
-    throwIfCancelled(signal);
-    report("finalize", 94, "Writing MP4 container");
-    const data = (await ffmpeg.readFile(finalName)) as Uint8Array;
-    await ffmpeg.deleteFile(finalName).catch(() => undefined);
-    await ffmpeg.deleteFile("list.txt").catch(() => undefined);
-
-    report("validate", 97, "Checking the output plays");
-    if (!data || data.length < 1024) throw new Error("The renderer produced an unreadable file. Please retry.");
-    const blob = new Blob([data.slice().buffer as ArrayBuffer], { type: "video/mp4" });
-    const playable = await canPlay(blob);
-    if (!playable) throw new Error("The rendered file failed playback validation. Please retry the render.");
-
-    report("validate", 100, "Done");
-    return {
-      blob,
-      duration: totalDuration,
-      width,
-      height,
-      fileName: safeFileName(options.title, ".mp4"),
-    };
-  } finally {
-    await segmentStore.clearPrefix(runId).catch(() => undefined);
   }
-}
 
-function canPlay(blob: Blob): Promise<boolean> {
-  return new Promise((resolve) => {
-    const url = URL.createObjectURL(blob);
-    const video = document.createElement("video");
-    video.preload = "metadata";
-    const done = (ok: boolean) => {
-      URL.revokeObjectURL(url);
-      resolve(ok);
-    };
-    video.onloadedmetadata = () => done(video.duration > 0);
-    video.onerror = () => done(false);
-    video.src = url;
-    setTimeout(() => done(true), 8000);
-  });
+  report("captions", 90, "Captions burned into each scene");
+
+  /* Stage 8–9: finalise and validate. */
+  throwIfCancelled(signal);
+  report("finalize", 94, "Writing MP4 container");
+  const data = (await ffmpeg.readFile(finalName)) as Uint8Array;
+  await ffmpeg.deleteFile(finalName).catch(() => undefined);
+  await ffmpeg.deleteFile(listName).catch(() => undefined);
+
+  report("validate", 97, "Checking the output plays");
+  if (!data || data.length < 1024) throw new Error("The renderer produced an unreadable file. Please retry.");
+  // No .slice(): the Blob copies the bytes itself — one less full heap copy.
+  const blob = blobFromBytes(data);
+  const playable = await validatePlayback(blob, totalDuration);
+  if (!playable) throw new Error("The rendered file failed playback validation. Please retry the render.");
+
+  // Report the real container duration — `-shortest` may have trimmed it.
+  const actualDuration = await measureMediaDuration(blob);
+  const duration = actualDuration > 0 ? actualDuration : totalDuration;
+
+  // Segments are cleared only on success so a failed render can resume.
+  await segmentStore.clearPrefix(runId).catch(() => undefined);
+
+  report("validate", 100, "Done");
+  return {
+    blob,
+    duration,
+    width,
+    height,
+    fileName: safeFileName(options.title, ".mp4"),
+  };
 }
