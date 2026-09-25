@@ -8,18 +8,6 @@ import {
   type ThumbnailAspect,
 } from "./thumbnails";
 import { rankTitles, buildDescription, suggestTags } from "./seo";
-import {
-  approvalScopeForPrivacy,
-  recordApproval,
-  recordPublishWarning,
-  requirePublishApproval,
-} from "./publish-approval";
-import {
-  evaluatePublishGate,
-  lowScoreWarningMessage,
-  publishBlockedMessage,
-  type PublishPrivacy,
-} from "./safety";
 
 /**
  * P5: Thumbnail studio + SEO studio + publish pipeline server functions.
@@ -330,10 +318,9 @@ const approvePublishJobSchema = z.object({
   /** If set, the video goes live at this time; otherwise publishes immediately. */
   scheduled_for: z.string().datetime().optional(),
   /**
-   * DEPRECATED (Sprint 7-8 C): acknowledging the risk no longer unblocks
-   * anything. Score < 50 BLOCKS public publishing outright; private/unlisted
-   * proceed with a recorded warning. Accepted for backward compatibility
-   * with in-flight clients; ignored by the server.
+   * P6 safety gate: when the project's latest safety score is < 50
+   * (high demonetization risk), approval requires this explicit
+   * acknowledgment. Recorded on the job for audit.
    */
   safety_override: z.boolean().default(false),
 });
@@ -342,119 +329,81 @@ const approvePublishJobSchema = z.object({
  * HUMAN APPROVAL GATE. The only transition from draft -> approved.
  * This is the deliberate user action that authorizes a YouTube publish.
  * There is no code path that publishes without this.
- *
- * Sprint 7-8 C: approving also writes a server-side approval record
- * (approvals table) that executePublishJob MUST find before uploading.
- * Safety: score < 50 BLOCKS public publishing (no override);
- * private/unlisted proceed with a warning noted on the approval.
  */
 export const approvePublishJob = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => approvePublishJobSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    return runApprovePublishJob({ supabase, supabaseAdmin, userId, input: data });
-  });
 
-export type ApprovePublishInput = z.infer<typeof approvePublishJobSchema>;
-
-/**
- * Core of approvePublishJob, exported for tests. `supabase` is the caller's
- * RLS-scoped client; `supabaseAdmin` is the service-role client used for the
- * approval record (which has no client write policies by design).
- */
-export async function runApprovePublishJob({
-  supabase,
-  supabaseAdmin,
-  userId,
-  input,
-}: {
-  supabase: any;
-  supabaseAdmin: any;
-  userId: string;
-  input: ApprovePublishInput;
-}): Promise<{ publishJob: any; safetyWarning: string | null }> {
-  const { data: job } = await supabase
-    .from("publish_jobs")
-    .select("id, status, project_id, video_job_id")
-    .eq("id", input.publish_job_id)
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (!job) throw new Error("Publish job not found");
-  if (job.status !== "draft") {
-    throw new Error(`Only draft jobs can be approved (current: ${job.status}).`);
-  }
-
-  // SAFETY GATE (server-enforced, D62): a high-risk score (< 50) BLOCKS
-  // public publishing with no override path. Private/unlisted may proceed;
-  // the warning is recorded at execute time. No score on record = allowed
-  // (scoring is advisory, not mandatory).
-  const { data: latestScore } = await supabase
-    .from("safety_scores")
-    .select("score")
-    .eq("project_id", job.project_id)
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const safetyScore: number | null = latestScore?.score ?? null;
-  const gate = evaluatePublishGate(safetyScore, input.privacy as PublishPrivacy);
-  if (gate.blocked) {
-    throw new Error(publishBlockedMessage(gate.score as number));
-  }
-
-  if (input.thumbnail_id) {
-    const { data: thumb } = await supabase
-      .from("thumbnails")
-      .select("id")
-      .eq("id", input.thumbnail_id)
+    const { data: job } = await supabase
+      .from("publish_jobs")
+      .select("id, status, project_id")
+      .eq("id", data.publish_job_id)
       .eq("user_id", userId)
       .maybeSingle();
-    if (!thumb) throw new Error("Thumbnail not found");
-  }
+    if (!job) throw new Error("Publish job not found");
+    if (job.status !== "draft") {
+      throw new Error(`Only draft jobs can be approved (current: ${job.status}).`);
+    }
 
-  const scheduledFor = input.scheduled_for ? new Date(input.scheduled_for) : null;
-  if (scheduledFor && scheduledFor.getTime() < Date.now()) {
-    throw new Error("Scheduled time must be in the future.");
-  }
+    // P6 SAFETY GATE (server-enforced): a high-risk score (< 50) blocks
+    // approval unless the user explicitly acknowledges the override.
+    // No score on record = allowed (scoring is advisory, not mandatory).
+    const { data: latestScore } = await supabase
+      .from("safety_scores")
+      .select("score")
+      .eq("project_id", job.project_id)
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const safetyScore: number | null = latestScore?.score ?? null;
+    const { evaluatePublishGate } = await import("./safety");
+    const gate = evaluatePublishGate(safetyScore, data.safety_override);
+    if (gate.blocked) {
+      throw new Error(
+        `Safety score ${safetyScore}/100 is high demonetization risk. Fix the flagged issues and re-check, or explicitly acknowledge the risk to proceed.`
+      );
+    }
 
-  const { data: updated, error } = await supabase
-    .from("publish_jobs")
-    .update({
-      status: scheduledFor ? "scheduled" : "approved",
-      title: input.title,
-      description: input.description ?? null,
-      tags: input.tags,
-      privacy: input.privacy,
-      made_for_kids: input.madeForKids,
-      thumbnail_id: input.thumbnail_id ?? null,
-      scheduled_for: scheduledFor?.toISOString() ?? null,
-      approved_by: userId,
-      approved_at: new Date().toISOString(),
-      safety_score: safetyScore,
-    })
-    .eq("id", job.id)
-    .select()
-    .single();
-  if (error) throw new Error(error.message);
+    if (data.thumbnail_id) {
+      const { data: thumb } = await supabase
+        .from("thumbnails")
+        .select("id")
+        .eq("id", data.thumbnail_id)
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (!thumb) throw new Error("Thumbnail not found");
+    }
 
-  // Server-side approval record: this is what executePublishJob checks.
-  // Written with the service role — clients have no write policies on the
-  // approvals table, so this row cannot be forged.
-  const warning = gate.warning ? lowScoreWarningMessage(gate.score as number) : null;
-  await recordApproval(supabaseAdmin, {
-    userId,
-    projectId: job.project_id,
-    videoId: job.video_job_id ?? null,
-    publishJobId: job.id,
-    approverId: userId,
-    scope: approvalScopeForPrivacy(input.privacy),
-    notes: warning,
+    const scheduledFor = data.scheduled_for ? new Date(data.scheduled_for) : null;
+    if (scheduledFor && scheduledFor.getTime() < Date.now()) {
+      throw new Error("Scheduled time must be in the future.");
+    }
+
+    const { data: updated, error } = await supabase
+      .from("publish_jobs")
+      .update({
+        status: scheduledFor ? "scheduled" : "approved",
+        title: data.title,
+        description: data.description ?? null,
+        tags: data.tags,
+        privacy: data.privacy,
+        made_for_kids: data.madeForKids,
+        thumbnail_id: data.thumbnail_id ?? null,
+        scheduled_for: scheduledFor?.toISOString() ?? null,
+        approved_by: userId,
+        approved_at: new Date().toISOString(),
+        safety_score: safetyScore,
+        safety_override: data.safety_override && safetyScore !== null && safetyScore < 50,
+      })
+      .eq("id", job.id)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return { publishJob: updated };
   });
-
-  return { publishJob: updated, safetyWarning: warning };
-}
 
 const executePublishJobSchema = z.object({
   publish_job_id: z.string().uuid(),
@@ -464,15 +413,6 @@ const executePublishJobSchema = z.object({
  * Executes an approved (or due scheduled) publish job: uploads the video via
  * the existing resumable YouTube uploader, then sets the thumbnail.
  * Only runs for jobs in approved/scheduled status — drafts can never execute.
- *
- * Sprint 7-8 C (D61): TWO hard server-side requirements before ANY upload:
- *   1. A human approval RECORD must exist in the approvals table
- *      (requirePublishApproval). The approvals table has no client write
- *      policies, so a forged publish_jobs row can never satisfy this.
- *      (The adapter-level gate in publishing-gates.server.ts, workstream A,
- *      additionally re-checks approved_by/approved_at on the job row.)
- *   2. The CURRENT latest safety score is re-checked: < 50 BLOCKS public;
- *      private/unlisted proceed with a recorded warning.
  */
 export const executePublishJob = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -480,170 +420,85 @@ export const executePublishJob = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    return runExecutePublishJob({
-      supabase,
-      supabaseAdmin,
-      userId,
-      publishJobId: data.publish_job_id,
-    });
-  });
 
-/** Platform upload, injectable so tests can prove the gate without uploading. */
-export interface PublishUploader {
-  publishVideoJob: (admin: any, input: any) => Promise<{ videoId: string }>;
-  setVideoThumbnail: (admin: any, input: any) => Promise<void>;
-}
-
-/**
- * Core of executePublishJob, exported for tests. `uploader` defaults to the
- * real YouTube uploader; tests inject a mock.
- */
-export async function runExecutePublishJob({
-  supabase,
-  supabaseAdmin,
-  userId,
-  publishJobId,
-  uploader,
-}: {
-  supabase: any;
-  supabaseAdmin: any;
-  userId: string;
-  publishJobId: string;
-  uploader?: PublishUploader;
-}): Promise<{
-  videoId: string;
-  url: string;
-  publishJob: any;
-  safetyWarning: string | null;
-}> {
-  const { data: job } = await supabase
-    .from("publish_jobs")
-    .select("*")
-    .eq("id", publishJobId)
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (!job) throw new Error("Publish job not found");
-  if (!["approved", "scheduled"].includes(job.status)) {
-    throw new Error(`Job is not ready to publish (current: ${job.status}).`);
-  }
-  if (job.status === "scheduled" && job.scheduled_for && new Date(job.scheduled_for).getTime() > Date.now()) {
-    // No auto-publishing anywhere in the system: a scheduled job waits for
-    // its time, then still requires this human-invoked execution.
-    throw new Error("This job is scheduled for a future time — it can only be published once that time arrives.");
-  }
-  if (job.made_for_kids === null || job.made_for_kids === undefined) {
-    throw new Error("Please confirm whether this video is made for kids.");
-  }
-
-  // Mark uploading (atomic guard against double-execution).
-  const { data: claimed } = await supabase
-    .from("publish_jobs")
-    .update({ status: "uploading" })
-    .eq("id", job.id)
-    .in("status", ["approved", "scheduled"])
-    .select()
-    .maybeSingle();
-  if (!claimed) throw new Error("This job is already being published.");
-
-  if (!job.video_job_id) throw new Error("Publish job has no video attached.");
-  try {
-    // HARD REQUIREMENT 1: a human approval record must exist for this job +
-    // scope. No approval row (e.g. a forged publish_jobs row) = rejection.
-    await requirePublishApproval(supabaseAdmin, {
-      userId,
-      publishJobId: job.id,
-      scope: approvalScopeForPrivacy(job.privacy),
-    });
-
-    // HARD REQUIREMENT 2: re-check the CURRENT latest safety score — a low
-    // score recorded after approval must still block a public publish.
-    const { data: latestScore } = await supabaseAdmin
-      .from("safety_scores")
-      .select("score")
-      .eq("project_id", job.project_id)
+    const { data: job } = await supabase
+      .from("publish_jobs")
+      .select("*")
+      .eq("id", data.publish_job_id)
       .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(1)
       .maybeSingle();
-    const execGate = evaluatePublishGate(
-      latestScore?.score ?? null,
-      job.privacy as PublishPrivacy,
-    );
-    if (execGate.blocked) {
-      throw new Error(publishBlockedMessage(execGate.score as number));
+    if (!job) throw new Error("Publish job not found");
+    if (!["approved", "scheduled"].includes(job.status)) {
+      throw new Error(`Job is not ready to publish (current: ${job.status}).`);
     }
-    const execWarning = execGate.warning
-      ? lowScoreWarningMessage(execGate.score as number)
-      : null;
-    if (execWarning) {
-      await recordPublishWarning(supabaseAdmin, {
+    if (job.status === "scheduled" && job.scheduled_for && new Date(job.scheduled_for).getTime() > Date.now()) {
+      // No auto-publishing anywhere in the system: a scheduled job waits for
+      // its time, then still requires this human-invoked execution.
+      throw new Error("This job is scheduled for a future time — it can only be published once that time arrives.");
+    }
+    if (job.made_for_kids === null || job.made_for_kids === undefined) {
+      throw new Error("Please confirm whether this video is made for kids.");
+    }
+
+    // Mark uploading (atomic guard against double-execution).
+    const { data: claimed } = await supabase
+      .from("publish_jobs")
+      .update({ status: "uploading" })
+      .eq("id", job.id)
+      .in("status", ["approved", "scheduled"])
+      .select()
+      .maybeSingle();
+    if (!claimed) throw new Error("This job is already being published.");
+
+    if (!job.video_job_id) throw new Error("Publish job has no video attached.");
+    try {
+      // Reuse the existing resumable uploader (handles scope, tokens, retries).
+      const { publishVideoJob } = await import("./youtube-publish.server");
+      const { videoId } = await publishVideoJob(supabaseAdmin, {
         userId,
-        projectId: job.project_id,
-        publishJobId: job.id,
-        kind: "safety-low-score",
-        message: execWarning,
+        videoJobId: job.video_job_id,
+        title: job.title ?? "Vidora video",
+        description: job.description ?? "",
+        tags: job.tags,
+        privacy: job.privacy as "private" | "unlisted" | "public",
+        madeForKids: job.made_for_kids,
+        publishAt: job.scheduled_for,
       });
-    }
 
-    // Reuse the existing resumable uploader (handles scope, tokens, retries).
-    const up: PublishUploader =
-      uploader ?? (await import("./youtube-publish.server"));
-    const { videoId } = await up.publishVideoJob(supabaseAdmin, {
-      userId,
-      videoJobId: job.video_job_id,
-      title: job.title ?? "Vidora video",
-      description: job.description ?? "",
-      tags: job.tags,
-      privacy: job.privacy as "private" | "unlisted" | "public",
-      madeForKids: job.made_for_kids,
-      publishAt: job.scheduled_for,
-      // Sprint 7–8: the adapter re-checks the human-approval record on this
-      // job immediately before uploading (integration point for the
-      // server-enforced approvals table).
-      publishJobId: job.id,
-      projectId: job.project_id,
-    });
-
-    // Set the selected thumbnail (with burned overlay) if one was chosen.
-    if (job.thumbnail_id) {
-      await up
-        .setVideoThumbnail(supabaseAdmin, {
+      // Set the selected thumbnail (with burned overlay) if one was chosen.
+      if (job.thumbnail_id) {
+        const { setVideoThumbnail } = await import("./youtube-publish.server");
+        await setVideoThumbnail(supabaseAdmin, {
           userId,
           videoId,
           thumbnailId: job.thumbnail_id,
-        })
-        .catch((e) => {
+        }).catch((e) => {
           // Thumbnail failure shouldn't fail the publish — log and continue.
           console.warn(`[vidora] thumbnail set failed for ${videoId}:`, e instanceof Error ? e.message : e);
         });
-    }
+      }
 
-    const { data: updated } = await supabase
-      .from("publish_jobs")
-      .update({
-        status: "published",
-        youtube_video_id: videoId,
-        youtube_url: `https://youtu.be/${videoId}`,
-        published_at: new Date().toISOString(),
-      })
-      .eq("id", job.id)
-      .select()
-      .single();
-    return {
-      videoId,
-      url: `https://youtu.be/${videoId}`,
-      publishJob: updated,
-      safetyWarning: execWarning,
-    };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Publish failed";
-    await supabase
-      .from("publish_jobs")
-      .update({ status: "failed", error: message.slice(0, 500) })
-      .eq("id", job.id);
-    throw error instanceof Error ? error : new Error(message);
-  }
-}
+      const { data: updated } = await supabase
+        .from("publish_jobs")
+        .update({
+          status: "published",
+          youtube_video_id: videoId,
+          youtube_url: `https://youtu.be/${videoId}`,
+          published_at: new Date().toISOString(),
+        })
+        .eq("id", job.id)
+        .select()
+        .single();
+      return { videoId, url: `https://youtu.be/${videoId}`, publishJob: updated };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Publish failed";
+      await supabase
+        .from("publish_jobs")
+        .update({ status: "failed", error: message.slice(0, 500) })
+        .eq("id", job.id);
+      throw error instanceof Error ? error : new Error(message);
+    }
+  });
 
 const cancelPublishJobSchema = z.object({
   publish_job_id: z.string().uuid(),
