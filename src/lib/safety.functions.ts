@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   SAFETY_SCORE_VERSION,
-  computeSafetyScore,
+  computeSafetyScoreWithRules,
   type SafetyIssue,
 } from "./safety";
 
@@ -172,14 +172,21 @@ export const scoreProject = createServerFn({ method: "POST" })
       throw new Error("Generate a script first — there's nothing to score yet.");
     }
 
-    const result = computeSafetyScore({
-      script: inputs.script,
-      title: inputs.title,
-      description: inputs.description,
-      assets: inputs.assets,
-      sourceTexts: inputs.sourceTexts,
-      madeForKids: inputs.madeForKids,
-    });
+    // Sprint 7-8 C: the scorer reads the ACTIVE rule version from the
+    // safety_rules table (data, not code). Falls back to built-in v1.
+    const { getActiveSafetyRules } = await import("./safety-rules.server");
+    const ruleSet = await getActiveSafetyRules(supabaseAdmin);
+    const result = computeSafetyScoreWithRules(
+      {
+        script: inputs.script,
+        title: inputs.title,
+        description: inputs.description,
+        assets: inputs.assets,
+        sourceTexts: inputs.sourceTexts,
+        madeForKids: inputs.madeForKids,
+      },
+      ruleSet,
+    );
 
     const { data: row, error } = await supabaseAdmin
       .from("safety_scores")
@@ -187,6 +194,7 @@ export const scoreProject = createServerFn({ method: "POST" })
         user_id: userId,
         project_id: data.project_id,
         version: SAFETY_SCORE_VERSION,
+        rule_version: result.ruleVersion,
         score: result.score,
         band: result.band,
         dimensions: JSON.parse(
@@ -205,7 +213,7 @@ export const scoreProject = createServerFn({ method: "POST" })
       .single();
     if (error) throw new Error("Could not save the safety score.");
 
-    return { ...row, issues: result.issues, dimensions: result.dimensions, version: result.version };
+    return { ...row, issues: result.issues, dimensions: result.dimensions, version: result.version, rule_version: result.ruleVersion };
   });
 
 /** Latest safety score + history for a project. Free. */

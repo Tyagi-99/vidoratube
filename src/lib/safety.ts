@@ -12,7 +12,21 @@
  *   originality  20 — duplication vs research sources (P3)
  *   metadata     15 — title honesty / clickbait (P5 scorer reused)
  *   policy       10 — madeForKids, disclaimers, synthetic-content disclosure
+ *
+ * Sprint 7-8 C: tunable numbers (weights, thresholds, deductions) are NOT
+ * hardcoded anymore — they resolve from a SafetyRuleConfig, which the server
+ * loads from the `safety_rules` table (versioned, data not code). The pure
+ * functions default to DEFAULT_SAFETY_RULES (exact v1 values) so they stay
+ * deterministic in tests and when the DB is unavailable. Detection patterns
+ * (word lists, regexes) intentionally stay in code — they are detection
+ * logic, not tunable numbers.
  */
+
+import {
+  DEFAULT_SAFETY_RULES,
+  ruleNum,
+  type SafetyRuleConfig,
+} from "./safety-rules";
 
 export const SAFETY_SCORE_VERSION = "1.0";
 
@@ -48,6 +62,8 @@ export interface SafetyScoreResult {
   dimensions: DimensionScore[];
   issues: SafetyIssue[];
   version: string;
+  /** Which safety_rules version produced this score (D61). */
+  ruleVersion: number;
 }
 
 export interface ProvenanceInput {
@@ -79,10 +95,11 @@ export interface SafetyInputs {
 
 interface FlagPattern {
   category: string;
+  /** Key into the safety_rules table (e.g. "advertiser.profanity"). */
+  ruleKey: string;
   message: string;
   suggestion: string;
   severity: SafetySeverity;
-  deduct: number;
   patterns: RegExp[];
 }
 
@@ -114,7 +131,7 @@ const FLAG_PATTERNS: FlagPattern[] = [
     message: "Profanity detected",
     suggestion: "Replace with milder wording or bleep it — advertisers filter this.",
     severity: "warning",
-    deduct: 5,
+    ruleKey: "advertiser.profanity",
     patterns: PROFANITY.map((w) => new RegExp(`\\b${w}s?\\b`, "i")),
   },
   {
@@ -122,7 +139,7 @@ const FLAG_PATTERNS: FlagPattern[] = [
     message: "Sexually suggestive content",
     suggestion: "Keep it educational/clinical or remove — sexual content limits ads.",
     severity: "critical",
-    deduct: 8,
+    ruleKey: "advertiser.sexual",
     patterns: [
       /\b(porn|pornography|xxx|nude|naked|orgasm|masturbat|fetish|erotic|blowjob|handjob)\b/i,
       /\bsex(ual)?\b.{0,20}\b(scene|content|joke)\b/i,
@@ -133,7 +150,7 @@ const FLAG_PATTERNS: FlagPattern[] = [
     message: "Graphic violence / gore",
     suggestion: "Describe events factually without gore detail, or add a content warning.",
     severity: "critical",
-    deduct: 8,
+    ruleKey: "advertiser.violence",
     patterns: [
       /\b(gore|gory|dismember|decapitat|mutilat|bloodbath|bloodied corpse)\b/i,
       /\b(torture|tortured|torturing)\b/i,
@@ -145,7 +162,7 @@ const FLAG_PATTERNS: FlagPattern[] = [
     message: "Drug references",
     suggestion: "Educational/documentary framing is safer than recreational depiction.",
     severity: "warning",
-    deduct: 6,
+    ruleKey: "advertiser.drugs",
     patterns: [
       /\b(cocaine|heroin|meth(amphetamine)?|fentanyl|ecstasy|mdma|crack cocaine|opioid abuse)\b/i,
       /\b(getting high|shooting up|smoking crack)\b/i,
@@ -156,7 +173,7 @@ const FLAG_PATTERNS: FlagPattern[] = [
     message: "Sensitive tragedy / crisis event",
     suggestion: "Factual, respectful coverage is fine — avoid sensationalizing tragedy.",
     severity: "warning",
-    deduct: 4,
+    ruleKey: "advertiser.tragedy",
     patterns: [
       /\b(suicide|self-harm|school shooting|terrorist attack|mass shooting)\b/i,
     ],
@@ -173,8 +190,13 @@ const ADVICE_PATTERNS = {
 // Advertiser dimension (30 pts)
 // ---------------------------------------------------------------------------
 
-export function scoreAdvertiser(script: string, title: string, description = ""): DimensionScore {
-  const maxPoints = 30;
+export function scoreAdvertiser(
+  script: string,
+  title: string,
+  description = "",
+  rules: SafetyRuleConfig = DEFAULT_SAFETY_RULES
+): DimensionScore {
+  const maxPoints = ruleNum(rules, "dimension.advertiser", "max_points");
   let points = maxPoints;
   const issues: SafetyIssue[] = [];
   const text = `${title}\n${script}\n${description}`;
@@ -207,7 +229,9 @@ export function scoreAdvertiser(script: string, title: string, description = "")
     }
     // Per unique hit, scaled by category severity; capped per category.
     if (uniqueHits.size > 0) {
-      points -= Math.min(flag.deduct * uniqueHits.size, flag.deduct * 3);
+      const deduct = ruleNum(rules, flag.ruleKey, "deduct_per_hit");
+      const capMult = ruleNum(rules, flag.ruleKey, "cap_multiplier");
+      points -= Math.min(deduct * uniqueHits.size, deduct * capMult);
     }
   }
 
@@ -215,8 +239,10 @@ export function scoreAdvertiser(script: string, title: string, description = "")
   // even if each word is "mild" — this mirrors YouTube's limited-ads triggers.
   // 5%+ flagged words is pervasive (1 in 20 words).
   const density = flaggedWords / wordCount;
-  if (density > 0.05 && flaggedWords >= 3) {
-    points -= 10;
+  const densityThreshold = ruleNum(rules, "advertiser.density", "density_threshold");
+  const minFlaggedWords = ruleNum(rules, "advertiser.density", "min_flagged_words");
+  if (density > densityThreshold && flaggedWords >= minFlaggedWords) {
+    points -= ruleNum(rules, "advertiser.density", "deduct");
     issues.push({
       dimension: "advertiser",
       severity: "critical",
@@ -232,8 +258,11 @@ export function scoreAdvertiser(script: string, title: string, description = "")
 // Copyright dimension (25 pts) — driven by P4 provenance records
 // ---------------------------------------------------------------------------
 
-export function scoreCopyright(assets: ProvenanceInput[]): DimensionScore {
-  const maxPoints = 25;
+export function scoreCopyright(
+  assets: ProvenanceInput[],
+  rules: SafetyRuleConfig = DEFAULT_SAFETY_RULES
+): DimensionScore {
+  const maxPoints = ruleNum(rules, "dimension.copyright", "max_points");
   let points = maxPoints;
   const issues: SafetyIssue[] = [];
 
@@ -250,7 +279,8 @@ export function scoreCopyright(assets: ProvenanceInput[]): DimensionScore {
   );
 
   if (missing.length > 0) {
-    points -= Math.min(8 * missing.length, 16);
+    const perAsset = ruleNum(rules, "copyright.missing_license", "deduct_per_asset");
+    points -= Math.min(perAsset * missing.length, ruleNum(rules, "copyright.missing_license", "cap"));
     issues.push({
       dimension: "copyright",
       severity: "critical",
@@ -259,7 +289,8 @@ export function scoreCopyright(assets: ProvenanceInput[]): DimensionScore {
     });
   }
   if (unverified.length > 0) {
-    points -= Math.min(5 * unverified.length, 10);
+    const perAsset = ruleNum(rules, "copyright.unverified_license", "deduct_per_asset");
+    points -= Math.min(perAsset * unverified.length, ruleNum(rules, "copyright.unverified_license", "cap"));
     issues.push({
       dimension: "copyright",
       severity: "warning",
@@ -268,7 +299,7 @@ export function scoreCopyright(assets: ProvenanceInput[]): DimensionScore {
     });
   }
   if (musicNoUrl.length > 0) {
-    points -= 6;
+    points -= ruleNum(rules, "copyright.music_no_url", "deduct");
     issues.push({
       dimension: "copyright",
       severity: "warning",
@@ -313,8 +344,12 @@ const TRANSFORMATIVE_MARKERS = [
   /\bmy take\b/i,
 ];
 
-export function scoreOriginality(script: string, sourceTexts: string[]): DimensionScore {
-  const maxPoints = 20;
+export function scoreOriginality(
+  script: string,
+  sourceTexts: string[],
+  rules: SafetyRuleConfig = DEFAULT_SAFETY_RULES
+): DimensionScore {
+  const maxPoints = ruleNum(rules, "dimension.originality", "max_points");
   let points = maxPoints;
   const issues: SafetyIssue[] = [];
 
@@ -323,24 +358,24 @@ export function scoreOriginality(script: string, sourceTexts: string[]): Dimensi
     maxSim = Math.max(maxSim, textSimilarity(script, src));
   }
 
-  if (maxSim > 0.6) {
-    points -= 12;
+  if (maxSim > ruleNum(rules, "originality.high_similarity", "similarity_threshold")) {
+    points -= ruleNum(rules, "originality.high_similarity", "deduct");
     issues.push({
       dimension: "originality",
       severity: "critical",
       message: `Script closely matches a research source (${Math.round(maxSim * 100)}% similar)`,
       suggestion: "Rewrite in your own words and add original commentary — reuploads get limited ads.",
     });
-  } else if (maxSim > 0.35) {
-    points -= 6;
+  } else if (maxSim > ruleNum(rules, "originality.mid_similarity", "similarity_threshold")) {
+    points -= ruleNum(rules, "originality.mid_similarity", "deduct");
     issues.push({
       dimension: "originality",
       severity: "warning",
       message: `Script partially overlaps a source (${Math.round(maxSim * 100)}% similar)`,
       suggestion: "Add more of your own analysis to make it transformative.",
     });
-  } else if (maxSim > 0.2 && sourceTexts.length > 0) {
-    points -= 3;
+  } else if (maxSim > ruleNum(rules, "originality.low_similarity", "similarity_threshold") && sourceTexts.length > 0) {
+    points -= ruleNum(rules, "originality.low_similarity", "deduct");
     issues.push({
       dimension: "originality",
       severity: "info",
@@ -351,8 +386,8 @@ export function scoreOriginality(script: string, sourceTexts: string[]): Dimensi
 
   const words = script.split(/\s+/).filter(Boolean).length;
   const hasTransformative = TRANSFORMATIVE_MARKERS.some((p) => p.test(script));
-  if (words > 150 && !hasTransformative) {
-    points -= 4;
+  if (words > ruleNum(rules, "originality.no_commentary", "min_words") && !hasTransformative) {
+    points -= ruleNum(rules, "originality.no_commentary", "deduct");
     issues.push({
       dimension: "originality",
       severity: "info",
@@ -371,9 +406,10 @@ export function scoreOriginality(script: string, sourceTexts: string[]): Dimensi
 export function scoreMetadata(
   title: string,
   script: string,
-  description = ""
+  description = "",
+  rules: SafetyRuleConfig = DEFAULT_SAFETY_RULES
 ): DimensionScore {
-  const maxPoints = 15;
+  const maxPoints = ruleNum(rules, "dimension.metadata", "max_points");
   let points = maxPoints;
   const issues: SafetyIssue[] = [];
 
@@ -382,7 +418,7 @@ export function scoreMetadata(
   // ALL CAPS title
   const letters = t.replace(/[^a-zA-Z]/g, "");
   if (letters.length >= 10 && letters === letters.toUpperCase()) {
-    points -= 3;
+    points -= ruleNum(rules, "metadata.all_caps", "deduct");
     issues.push({
       dimension: "metadata",
       severity: "warning",
@@ -393,7 +429,7 @@ export function scoreMetadata(
 
   // Excessive punctuation
   if (/!{2,}|\?{2,}/.test(t)) {
-    points -= 2;
+    points -= ruleNum(rules, "metadata.punctuation", "deduct");
     issues.push({
       dimension: "metadata",
       severity: "info",
@@ -413,7 +449,7 @@ export function scoreMetadata(
     /\bgone sexual\b/i,
   ].filter((p) => p.test(t));
   if (clickbaitHits.length > 0) {
-    points -= 6;
+    points -= ruleNum(rules, "metadata.clickbait", "deduct");
     issues.push({
       dimension: "metadata",
       severity: "critical",
@@ -430,8 +466,8 @@ export function scoreMetadata(
   if (titleWords.size >= 3) {
     let matched = 0;
     for (const w of titleWords) if (scriptLower.includes(w)) matched++;
-    if (matched / titleWords.size < 0.4) {
-      points -= 5;
+    if (matched / titleWords.size < ruleNum(rules, "metadata.title_mismatch", "match_ratio")) {
+      points -= ruleNum(rules, "metadata.title_mismatch", "deduct");
       issues.push({
         dimension: "metadata",
         severity: "warning",
@@ -443,7 +479,7 @@ export function scoreMetadata(
 
   // Empty description
   if (!description.trim()) {
-    points -= 1;
+    points -= ruleNum(rules, "metadata.no_description", "deduct");
     issues.push({
       dimension: "metadata",
       severity: "info",
@@ -459,19 +495,22 @@ export function scoreMetadata(
 // Policy dimension (10 pts)
 // ---------------------------------------------------------------------------
 
-export function scorePolicy(inputs: {
-  madeForKids?: boolean | null | undefined;
-  script: string;
-  syntheticDisclosed?: boolean | undefined;
-  hasDisclaimer?: boolean | undefined;
-}): DimensionScore {
-  const maxPoints = 10;
+export function scorePolicy(
+  inputs: {
+    madeForKids?: boolean | null | undefined;
+    script: string;
+    syntheticDisclosed?: boolean | undefined;
+    hasDisclaimer?: boolean | undefined;
+  },
+  rules: SafetyRuleConfig = DEFAULT_SAFETY_RULES
+): DimensionScore {
+  const maxPoints = ruleNum(rules, "dimension.policy", "max_points");
   let points = maxPoints;
   const issues: SafetyIssue[] = [];
   const { madeForKids, script, syntheticDisclosed, hasDisclaimer } = inputs;
 
   if (madeForKids === null || madeForKids === undefined) {
-    points -= 4;
+    points -= ruleNum(rules, "policy.kids_unset", "deduct");
     issues.push({
       dimension: "policy",
       severity: "warning",
@@ -483,7 +522,7 @@ export function scorePolicy(inputs: {
   const givesMedical = ADVICE_PATTERNS.medical.test(script);
   const givesFinancial = ADVICE_PATTERNS.financial.test(script);
   if ((givesMedical || givesFinancial) && !hasDisclaimer) {
-    points -= 5;
+    points -= ruleNum(rules, "policy.advice_no_disclaimer", "deduct");
     issues.push({
       dimension: "policy",
       severity: "critical",
@@ -493,7 +532,7 @@ export function scorePolicy(inputs: {
   }
 
   if (!syntheticDisclosed) {
-    points -= 2;
+    points -= ruleNum(rules, "policy.synthetic_undisclosed", "deduct");
     issues.push({
       dimension: "policy",
       severity: "info",
@@ -531,17 +570,31 @@ export const BAND_COLOR: Record<SafetyBand, string> = {
 };
 
 export function computeSafetyScore(inputs: SafetyInputs): SafetyScoreResult {
+  return computeSafetyScoreWithRules(inputs, DEFAULT_SAFETY_RULES);
+}
+
+/**
+ * Rule-driven scoring. The server loads `rules` from the safety_rules table
+ * (versioned data); the defaults keep the pure path deterministic.
+ */
+export function computeSafetyScoreWithRules(
+  inputs: SafetyInputs,
+  rules: SafetyRuleConfig
+): SafetyScoreResult {
   const dimensions: DimensionScore[] = [
-    scoreAdvertiser(inputs.script, inputs.title, inputs.description ?? ""),
-    scoreCopyright(inputs.assets ?? []),
-    scoreOriginality(inputs.script, inputs.sourceTexts ?? []),
-    scoreMetadata(inputs.title, inputs.script, inputs.description ?? ""),
-    scorePolicy({
-      madeForKids: inputs.madeForKids,
-      script: inputs.script,
-      syntheticDisclosed: inputs.syntheticDisclosed,
-      hasDisclaimer: inputs.hasDisclaimer,
-    }),
+    scoreAdvertiser(inputs.script, inputs.title, inputs.description ?? "", rules),
+    scoreCopyright(inputs.assets ?? [], rules),
+    scoreOriginality(inputs.script, inputs.sourceTexts ?? [], rules),
+    scoreMetadata(inputs.title, inputs.script, inputs.description ?? "", rules),
+    scorePolicy(
+      {
+        madeForKids: inputs.madeForKids,
+        script: inputs.script,
+        syntheticDisclosed: inputs.syntheticDisclosed,
+        hasDisclaimer: inputs.hasDisclaimer,
+      },
+      rules
+    ),
   ];
 
   const total = dimensions.reduce((s, d) => s + d.points, 0);
@@ -552,8 +605,9 @@ export function computeSafetyScore(inputs: SafetyInputs): SafetyScoreResult {
   // Compounding: multiple severe (critical) violations across dimensions
   // compound demonetization risk beyond the sum of parts.
   const criticalCount = issues.filter((i) => i.severity === "critical").length;
-  if (criticalCount >= 2) {
-    score -= 10;
+  const compoundAt = ruleNum(rules, "compounding_criticals", "min_critical_count");
+  if (criticalCount >= compoundAt) {
+    score -= ruleNum(rules, "compounding_criticals", "deduct");
     issues.push({
       dimension: dimensions.find((d) => d.issues.some((i) => i.severity === "critical"))!.dimension,
       severity: "critical",
@@ -570,6 +624,7 @@ export function computeSafetyScore(inputs: SafetyInputs): SafetyScoreResult {
     dimensions,
     issues,
     version: SAFETY_SCORE_VERSION,
+    ruleVersion: rules.version,
   };
 }
 
@@ -577,36 +632,66 @@ export function computeSafetyScore(inputs: SafetyInputs): SafetyScoreResult {
 export const SAFETY_DISCLAIMER =
   "Risk estimate based on public YouTube policy signals — YouTube decides monetization, this is not a guarantee.";
 
-/** Score below which publishing is blocked without explicit override. */
+/** Score below which public publishing is blocked (no override). */
 export const SAFETY_PUBLISH_BLOCK_THRESHOLD = 50;
 
+/** YouTube publish privacy levels the gate understands. */
+export type PublishPrivacy = "public" | "private" | "unlisted";
+
 export interface PublishGateDecision {
-  /** True when approval must be refused. */
+  /** True when the publish must be refused server-side. */
   blocked: boolean;
+  /**
+   * True when the publish may proceed but a warning must be recorded
+   * (low score on a private/unlisted publish).
+   */
+  warning: boolean;
   /** The score that drove the decision (null = never scored). */
   score: number | null;
-  /** True when an explicit user override was recorded. */
-  overridden: boolean;
+  /** The privacy the decision was evaluated for. */
+  privacy: PublishPrivacy;
 }
 
 /**
- * Pure publish-gate decision. Server-enforced in approvePublishJob.
- * No score on record = advisory only (allowed); score < 50 requires
- * an explicit user acknowledgment of the risk.
+ * Pure publish-gate decision, server-enforced in approvePublishJob AND
+ * executePublishJob.
+ *
+ * Sprint 7-8 C (D62): the old "acknowledge the risk to override" model is
+ * gone. Score < 50 BLOCKS public publishing with no override path — the
+ * score is a hard ceiling for public visibility. Private/unlisted may
+ * proceed, but a warning is recorded in publish_warnings for the audit trail.
+ * No score on record = advisory only (allowed); scoring is advisory, the
+ * approval gate is mandatory.
  */
 export function evaluatePublishGate(
   score: number | null,
-  overrideAcknowledged: boolean
+  privacy: PublishPrivacy
 ): PublishGateDecision {
   if (score === null) {
-    return { blocked: false, score: null, overridden: false };
+    return { blocked: false, warning: false, score: null, privacy };
   }
-  if (score < SAFETY_PUBLISH_BLOCK_THRESHOLD) {
-    return {
-      blocked: !overrideAcknowledged,
-      score,
-      overridden: overrideAcknowledged,
-    };
+  if (score >= SAFETY_PUBLISH_BLOCK_THRESHOLD) {
+    return { blocked: false, warning: false, score, privacy };
   }
-  return { blocked: false, score, overridden: false };
+  if (privacy === "public") {
+    return { blocked: true, warning: false, score, privacy };
+  }
+  return { blocked: false, warning: true, score, privacy };
+}
+
+/** Clear, user-facing error for a blocked public publish. */
+export function publishBlockedMessage(score: number): string {
+  return (
+    `Publishing to public is blocked: safety score ${score}/100 is below ` +
+    `${SAFETY_PUBLISH_BLOCK_THRESHOLD}. Fix the flagged issues and run a new ` +
+    `safety check, or publish as private/unlisted instead.`
+  );
+}
+
+/** Warning recorded when a low-score video is published privately. */
+export function lowScoreWarningMessage(score: number): string {
+  return (
+    `Published with safety score ${score}/100 (below ${SAFETY_PUBLISH_BLOCK_THRESHOLD}) ` +
+    `as non-public. High demonetization risk if switched to public later.`
+  );
 }

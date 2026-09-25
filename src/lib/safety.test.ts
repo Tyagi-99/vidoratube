@@ -6,6 +6,7 @@ import {
   bandForScore,
   computeSafetyScore,
   evaluatePublishGate,
+  publishBlockedMessage,
   scoreAdvertiser,
   scoreMetadata,
   scorePolicy,
@@ -197,35 +198,52 @@ describe("textSimilarity", () => {
   });
 });
 
-describe("evaluatePublishGate", () => {
-  it("blocks <50 without override", () => {
-    const d = evaluatePublishGate(42, false);
+describe("evaluatePublishGate (Sprint 7-8 C: no override for public)", () => {
+  it("BLOCKS <50 for public publishing — no override path", () => {
+    const d = evaluatePublishGate(42, "public");
     expect(d.blocked).toBe(true);
-    expect(d.overridden).toBe(false);
-  });
-
-  it("allows <50 with explicit override (logged)", () => {
-    const d = evaluatePublishGate(42, true);
-    expect(d.blocked).toBe(false);
-    expect(d.overridden).toBe(true);
+    expect(d.warning).toBe(false);
     expect(d.score).toBe(42);
+    expect(d.privacy).toBe("public");
   });
 
-  it("allows >=50 without override", () => {
-    expect(evaluatePublishGate(50, false).blocked).toBe(false);
-    expect(evaluatePublishGate(95, false).blocked).toBe(false);
+  it("allows <50 for private/unlisted but flags a warning", () => {
+    for (const privacy of ["private", "unlisted"] as const) {
+      const d = evaluatePublishGate(42, privacy);
+      expect(d.blocked).toBe(false);
+      expect(d.warning).toBe(true);
+      expect(d.score).toBe(42);
+    }
+  });
+
+  it("allows >=50 for every privacy", () => {
+    for (const privacy of ["public", "private", "unlisted"] as const) {
+      expect(evaluatePublishGate(50, privacy).blocked).toBe(false);
+      expect(evaluatePublishGate(50, privacy).warning).toBe(false);
+      expect(evaluatePublishGate(95, privacy).blocked).toBe(false);
+    }
   });
 
   it("allows unscored projects (advisory, not mandatory)", () => {
-    const d = evaluatePublishGate(null, false);
-    expect(d.blocked).toBe(false);
-    expect(d.score).toBeNull();
+    for (const privacy of ["public", "private", "unlisted"] as const) {
+      const d = evaluatePublishGate(null, privacy);
+      expect(d.blocked).toBe(false);
+      expect(d.warning).toBe(false);
+      expect(d.score).toBeNull();
+    }
   });
 
   it("threshold is 50", () => {
     expect(SAFETY_PUBLISH_BLOCK_THRESHOLD).toBe(50);
-    expect(evaluatePublishGate(49, false).blocked).toBe(true);
-    expect(evaluatePublishGate(50, false).blocked).toBe(false);
+    expect(evaluatePublishGate(49, "public").blocked).toBe(true);
+    expect(evaluatePublishGate(50, "public").blocked).toBe(false);
+  });
+
+  it("block message names the score and the remedy", () => {
+    const msg = publishBlockedMessage(42);
+    expect(msg).toContain("42/100");
+    expect(msg).toContain("50");
+    expect(msg).toContain("private/unlisted");
   });
 });
 describe("scorePolicy", () => {
