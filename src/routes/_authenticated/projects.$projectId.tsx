@@ -31,8 +31,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Download, ImageIcon, Loader2, Play, RefreshCw, Trash2, Wand2 } from "lucide-react";
+import { ArrowLeft, Download, ImageIcon, Loader2, Play, RefreshCw, Trash2, Wand2, User, Mic } from "lucide-react";
 import { RenderPanel } from "@/components/vidora/RenderPanel";
+import { StudioV2Panel } from "@/components/vidora/StudioV2Panel";
+import { VoicePicker } from "@/components/vidora/VoicePicker";
+import { ProvenanceDrawer } from "@/components/vidora/ProvenanceDrawer";
+import { useI18n } from "@/lib/i18n";
 import { VoiceoverEditorPanel } from "@/components/vidora/VoiceoverEditorPanel";
 import { AutoEditEditorPanel } from "@/components/vidora/AutoEditEditorPanel";
 import { projectCreationMode } from "@/lib/mode2/settings";
@@ -358,6 +362,11 @@ function ProjectEditor() {
           Scenes {scenes.length > 0 && <span className="text-muted-foreground">({scenes.length})</span>}
         </h2>
 
+        {/* P4: Studio v2 creative controls */}
+        <div className="mt-4">
+          <StudioV2Panel project={project} />
+        </div>
+
         {scenes.length === 0 ? (
           <p className="mt-3 text-sm text-muted-foreground">
             Hit Generate and Vidora will write the script, break it into scenes and fill each one.
@@ -399,6 +408,9 @@ type Scene = {
   duration: number;
   status: string;
   error: string | null;
+  style_override: string | null;
+  character_id: string | null;
+  voice_id: string | null;
 };
 
 function SceneCard({
@@ -411,6 +423,7 @@ function SceneCard({
   projectId: string;
 }) {
   const queryClient = useQueryClient();
+  const { t } = useI18n();
   const updateFn = useServerFn(updateScene);
   const regenFn = useServerFn(regenerateScene);
   const deleteFn = useServerFn(deleteScene);
@@ -419,6 +432,8 @@ function SceneCard({
   const [query, setQuery] = useState(scene.search_query ?? "");
   const [visualType, setVisualType] = useState(scene.visual_type);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [provenanceOpen, setProvenanceOpen] = useState(false);
+  const [sceneVoice, setSceneVoice] = useState<string | null>(scene.voice_id);
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["project", projectId] });
 
   // Resync the form when the server row changes (regenerate/refetch);
@@ -489,6 +504,29 @@ function SceneCard({
           <Badge variant="secondary" className="capitalize">
             {scene.status}
           </Badge>
+          {/* P4: style / character / voice badges */}
+          {scene.style_override && (
+            <Badge variant="outline" title="Scene style override">
+              {scene.style_override}
+            </Badge>
+          )}
+          {scene.character_id && (
+            <Badge variant="outline" title="Character in this scene">
+              <User className="mr-1 h-3 w-3" /> character
+            </Badge>
+          )}
+          {scene.voice_id && (
+            <Badge variant="outline" title="Per-scene voice override">
+              <Mic className="mr-1 h-3 w-3" /> {scene.voice_id}
+            </Badge>
+          )}
+          <button
+            type="button"
+            className="text-xs text-primary underline"
+            onClick={() => setProvenanceOpen(true)}
+          >
+            {t("provenance")}
+          </button>
           {scene.error && <span className="text-destructive">{scene.error}</span>}
         </div>
 
@@ -514,6 +552,21 @@ function SceneCard({
             <Label className="text-xs">Stock search terms</Label>
             <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="ancient ruins | desert" />
           </div>
+        </div>
+
+        {/* P4: per-scene voice override */}
+        <div className="space-y-1.5">
+          <Label className="text-xs">{t("per_scene_voice")}</Label>
+          <VoicePicker
+            value={sceneVoice}
+            onChange={(id) => {
+              setSceneVoice(id);
+              updateFn({ data: { id: scene.id, voice_id: id } } as never)
+                .then(() => invalidate())
+                .catch((e: Error) => toast.error(e.message));
+            }}
+            allowProjectDefault
+          />
         </div>
 
         {audioUrl && (
@@ -589,6 +642,11 @@ function SceneCard({
           </AlertDialog>
         </div>
       </div>
+      <ProvenanceDrawer
+        sceneId={scene.id}
+        open={provenanceOpen}
+        onOpenChange={setProvenanceOpen}
+      />
     </div>
   );
 }

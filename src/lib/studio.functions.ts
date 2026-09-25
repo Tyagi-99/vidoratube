@@ -174,6 +174,8 @@ const sceneUpdateSchema = z.object({
   negative_prompt: z.string().max(2000).optional(),
   search_query: z.string().max(600).optional(),
   style_override: z.string().max(60).nullable().optional(),
+  character_id: z.string().uuid().nullable().optional(),
+  voice_id: z.string().max(120).nullable().optional(),
   transition: z.string().max(40).optional(),
   motion_type: z.string().max(40).optional(),
   duration: z.number().min(1).max(120).optional(),

@@ -18,6 +18,30 @@ const CharacterInput = z.object({
   referenceImageUrl: z.string().url().max(2000).nullable().optional(),
 });
 
+const UpdateProjectInput = z.object({
+  id: z.string().uuid(),
+  visual_style: z.string().max(60).optional(),
+  music_track_id: z.string().uuid().nullable().optional(),
+  music_volume: z.number().min(0).max(1).optional(),
+  music_ducking: z.boolean().optional(),
+  settings: z.record(z.string(), z.unknown()).optional(),
+});
+
+/** Updates P4 studio settings on a project (owner-only). */
+export const updateProjectSettings = createServerFn({ method: "POST" })
+  .middleware([requireAppUser])
+  .inputValidator((i: unknown) => UpdateProjectInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const { id, ...patch } = data;
+    const { error } = await context.supabase
+      .from("projects")
+      .update(patch as never)
+      .eq("id", id)
+      .eq("user_id", context.userId);
+    if (error) throw new Error("Couldn't save project settings.");
+    return { ok: true };
+  });
+
 // --- Characters -------------------------------------------------------------
 
 export const listCharacters = createServerFn({ method: "GET" })
