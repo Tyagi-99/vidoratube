@@ -122,7 +122,29 @@ export type Database = {
           user_id?: string
           video_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "approvals_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approvals_publish_job_id_fkey"
+            columns: ["publish_job_id"]
+            isOneToOne: false
+            referencedRelation: "publish_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approvals_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "video_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       asset_provenance: {
         Row: {
@@ -207,6 +229,47 @@ export type Database = {
           type?: string | null
         }
         Relationships: []
+      }
+      brand_kits: {
+        Row: {
+          created_at: string
+          font_family: string
+          id: string
+          logo_path: string | null
+          primary_color: string
+          secondary_color: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          font_family?: string
+          id?: string
+          logo_path?: string | null
+          primary_color?: string
+          secondary_color?: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          font_family?: string
+          id?: string
+          logo_path?: string | null
+          primary_color?: string
+          secondary_color?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_kits_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: true
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       captions: {
         Row: {
@@ -339,6 +402,41 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      client_channels: {
+        Row: {
+          created_at: string
+          handle: string
+          id: string
+          is_test_channel: boolean
+          platform: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          handle: string
+          id?: string
+          is_test_channel?: boolean
+          platform: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          handle?: string
+          id?: string
+          is_test_channel?: boolean
+          platform?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_channels_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       contact_messages: {
         Row: {
@@ -817,80 +915,46 @@ export type Database = {
         }
         Relationships: []
       }
-      learning_insights: {
+      language_quality_gates: {
         Row: {
-          created_at: string
-          id: string
-          kind: string | null
-          monetization_status: string | null
-          note: string | null
-          payload: Json | null
-          safety_score: number | null
-          title: string | null
-          user_id: string
-          youtube_video_id: string | null
+          back_translation_evidence: string
+          back_translation_passed: boolean
+          golden_scripts_evidence: string
+          golden_scripts_passed: boolean
+          language_code: string
+          native_review_evidence: string
+          native_review_passed: boolean
+          updated_at: string
         }
         Insert: {
-          created_at?: string
-          id?: string
-          kind?: string | null
-          monetization_status?: string | null
-          note?: string | null
-          payload?: Json | null
-          safety_score?: number | null
-          title?: string | null
-          user_id: string
-          youtube_video_id?: string | null
+          back_translation_evidence?: string
+          back_translation_passed?: boolean
+          golden_scripts_evidence?: string
+          golden_scripts_passed?: boolean
+          language_code: string
+          native_review_evidence?: string
+          native_review_passed?: boolean
+          updated_at?: string
         }
         Update: {
-          created_at?: string
-          id?: string
-          kind?: string | null
-          monetization_status?: string | null
-          note?: string | null
-          payload?: Json | null
-          safety_score?: number | null
-          title?: string | null
-          user_id?: string
-          youtube_video_id?: string | null
+          back_translation_evidence?: string
+          back_translation_passed?: boolean
+          golden_scripts_evidence?: string
+          golden_scripts_passed?: boolean
+          language_code?: string
+          native_review_evidence?: string
+          native_review_passed?: boolean
+          updated_at?: string
         }
-        Relationships: []
-      }
-      languages: {
-        Row: {
-          caption_max_chars: number
-          code: string
-          created_at: string
-          font_stack: string
-          llm_instructions: string
-          name_en: string
-          name_native: string
-          rtl: boolean
-          status: string
-        }
-        Insert: {
-          caption_max_chars?: number
-          code: string
-          created_at?: string
-          font_stack?: string
-          llm_instructions?: string
-          name_en: string
-          name_native: string
-          rtl?: boolean
-          status?: string
-        }
-        Update: {
-          caption_max_chars?: number
-          code?: string
-          created_at?: string
-          font_stack?: string
-          llm_instructions?: string
-          name_en?: string
-          name_native?: string
-          rtl?: boolean
-          status?: string
-        }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "language_quality_gates_language_code_fkey"
+            columns: ["language_code"]
+            isOneToOne: true
+            referencedRelation: "languages"
+            referencedColumns: ["code"]
+          },
+        ]
       }
       language_voices: {
         Row: {
@@ -936,8 +1000,83 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "languages"
             referencedColumns: ["code"]
-          }
+          },
         ]
+      }
+      languages: {
+        Row: {
+          caption_max_chars: number
+          code: string
+          created_at: string
+          font_stack: string
+          llm_instructions: string
+          name_en: string
+          name_native: string
+          rtl: boolean
+          status: string
+        }
+        Insert: {
+          caption_max_chars?: number
+          code: string
+          created_at?: string
+          font_stack?: string
+          llm_instructions?: string
+          name_en: string
+          name_native: string
+          rtl?: boolean
+          status?: string
+        }
+        Update: {
+          caption_max_chars?: number
+          code?: string
+          created_at?: string
+          font_stack?: string
+          llm_instructions?: string
+          name_en?: string
+          name_native?: string
+          rtl?: boolean
+          status?: string
+        }
+        Relationships: []
+      }
+      learning_insights: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string | null
+          monetization_status: string | null
+          note: string | null
+          payload: Json | null
+          safety_score: number | null
+          title: string | null
+          user_id: string
+          youtube_video_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind?: string | null
+          monetization_status?: string | null
+          note?: string | null
+          payload?: Json | null
+          safety_score?: number | null
+          title?: string | null
+          user_id: string
+          youtube_video_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string | null
+          monetization_status?: string | null
+          note?: string | null
+          payload?: Json | null
+          safety_score?: number | null
+          title?: string | null
+          user_id?: string
+          youtube_video_id?: string | null
+        }
+        Relationships: []
       }
       meta_connections: {
         Row: {
@@ -1094,64 +1233,61 @@ export type Database = {
       }
       notifications: {
         Row: {
-          id: string
-          user_id: string
-          type: string
-          title: string
           body: string | null
+          created_at: string
+          id: string
           link: string | null
           read_at: string | null
-          created_at: string
+          title: string
+          type: string
+          user_id: string
         }
         Insert: {
-          id?: string
-          user_id: string
-          type?: string
-          title: string
           body?: string | null
+          created_at?: string
+          id?: string
           link?: string | null
           read_at?: string | null
-          created_at?: string
+          title: string
+          type?: string
+          user_id: string
         }
         Update: {
-          id?: string
-          user_id?: string
-          type?: string
-          title?: string
           body?: string | null
+          created_at?: string
+          id?: string
           link?: string | null
           read_at?: string | null
-          created_at?: string
+          title?: string
+          type?: string
+          user_id?: string
         }
         Relationships: []
       }
       nps_responses: {
         Row: {
-          id: string
-          user_id: string
-          score: number
-          category: string
           comment: string | null
-          context: string | null
+          context: string
           created_at: string
+          id: string
+          score: number
+          user_id: string
         }
         Insert: {
-          id?: string
-          user_id: string
-          score: number
-          category?: string
           comment?: string | null
-          context?: string | null
+          context?: string
           created_at?: string
+          id?: string
+          score: number
+          user_id: string
         }
         Update: {
-          id?: string
-          user_id?: string
-          score?: number
-          category?: string
           comment?: string | null
-          context?: string | null
+          context?: string
           created_at?: string
+          id?: string
+          score?: number
+          user_id?: string
         }
         Relationships: []
       }
@@ -1266,6 +1402,50 @@ export type Database = {
         }
         Relationships: []
       }
+      platform_video_stats: {
+        Row: {
+          captured_at: string
+          created_at: string
+          id: string
+          metrics: Json
+          platform: string
+          publish_job_id: string | null
+          snapshot_date: string
+          user_id: string
+          youtube_video_id: string
+        }
+        Insert: {
+          captured_at?: string
+          created_at?: string
+          id?: string
+          metrics?: Json
+          platform?: string
+          publish_job_id?: string | null
+          snapshot_date?: string
+          user_id: string
+          youtube_video_id: string
+        }
+        Update: {
+          captured_at?: string
+          created_at?: string
+          id?: string
+          metrics?: Json
+          platform?: string
+          publish_job_id?: string | null
+          snapshot_date?: string
+          user_id?: string
+          youtube_video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_video_stats_publish_job_id_fkey"
+            columns: ["publish_job_id"]
+            isOneToOne: false
+            referencedRelation: "publish_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pricing_plans: {
         Row: {
           active: boolean
@@ -1291,8 +1471,8 @@ export type Database = {
           highlighted?: boolean
           id?: string
           name: string
-          price_monthly_inr?: number | null
           price_monthly?: number
+          price_monthly_inr?: number | null
           slug: string
           sort_order?: number
           updated_at?: string
@@ -1306,44 +1486,11 @@ export type Database = {
           highlighted?: boolean
           id?: string
           name?: string
-          price_monthly_inr?: number | null
           price_monthly?: number
+          price_monthly_inr?: number | null
           slug?: string
           sort_order?: number
           updated_at?: string
-        }
-        Relationships: []
-      }
-      platform_video_stats: {
-        Row: {
-          id: string
-          user_id: string
-          publish_job_id: string
-          youtube_video_id: string | null
-          platform: string
-          metrics: Json
-          captured_at: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          publish_job_id: string
-          youtube_video_id?: string | null
-          platform?: string
-          metrics?: Json
-          captured_at?: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          publish_job_id?: string
-          youtube_video_id?: string | null
-          platform?: string
-          metrics?: Json
-          captured_at?: string
-          created_at?: string
         }
         Relationships: []
       }
@@ -1583,19 +1730,19 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "publish_jobs_client_channel_id_fkey"
+            columns: ["client_channel_id"]
+            isOneToOne: false
+            referencedRelation: "client_channels"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "publish_jobs_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "publish_jobs_client_channel_id_fkey"
-            columns: ["client_channel_id"]
-            isOneToOne: false
-            referencedRelation: "client_channels"
-            referencedColumns: ["id"]
-          }
         ]
       }
       publish_warnings: {
@@ -1626,192 +1773,21 @@ export type Database = {
           publish_job_id?: string
           user_id?: string
         }
-        Relationships: []
-      }
-      workspaces: {
-        Row: {
-          id: string
-          name: string
-          owner_id: string
-          plan_tier: string
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          name: string
-          owner_id: string
-          plan_tier?: string
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          name?: string
-          owner_id?: string
-          plan_tier?: string
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      workspace_members: {
-        Row: {
-          id: string
-          workspace_id: string
-          user_id: string
-          role: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          workspace_id: string
-          user_id: string
-          role?: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          workspace_id?: string
-          user_id?: string
-          role?: string
-          created_at?: string
-        }
         Relationships: [
           {
-            foreignKeyName: "workspace_members_workspace_id_fkey"
-            columns: ["workspace_id"]
+            foreignKeyName: "publish_warnings_project_id_fkey"
+            columns: ["project_id"]
             isOneToOne: false
-            referencedRelation: "workspaces"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      client_channels: {
-        Row: {
-          id: string
-          workspace_id: string
-          platform: string
-          handle: string
-          is_test_channel: boolean
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          workspace_id: string
-          platform: string
-          handle: string
-          is_test_channel?: boolean
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          workspace_id?: string
-          platform?: string
-          handle?: string
-          is_test_channel?: boolean
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "client_channels_workspace_id_fkey"
-            columns: ["workspace_id"]
-            isOneToOne: false
-            referencedRelation: "workspaces"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      brand_kits: {
-        Row: {
-          id: string
-          workspace_id: string
-          logo_path: string | null
-          primary_color: string
-          secondary_color: string
-          font_family: string
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          workspace_id: string
-          logo_path?: string | null
-          primary_color?: string
-          secondary_color?: string
-          font_family?: string
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          workspace_id?: string
-          logo_path?: string | null
-          primary_color?: string
-          secondary_color?: string
-          font_family?: string
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "brand_kits_workspace_id_fkey"
-            columns: ["workspace_id"]
-            isOneToOne: false
-            referencedRelation: "workspaces"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      workspace_approvals: {
-        Row: {
-          id: string
-          workspace_id: string
-          publish_job_id: string
-          requested_by: string
-          status: string
-          decided_by: string | null
-          decided_at: string | null
-          note: string | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          workspace_id: string
-          publish_job_id: string
-          requested_by: string
-          status?: string
-          decided_by?: string | null
-          decided_at?: string | null
-          note?: string | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          workspace_id?: string
-          publish_job_id?: string
-          requested_by?: string
-          status?: string
-          decided_by?: string | null
-          decided_at?: string | null
-          note?: string | null
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "workspace_approvals_workspace_id_fkey"
-            columns: ["workspace_id"]
-            isOneToOne: false
-            referencedRelation: "workspaces"
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "workspace_approvals_publish_job_id_fkey"
+            foreignKeyName: "publish_warnings_publish_job_id_fkey"
             columns: ["publish_job_id"]
             isOneToOne: false
             referencedRelation: "publish_jobs"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
       rate_limit_buckets: {
@@ -1881,6 +1857,7 @@ export type Database = {
           error: string | null
           finished_at: string | null
           id: string
+          max_attempts: number
           output_path: string | null
           paragraphs: Json
           render_id: string
@@ -1889,7 +1866,6 @@ export type Database = {
           status: string
           title: string
           updated_at: string
-          max_attempts: number
         }
         Insert: {
           attempts?: number
@@ -1900,6 +1876,7 @@ export type Database = {
           error?: string | null
           finished_at?: string | null
           id?: string
+          max_attempts?: number
           output_path?: string | null
           paragraphs?: Json
           render_id: string
@@ -1908,7 +1885,6 @@ export type Database = {
           status?: string
           title?: string
           updated_at?: string
-          max_attempts?: number
         }
         Update: {
           attempts?: number
@@ -1919,6 +1895,7 @@ export type Database = {
           error?: string | null
           finished_at?: string | null
           id?: string
+          max_attempts?: number
           output_path?: string | null
           paragraphs?: Json
           render_id?: string
@@ -1927,7 +1904,6 @@ export type Database = {
           status?: string
           title?: string
           updated_at?: string
-          max_attempts?: number
         }
         Relationships: [
           {
@@ -1938,42 +1914,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      tts_cache: {
-        Row: {
-          audio_path: string
-          byte_size: number | null
-          created_at: string
-          duration_seconds: number | null
-          id: string
-          language_code: string
-          paragraph_hash: string
-          provider: string
-          voice_id: string
-        }
-        Insert: {
-          audio_path: string
-          byte_size?: number | null
-          created_at?: string
-          duration_seconds?: number | null
-          id?: string
-          language_code: string
-          paragraph_hash: string
-          provider: string
-          voice_id: string
-        }
-        Update: {
-          audio_path?: string
-          byte_size?: number | null
-          created_at?: string
-          duration_seconds?: number | null
-          id?: string
-          language_code?: string
-          paragraph_hash?: string
-          provider?: string
-          voice_id?: string
-        }
-        Relationships: []
       }
       renders: {
         Row: {
@@ -2077,6 +2017,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "renders_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "renders"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "renders_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
@@ -2084,24 +2031,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      worker_heartbeats: {
-        Row: {
-          worker_id: string
-          last_seen_at: string
-          meta: Json
-        }
-        Insert: {
-          worker_id: string
-          last_seen_at?: string
-          meta?: Json
-        }
-        Update: {
-          worker_id?: string
-          last_seen_at?: string
-          meta?: Json
-        }
-        Relationships: []
       }
       research_projects: {
         Row: {
@@ -2138,48 +2067,47 @@ export type Database = {
       }
       retention_curves: {
         Row: {
-          id: string
-          user_id: string
-          publish_job_id: string
-          youtube_video_id: string | null
-          platform: string
-          segments: Json
-          points: Json
-          overall_avg: number | null
-          strongest_segment: string | null
-          weakest_segment: string | null
           captured_at: string
           created_at: string
+          id: string
+          points: Json
+          publish_job_id: string | null
+          segments: Json | null
+          snapshot_date: string
+          user_id: string
+          youtube_video_id: string
         }
         Insert: {
-          id?: string
-          user_id: string
-          publish_job_id: string
-          youtube_video_id?: string | null
-          platform?: string
-          segments?: Json
-          points?: Json
-          overall_avg?: number | null
-          strongest_segment?: string | null
-          weakest_segment?: string | null
           captured_at?: string
           created_at?: string
+          id?: string
+          points?: Json
+          publish_job_id?: string | null
+          segments?: Json | null
+          snapshot_date?: string
+          user_id: string
+          youtube_video_id: string
         }
         Update: {
-          id?: string
-          user_id?: string
-          publish_job_id?: string
-          youtube_video_id?: string | null
-          platform?: string
-          segments?: Json
-          points?: Json
-          overall_avg?: number | null
-          strongest_segment?: string | null
-          weakest_segment?: string | null
           captured_at?: string
           created_at?: string
+          id?: string
+          points?: Json
+          publish_job_id?: string | null
+          segments?: Json | null
+          snapshot_date?: string
+          user_id?: string
+          youtube_video_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "retention_curves_publish_job_id_fkey"
+            columns: ["publish_job_id"]
+            isOneToOne: false
+            referencedRelation: "publish_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       rights_decisions: {
         Row: {
@@ -2235,6 +2163,39 @@ export type Database = {
           },
         ]
       }
+      safety_rules: {
+        Row: {
+          active: boolean
+          created_at: string
+          description: string
+          id: string
+          last_reviewed_at: string
+          params: Json
+          rule_key: string
+          version: number
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description: string
+          id?: string
+          last_reviewed_at?: string
+          params?: Json
+          rule_key: string
+          version: number
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description?: string
+          id?: string
+          last_reviewed_at?: string
+          params?: Json
+          rule_key?: string
+          version?: number
+        }
+        Relationships: []
+      }
       safety_scores: {
         Row: {
           ai_review: Json | null
@@ -2280,39 +2241,6 @@ export type Database = {
           suggestions?: Json | null
           user_id?: string
           version?: string | null
-        }
-        Relationships: []
-      }
-      safety_rules: {
-        Row: {
-          active: boolean
-          created_at: string
-          description: string
-          id: string
-          last_reviewed_at: string
-          params: Json
-          rule_key: string
-          version: number
-        }
-        Insert: {
-          active?: boolean
-          created_at?: string
-          description: string
-          id?: string
-          last_reviewed_at?: string
-          params?: Json
-          rule_key: string
-          version: number
-        }
-        Update: {
-          active?: boolean
-          created_at?: string
-          description?: string
-          id?: string
-          last_reviewed_at?: string
-          params?: Json
-          rule_key?: string
-          version?: number
         }
         Relationships: []
       }
@@ -2573,6 +2501,42 @@ export type Database = {
         }
         Relationships: []
       }
+      tts_cache: {
+        Row: {
+          audio_path: string
+          byte_size: number | null
+          created_at: string
+          duration_seconds: number | null
+          id: string
+          language_code: string
+          paragraph_hash: string
+          provider: string
+          voice_id: string
+        }
+        Insert: {
+          audio_path: string
+          byte_size?: number | null
+          created_at?: string
+          duration_seconds?: number | null
+          id?: string
+          language_code: string
+          paragraph_hash: string
+          provider: string
+          voice_id: string
+        }
+        Update: {
+          audio_path?: string
+          byte_size?: number | null
+          created_at?: string
+          duration_seconds?: number | null
+          id?: string
+          language_code?: string
+          paragraph_hash?: string
+          provider?: string
+          voice_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -2827,6 +2791,24 @@ export type Database = {
           },
         ]
       }
+      worker_heartbeats: {
+        Row: {
+          last_seen_at: string
+          meta: Json
+          worker_id: string
+        }
+        Insert: {
+          last_seen_at?: string
+          meta?: Json
+          worker_id: string
+        }
+        Update: {
+          last_seen_at?: string
+          meta?: Json
+          worker_id?: string
+        }
+        Relationships: []
+      }
       workflow_job_events: {
         Row: {
           created_at: string
@@ -2952,6 +2934,116 @@ export type Database = {
           },
         ]
       }
+      workspace_approvals: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          id: string
+          note: string | null
+          publish_job_id: string
+          requested_by: string
+          status: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          note?: string | null
+          publish_job_id: string
+          requested_by: string
+          status?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          note?: string | null
+          publish_job_id?: string
+          requested_by?: string
+          status?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_approvals_publish_job_id_fkey"
+            columns: ["publish_job_id"]
+            isOneToOne: true
+            referencedRelation: "publish_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_approvals_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workspace_members: {
+        Row: {
+          created_at: string
+          id: string
+          role: string
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: string
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: string
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_members_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workspaces: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          owner_id: string
+          plan_tier: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          owner_id: string
+          plan_tier?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          owner_id?: string
+          plan_tier?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       youtube_api_cache: {
         Row: {
           cache_key: string | null
@@ -3058,13 +3150,15 @@ export type Database = {
         Returns: number
       }
       debit_credits_for_minutes: {
-        Args: { p_minutes: number; p_reason: string; p_ref_id?: string; p_user_id: string }
+        Args: {
+          p_minutes: number
+          p_reason: string
+          p_ref_id?: string
+          p_user_id: string
+        }
         Returns: number
       }
-      refund_credits_for_minutes: {
-        Args: { p_minutes: number; p_reason: string; p_ref_id?: string; p_user_id: string }
-        Returns: number
-      }
+      finalize_render_billing: { Args: { p_render_id: string }; Returns: Json }
       grant_credits_once: {
         Args: {
           p_amount: number
@@ -3081,6 +3175,19 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_workspace_creator: {
+        Args: { p_workspace_id: string }
+        Returns: boolean
+      }
+      is_workspace_editor: {
+        Args: { p_workspace_id: string }
+        Returns: boolean
+      }
+      is_workspace_member: {
+        Args: { p_workspace_id: string }
+        Returns: boolean
+      }
+      is_workspace_owner: { Args: { p_workspace_id: string }; Returns: boolean }
       log_abuse_signal: {
         Args: {
           p_device_hash: string
@@ -3092,6 +3199,23 @@ export type Database = {
       }
       refund_credits: {
         Args: { p_job_id?: string; p_reason: string; p_user_id: string }
+        Returns: number
+      }
+      refund_credits_for_minutes: {
+        Args: {
+          p_minutes: number
+          p_reason: string
+          p_ref_id?: string
+          p_user_id: string
+        }
+        Returns: number
+      }
+      requeue_stale_chapters: {
+        Args: { p_lease_seconds?: number }
+        Returns: number
+      }
+      requeue_stale_renders: {
+        Args: { p_lease_seconds?: number }
         Returns: number
       }
     }
