@@ -35,6 +35,214 @@ export const adminOverview = createServerFn({ method: "GET" })
     };
   });
 
+/**
+ * Render-worker health for the admin dashboard.
+ *
+ * Reads the latest worker_heartbeats row through the service role
+ * (authenticated clients have no RLS policy on that table — worker
+ * infrastructure is not user data) plus the server-render queue depth
+ * broken into queued / running / stale. Stale = queued for over an hour
+ * or running for over two hours (see STALE_* in worker-health.ts).
+ */
+export const adminWorkerStatus = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { workerHealthStatus, STALE_QUEUED_MS, STALE_RUNNING_MS } = await import(
+      "./worker-health"
+    );
+
+    const now = Date.now();
+    const queuedCutoff = new Date(now - STALE_QUEUED_MS).toISOString();
+    const runningCutoff = new Date(now - STALE_RUNNING_MS).toISOString();
+
+    const [beatRes, queuedRes, runningRes, staleQueuedRes, staleRunningRes] = await Promise.all([
+      supabaseAdmin
+        .from("worker_heartbeats")
+        .select("worker_id,last_seen_at")
+        .order("last_seen_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabaseAdmin
+        .from("renders")
+        .select("id", { count: "exact", head: true })
+        .eq("engine", "server_ffmpeg")
+        .eq("status", "queued"),
+      supabaseAdmin
+        .from("renders")
+        .select("id", { count: "exact", head: true })
+        .eq("engine", "server_ffmpeg")
+        .eq("status", "running"),
+      supabaseAdmin
+        .from("renders")
+        .select("id", { count: "exact", head: true })
+        .eq("engine", "server_ffmpeg")
+        .eq("status", "queued")
+        .lt("created_at", queuedCutoff),
+      supabaseAdmin
+        .from("renders")
+        .select("id", { count: "exact", head: true })
+        .eq("engine", "server_ffmpeg")
+        .eq("status", "running")
+        .lt("claimed_at", runningCutoff),
+    ]);
+    for (const res of [beatRes, queuedRes, runningRes, staleQueuedRes, staleRunningRes]) {
+      if (res.error) throw new Error(res.error.message);
+    }
+
+    const beat = beatRes.data;
+    return {
+      workerId: beat?.worker_id ?? null,
+      lastSeenAt: beat?.last_seen_at ?? null,
+      status: workerHealthStatus(beat?.last_seen_at ?? null, now),
+      queued: queuedRes.count ?? 0,
+      running: runningRes.count ?? 0,
+      stale: (staleQueuedRes.count ?? 0) + (staleRunningRes.count ?? 0),
+    };
+  });
+
+export type UnitEconomicsPlan = {
+  slug: string;
+  name: string;
+  kind: string;
+  credits: number;
+  priceUsd: number;
+  /** USD revenue per credit, null when the plan has no price. */
+  revenuePerCredit: number | null;
+  /** Gross margin vs measured provider cost, null when there is no measured data. */
+  grossMargin: number | null;
+};
+
+export type UnitEconomics = {
+  hasData: boolean;
+  /** Total measured provider cost in USD (api_usage.estimated_cost). */
+  totalCostUsd: number;
+  /** ISO date from which costs have been recorded, null when tracking hasn't started. */
+  costsSince: string | null;
+  usageCalls: number;
+  costByProvider: Record<string, number>;
+  totalFinishedMinutes: number;
+  minutesByMode: Record<string, number>;
+  /** Measured USD cost per finished minute, null without data. */
+  costPerMinuteUsd: number | null;
+  renderCreditsCharged: number;
+  /** Measured USD cost per credit charged, null without data. */
+  costPerCreditUsd: number | null;
+  plans: UnitEconomicsPlan[];
+};
+
+/**
+ * Unit economics for the admin dashboard.
+ *
+ * Measured (never estimated-from-nothing) numbers:
+ *   - provider cost: SUM(api_usage.estimated_cost) — real recorded costs in USD
+ *   - finished minutes: completed `renders` rows (duration in seconds → minutes, rounded up)
+ *   - cost per finished minute (overall + per cost mode from renders.meta)
+ *   - per-plan gross margin: plan price vs measured cost per credit
+ *
+ * When there is no real data yet, hasData is false and the UI shows the
+ * honest empty state ("No measured data yet — costs are recorded from
+ * <date>") instead of zeros presented as measurements.
+ */
+export const adminUnitEconomics = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<UnitEconomics> => {
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { PLANS } = await import("./billing/plans");
+    const { finishedMinutes } = await import("./billing/per-minute");
+
+    const [usageRes, rendersRes, ledgerRes] = await Promise.all([
+      supabaseAdmin.from("api_usage").select("provider,estimated_cost,created_at").limit(10000),
+      supabaseAdmin.from("renders").select("duration,meta").eq("status", "completed").limit(10000),
+      supabaseAdmin
+        .from("credit_ledger")
+        .select("delta")
+        .lt("delta", 0)
+        .ilike("reason", "%render%")
+        .limit(10000),
+    ]);
+    if (usageRes.error) throw new Error(usageRes.error.message);
+    if (rendersRes.error) throw new Error(rendersRes.error.message);
+    if (ledgerRes.error) throw new Error(ledgerRes.error.message);
+
+    // 1. Measured provider costs (USD).
+    const usageRows = usageRes.data ?? [];
+    const totalCostUsd = usageRows.reduce((s, r) => s + Number(r.estimated_cost ?? 0), 0);
+    const costedRows = usageRows.filter((r) => Number(r.estimated_cost ?? 0) > 0);
+    const costsSince =
+      costedRows.length > 0
+        ? costedRows.map((r) => r.created_at as string).sort()[0]!
+        : null;
+    const costByProvider: Record<string, number> = {};
+    for (const r of usageRows) {
+      costByProvider[r.provider] = (costByProvider[r.provider] ?? 0) + Number(r.estimated_cost ?? 0);
+    }
+
+    // 2. Finished minutes from completed renders, grouped by billing mode.
+    // Rows without a usable duration are skipped — never guessed. The mode
+    // is written by buildServerRenderRows from the enqueue input (Sprint 1
+    // billing-mode attribution); rows predating it read as "untracked".
+    const minutesByMode: Record<string, number> = {};
+    let totalFinishedMinutes = 0;
+    for (const r of rendersRes.data ?? []) {
+      const seconds = Number(r.duration);
+      if (!Number.isFinite(seconds) || seconds <= 0) continue;
+      const mins = finishedMinutes(seconds);
+      const mode =
+        (r.meta as { mode?: string } | null)?.mode ?? "untracked";
+      minutesByMode[mode] = (minutesByMode[mode] ?? 0) + mins;
+      totalFinishedMinutes += mins;
+    }
+
+    // 3. Credits actually charged for renders (negative ledger deltas whose
+    // reason mentions a render). Refunds have positive deltas and are excluded.
+    const renderCreditsCharged = (ledgerRes.data ?? []).reduce(
+      (s, r) => s + Math.abs(Number(r.delta)),
+      0,
+    );
+
+    const hasData = totalCostUsd > 0 && totalFinishedMinutes > 0;
+    const costPerMinuteUsd = hasData ? totalCostUsd / totalFinishedMinutes : null;
+    const costPerCreditUsd =
+      totalCostUsd > 0 && renderCreditsCharged > 0 ? totalCostUsd / renderCreditsCharged : null;
+
+    const plans: UnitEconomicsPlan[] = PLANS.map((p) => {
+      const priceUsd = (p.priceUsdCents ?? 0) / 100;
+      const revenuePerCredit = p.credits > 0 && priceUsd > 0 ? priceUsd / p.credits : null;
+      const grossMargin =
+        revenuePerCredit != null && costPerCreditUsd != null && revenuePerCredit > 0
+          ? (revenuePerCredit - costPerCreditUsd) / revenuePerCredit
+          : null;
+      return {
+        slug: p.slug,
+        name: p.name,
+        kind: p.kind,
+        credits: p.credits,
+        priceUsd,
+        revenuePerCredit,
+        grossMargin,
+      };
+    });
+
+    return {
+      hasData,
+      totalCostUsd,
+      costsSince,
+      usageCalls: usageRows.length,
+      costByProvider,
+      totalFinishedMinutes,
+      minutesByMode,
+      costPerMinuteUsd,
+      renderCreditsCharged,
+      costPerCreditUsd,
+      plans,
+    };
+  });
+
 export const adminListUsers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
