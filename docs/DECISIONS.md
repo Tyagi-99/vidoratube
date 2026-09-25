@@ -3,6 +3,71 @@
 Non-obvious decisions made under autopilot (Investor Reply #3: "Decide, don't
 ask"). Each entry: decision, reason, how to reverse. Newest first.
 
+## 2026-09-25 — Sprint 3–4 (language pipeline)
+
+### D36. music_tracks reads are explicitly public (D25-class RLS fix)
+- **Decision:** Replaced the flagged `USING (auth.uid() IS NOT NULL)` policy
+  ("Signed-in users read music tracks") with one documented public-read
+  policy: `FOR SELECT TO anon, authenticated USING (true)`, with a COMMENT
+  on the policy stating the intent. music_tracks is a shared royalty-free
+  catalog (Jamendo cache) with no user data, and it serves a LIVE feature —
+  the Studio v2 music picker (`searchMusic`/`listMusicTracks`). Writes stay
+  service-role only; the RESTRICTIVE "No guest sessions" policy still
+  excludes anonymous sessions from every table.
+- **Reason:** Hiding a public catalog behind a tautology is what the
+  pre-publish scan flags. An explicitly documented public read is the honest
+  shape for a catalog with no user data.
+- **Reverse:** Scope reads back to authenticated-only if the catalog ever
+  carries licensed/per-user content.
+
+### D37. Beta voice slots are unverified placeholders, never invented ids
+- **Decision:** `language_voices` seeds 4 slots per language. English and
+  Hindi slots are verified+selectable because their provider ids come from
+  the existing production voice catalog (`src/lib/voices.ts`). The other 10
+  beta languages get clearly-marked BETA placeholders: `provider = 'none'`,
+  `provider_voice_id = NULL`, `verified = false`, `selectable = false`.
+  Real ids are wired ONLY when verified against a real provider — never
+  invented. The UI picker filters through `userSelectableVoices()`, and a
+  test asserts `selectable ⇒ verified` plus that every verified id exists
+  in the in-code catalog.
+- **Reason:** A fabricated provider id would fail silently at TTS time and
+  burn money; a NULL placeholder fails loudly at seed-review time instead.
+- **Reverse:** Verify 4 ids for a beta language (real provider check) and
+  flip `verified`/`selectable` via service role.
+
+### D38. Quality gate = table + checked-in data mirror + failing test
+- **Decision:** `language_quality_gates` is the production record (public
+  read, service-role write). `LANGUAGE_QUALITY_GATES` in
+  `src/lib/languages.ts` is the CI mirror, and
+  `src/lib/language-gates.test.ts` fails if any `live` language lacks all
+  three passing checks (golden scripts, back-translation, native-speaker
+  review), and fails on drift between the migration seed and the mirror.
+  English passes with honest evidence notes (caption-layer fixtures in CI;
+  back-translation N/A as the source language; copy authored/reviewed in
+  English by the team — no formal native panel convened, stated plainly).
+- **Reason:** No database in CI, so the table alone can't gate merges; the
+  mirror makes the invariant testable, and the drift test keeps the two
+  honest.
+- **Reverse:** Drop the mirror once CI can read the production table.
+
+### D39. Caption language behaviour is data, threaded at render time
+- **Decision:** `buildWordAss` (both the `src/lib/render/shared.ts`
+  canonical copy and the worker's dependency-free duplicate) accepts an
+  optional `CaptionLanguage` (code/rtl/fontStack/captionMaxChars). When
+  present: the ASS Fontname is the primary family of the row's font_stack
+  (generic stacks like `system-ui` fall back to Inter, the font the render
+  pipeline ships); lines wrap at `caption_max_chars` with character-level
+  splitting for spaceless CJK text; RTL rows are marked `; Direction: RTL`
+  while text stays in logical order for libass bidi. The worker resolves
+  the row from the `languages` table via the job's `languageCode`
+  (new optional `RenderJobMeta` field, default `"en"`); unknown codes fall
+  back to legacy behaviour. The canvas caption path sets
+  `ctx.direction` from the same data. No component branches on a language
+  code — the neutrality test stays green.
+- **Reason:** Fonts/RTL/line-length must follow the table, not code; the
+  worker is the only render path with DB access, so it resolves the row.
+- **Reverse:** Remove the `language` parameter (legacy grouping returns).
+
 ## 2026-09-25 — Sprint 1–2 (verification/docs)
 
 ### D31. "Maker plan" purchase tests use Growth pack (pack_m)

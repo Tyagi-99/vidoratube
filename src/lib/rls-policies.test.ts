@@ -88,6 +88,7 @@ const OWNER_SCOPED_TABLES = [
   "creator_accounts",
   "content_duplicate_flags",
   "notifications",
+  "render_chapters",
 ];
 
 /** Tables intentionally readable/writable without auth (documented exceptions). */
@@ -102,10 +103,16 @@ const PUBLIC_BY_DESIGN: Record<string, string> = {
   niches: "public read",
   // Static blocklist checked at signup; no sensitive data, read-only.
   disposable_email_domains: "public read",
-  // Royalty-free music catalog; no user data, read-only for authenticated.
-  music_tracks: "authenticated read",
+  // Royalty-free music catalog; no user data, intentionally public read
+  // (D25) — writes are service-role only via the Jamendo sync.
+  music_tracks: "public read (royalty-free catalog, no user data)",
   // Language catalog driving UI dropdowns; no user data, read-only for all.
   languages: "public read",
+  // Per-language voice slots; no user data, read-only for all.
+  language_voices: "public read",
+  // Per-language quality-gate records; no user data, read-only for all
+  // (service_role writes only).
+  language_quality_gates: "public read",
 };
 
 /**
@@ -121,6 +128,7 @@ const SERVICE_ROLE_ONLY: Record<string, string> = {
   integrations: "provider integrations; admin only",
   user_roles: "role assignments; own-row SELECT, admin writes",
   worker_heartbeats: "worker liveness; service_role upserts, app reads via service-role fn",
+  tts_cache: "synthesized audio cache; service_role only, no policies by design",
 };
 
 describe("RLS static audit", () => {

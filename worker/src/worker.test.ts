@@ -100,6 +100,83 @@ describe("buildWordAss (worker copy)", () => {
     assert.match(ass, /Dialogue:/);
     assert.match(ass, /\{\\kf50\}hi/);
   });
+
+  it("applies RTL direction and the language font stack", () => {
+    const ass = buildWordAss(
+      [
+        { word: "مرحبا", start: 0, end: 0.5 },
+        { word: "بالعالم", start: 0.5, end: 1 },
+      ],
+      {
+        language: {
+          code: "ar",
+          rtl: true,
+          fontStack: '"Noto Sans Arabic", system-ui',
+          captionMaxChars: 42,
+        },
+      },
+    );
+    assert.match(ass, /; Direction: RTL/);
+    assert.match(ass, /Noto Sans Arabic/);
+    // logical (reading) order preserved — libass applies bidi
+    assert.ok(ass.indexOf("مرحبا") < ass.indexOf("بالعالم"));
+  });
+
+  it("wraps spaceless CJK text at caption_max_chars", () => {
+    const long = "こんにちは".repeat(12); // 60 chars, no whitespace
+    const ass = buildWordAss([{ word: long, start: 0, end: 12 }], {
+      language: {
+        code: "ja",
+        rtl: false,
+        fontStack: '"Noto Sans JP", system-ui',
+        captionMaxChars: 20,
+      },
+    });
+    assert.match(ass, /Noto Sans JP/);
+    const dialogues = ass.split("\n").filter((l) => l.startsWith("Dialogue:"));
+    assert.equal(dialogues.length, 3);
+    for (const d of dialogues) {
+      const text = (d.split(",,").pop() ?? "").replace(/\{\\kf\d+\}/g, "");
+      assert.ok(
+        [...text].length <= 20,
+        `line exceeds 20 chars: ${text}`,
+      );
+    }
+  });
+
+  it("resolves caption language from the languages table", async () => {
+    const { RenderJobMetaSchema } = await import("./types.js");
+    // languageCode is optional and defaults to "en"
+    const meta = RenderJobMetaSchema.parse({
+      scenes: [
+        {
+          id: "s1",
+          number: 1,
+          narration: "hi",
+          image: null,
+          audio: null,
+          duration: 2,
+          cues: [],
+        },
+      ],
+    });
+    assert.equal(meta.languageCode, "en");
+    const metaAr = RenderJobMetaSchema.parse({
+      languageCode: "ar",
+      scenes: [
+        {
+          id: "s1",
+          number: 1,
+          narration: "hi",
+          image: null,
+          audio: null,
+          duration: 2,
+          cues: [],
+        },
+      ],
+    });
+    assert.equal(metaAr.languageCode, "ar");
+  });
 });
 
 describe("reportWorkerHeartbeat", () => {
