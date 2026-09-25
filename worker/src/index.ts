@@ -22,6 +22,7 @@ import {
   createServiceClient,
   finishJob,
   heartbeat,
+  reportWorkerHeartbeat,
   requeueStaleJobs,
   shouldCancel,
 } from "./supabase.js";
@@ -161,6 +162,18 @@ async function main(): Promise<void> {
   });
   if (requeued > 0) console.log(`[worker] reclaimed ${requeued} stale job(s)`);
 
+  // Independent liveness signal (see worker_heartbeats migration): heartbeat
+  // on boot and every minute, so the app sees an idle worker as online even
+  // before it has ever claimed a job. Failures are logged, never fatal —
+  // a heartbeat outage must not stop rendering.
+  const beat = () =>
+    reportWorkerHeartbeat(supabase, cfg.WORKER_ID).catch((e) =>
+      console.error("[worker] heartbeat failed:", (e as Error).message),
+    );
+  await beat();
+  const beatTimer = setInterval(beat, 60_000);
+  beatTimer.unref?.();
+
   while (!shuttingDown) {
     try {
       const job = await claimJob(supabase, cfg.WORKER_ID);
@@ -174,6 +187,7 @@ async function main(): Promise<void> {
       await sleep(cfg.POLL_INTERVAL_SEC * 1000);
     }
   }
+  clearInterval(beatTimer);
   console.log("[worker] shutdown complete");
 }
 

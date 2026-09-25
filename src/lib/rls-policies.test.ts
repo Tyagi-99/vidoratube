@@ -119,6 +119,7 @@ const SERVICE_ROLE_ONLY: Record<string, string> = {
   abuse_signals: "fraud signals; service_role writes, admin SELECT only",
   integrations: "provider integrations; admin only",
   user_roles: "role assignments; own-row SELECT, admin writes",
+  worker_heartbeats: "worker liveness; service_role upserts, app reads via service-role fn",
 };
 
 describe("RLS static audit", () => {

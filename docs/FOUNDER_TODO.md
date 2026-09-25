@@ -26,7 +26,10 @@ takes, and what it unblocks.
 
 ## 3. Dodo Payments live keys (USD)
 - **What:** Create a Dodo Payments (Merchant of Record) account, complete KYC, and add
-  `DODO_API_KEY` + `DODO_WEBHOOK_SECRET` to Lovable Cloud Secrets.
+  `DODO_API_KEY` + `DODO_WEBHOOK_SECRET` to Lovable Cloud Secrets. Create one
+  product per plan in the Dodo dashboard and set `DODO_PRODUCT_IDS` to the JSON
+  map, e.g. `{"starter":"prod_abc","studio":"prod_def","scale":"prod_ghi"}`
+  (format documented in `.env.example`).
 - **Where:** https://dodopayments.com dashboard → Developers → API keys / Webhooks.
   Configure the webhook URL to `https://vidoratube.lovable.app/api/webhooks/dodo`.
 - **Time:** 1–2 days (account approval + KYC).
@@ -84,12 +87,21 @@ takes, and what it unblocks.
 - **Unblocks:** Trust — users should hear about unit changes from you, not discover
   them on the pricing page.
 
-## 9. Apply the two new Supabase migrations
-- **What:** Apply `supabase/migrations/20260925194000_per_minute_credits.sql`
-  (minute-based debit/refund RPCs + append-only conversion entries) and
-  `supabase/migrations/20260925195000_pricing_inr.sql` (`pricing_plans.price_monthly_inr`).
-- **Where:** Supabase SQL editor or `supabase db push`. Both are non-destructive
-  (new functions, one new nullable column, insert-only ledger rows).
-- **Time:** 10 min. Verify: `select * from credit_ledger where reason like
-  'migration_per_minute%' limit 5;` and the pricing page toggle.
+## 9. Apply the four new Supabase migrations
+- **What:** Apply, in order:
+  - `supabase/migrations/20260925194000_per_minute_credits.sql`
+    (minute-based debit/refund RPCs + append-only conversion entries)
+  - `supabase/migrations/20260925195000_pricing_inr.sql`
+    (`pricing_plans.price_monthly_inr`)
+  - `supabase/migrations/20260925196000_fix_minute_refund.sql`
+    (CRITICAL: closes a money bug where refunds could mint credits without a
+    matching debit; normalizes conversion rows to the exact reason
+    `migration_per_minute`)
+  - `supabase/migrations/20260925197000_worker_heartbeats.sql`
+    (worker liveness table for server-render feature detection)
+- **Where:** Supabase SQL editor or `supabase db push`. All are non-destructive
+  (new functions/table, one new nullable column, insert-only or narrowly
+  targeted UPDATE of ledger rows).
+- **Time:** 10 min. Verify: `select * from credit_ledger where reason =
+  'migration_per_minute' limit 5;` and the pricing page toggle.
 - **Unblocks:** Per-minute charging and INR pricing in production.

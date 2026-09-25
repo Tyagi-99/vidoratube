@@ -1472,6 +1472,24 @@ export type Database = {
           },
         ]
       }
+      worker_heartbeats: {
+        Row: {
+          worker_id: string
+          last_seen_at: string
+          meta: Json
+        }
+        Insert: {
+          worker_id: string
+          last_seen_at?: string
+          meta?: Json
+        }
+        Update: {
+          worker_id?: string
+          last_seen_at?: string
+          meta?: Json
+        }
+        Relationships: []
+      }
       research_projects: {
         Row: {
           created_at: string

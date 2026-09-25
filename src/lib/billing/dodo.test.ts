@@ -1,6 +1,7 @@
 import { createHmac } from "node:crypto";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  dodoProvider,
   isDodoConfigured,
   normalizeDodoEvent,
   verifyDodoWebhookSignature,
@@ -204,5 +205,98 @@ describe("paymentsLive feature flag", () => {
     expect(live.dodo).toBe(true);
     expect(live.razorpay).toBe(false);
     expect(live.any).toBe(true);
+  });
+});
+
+describe("dodoProvider.createCheckout (mocked fetch)", () => {
+  const plan = { slug: "studio", name: "Studio" } as never;
+
+  beforeEach(() => {
+    vi.stubEnv("DODO_API_KEY", "test_key");
+    vi.stubEnv("DODO_PRODUCT_IDS", JSON.stringify({ studio: "prod_studio_123" }));
+  });
+
+  function mockFetchOnce(json: unknown, ok = true, status = 200) {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init: RequestInit) => {
+        calls.push({ url, init });
+        return {
+          ok,
+          status,
+          json: async () => json,
+          text: async () => JSON.stringify(json),
+        };
+      }),
+    );
+    return calls;
+  }
+
+  it("posts a checkout session with product, customer, and metadata", async () => {
+    const calls = mockFetchOnce({
+      checkout_url: "https://checkout.dodo.test/s/abc",
+      session_id: "sess_abc",
+    });
+    const res = await dodoProvider.createCheckout({
+      plan,
+      userId: "user-1",
+      userEmail: "user@example.com",
+      currency: "usd",
+      successUrl: "https://vidoratube.lovable.app/billing?ok=1",
+      cancelUrl: "https://vidoratube.lovable.app/billing",
+    });
+    expect(res.redirectUrl).toBe("https://checkout.dodo.test/s/abc");
+    expect(res.purchaseRef).toBe("sess_abc");
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.url).toContain("/checkout/sessions");
+    const body = JSON.parse(calls[0]!.init.body as string);
+    expect(body.product_cart).toEqual([{ product_id: "prod_studio_123", quantity: 1 }]);
+    expect(body.customer).toEqual({ email: "user@example.com" });
+    expect(body.metadata).toEqual({ plan_slug: "studio", user_id: "user-1" });
+    expect(body.return_url).toBe("https://vidoratube.lovable.app/billing?ok=1");
+  });
+
+  it("rejects non-USD currency (Razorpay handles INR)", async () => {
+    const calls = mockFetchOnce({});
+    await expect(
+      dodoProvider.createCheckout({
+        plan,
+        userId: "user-1",
+        userEmail: "user@example.com",
+        currency: "inr",
+        successUrl: "https://x",
+        cancelUrl: "https://x",
+      }),
+    ).rejects.toThrow("USD only");
+    expect(calls).toHaveLength(0);
+  });
+
+  it("throws when Dodo returns no checkout_url", async () => {
+    mockFetchOnce({ session_id: "sess_no_url" });
+    await expect(
+      dodoProvider.createCheckout({
+        plan,
+        userId: "user-1",
+        userEmail: "user@example.com",
+        currency: "usd",
+        successUrl: "https://x",
+        cancelUrl: "https://x",
+      }),
+    ).rejects.toThrow("checkout_url");
+  });
+
+  it("throws a readable error on Dodo API failure", async () => {
+    mockFetchOnce({ message: "bad product" }, false, 400);
+    await expect(
+      dodoProvider.createCheckout({
+        plan,
+        userId: "user-1",
+        userEmail: "user@example.com",
+        currency: "usd",
+        successUrl: "https://x",
+        cancelUrl: "https://x",
+      }),
+    ).rejects.toThrow("Dodo API error (400)");
   });
 });

@@ -36,6 +36,26 @@ export async function heartbeat(
   if (error) throw new Error(`heartbeat failed: ${error.message}`);
 }
 
+/**
+ * Idle liveness heartbeat, independent of jobs.
+ *
+ * Fixes the bootstrap deadlock: the app used to infer worker liveness only
+ * from claimed render rows, so a freshly deployed worker (no claims yet)
+ * looked offline forever. The worker calls this on boot and every minute
+ * while idle; the app's getServerWorkerStatus reads worker_heartbeats.
+ * Service-role only (the table has RLS with no client policies).
+ */
+export async function reportWorkerHeartbeat(
+  supabase: SupabaseClient,
+  workerId: string,
+): Promise<void> {
+  const { error } = await supabase.from("worker_heartbeats").upsert(
+    { worker_id: workerId, last_seen_at: new Date().toISOString() },
+    { onConflict: "worker_id" },
+  );
+  if (error) throw new Error(`worker heartbeat failed: ${error.message}`);
+}
+
 export async function finishJob(
   supabase: SupabaseClient,
   jobId: string,

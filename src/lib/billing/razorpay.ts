@@ -28,7 +28,11 @@ function keySecret(): string {
 }
 
 export function isRazorpayConfigured(): boolean {
-  return Boolean(process.env["RAZORPAY_KEY_ID"] && process.env["RAZORPAY_KEY_SECRET"]);
+  return Boolean(
+    process.env["RAZORPAY_KEY_ID"] &&
+      process.env["RAZORPAY_KEY_SECRET"] &&
+      process.env["RAZORPAY_WEBHOOK_SECRET"],
+  );
 }
 
 async function razorpayFetch(path: string, init: RequestInit = {}): Promise<unknown> {

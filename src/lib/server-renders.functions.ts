@@ -174,18 +174,37 @@ export const listServerRenders = createServerFn({ method: "GET" })
 /**
  * Feature-detection for the native-FFmpeg server worker.
  *
- * Returns available=true when a worker has heartbeated (claimed or finished a
- * server render) within the last 15 minutes. The UI uses this to prefer the
- * server engine only when a worker is actually alive, and automatically falls
- * back to the browser FFmpeg.wasm path otherwise.
+ * Returns available=true when a worker has reported an idle heartbeat within
+ * the last 15 minutes (see the worker_heartbeats migration). This is
+ * independent of jobs: a freshly deployed worker heartbeats on boot, so the
+ * app sees it as online before it has ever claimed a render — fixing the
+ * bootstrap deadlock where "offline" meant no server renders were ever
+ * enqueued and the worker could never prove itself alive.
+ *
+ * The old job-claim signal is kept as a fallback so workers running an older
+ * build (no heartbeat loop yet) still register as available.
  */
 export const getServerWorkerStatus = createServerFn({ method: "GET" })
   .middleware([requireAppUser])
   .handler(async () => {
     // Global infrastructure signal (not user data): service-role read of the
-    // latest worker heartbeat across all renders. requireAppUser still gates
-    // the endpoint to logged-in users.
+    // latest worker heartbeat. requireAppUser still gates the endpoint to
+    // logged-in users.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const HEARTBEAT_WINDOW_MS = 15 * 60 * 1000;
+
+    const { data: beat } = await supabaseAdmin
+      .from("worker_heartbeats")
+      .select("last_seen_at")
+      .order("last_seen_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const beatAt = beat?.last_seen_at ?? null;
+    if (beatAt != null && Date.now() - new Date(beatAt).getTime() < HEARTBEAT_WINDOW_MS) {
+      return { available: true, lastSeenAt: beatAt };
+    }
+
+    // Fallback: a worker on an older build that claimed a render recently.
     const { data: row } = await supabaseAdmin
       .from("renders")
       .select("updated_at")
@@ -196,6 +215,6 @@ export const getServerWorkerStatus = createServerFn({ method: "GET" })
       .maybeSingle();
     const lastSeenAt = row?.updated_at ?? null;
     const available =
-      lastSeenAt != null && Date.now() - new Date(lastSeenAt).getTime() < 15 * 60 * 1000;
-    return { available, lastSeenAt };
+      lastSeenAt != null && Date.now() - new Date(lastSeenAt).getTime() < HEARTBEAT_WINDOW_MS;
+    return { available, lastSeenAt: beatAt ?? lastSeenAt };
   });

@@ -101,3 +101,38 @@ describe("buildWordAss (worker copy)", () => {
     assert.match(ass, /\{\\kf50\}hi/);
   });
 });
+
+describe("reportWorkerHeartbeat", () => {
+  it("upserts the worker id with a fresh timestamp", async () => {
+    const { reportWorkerHeartbeat } = await import("./supabase.js");
+    let upserted: any = null;
+    let table: string | null = null;
+    const stub = {
+      from: (t: string) => {
+        table = t;
+        return {
+          upsert: async (row: any, opts: any) => {
+            upserted = { row, opts };
+            return { error: null };
+          },
+        };
+      },
+    };
+    await reportWorkerHeartbeat(stub as any, "worker-1");
+    assert.equal(table, "worker_heartbeats");
+    assert.equal(upserted.row.worker_id, "worker-1");
+    assert.equal(upserted.opts.onConflict, "worker_id");
+    const age = Date.now() - new Date(upserted.row.last_seen_at).getTime();
+    assert.ok(age >= 0 && age < 60_000, "heartbeat timestamp is fresh");
+  });
+
+  it("throws on upsert error (caller logs, never crashes the loop)", async () => {
+    const { reportWorkerHeartbeat } = await import("./supabase.js");
+    const stub = {
+      from: () => ({
+        upsert: async () => ({ error: { message: "db down" } }),
+      }),
+    };
+    await assert.rejects(() => reportWorkerHeartbeat(stub as any, "worker-1"), /db down/);
+  });
+});

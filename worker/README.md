@@ -141,6 +141,16 @@ in the `renders` table (`stage`, `progress`, `updated_at`) are the health
 signal; the app keeps its browser FFmpeg.wasm fallback until the worker is
 verified live.
 
+### Liveness heartbeat
+
+The worker upserts `worker_heartbeats(worker_id, last_seen_at)` on boot and
+every 60 seconds while idle (`reportWorkerHeartbeat`). The app's
+`getServerWorkerStatus` treats a heartbeat within the last 15 minutes as
+"worker online" — this is what lets a freshly deployed worker (no claimed
+renders yet) show as available immediately. Heartbeat failures are logged but
+never stop the render loop. The table is RLS-enabled with no client policies
+(service_role only); apply with the other migrations.
+
 ### Queue guarantees
 
 - Claim: `claim_render_job()` — `FOR UPDATE SKIP LOCKED`, one worker wins.

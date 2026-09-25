@@ -105,15 +105,17 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
 - **Reverse:** Push to GHCR/Docker Hub in the script and `docker compose pull` on
   the host instead.
 
-### D12. Server-worker availability = heartbeat in renders within 15 minutes
-- **Decision:** `getServerWorkerStatus` returns available=true iff any
-  `server_ffmpeg` render has `claimed_by` set and `updated_at` within 15 minutes.
-  RenderPanel auto-falls-back to browser FFmpeg.wasm when false.
-- **Reason:** No new table or health endpoint needed — heartbeats already exist.
-  Until the founder deploys the worker, every visitor transparently gets the
-  browser path; the moment the worker goes live, the server engine lights up.
-- **Reverse:** Replace the query with a dedicated health check or remove the
-  fallback to force server-only.
+### D12. Worker availability: dedicated `worker_heartbeats` table (revised 2026-09-25)
+- **Decision:** Supersedes the earlier "no new table" call. The worker now upserts
+  `worker_heartbeats(worker_id, last_seen_at)` on boot and every 60s while idle
+  (`reportWorkerHeartbeat` in `worker/src/supabase.ts`; failures are logged, never
+  fatal). `getServerWorkerStatus` reads the freshest heartbeat (15-min window);
+  the old claimed-render check stays only as a fallback for older worker builds.
+  Table is RLS-enabled with no client policies — service_role only.
+- **Reason:** Review caught a bootstrap deadlock: inferring liveness from claimed
+  renders meant a freshly deployed worker (zero claims) looked offline forever,
+  so no server renders were ever enqueued. An idle heartbeat is the honest signal.
+- **Reverse:** Drop the table and revert `getServerWorkerStatus` to renders-only.
 
 ### D14. Character-consistency claim restored after honest 6-scene proof (2026-09-25)
 - **Decision:** The claim "characters stay consistent throughout" was removed pending
