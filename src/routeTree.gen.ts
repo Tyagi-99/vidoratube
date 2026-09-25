@@ -28,6 +28,7 @@ import { Route as AuthenticatedAdminJobsRouteImport } from './routes/_authentica
 import { Route as AuthenticatedAdminMessagesRouteImport } from './routes/_authenticated/admin.messages'
 import { Route as AuthenticatedAdminPlansRouteImport } from './routes/_authenticated/admin.plans'
 import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin.users'
+import { Route as AuthenticatedBillingIndexRouteImport } from './routes/_authenticated/billing.index'
 import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authenticated/projects.index'
 import { Route as AuthenticatedProjectsProjectIdRouteImport } from './routes/_authenticated/projects.$projectId'
 import { Route as AuthenticatedResearchIndexRouteImport } from './routes/_authenticated/research.index'
@@ -133,6 +134,12 @@ const AuthenticatedAdminUsersRoute = AuthenticatedAdminUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => AuthenticatedAdminRoute,
 } as any)
+const AuthenticatedBillingIndexRoute =
+  AuthenticatedBillingIndexRouteImport.update({
+    id: '/billing/',
+    path: '/billing/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedProjectsIndexRoute =
   AuthenticatedProjectsIndexRouteImport.update({
     id: '/projects/',
@@ -198,6 +205,7 @@ export interface FileRoutesByFullPath {
   '/api/webhooks/razorpay': typeof ApiWebhooksRazorpayRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
+  '/billing/': typeof AuthenticatedBillingIndexRoute
   '/projects/': typeof AuthenticatedProjectsIndexRoute
   '/research/': typeof AuthenticatedResearchIndexRoute
 }
@@ -224,6 +232,7 @@ export interface FileRoutesByTo {
   '/api/webhooks/razorpay': typeof ApiWebhooksRazorpayRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
+  '/billing': typeof AuthenticatedBillingIndexRoute
   '/projects': typeof AuthenticatedProjectsIndexRoute
   '/research': typeof AuthenticatedResearchIndexRoute
 }
@@ -253,6 +262,7 @@ export interface FileRoutesById {
   '/api/webhooks/razorpay': typeof ApiWebhooksRazorpayRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
+  '/_authenticated/billing/': typeof AuthenticatedBillingIndexRoute
   '/_authenticated/projects/': typeof AuthenticatedProjectsIndexRoute
   '/_authenticated/research/': typeof AuthenticatedResearchIndexRoute
 }
@@ -282,6 +292,7 @@ export interface FileRouteTypes {
     | '/api/webhooks/razorpay'
     | '/api/webhooks/stripe'
     | '/admin/'
+    | '/billing/'
     | '/projects/'
     | '/research/'
   fileRoutesByTo: FileRoutesByTo
@@ -308,6 +319,7 @@ export interface FileRouteTypes {
     | '/api/webhooks/razorpay'
     | '/api/webhooks/stripe'
     | '/admin'
+    | '/billing'
     | '/projects'
     | '/research'
   id:
@@ -336,6 +348,7 @@ export interface FileRouteTypes {
     | '/api/webhooks/razorpay'
     | '/api/webhooks/stripe'
     | '/_authenticated/admin/'
+    | '/_authenticated/billing/'
     | '/_authenticated/projects/'
     | '/_authenticated/research/'
   fileRoutesById: FileRoutesById
@@ -491,6 +504,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminUsersRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/billing/': {
+      id: '/_authenticated/billing/'
+      path: '/billing'
+      fullPath: '/billing/'
+      preLoaderRoute: typeof AuthenticatedBillingIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/projects/': {
       id: '/_authenticated/projects/'
       path: '/projects'
@@ -571,6 +591,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedStudioRoute: typeof AuthenticatedStudioRoute
   AuthenticatedProjectsProjectIdRoute: typeof AuthenticatedProjectsProjectIdRoute
   AuthenticatedResearchProjectIdRoute: typeof AuthenticatedResearchProjectIdRoute
+  AuthenticatedBillingIndexRoute: typeof AuthenticatedBillingIndexRoute
   AuthenticatedProjectsIndexRoute: typeof AuthenticatedProjectsIndexRoute
   AuthenticatedResearchIndexRoute: typeof AuthenticatedResearchIndexRoute
 }
@@ -580,6 +601,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedStudioRoute: AuthenticatedStudioRoute,
   AuthenticatedProjectsProjectIdRoute: AuthenticatedProjectsProjectIdRoute,
   AuthenticatedResearchProjectIdRoute: AuthenticatedResearchProjectIdRoute,
+  AuthenticatedBillingIndexRoute: AuthenticatedBillingIndexRoute,
   AuthenticatedProjectsIndexRoute: AuthenticatedProjectsIndexRoute,
   AuthenticatedResearchIndexRoute: AuthenticatedResearchIndexRoute,
 }

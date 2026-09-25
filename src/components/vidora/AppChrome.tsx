@@ -12,6 +12,7 @@ const links = [
   { label: "Studio", to: "/studio" as const },
   { label: "Projects", to: "/projects" as const },
   { label: "Research", to: "/research" as const },
+  { label: "Billing", to: "/billing" as const },
 ];
 
 export function AppChrome() {

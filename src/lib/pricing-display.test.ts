@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { displayPlanFeatures, PRICING_FOOTNOTE } from "./pricing-display";
+import { displayPlanFeatures, PRICING_FOOTNOTE, PRICING_FOOTNOTE_SETUP } from "./pricing-display";
 
 describe("displayPlanFeatures", () => {
   it("does not advertise unshipped 4K, cloning, or API access", () => {
@@ -21,7 +21,8 @@ describe("displayPlanFeatures", () => {
     expect(joined).toMatch(/caption/);
   });
 
-  it("tells people checkout is not live", () => {
-    expect(PRICING_FOOTNOTE.toLowerCase()).toMatch(/not live|no card|free/);
+  it("keeps the footnote honest about free credits", () => {
+    expect(PRICING_FOOTNOTE.toLowerCase()).toMatch(/no card|free/);
+    expect(PRICING_FOOTNOTE_SETUP.toLowerCase()).toMatch(/set up|no card|free/);
   });
 });

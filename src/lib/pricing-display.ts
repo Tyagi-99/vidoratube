@@ -36,4 +36,7 @@ export function displayPlanFeatures(plan: { slug: string; features: unknown }): 
 }
 
 export const PRICING_FOOTNOTE =
-  "Checkout is not live yet. Create a free account for 10 render credits — no card needed.";
+  "Create a free account for 10 render credits — no card needed.";
+
+export const PRICING_FOOTNOTE_SETUP =
+  "Checkout is being set up. Create a free account for 10 render credits — no card needed.";

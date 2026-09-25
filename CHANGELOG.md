@@ -1,5 +1,47 @@
 # Changelog
 
+## 2026-09-25 — P7: Billing & Payments
+
+Real money: Stripe (USD, global) + Razorpay (INR, India) behind one provider
+abstraction, with idempotent webhooks and per-minute server-render billing.
+
+### Money in
+- `src/lib/billing/`: `providers.ts` interface, `stripe.ts` + `razorpay.ts`
+  adapters (direct REST, no SDK), HMAC-SHA256 webhook signature verification
+  with timing-safe compare and Stripe timestamp replay protection.
+- Webhook routes `/api/webhooks/stripe` + `/api/webhooks/razorpay`:
+  signature → `claimBillingEvent` (UNIQUE provider+event_id dedupe) →
+  normalized domain events → `grant_credits_once` (idempotent grant).
+- Events: `purchase.completed` (pack credits), `subscription.renewed`
+  (upsert row + monthly credits), `subscription.ended` (cancel/halt).
+- Stripe `invoice.payment_succeeded` skips `subscription_create` (already
+  granted at checkout) — renewals only.
+- 17 tests: signature fixtures, replay dedupe (23505), deterministic grant
+  refs, renewal upsert+grant, cancel marking.
+
+### Plans & UI
+- `plans` / `subscriptions` / `billing_events` tables (RLS: owner-read
+  subscriptions, service-role-only events). Seeded: Creator ($19/₹1,599),
+  Studio ($49/₹4,099), three credit packs.
+- `/billing` page: balance, plan, currency toggle (₹/$), subscriptions with
+  cancel, usage history from `credit_ledger`, Stripe portal link.
+- Pricing page: logged-in users go to `/billing`; copy is honest about
+  whether checkout is configured (`getBillingConfig`).
+- en/hi strings for the billing UI.
+
+### Server-render billing (P2 deferred, now live)
+- `enqueueServerRender` reserves 10 minutes via `debit_credits_amount_once`
+  (idempotent per render) before the job row exists.
+- Worker `finishJob` calls `finalize_render_billing` (idempotent): actual
+  started minutes settled against the reserve — overage debited, under-use
+  refunded. `renders.billed_minutes` / `credits_charged` record it.
+
+### Docs
+- `docs/BILLING.md`: test-mode setup for both providers, test cards, webhook
+  config, go-live checklist, reconciliation notes.
+- Razorpay subscriptions are explicitly not wired yet (clear error at
+  checkout); INR packs work today.
+
 ## 2026-09-25 — P6: Monetization Safety Score
 
 The product's core differentiator: a versioned, explainable pre-publish

@@ -1,6 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { PricingSection } from "@/components/vidora/PricingSection";
 import { FaqSection } from "@/components/vidora/FaqSection";
+import { getBillingConfig } from "@/lib/billing.functions";
 
 export const Route = createFileRoute("/pricing")({
   head: () => ({
@@ -24,6 +27,13 @@ export const Route = createFileRoute("/pricing")({
 });
 
 function PricingPage() {
+  const configFn = useServerFn(getBillingConfig);
+  const { data: billingConfig } = useQuery({
+    queryKey: ["billing-config"],
+    queryFn: () => configFn(),
+  });
+  const checkoutLive = Boolean(billingConfig?.stripe || billingConfig?.razorpay);
+
   return (
     <main className="min-h-screen bg-background pt-16">
       <div className="mx-auto max-w-6xl px-4 pt-16 pb-8 sm:px-6 lg:px-8">
@@ -31,12 +41,16 @@ function PricingPage() {
           Pricing
         </h1>
         <p className="mx-auto mt-4 max-w-2xl text-center text-lg text-muted-foreground">
-          Credit packs we intend to sell. Checkout is not live — start with 10 free credits.
+          {checkoutLive
+            ? "Simple credit pricing for AI-generated YouTube videos. Pick the plan that matches your upload schedule."
+            : "Credit packs we intend to sell. Checkout is being set up — start with 10 free credits."}
         </p>
-        <p className="mx-auto mt-6 max-w-2xl rounded-[10px] border border-dashed border-accent/40 px-4 py-3 text-center text-sm text-foreground">
-          Early access: create a free account for 10 render credits — no card needed. Checkout is
-          not live yet.
-        </p>
+        {!checkoutLive && (
+          <p className="mx-auto mt-6 max-w-2xl rounded-[10px] border border-dashed border-accent/40 px-4 py-3 text-center text-sm text-foreground">
+            Early access: create a free account for 10 render credits — no card needed. Checkout is
+            being set up.
+          </p>
+        )}
       </div>
       <PricingSection />
       <FaqSection />

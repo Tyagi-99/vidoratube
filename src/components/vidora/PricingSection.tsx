@@ -1,11 +1,14 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { useEffect, useState } from "react";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getPricingPlans } from "@/lib/public.functions";
-import { displayPlanFeatures, PRICING_FOOTNOTE } from "@/lib/pricing-display";
+import { getBillingConfig } from "@/lib/billing.functions";
+import { supabase } from "@/integrations/supabase/client";
+import { displayPlanFeatures, PRICING_FOOTNOTE, PRICING_FOOTNOTE_SETUP } from "@/lib/pricing-display";
 
 export function PricingSection({ compact = false }: { compact?: boolean }) {
   const plansFn = useServerFn(getPricingPlans);
@@ -13,8 +16,18 @@ export function PricingSection({ compact = false }: { compact?: boolean }) {
     queryKey: ["pricing-plans"],
     queryFn: () => plansFn({}),
   });
+  const configFn = useServerFn(getBillingConfig);
+  const { data: billingConfig } = useQuery({
+    queryKey: ["billing-config"],
+    queryFn: () => configFn(),
+  });
+  const [loggedIn, setLoggedIn] = useState(false);
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setLoggedIn(Boolean(data.user)));
+  }, []);
 
   const plans = data ?? [];
+  const checkoutLive = Boolean(billingConfig?.stripe || billingConfig?.razorpay);
 
   return (
     <section
@@ -132,13 +145,13 @@ export function PricingSection({ compact = false }: { compact?: boolean }) {
                   </ul>
 
                   <Link
-                    to="/auth"
+                    to={loggedIn ? "/billing" : "/auth"}
                     className={cn(
                       "w-full rounded-[10px] px-4 py-3 text-center text-sm font-semibold transition-transform hover:-translate-y-0.5",
                       "bg-primary text-primary-foreground",
                     )}
                   >
-                    Start with {plan.name}
+                    {loggedIn ? `Get ${plan.name}` : `Start with ${plan.name}`}
                   </Link>
                 </div>
               );
@@ -146,7 +159,9 @@ export function PricingSection({ compact = false }: { compact?: boolean }) {
           </div>
         )}
 
-        <p className="mt-8 text-sm text-muted-foreground">{PRICING_FOOTNOTE}</p>
+        <p className="mt-8 text-sm text-muted-foreground">
+          {checkoutLive ? PRICING_FOOTNOTE : PRICING_FOOTNOTE_SETUP}
+        </p>
       </div>
     </section>
   );
