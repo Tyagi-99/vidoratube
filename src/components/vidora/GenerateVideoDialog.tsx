@@ -31,6 +31,8 @@ import {
 } from "@/lib/jobs.functions";
 import { isFinalVideoReady, needsClientCompose } from "@/lib/jobs/final-video";
 import { getDeviceHash } from "@/lib/device";
+import { track } from "@/lib/analytics";
+import { captureError } from "@/lib/sentry";
 import { toast } from "sonner";
 
 const PIPELINE = [
@@ -92,6 +94,8 @@ export function GenerateVideoDialog({
   const abortRef = useRef<AbortController | null>(null);
   // Set by the Cancel button; the drive loop checks it between iterations.
   const cancelLoopRef = useRef(false);
+  // Job id of the in-flight render, for error analytics.
+  const activeJobIdRef = useRef<string | null>(null);
 
   const { user, loading: sessionLoading } = useSession();
   const queryClient = useQueryClient();
@@ -243,12 +247,19 @@ export function GenerateVideoDialog({
     setComposeError(null);
     setPendingComposeJob(null);
     setResumableJob(null);
+    track("render_succeeded", { job_id: job.id, mode: "script" });
     queryClient.invalidateQueries({ queryKey: ["my-jobs"] });
   };
 
   const handleDriveError = (error: Error) => {
     setProgress(0);
     setComposeError(error.message || "Render failed");
+    const jobId = activeJobIdRef.current;
+    if (jobId) {
+      track("render_failed", { job_id: jobId, mode: "script" });
+      captureError(error, { job_id: jobId });
+    }
+    activeJobIdRef.current = null;
     queryClient.invalidateQueries({ queryKey: ["my-jobs"] });
     toast.error(error.message || "Render failed");
   };
@@ -275,6 +286,8 @@ export function GenerateVideoDialog({
           device_hash: getDeviceHash(),
         },
       })) as JobResult;
+      activeJobIdRef.current = job.id;
+      track("render_started", { job_id: job.id, mode: "script" });
       setProgress(job.progress ?? 20);
       setStepLabel(job.step ?? "Recording voiceover");
       return driveJob(job);

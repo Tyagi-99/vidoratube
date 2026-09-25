@@ -12,6 +12,7 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { initClientSentry, captureError } from "../lib/sentry";
 import { Menu, X, Aperture, ArrowUpRight, LayoutDashboard } from "lucide-react";
 import { ThemeProvider, themeInitScript } from "@/components/ThemeProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -46,6 +47,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   const router = useRouter();
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
+    captureError(error, { extra: { boundary: "tanstack_root_error_component" } });
   }, [error]);
 
   return (
@@ -127,6 +129,11 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+
+  // Sentry + PostHog initialize only when their keys are set (no-ops otherwise).
+  useEffect(() => {
+    initClientSentry();
+  }, []);
   const authenticated =
     pathname === "/studio" ||
     pathname === "/projects" ||

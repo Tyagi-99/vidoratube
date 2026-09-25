@@ -42,6 +42,7 @@ import {
 } from "lucide-react";
 
 import { toast } from "sonner";
+import { track } from "@/lib/analytics";
 
 export const Route = createFileRoute("/_authenticated/studio")({
   validateSearch: (search: Record<string, unknown>) => studioSearchFromUnknown(search),
@@ -342,6 +343,7 @@ function StudioPage() {
                             target="_blank"
                             rel="noreferrer"
                             download
+                            onClick={() => track("download_clicked", { job_id: job.id })}
                           >
                             <Download className="h-4 w-4" />
                             {downloadUrl ? "Download" : "Audio"}

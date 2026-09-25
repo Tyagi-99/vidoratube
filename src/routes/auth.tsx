@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Loader2, Aperture, MailCheck } from "lucide-react";
 import { toast } from "sonner";
+import { track, identifyUser } from "@/lib/analytics";
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (search: Record<string, unknown>): { next?: string } => {
@@ -95,7 +96,8 @@ function AuthPage() {
     setBusy(true);
     try {
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
+        track("signup_started");
+        const { data, error } = await supabase.auth.signUp({
           email: parsed.data.email,
           password: parsed.data.password,
           options: {
@@ -104,13 +106,16 @@ function AuthPage() {
           },
         });
         if (error) throw error;
+        track("signup_completed", { method: "email" });
+        if (data.user) identifyUser(data.user.id);
         toast.success("Account created — welcome to Vidora.");
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email: parsed.data.email,
           password: parsed.data.password,
         });
         if (error) throw error;
+        if (data.user) identifyUser(data.user.id);
       }
       goNext();
     } catch (error) {

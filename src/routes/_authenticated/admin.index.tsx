@@ -1,8 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { adminOverview } from "@/lib/admin.functions";
+import { captureError, sentryEnabled, sentryTestError } from "@/lib/sentry";
+import { analyticsEnabled } from "@/lib/analytics";
 
 export const Route = createFileRoute("/_authenticated/admin/")({
   component: AdminOverviewPage,
@@ -74,6 +78,90 @@ function AdminOverviewPage() {
             )}
           </tbody>
         </table>
+      </div>
+
+      <DiagnosticsSection />
+    </div>
+  );
+}
+
+/**
+ * Observability health + Sentry test button. Everything here degrades
+ * gracefully: without DSNs/keys it reports "not configured" instead of failing.
+ */
+function DiagnosticsSection() {
+  const [sent, setSent] = useState(false);
+
+  const sendTestError = () => {
+    captureError(sentryTestError(), { extra: { where: "admin_diagnostics" } });
+    setSent(true);
+  };
+
+  const rows = [
+    {
+      name: "Sentry (client)",
+      status: sentryEnabled() ? "active" : "not configured",
+      hint: sentryEnabled()
+        ? "Errors are being reported."
+        : "Set VITE_SENTRY_DSN to enable browser error tracking.",
+    },
+    {
+      name: "PostHog",
+      status: analyticsEnabled() ? "active" : "not configured",
+      hint: analyticsEnabled()
+        ? "Product events are being captured."
+        : "Set VITE_POSTHOG_KEY to enable product analytics.",
+    },
+  ];
+
+  return (
+    <div className="mt-10">
+      <h2 className="text-lg font-bold tracking-tight text-foreground">Diagnostics</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Observability status. Server-side Sentry needs SENTRY_DSN_SERVER in the server environment.
+      </p>
+      <div className="mt-4 overflow-hidden rounded-2xl border border-border">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/60 text-left text-xs uppercase tracking-wide text-muted-foreground">
+            <tr>
+              <th className="px-4 py-3 font-semibold">Service</th>
+              <th className="px-4 py-3 font-semibold">Status</th>
+              <th className="px-4 py-3 font-semibold">Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.name} className="border-t border-border">
+                <td className="px-4 py-3 font-medium text-foreground">{row.name}</td>
+                <td className="px-4 py-3">
+                  <span
+                    className={
+                      row.status === "active" ? "text-emerald-500" : "text-muted-foreground"
+                    }
+                  >
+                    {row.status}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-muted-foreground">{row.hint}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <Button variant="outline" size="sm" onClick={sendTestError} disabled={!sentryEnabled()}>
+          Send Sentry test error
+        </Button>
+        {sent && (
+          <p className="text-sm text-muted-foreground">
+            Test error sent — check your Sentry project&apos;s Issues.
+          </p>
+        )}
+        {!sentryEnabled() && (
+          <p className="text-sm text-muted-foreground">
+            The button enables once VITE_SENTRY_DSN is set.
+          </p>
+        )}
       </div>
     </div>
   );

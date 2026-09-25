@@ -13,6 +13,8 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/useSession";
 import { useRenderGuard } from "@/lib/render/useRenderGuard";
+import { track } from "@/lib/analytics";
+import { captureError } from "@/lib/sentry";
 import { PRESETS } from "@/lib/studio-config";
 import {
   completeRender,
@@ -183,6 +185,7 @@ export function RenderPanel({
         },
       });
       renderId = row.id;
+      track("render_started", { job_id: renderId, mode: "project" });
 
       const output = await renderProject(buildTimeline(), {
         title: project.title,
@@ -239,6 +242,7 @@ export function RenderPanel({
 
       setProgress({ stage: "validate", label: "Done", progress: 100 });
       toast.success("Your MP4 is ready");
+      track("render_succeeded", { job_id: renderId!, mode: "project" });
       void renders.refetch();
       queryClient.invalidateQueries({ queryKey: ["project", project.id] });
     } catch (err) {
@@ -248,6 +252,10 @@ export function RenderPanel({
       if (!cancelled) setError(message);
       if (renderId) {
         void failFn({ data: { id: renderId, error: message, cancelled } }).catch(() => undefined);
+        if (!cancelled) {
+          track("render_failed", { job_id: renderId, mode: "project" });
+          captureError(err, { job_id: renderId });
+        }
       }
       if (cancelled) {
         toast.message("Render cancelled");
