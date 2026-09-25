@@ -1266,6 +1266,7 @@ export type Database = {
       }
       nps_responses: {
         Row: {
+          category: string | null
           comment: string | null
           context: string
           created_at: string
@@ -1274,6 +1275,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          category?: string | null
           comment?: string | null
           context?: string
           created_at?: string
@@ -1282,6 +1284,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          category?: string | null
           comment?: string | null
           context?: string
           created_at?: string
@@ -2070,33 +2073,45 @@ export type Database = {
           captured_at: string
           created_at: string
           id: string
+          overall_avg: number | null
+          platform: string
           points: Json
           publish_job_id: string | null
           segments: Json | null
           snapshot_date: string
+          strongest_segment: string | null
           user_id: string
+          weakest_segment: string | null
           youtube_video_id: string
         }
         Insert: {
           captured_at?: string
           created_at?: string
           id?: string
+          overall_avg?: number | null
+          platform?: string
           points?: Json
           publish_job_id?: string | null
           segments?: Json | null
           snapshot_date?: string
+          strongest_segment?: string | null
           user_id: string
+          weakest_segment?: string | null
           youtube_video_id: string
         }
         Update: {
           captured_at?: string
           created_at?: string
           id?: string
+          overall_avg?: number | null
+          platform?: string
           points?: Json
           publish_job_id?: string | null
           segments?: Json | null
           snapshot_date?: string
+          strongest_segment?: string | null
           user_id?: string
+          weakest_segment?: string | null
           youtube_video_id?: string
         }
         Relationships: [

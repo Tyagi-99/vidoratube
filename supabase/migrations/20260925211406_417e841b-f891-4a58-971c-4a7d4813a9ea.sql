@@ -1,0 +1,2 @@
+ALTER TABLE public.retention_curves ADD COLUMN IF NOT EXISTS platform text NOT NULL DEFAULT 'youtube', ADD COLUMN IF NOT EXISTS overall_avg double precision, ADD COLUMN IF NOT EXISTS strongest_segment text, ADD COLUMN IF NOT EXISTS weakest_segment text;
+ALTER TABLE public.nps_responses ADD COLUMN IF NOT EXISTS category text;
