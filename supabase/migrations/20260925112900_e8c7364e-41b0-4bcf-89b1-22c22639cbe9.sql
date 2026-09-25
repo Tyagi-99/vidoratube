@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX IF NOT EXISTS outlier_videos_project_youtube_key ON public.outlier_videos (project_id, youtube_id);
