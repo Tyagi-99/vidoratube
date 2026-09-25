@@ -28,7 +28,9 @@ provenance. The studio can already render; P4 makes what it renders *good*.
 
 ### 4. Background music
 - Music track picker: mood-based (uplifting, tense, calm, epic, playful)
-- Royalty-free source: document provider (e.g. Pixabay Music API — key already set)
+- Royalty-free source: **Jamendo API** (verified real API; Pixabay's API has NO
+  music endpoint — images/video only. Corrected 2026-09-25 after verification.)
+  Needs `JAMENDO_CLIENT_ID` (free tier). Honest empty state until connected.
 - Auto-ducking under voiceover (FFmpeg sidechaincompress in both render paths)
 - Volume + fade controls; license stored in provenance
 
