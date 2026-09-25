@@ -3,6 +3,7 @@ import {
   aiHeroCredits,
   finishedMinutes,
   formatRenderCost,
+  quoteMultiAspectRender,
   renderCreditCost,
 } from "./per-minute";
 
@@ -94,5 +95,33 @@ describe("formatRenderCost", () => {
     expect(
       formatRenderCost({ durationSeconds: 240, mode: "story", premiumVoice: true }),
     ).toBe("4 min story + premium voice x2 = 8 credits");
+  });
+});
+
+describe("quoteMultiAspectRender", () => {
+  it("multiplies the per-aspect quote by the aspect count", () => {
+    // 4-min story = 4 credits per aspect; 3 aspects = 12 total.
+    const q = quoteMultiAspectRender({ durationSeconds: 240, mode: "story", aspectCount: 3 });
+    expect(q.perAspect.totalCredits).toBe(4);
+    expect(q.aspectCount).toBe(3);
+    expect(q.grandTotal).toBe(12);
+  });
+
+  it("clamps the aspect count to at least 1", () => {
+    const q = quoteMultiAspectRender({ durationSeconds: 61, mode: "story", aspectCount: 0 });
+    expect(q.aspectCount).toBe(1);
+    expect(q.grandTotal).toBe(q.perAspect.totalCredits);
+  });
+
+  it("applies multipliers per aspect before multiplying", () => {
+    // 2-min cinema + stock = 3 credits per aspect; x2 aspects = 6.
+    const q = quoteMultiAspectRender({
+      durationSeconds: 120,
+      mode: "cinema",
+      stockFootage: true,
+      aspectCount: 2,
+    });
+    expect(q.perAspect.totalCredits).toBe(3);
+    expect(q.grandTotal).toBe(6);
   });
 });

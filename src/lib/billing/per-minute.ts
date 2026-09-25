@@ -96,3 +96,34 @@ export function formatRenderCost(input: RenderCostInput): string {
   if (c.shortsCredits > 0) parts.push(`${input.shortsCount} shorts`);
   return `${parts.join(" + ")} = ${c.totalCredits} credit${c.totalCredits === 1 ? "" : "s"}`;
 }
+
+export interface MultiAspectQuoteInput extends RenderCostInput {
+  /**
+   * Number of aspect variants rendered from the same timeline
+   * (one `renders` row each, e.g. 16:9 + 9:16 + 1:1).
+   */
+  aspectCount: number;
+}
+
+export interface MultiAspectQuote {
+  /** Cost of a single aspect row. */
+  perAspect: RenderCostBreakdown;
+  aspectCount: number;
+  /** Exact credits charged for the whole enqueue: per-aspect x aspect count. */
+  grandTotal: number;
+}
+
+/**
+ * Exact quote for a server-render enqueue. Every aspect row renders the
+ * same timeline, so every row costs the same; the grand total is the
+ * per-aspect quote times the number of selected aspects.
+ *
+ * Single source of truth for pricing: the RenderPanel shows this number
+ * BEFORE the render, and enqueueServerRender reserves exactly this amount.
+ * No math is duplicated anywhere else.
+ */
+export function quoteMultiAspectRender(input: MultiAspectQuoteInput): MultiAspectQuote {
+  const perAspect = renderCreditCost(input);
+  const aspectCount = Math.max(1, Math.floor(input.aspectCount));
+  return { perAspect, aspectCount, grandTotal: perAspect.totalCredits * aspectCount };
+}
