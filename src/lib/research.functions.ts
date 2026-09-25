@@ -526,6 +526,22 @@ export const generateIdeas = createServerFn({ method: "POST" })
       .order("outlier_score", { ascending: false })
       .limit(10);
 
+    // P8 learning loop: the user's own channel winners (source='own') are
+    // boosted into idea generation across every project.
+    const { data: ownWinners } = await supabase
+      .from("outlier_videos")
+      .select("title,outlier_score")
+      .eq("user_id", userId)
+      .eq("source", "own")
+      .order("outlier_score", { ascending: false })
+      .limit(5);
+    const ownWinnersCtx =
+      ownWinners && ownWinners.length > 0
+        ? `The creator's OWN best-performing videos (learn from what already worked for them):\n${ownWinners
+            .map((o) => `- "${o.title}" | ${o.outlier_score}x their channel median`)
+            .join("\n")}\n`
+        : "";
+
     const nicheCtx = data.nicheName
       ? `Focus niche: ${data.nicheName}`
       : `Topic: ${project.topic}`;
@@ -538,7 +554,7 @@ export const generateIdeas = createServerFn({ method: "POST" })
 
     const ideas = await llmJson<z.infer<typeof IdeaSchema>[]>(
       `You are a YouTube strategist for the Vidora AI studio. Generate clickable, original video ideas. Each idea is a JSON object: title (max 70 chars, curiosity-driven, no clickbait lies), hook (the first 3 seconds, verbatim opener), angle (2-3 sentences: the unique take), format (short|long — short = under 60s vertical, long = 8+ min horizontal), difficulty (easy|medium|hard to produce), safety_flag (safe|caution|risky — advertiser-friendliness for YouTube monetization; mark risky only when the idea touches sensitive topics). Return a JSON array.`,
-      `${nicheCtx}\nLanguage: ${project.language}\nHow many ideas: ${data.count}\n\n${outlierCtx}`,
+      `${nicheCtx}\nLanguage: ${project.language}\nHow many ideas: ${data.count}\n\n${ownWinnersCtx}${outlierCtx}`,
     );
     const parsed = z.array(IdeaSchema).parse(ideas);
 
