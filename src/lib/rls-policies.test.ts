@@ -69,6 +69,7 @@ const OWNER_SCOPED_TABLES = [
   "video_analytics",
   "channel_stats",
   "learning_insights",
+  "referrals",
 ];
 
 /** Tables intentionally readable/writable without auth (documented exceptions). */

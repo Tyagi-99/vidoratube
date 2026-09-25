@@ -1,6 +1,52 @@
 # Changelog
 
-## 2026-09-25 — P8: Analytics & Learning Loop
+## 2026-09-25 — P9: Growth, SEO & Full Hindi
+
+### Growth: referrals
+- New `referrals` table (owner-read RLS, service-role writes):
+  `referral_code`, `referrer_id`, `invitee_id`, `status`, device/IP
+  abuse signals, `rewarded_at`.
+- `src/lib/referrals.ts`: 8-char unambiguous codes, 5-credit reward,
+  self-referral / duplicate-invitee / abuse-cluster decision helpers.
+- `src/lib/referrals.functions.ts`: `getMyReferralLink`, `listMyReferrals`,
+  `submitPendingReferral`, `claimReferralOnVerification` — the claim path is
+  idempotent (UNIQUE constraint + P1 `grant_credits_once` RPC) and reuses
+  the P1 abuse-cluster check.
+- `/r/$code` stores the code in localStorage, then redirects to auth;
+  `useReferralClaim` submits it after a verified session. `ReferralSection`
+  (billing page) shows the link, QR-style copy button, and invite stats.
+- `docs/P9_PLAN.md`: 5-credit reward, idempotency, and abuse-fighting notes.
+
+### Onboarding
+- `OnboardingChecklist` on `/studio`: 5 honest steps (verify email → generate
+  first video → try Hindi voice → research an idea → connect YouTube),
+  dismissible with localStorage persistence. YouTube-connect step stays
+  false until a real connection state is wired.
+
+### i18n: Hindi as first-class
+- `LanguageToggle` (EN | हिंदी) in public + authenticated headers, instant
+  switching via localStorage.
+- `useLanguageProfileSync`: adopts `profiles.preferred_language` on first
+  load (cross-device), then persists changes via `updateMyProfile`.
+  `preferred_language` type added to `profiles` Row/Insert/Update.
+- 171 en ↔ hi dictionary keys; `npm run i18n:check`
+  (`scripts/i18n-check.mjs`) fails CI on missing/empty/orphan keys.
+- Honest scope: the dictionary and P9 flows are fully bilingual; legacy
+  raw-English strings remain elsewhere — not claimed as "full app Hindi".
+
+### SEO
+- Landing head: `og:url`, `og:image`, `og:locale` (+ `hi_IN` alternate),
+  Twitter summary card, canonical, and JSON-LD `SoftwareApplication`.
+- `robots.txt` route (app/API disallowed, sitemap declared),
+  `sitemap.xml` route (public pages only: /, /features, /pricing,
+  /guides, /contact).
+- `/guides` index + 3 honest guides (AI YouTube studio, monetization
+  safety, Hindi AI voice) with canonical tags and article OG type.
+- Semantic heading order audited on landing/features/pricing guides.
+
+### Tests
+- RLS static audit extended with `referrals` (5/5 pass).
+- Referral pure-logic tests; full suite run before each commit.
 
 Closes the flywheel: YouTube performance data flows back into research (P3)
 and safety validation (P6).
