@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      abuse_signals: {
+        Row: {
+          created_at: string
+          device_hash: string | null
+          id: string
+          ip: unknown
+          signal_type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          device_hash?: string | null
+          id?: string
+          ip?: unknown
+          signal_type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          device_hash?: string | null
+          id?: string
+          ip?: unknown
+          signal_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       api_usage: {
         Row: {
           created_at: string
@@ -118,21 +145,27 @@ export type Database = {
           event_id: string | null
           id: string
           payload: Json | null
+          processed_at: string | null
           provider: string | null
+          type: string | null
         }
         Insert: {
           created_at?: string
           event_id?: string | null
           id?: string
           payload?: Json | null
+          processed_at?: string | null
           provider?: string | null
+          type?: string | null
         }
         Update: {
           created_at?: string
           event_id?: string | null
           id?: string
           payload?: Json | null
+          processed_at?: string | null
           provider?: string | null
+          type?: string | null
         }
         Relationships: []
       }
@@ -216,6 +249,7 @@ export type Database = {
           created_at: string
           id: string
           metrics: Json | null
+          snapshot_at: string
           snapshot_date: string | null
           user_id: string
         }
@@ -223,6 +257,7 @@ export type Database = {
           created_at?: string
           id?: string
           metrics?: Json | null
+          snapshot_at?: string
           snapshot_date?: string | null
           user_id: string
         }
@@ -230,6 +265,7 @@ export type Database = {
           created_at?: string
           id?: string
           metrics?: Json | null
+          snapshot_at?: string
           snapshot_date?: string | null
           user_id?: string
         }
@@ -659,6 +695,7 @@ export type Database = {
           delta: number
           id: string
           reason: string
+          ref_id: string | null
           user_id: string
         }
         Insert: {
@@ -667,6 +704,7 @@ export type Database = {
           delta: number
           id?: string
           reason: string
+          ref_id?: string | null
           user_id: string
         }
         Update: {
@@ -675,7 +713,23 @@ export type Database = {
           delta?: number
           id?: string
           reason?: string
+          ref_id?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      disposable_email_domains: {
+        Row: {
+          created_at: string
+          domain: string
+        }
+        Insert: {
+          created_at?: string
+          domain: string
+        }
+        Update: {
+          created_at?: string
+          domain?: string
         }
         Relationships: []
       }
@@ -876,6 +930,8 @@ export type Database = {
       }
       outlier_videos: {
         Row: {
+          channel_id: string
+          channel_subs: number
           channel_title: string | null
           created_at: string
           ctr: number | null
@@ -892,6 +948,8 @@ export type Database = {
           youtube_id: string | null
         }
         Insert: {
+          channel_id?: string
+          channel_subs?: number
           channel_title?: string | null
           created_at?: string
           ctr?: number | null
@@ -908,6 +966,8 @@ export type Database = {
           youtube_id?: string | null
         }
         Update: {
+          channel_id?: string
+          channel_subs?: number
           channel_title?: string | null
           created_at?: string
           ctr?: number | null
@@ -927,31 +987,55 @@ export type Database = {
       }
       plans: {
         Row: {
+          active: boolean
           created_at: string
           credits: number | null
+          credits_granted: number | null
           features: Json | null
           id: string
+          interval: string
+          kind: string | null
           name: string | null
           price_cents: number | null
+          price_inr_paise: number | null
+          price_usd_cents: number | null
+          razorpay_plan_id: string | null
           slug: string | null
+          stripe_price_id: string | null
         }
         Insert: {
+          active?: boolean
           created_at?: string
           credits?: number | null
+          credits_granted?: number | null
           features?: Json | null
           id?: string
+          interval?: string
+          kind?: string | null
           name?: string | null
           price_cents?: number | null
+          price_inr_paise?: number | null
+          price_usd_cents?: number | null
+          razorpay_plan_id?: string | null
           slug?: string | null
+          stripe_price_id?: string | null
         }
         Update: {
+          active?: boolean
           created_at?: string
           credits?: number | null
+          credits_granted?: number | null
           features?: Json | null
           id?: string
+          interval?: string
+          kind?: string | null
           name?: string | null
           price_cents?: number | null
+          price_inr_paise?: number | null
+          price_usd_cents?: number | null
+          razorpay_plan_id?: string | null
           slug?: string | null
+          stripe_price_id?: string | null
         }
         Relationships: []
       }
@@ -1007,8 +1091,10 @@ export type Database = {
           credits: number
           display_name: string | null
           email: string | null
+          free_credits_granted: boolean
           id: string
           plan: string
+          preferred_language: string
           status: Database["public"]["Enums"]["account_status"]
           updated_at: string
         }
@@ -1018,8 +1104,10 @@ export type Database = {
           credits?: number
           display_name?: string | null
           email?: string | null
+          free_credits_granted?: boolean
           id: string
           plan?: string
+          preferred_language?: string
           status?: Database["public"]["Enums"]["account_status"]
           updated_at?: string
         }
@@ -1029,8 +1117,10 @@ export type Database = {
           credits?: number
           display_name?: string | null
           email?: string | null
+          free_credits_granted?: boolean
           id?: string
           plan?: string
+          preferred_language?: string
           status?: Database["public"]["Enums"]["account_status"]
           updated_at?: string
         }
@@ -1215,29 +1305,59 @@ export type Database = {
         }
         Relationships: []
       }
+      rate_limit_buckets: {
+        Row: {
+          bucket_key: string
+          hit_count: number
+          window_start: string
+        }
+        Insert: {
+          bucket_key: string
+          hit_count?: number
+          window_start?: string
+        }
+        Update: {
+          bucket_key?: string
+          hit_count?: number
+          window_start?: string
+        }
+        Relationships: []
+      }
       referrals: {
         Row: {
           code: string | null
           created_at: string
+          device_hash: string | null
           id: string
+          invitee_id: string | null
+          ip_prefix: string | null
           referee_id: string | null
           referrer_id: string
+          rewarded_at: string | null
           status: string | null
         }
         Insert: {
           code?: string | null
           created_at?: string
+          device_hash?: string | null
           id?: string
+          invitee_id?: string | null
+          ip_prefix?: string | null
           referee_id?: string | null
           referrer_id: string
+          rewarded_at?: string | null
           status?: string | null
         }
         Update: {
           code?: string | null
           created_at?: string
+          device_hash?: string | null
           id?: string
+          invitee_id?: string | null
+          ip_prefix?: string | null
           referee_id?: string | null
           referrer_id?: string
+          rewarded_at?: string | null
           status?: string | null
         }
         Relationships: []
@@ -1245,7 +1365,14 @@ export type Database = {
       renders: {
         Row: {
           aspect_ratio: string | null
+          attempts: number
+          billed_minutes: number | null
+          cancel_requested: boolean
+          checkpoint: Json
+          claimed_at: string | null
+          claimed_by: string | null
           created_at: string
+          credits_charged: number
           duration: number | null
           engine: string
           error: string | null
@@ -1254,11 +1381,13 @@ export type Database = {
           format: string
           id: string
           job_id: string | null
+          max_attempts: number
           meta: Json
           progress: number
           project_id: string | null
           render_completed_at: string | null
           render_started_at: string | null
+          reserved_minutes: number
           resolution: string | null
           stage: string
           status: string
@@ -1268,7 +1397,14 @@ export type Database = {
         }
         Insert: {
           aspect_ratio?: string | null
+          attempts?: number
+          billed_minutes?: number | null
+          cancel_requested?: boolean
+          checkpoint?: Json
+          claimed_at?: string | null
+          claimed_by?: string | null
           created_at?: string
+          credits_charged?: number
           duration?: number | null
           engine?: string
           error?: string | null
@@ -1277,11 +1413,13 @@ export type Database = {
           format?: string
           id?: string
           job_id?: string | null
+          max_attempts?: number
           meta?: Json
           progress?: number
           project_id?: string | null
           render_completed_at?: string | null
           render_started_at?: string | null
+          reserved_minutes?: number
           resolution?: string | null
           stage?: string
           status?: string
@@ -1291,7 +1429,14 @@ export type Database = {
         }
         Update: {
           aspect_ratio?: string | null
+          attempts?: number
+          billed_minutes?: number | null
+          cancel_requested?: boolean
+          checkpoint?: Json
+          claimed_at?: string | null
+          claimed_by?: string | null
           created_at?: string
+          credits_charged?: number
           duration?: number | null
           engine?: string
           error?: string | null
@@ -1300,11 +1445,13 @@ export type Database = {
           format?: string
           id?: string
           job_id?: string | null
+          max_attempts?: number
           meta?: Json
           progress?: number
           project_id?: string | null
           render_completed_at?: string | null
           render_started_at?: string | null
+          reserved_minutes?: number
           resolution?: string | null
           stage?: string
           status?: string
@@ -1411,6 +1558,7 @@ export type Database = {
       }
       safety_scores: {
         Row: {
+          ai_review: Json | null
           band: string | null
           created_at: string
           dimensions: Json | null
@@ -1424,6 +1572,7 @@ export type Database = {
           version: string | null
         }
         Insert: {
+          ai_review?: Json | null
           band?: string | null
           created_at?: string
           dimensions?: Json | null
@@ -1437,6 +1586,7 @@ export type Database = {
           version?: string | null
         }
         Update: {
+          ai_review?: Json | null
           band?: string | null
           created_at?: string
           dimensions?: Json | null
@@ -1650,37 +1800,55 @@ export type Database = {
       }
       thumbnails: {
         Row: {
+          aspect: string
           created_at: string
+          final_url: string | null
           id: string
           image_url: string | null
+          license: string
           model: string | null
           project_id: string | null
+          prompt: string | null
           provider: string | null
           selected: boolean | null
           text_overlay: Json | null
+          url: string | null
           user_id: string
+          variant: number
         }
         Insert: {
+          aspect?: string
           created_at?: string
+          final_url?: string | null
           id?: string
           image_url?: string | null
+          license?: string
           model?: string | null
           project_id?: string | null
+          prompt?: string | null
           provider?: string | null
           selected?: boolean | null
           text_overlay?: Json | null
+          url?: string | null
           user_id: string
+          variant?: number
         }
         Update: {
+          aspect?: string
           created_at?: string
+          final_url?: string | null
           id?: string
           image_url?: string | null
+          license?: string
           model?: string | null
           project_id?: string | null
+          prompt?: string | null
           provider?: string | null
           selected?: boolean | null
           text_overlay?: Json | null
+          url?: string | null
           user_id?: string
+          variant?: number
         }
         Relationships: []
       }
@@ -1712,6 +1880,7 @@ export type Database = {
           id: string
           metrics: Json | null
           publish_job_id: string | null
+          snapshot_at: string
           snapshot_date: string | null
           user_id: string
           youtube_video_id: string | null
@@ -1722,6 +1891,7 @@ export type Database = {
           id?: string
           metrics?: Json | null
           publish_job_id?: string | null
+          snapshot_at?: string
           snapshot_date?: string | null
           user_id: string
           youtube_video_id?: string | null
@@ -1732,6 +1902,7 @@ export type Database = {
           id?: string
           metrics?: Json | null
           publish_job_id?: string | null
+          snapshot_at?: string
           snapshot_date?: string | null
           user_id?: string
           youtube_video_id?: string | null
@@ -1747,9 +1918,11 @@ export type Database = {
           hook: string | null
           id: string
           project_id: string | null
+          project_ref: string | null
           safety_flag: string | null
           status: string | null
           title: string | null
+          updated_at: string
           user_id: string
         }
         Insert: {
@@ -1760,9 +1933,11 @@ export type Database = {
           hook?: string | null
           id?: string
           project_id?: string | null
+          project_ref?: string | null
           safety_flag?: string | null
           status?: string | null
           title?: string | null
+          updated_at?: string
           user_id: string
         }
         Update: {
@@ -1773,12 +1948,22 @@ export type Database = {
           hook?: string | null
           id?: string
           project_id?: string | null
+          project_ref?: string | null
           safety_flag?: string | null
           status?: string | null
           title?: string | null
+          updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "video_ideas_project_ref_fkey"
+            columns: ["project_ref"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       video_jobs: {
         Row: {
@@ -1790,6 +1975,7 @@ export type Database = {
           error: string | null
           format: string
           id: string
+          idempotency_key: string | null
           narration: string | null
           progress: number
           render_id: string | null
@@ -1816,6 +2002,7 @@ export type Database = {
           error?: string | null
           format?: string
           id?: string
+          idempotency_key?: string | null
           narration?: string | null
           progress?: number
           render_id?: string | null
@@ -1842,6 +2029,7 @@ export type Database = {
           error?: string | null
           format?: string
           id?: string
+          idempotency_key?: string | null
           narration?: string | null
           progress?: number
           render_id?: string | null
@@ -2114,9 +2302,48 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      adjust_credits: {
+        Args: {
+          p_admin_id?: string
+          p_delta: number
+          p_reason: string
+          p_user_id: string
+        }
+        Returns: number
+      }
+      check_rate_limit: {
+        Args: { p_key: string; p_max: number; p_window_seconds: number }
+        Returns: boolean
+      }
       content_rights_approved: {
         Args: { _content_id: string }
         Returns: boolean
+      }
+      debit_credits_amount_once: {
+        Args: {
+          p_amount: number
+          p_reason: string
+          p_ref_id?: string
+          p_user_id: string
+        }
+        Returns: number
+      }
+      debit_credits_for_job: {
+        Args: { p_job_id?: string; p_reason: string; p_user_id: string }
+        Returns: number
+      }
+      debit_credits_for_job_once: {
+        Args: { p_job_id?: string; p_reason: string; p_user_id: string }
+        Returns: number
+      }
+      grant_credits_once: {
+        Args: {
+          p_amount: number
+          p_reason: string
+          p_ref_id?: string
+          p_user_id: string
+        }
+        Returns: number
       }
       has_role: {
         Args: {
@@ -2124,6 +2351,19 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      log_abuse_signal: {
+        Args: {
+          p_device_hash: string
+          p_ip: unknown
+          p_signal_type: string
+          p_user_id: string
+        }
+        Returns: number
+      }
+      refund_credits: {
+        Args: { p_job_id?: string; p_reason: string; p_user_id: string }
+        Returns: number
       }
     }
     Enums: {
