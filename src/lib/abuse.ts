@@ -70,7 +70,7 @@ export async function checkAbuseCluster(
   const { data, error } = await supabaseAdmin.rpc("log_abuse_signal", {
     p_user_id: opts.userId,
     p_ip: ip,
-    p_device_hash: deviceHash,
+    p_device_hash: deviceHash as string,
     p_signal_type: opts.signalType,
   });
   if (error) {
