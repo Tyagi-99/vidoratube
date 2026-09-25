@@ -20,8 +20,10 @@ Lovable publish after this handoff; all verification below is local unless noted
 | `cb2526d` | Sprint 0: per-finished-minute credit model |
 | `d75c3e7` | Sprint 0: FAQ JSON-LD + pricing currency toggle + per-minute copy |
 | `ef4979c` | Sprint 0: worker deploy package + server-worker feature detection |
-| _(pending)_ | Sprint 0: DECISIONS.md + founder TODO updates |
-| _(pending)_ | Sprint 0: demo video + sprint report |
+| `22b9e55` | Sprint 0: DECISIONS.md + founder TODO updates |
+| `e9d795c` | Sprint 0: Dodo webhook accepts base64-encoded secrets (whsec_) |
+| `f849329` | Sprint 0: remove character-consistency claim, add DemoReel section |
+| `15256f2` | Sprint 0: real 60s English demo video + homepage DemoReel |
 
 **Shipped:**
 
