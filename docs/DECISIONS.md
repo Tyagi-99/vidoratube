@@ -770,3 +770,21 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
   shown in the picker UI.
 - **Reverse:** Drop the columns; `provider`/`model`/`license` still record
   the basics.
+
+### D84. Intermittent homepage crash: telemetry first, auto-retry for chunk loads
+- **Decision:** (1) New `public.client_errors` table (insert-only RLS for
+  anon+authenticated, no SELECT policy so reads are service-role only, no PII
+  stored) + root error boundary now reports every crash's message/stack/route
+  there. (2) If the error matches a JS chunk/module load failure, the boundary
+  auto-reloads once per session per route (sessionStorage guard) instead of
+  showing the error page.
+- **Reason:** Live diagnosis showed the "This page didn't load" crash is
+  intermittent (~40% of homepage loads), homepage-only, assets all HTTP 200,
+  retry recovers — consistent with flaky chunk loads or a rare render race,
+  but the exact JS error was not capturable remotely. Telemetry ends the
+  guessing: the next occurrence records the real error for a targeted fix.
+  The auto-retry is safe (single attempt, guarded) and matches the observed
+  "retry fixes it" behavior.
+- **Reverse:** Drop the table/policies; remove `reportClientError` and the
+  `isChunkLoadError` auto-reload from `src/routes/__root.tsx`. The manual
+  "Try again" button remains.
