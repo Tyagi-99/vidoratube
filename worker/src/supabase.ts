@@ -98,6 +98,27 @@ export async function finishJob(
     if (billError) {
       console.error(`[worker] finalize_render_billing failed for ${jobId}: ${billError.message}`);
     }
+  } else {
+    // Failed/cancelled: the render produced nothing, so the exact-quoted
+    // reserve must come back. refund_credits_for_minutes is idempotent per
+    // job id and only refunds what was actually debited — safe to call on
+    // retries and on rows whose reserve never landed.
+    const { data: row } = await supabase
+      .from("renders")
+      .select("user_id, reserved_minutes")
+      .eq("id", jobId)
+      .maybeSingle();
+    if (row) {
+      const { error: refundError } = await supabase.rpc("refund_credits_for_minutes", {
+        p_user_id: row.user_id,
+        p_minutes: row.reserved_minutes ?? 0,
+        p_reason: `Refund: ${patch.status} server render ${jobId}`,
+        p_ref_id: jobId,
+      });
+      if (refundError) {
+        console.error(`[worker] refund failed for ${jobId}: ${refundError.message}`);
+      }
+    }
   }
 }
 
@@ -114,18 +135,23 @@ export async function shouldCancel(
   return data?.cancel_requested === true || data?.status === "cancelled";
 }
 
-/** Requeue jobs stuck in `running` past the lease (crashed workers). */
+/**
+ * Requeue jobs stuck in `running` past the lease (crashed workers).
+ *
+ * Delegates to the `requeue_stale_renders` SQL function (migration
+ * 20260925210000_requeue_stale_renders.sql), which is the single server-side
+ * authority for crash recovery: stale jobs with attempts left go back to
+ * 'queued' with attempts incremented; jobs whose retry budget is exhausted
+ * are marked 'failed' with 'Worker died; retries exhausted' instead of
+ * being requeued forever. Returns the number of jobs requeued.
+ */
 export async function requeueStaleJobs(
   supabase: SupabaseClient,
   leaseSeconds: number,
 ): Promise<number> {
-  const { data, error } = await supabase
-    .from("renders")
-    .update({ status: "queued", stage: "queued", claimed_at: null, claimed_by: null })
-    .eq("status", "running")
-    .eq("engine", "server_ffmpeg")
-    .lt("claimed_at", new Date(Date.now() - leaseSeconds * 1000).toISOString())
-    .select("id");
+  const { data, error } = await supabase.rpc("requeue_stale_renders", {
+    p_lease_seconds: leaseSeconds,
+  });
   if (error) throw new Error(`requeue failed: ${error.message}`);
-  return data?.length ?? 0;
+  return (data as number | null) ?? 0;
 }
