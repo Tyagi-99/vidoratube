@@ -144,8 +144,11 @@ export const createVideoJob = createServerFn({ method: "POST" })
       .single();
     if (insertError) throw new Error(insertError.message);
 
+    const { finishedMinutes } = await import("./billing/per-minute");
+    let reserveMinutes = 1;
     try {
       const plan = await generateVideoPlan(data.script, data.format, data.voice);
+      reserveMinutes = finishedMinutes(plan.durationSeconds);
       const { data: updated, error } = await supabase
         .from("video_jobs")
         .update({
@@ -162,20 +165,20 @@ export const createVideoJob = createServerFn({ method: "POST" })
         .single();
       if (error) throw new Error(error.message);
 
-      // Reserve the credit once the plan exists. The debit is a single atomic
-      // RPC (balance check + update + ledger insert in one transaction), so
-      // concurrent requests can never double-spend the same credit.
-      const { error: debitError } = await supabaseAdmin.rpc("debit_credits_for_job", {
-        p_user_id: userId,
-        p_reason: `Video render: ${plan.title}`,
-        p_job_id: job.id,
-      });
-      if (debitError) {
-        if (debitError.message.includes("INSUFFICIENT_CREDITS")) {
-          throw new Error("You're out of credits. Upgrade your plan to keep rendering.");
-        }
-        throw new Error(debitError.message);
-      }
+      // Reserve finished minutes once the plan exists. Per-minute pricing:
+      // 1 credit = 1 finished minute of Story Mode with a standard voice
+      // (see src/lib/billing/per-minute.ts for multipliers). The debit is a
+      // single atomic RPC (balance check + update + ledger insert in one
+      // transaction), so concurrent requests can never double-spend.
+      // Idempotent per job id: a retry after a network blip is a no-op.
+      const { debitMinutesForJob } = await import("./credits");
+      await debitMinutesForJob(
+        supabaseAdmin,
+        userId,
+        job.id,
+        reserveMinutes,
+        `Video render (${reserveMinutes} finished min): ${plan.title}`,
+      );
 
       return updated;
     } catch (error) {
@@ -184,6 +187,21 @@ export const createVideoJob = createServerFn({ method: "POST" })
         .from("video_jobs")
         .update({ status: "failed", stage: "failed", step: "Failed", error: message })
         .eq("id", job.id);
+      // Failed renders refund automatically. refundMinutesForJob is idempotent
+      // per job id: a job that was never charged (debit failed first) is a
+      // no-op, and a duplicate refund can never double-credit.
+      try {
+        const { refundMinutesForJob } = await import("./credits");
+        await refundMinutesForJob(
+          supabaseAdmin,
+          userId,
+          job.id,
+          reserveMinutes,
+          `Refund: failed render ${job.id}`,
+        );
+      } catch {
+        // Never mask the original render failure with a refund error.
+      }
       throw new Error(message);
     }
   });
@@ -536,9 +554,10 @@ export const failVideoJobCompose = createServerFn({ method: "POST" })
 
 /**
  * Fail jobs stuck in `running` (browser closed / request died mid-stage) and
- * refund the reserved credit when the ledger shows this job was actually
+ * refund the reserved minutes when the ledger shows this job was actually
  * charged. Safe to call repeatedly: the fail-mark is conditional on
- * status='running' and refunds are idempotent per job (see refund_credits).
+ * status='running' and refunds are idempotent per job (see
+ * refund_credits_for_minutes).
  */
 export const reapStaleVideoJobs = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -579,19 +598,21 @@ export const reapStaleVideoJobs = createServerFn({ method: "POST" })
       reaped++;
 
       // Refund only if this job was actually charged (debit recorded with ref_id).
+      // Debits are per finished minute, so read the actual debited amount.
       const { data: debit } = await supabaseAdmin
         .from("credit_ledger")
-        .select("id")
+        .select("delta")
         .eq("user_id", userId)
         .eq("ref_id", job.id)
-        .eq("delta", -1)
+        .lt("delta", 0)
         .limit(1)
         .maybeSingle();
       if (!debit) continue;
-      const { error: refundError } = await supabaseAdmin.rpc("refund_credits", {
+      const { error: refundError } = await supabaseAdmin.rpc("refund_credits_for_minutes", {
         p_user_id: userId,
+        p_minutes: Math.abs(debit.delta),
         p_reason: `Refund: stale render ${job.id}`,
-        p_job_id: job.id,
+        p_ref_id: job.id,
       });
       if (refundError) throw new Error(refundError.message);
       refunded++;

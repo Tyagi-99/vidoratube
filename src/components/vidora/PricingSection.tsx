@@ -107,7 +107,7 @@ export function PricingSection({ compact = false }: { compact?: boolean }) {
                       {plan.credits.toLocaleString()} credits
                     </div>
                     <p className="ml-6 mt-1 text-sm text-muted-foreground">
-                      1 credit = 1 finished video
+                      1 credit = 1 finished minute
                     </p>
                   </div>
 

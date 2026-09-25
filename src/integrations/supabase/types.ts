@@ -2336,6 +2336,14 @@ export type Database = {
         Args: { p_job_id?: string; p_reason: string; p_user_id: string }
         Returns: number
       }
+      debit_credits_for_minutes: {
+        Args: { p_minutes: number; p_reason: string; p_ref_id?: string; p_user_id: string }
+        Returns: number
+      }
+      refund_credits_for_minutes: {
+        Args: { p_minutes: number; p_reason: string; p_ref_id?: string; p_user_id: string }
+        Returns: number
+      }
       grant_credits_once: {
         Args: {
           p_amount: number

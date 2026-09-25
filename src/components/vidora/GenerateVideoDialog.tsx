@@ -379,7 +379,7 @@ export function GenerateVideoDialog({
             ? "Render failed"
             : "Make a video"
       }
-      description="Paste a script, pick a voice, and Vidora writes narration, generates scene stills, and muxes a 1080p MP4 in this tab. One credit per render."
+      description="Paste a script, pick a voice, and Vidora writes narration, generates scene stills, and muxes a 1080p MP4 in this tab. 1 credit = 1 finished minute."
     >
       {!sessionLoading && !signedIn ? (
         <div className="space-y-4 py-6 text-center">
