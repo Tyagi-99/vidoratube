@@ -1,5 +1,53 @@
 # Changelog
 
+## 2026-09-25 — P10: Launch Readiness
+
+### Legal
+- Rewrote `/privacy` and `/terms` (dated 25 Sept 2026): account data, private
+  content storage, YouTube API data use (scopes, AES-256-GCM token encryption,
+  revocation, API Services ToS links), Stripe/Razorpay payments (no card data
+  touched), referrals, credits/refunds, acceptable use, and an explicit
+  no-monetization-guarantee clause. Footer links already in place.
+
+### Security review (`docs/LAUNCH_SECURITY.md`)
+- **RLS audit now covers all 51 tables** (was 16): 33 owner-scoped, 8
+  intentionally public, 5 service-role/admin locked-down. A new
+  "classifies every table" test fails CI if a future table isn't placed in
+  one of the lists. Gap fixed: P0/P5/P7 owner tables (projects, renders,
+  thumbnails, seo_metadata, publish_jobs, subscriptions, …) had correct
+  policies but were invisible to the audit.
+- **CSP fix**: `/billing` injects Razorpay `checkout.js`, which the CSP would
+  have blocked — `checkout.razorpay.com` added to `script-src`,
+  `api.razorpay.com` to `frame-src`/`connect-src`. Without this, INR checkout
+  would silently fail in production.
+- **Bundle secrets scan**: zero secret values in the client bundle
+  (`cron_secret` hit is a zod field name, not a value).
+- `npm audit` could not run on the build VM (egress policy) — recorded as a
+  must-run item in `docs/GO_LIVE.md`. Live owner-isolation test likewise
+  needs a real database.
+
+### Copy honesty
+- New `copy-scan.test.ts`: fails CI on banned phrases (monetization
+  guarantees, fabricated user counts, income claims, unverifiable
+  superlatives); asserts the safety disclaimer says "not a guarantee".
+- Landing copy updated: "Paid plans with secure checkout are on the way"
+  (replaces the stale "Checkout is not live yet").
+
+### Operations
+- `docs/RUNBOOK.md`: deploy, migrations, rollback, worker systemd ops,
+  analytics cron, webhook replays, secrets inventory, incident response,
+  backups.
+- `docs/GO_LIVE.md`: the single ordered launch checklist — DB migrations,
+  Realtime, secrets, worker VPS, Google OAuth verification, Stripe/Razorpay
+  go-live with test purchase, analytics cron, npm audit, live RLS test.
+
+### Launch verdict: READY FOR STAGED LAUNCH (not full public launch)
+Code is complete and green. Staged launch (invite-only, test-mode billing)
+is unblocked once Phase 1–3 of `docs/GO_LIVE.md` are done (migrations,
+secrets, worker VPS). Full public launch additionally needs Google OAuth
+verification, live merchant accounts, and the two outside-VM verifications
+(npm audit, live RLS isolation test).
+
 ## 2026-09-25 — P9: Growth, SEO & Full Hindi
 
 ### Growth: referrals
