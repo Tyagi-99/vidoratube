@@ -87,32 +87,49 @@ takes, and what it unblocks.
 - **Unblocks:** Trust — users should hear about unit changes from you, not discover
   them on the pricing page.
 
-## 9. Apply the seven new Supabase migrations
-- **What:** Apply, in order:
-  - `supabase/migrations/20260925194000_per_minute_credits.sql`
-    (minute-based debit/refund RPCs + append-only conversion entries)
-  - `supabase/migrations/20260925195000_pricing_inr.sql`
-    (`pricing_plans.price_monthly_inr`)
-  - `supabase/migrations/20260925196000_fix_minute_refund.sql`
-    (CRITICAL: closes a money bug where refunds could mint credits without a
-    matching debit; normalizes conversion rows to the exact reason
-    `migration_per_minute`)
-  - `supabase/migrations/20260925197000_worker_heartbeats.sql`
-    (worker liveness table for server-render feature detection)
-  - `supabase/migrations/20260925200000_notifications.sql`
-    (Sprint 1–2: `notifications` table + RLS — powers the studio notification
-    bell for render completion; new table only, nothing else touched)
-  - `supabase/migrations/20260925210000_requeue_stale_renders.sql`
-    (Sprint 1–2: dead-worker requeue as server-side RPC; new function + index)
-  - `supabase/migrations/20260925220000_exact_render_settle.sql`
-    (Sprint 1–2: exact-quote rows settle at the quoted credits; function-body
-    replacement only)
-- **Where:** Supabase SQL editor or `supabase db push`. All are non-destructive
-  (new functions/table, one new nullable column, insert-only or narrowly
-  targeted UPDATE of ledger rows).
-- **Time:** 10 min. Verify: `select * from credit_ledger where reason =
-  'migration_per_minute' limit 5;` and the pricing page toggle.
-- **Unblocks:** Per-minute charging and INR pricing in production.
+## 9. Apply the three new Supabase migrations (Sprints 3–4)
+
+**Done 2026-09-25:** the Sprints 0–2 migrations were all applied via the Lovable
+Cloud/Database SQL editor, in order, all succeeded, tables verified
+(`worker_heartbeats`, `notifications`, `languages`), and the live `/status`
+schema-cache error was resolved:
+- `supabase/migrations/20260925193000_languages_table.sql`
+- `supabase/migrations/20260925194000_per_minute_credits.sql`
+  (minute-based debit/refund RPCs + append-only conversion entries)
+- `supabase/migrations/20260925195000_pricing_inr.sql`
+  (`pricing_plans.price_monthly_inr`)
+- `supabase/migrations/20260925196000_fix_minute_refund.sql`
+  (CRITICAL: closes a money bug where refunds could mint credits without a
+  matching debit; normalizes conversion rows to the exact reason
+  `migration_per_minute`)
+- `supabase/migrations/20260925197000_worker_heartbeats.sql`
+  (worker liveness table for server-render feature detection)
+- `supabase/migrations/20260925200000_notifications.sql`
+  (Sprint 1–2: `notifications` table + RLS — powers the studio notification
+  bell for render completion; new table only, nothing else touched)
+- `supabase/migrations/20260925210000_requeue_stale_renders.sql`
+  (Sprint 1–2: dead-worker requeue as server-side RPC; new function + index)
+- `supabase/migrations/20260925220000_exact_render_settle.sql`
+  (Sprint 1–2: exact-quote rows settle at the quoted credits; function-body
+  replacement only)
+
+**Pending — apply in order:**
+- `supabase/migrations/20260925230000_chapters.sql`
+  (`render_chapters` + `tts_cache` tables, RLS, `requeue_stale_chapters` RPC)
+- `supabase/migrations/20260925233000_language_voices_and_gates.sql`
+  (`language_voices` + `language_quality_gates` tables, RLS, per-language
+  `llm_instructions` seeds)
+- `supabase/migrations/20260925234000_music_tracks_public_read.sql`
+  (policy change only: explicit public read on the shared music catalog —
+  resolves the pre-publish security scan finding)
+
+- **Where:** Lovable dashboard → Cloud/Database SQL editor, one file at a time
+  (the GitHub repo is private to browser sessions — paste file contents inline).
+  All are non-destructive (new tables/functions, policy recreation).
+- **Time:** 10 min. Verify: `select count(*) from render_chapters;`,
+  `select count(*) from language_voices;`, and reload `/status`.
+- **Unblocks:** Long-form chapter rendering, per-language voice picker, and a
+  clean security scan in production.
 
 ## 10. Transactional email for render completion (Resend)
 - **What:** Without this, "your video is ready" is delivered as an in-app

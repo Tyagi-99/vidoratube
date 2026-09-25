@@ -456,6 +456,31 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
 
 ### D40. Story Mode ships + 2.5D parallax toggle (supersedes D27's "no 2.5D toggle yet")
 
+- **Decision:** Story Mode is now a first-class creation mode (`src/lib/creation-modes.ts`,
+  `/studio?create=story`, quick-job `story_mode` → five-beat plan prompt) and a render
+  treatment on both engines (RenderPanel "Render treatment" box: Story Mode switch on by
+  default, 2.5D parallax switch off by default). Story Mode template lives in
+  `src/lib/story-template.ts` (canonical) with a dependency-free mirror in
+  `worker/src/story.ts`; parallax in `src/lib/render/parallax.ts` mirrored by
+  `worker/src/parallax.ts`.
+- **Billing:** Story Mode is the standard 1.0 multiplier — same price as a standard
+  render. Parallax is a paid add-on on the server engine: `+0.25 credits/minute`
+  (via the pre-existing `parallax25d` option in `quoteMultiAspectRender`, whole-credit
+  ceil total); the browser preview applies it free. RenderPanel quote and
+  `formatRenderCost` both receive `parallax25d`, so the shown number is the charged number.
+- **Treatment:** hook (8%) → setup (20%) → rising tension (42%) → payoff (20%) →
+  loop/CTA (10%). Story Mode drives per-beat motion (or parallax intensity via
+  `storyParallaxMultiplier`), hook/payoff caption emphasis (larger `VidoraHook` ASS
+  style), a per-beat music volume envelope, and a deeper/faster duck profile
+  (threshold 0.02, ratio 10, attack 20ms, release 600ms).
+- **Parity:** browser and worker both implement story beats, parallax (cover-scale +
+  12%-per-intensity overscan + 10%-per-intensity slow zoom + center-biased diagonal
+  pan, alternating in/out per scene, intensity clamped 0..1, default 0.5) and the
+  story duck profile. Honest gap: parallax intensity is not user-adjustable in the
+  UI yet (fixed default 0.5, beat-scaled); the toggle is boolean only.
+- **Reverse:** Remove the RenderPanel treatment box (D27's exact reverse, restored);
+  remove `storyMode`/`parallax25d` from the enqueue schema and worker meta.
+
 ### D41. Long-form chapter pipeline (Sprint 3–4)
 - **Decision:** Videos > 6 min (or explicitly requested) render as **4–8
   chapters**, each an independent `render_chapters` row
@@ -510,27 +535,3 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
 - **Reason:** Storage survives worker crashes; `/tmp` does not.
 - **Reverse:** Add a `chapter_mp4_sha256` column and verify hashes on resume
   if silent storage corruption ever shows up.
-- **Decision:** Story Mode is now a first-class creation mode (`src/lib/creation-modes.ts`,
-  `/studio?create=story`, quick-job `story_mode` → five-beat plan prompt) and a render
-  treatment on both engines (RenderPanel "Render treatment" box: Story Mode switch on by
-  default, 2.5D parallax switch off by default). Story Mode template lives in
-  `src/lib/story-template.ts` (canonical) with a dependency-free mirror in
-  `worker/src/story.ts`; parallax in `src/lib/render/parallax.ts` mirrored by
-  `worker/src/parallax.ts`.
-- **Billing:** Story Mode is the standard 1.0 multiplier — same price as a standard
-  render. Parallax is a paid add-on on the server engine: `+0.25 credits/minute`
-  (via the pre-existing `parallax25d` option in `quoteMultiAspectRender`, whole-credit
-  ceil total); the browser preview applies it free. RenderPanel quote and
-  `formatRenderCost` both receive `parallax25d`, so the shown number is the charged number.
-- **Treatment:** hook (8%) → setup (20%) → rising tension (42%) → payoff (20%) →
-  loop/CTA (10%). Story Mode drives per-beat motion (or parallax intensity via
-  `storyParallaxMultiplier`), hook/payoff caption emphasis (larger `VidoraHook` ASS
-  style), a per-beat music volume envelope, and a deeper/faster duck profile
-  (threshold 0.02, ratio 10, attack 20ms, release 600ms).
-- **Parity:** browser and worker both implement story beats, parallax (cover-scale +
-  12%-per-intensity overscan + 10%-per-intensity slow zoom + center-biased diagonal
-  pan, alternating in/out per scene, intensity clamped 0..1, default 0.5) and the
-  story duck profile. Honest gap: parallax intensity is not user-adjustable in the
-  UI yet (fixed default 0.5, beat-scaled); the toggle is boolean only.
-- **Reverse:** Remove the RenderPanel treatment box (D27's exact reverse, restored);
-  remove `storyMode`/`parallax25d` from the enqueue schema and worker meta.

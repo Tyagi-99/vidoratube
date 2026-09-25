@@ -291,57 +291,146 @@ completion email.
 
 ---
 
-## Sprints 3–4 (in progress) — item 6: 20-minute Story Mode render benchmark
+## Sprints 3–4 — 2026-09-25 (night): long-form chapter pipeline, 12-language voice/gate data, Story Mode + 2.5D parallax, 20-minute benchmark
 
-**Target:** a 20-minute Story Mode video completes in under 15 minutes on one
-worker. **Method:** `worker/scripts/benchmark-20min.ts` (run: `cd worker &&
-npm run benchmark`) drove the REAL chapter implementation
-(`worker/src/chapters.ts` `renderChapter` + `stitchChapters`) on 2 chapters x
-150 s = 300 s of media, with SYNTHETIC paragraph narration (locally generated
-sine-noise WAVs served over a local HTTP loopback server — zero spend, no API
-calls). Per chapter the real code downloads the paragraph clips, concatenates
-them to one AAC 160k track, builds word-cue ASS with the real
-`spreadWordCues`, and does a SINGLE x264 pass (solid-color background from the
-continuity brief + subtitles burn-in, preset medium CRF 20, +faststart); stitch
-is the real `stitchChapters` (concat copy + faststart, no re-encode). Then
-projected 8 chapters x 150 s = 1200 s with the unit-tested model in
-`worker/src/benchmark-model.ts`: `total = ceil(8/C) x median(chapter wall) +
-stitch`, loudnorm extrapolated linearly from the measured single-pass rate.
-Both measured and projected numbers are reported; nothing is hidden. Full
-methodology in the script header and `worker/benchmark-results.md`.
+**Commits (17, forward-only, `5bc0722` → `4d99ce3`):**
+`5bc0722` (render_chapters + tts_cache tables, stale-chapter requeue RPC, live
+SQL tests), `14859a0` (Story Mode narrative template module), `28b0be0`
+(deterministic chapter splitter + continuity brief), `d02bdea` (2.5D parallax
+filter builder, src canonical + worker mirror), `f77a9fd` (language_voices +
+language_quality_gates tables, llm_instructions seeds, music_tracks public-read
+RLS), `941770d` (language-aware captions, voice picker verified-only),
+`a3ef019` (TTS paragraph cache + chapter enqueue/rerender), `bdeadcc`
+(language test matrix, quality-gate tests, LANGUAGES.md), `105f667` (worker
+chapter pipeline — parallel renders, resume, concat stitch, crash requeue),
+`5dadea9` (worker buildWordAss font/language opts), `a154fa5` (Story Mode as
+fourth creation mode), `7057ac5` (gate-test fixes), `c5e6c70` (Story Mode +
+parallax wiring, browser + server render paths), `0ec6526` (plan prompt,
+parallax quote wiring, story ASS/duck/ffmpeg tests), `b03dc6b` (typecheck
+fixes), `b18e257` (20-minute benchmark harness + results), `4d99ce3`
+(benchmark docs).
 
-**Honest exclusions:** TTS/LLM/image-generation wall time is NOT measured and
-NOT in the totals (separate pre-stage in the real system; the harness
-substitutes zero-cost synthetic assets). Asset download/upload not measured
-(loopback instead of Supabase; generation time labelled synthetic). The −14
-LUFS loudness pass is PROPOSED, not in `chapters.ts`; its cost is measured
-separately (14.0x realtime) and shown both with and without.
+**What shipped:**
 
-**Measured (2 x 150 s chapters, real FFmpeg, this VM — 2 x AMD EPYC, 8 GB):**
-chapter 0: 59.3 s (prep 0.9 s synthetic, single pass 58.3 s); chapter 1: 61.6 s
-(prep 0.9 s synthetic, single pass 60.7 s) — i.e. ~2.5x realtime, because the
-shipped chapter design encodes a static solid background rather than
-per-scene stills. Stitch: concat+faststart 0.5 s (real), proposed loudnorm
-21.4 s over 300 s media. Full per-stage table in `worker/benchmark-results.md`.
+- **Chapter pipeline (D41):** videos > 6 min (or on request) render as 4–8
+  chapters. New `render_chapters` table (queued/rendering/done/failed) +
+  `tts_cache` keyed by (provider, voice, language, paragraph_hash).
+  Service-role-only `requeue_stale_chapters` RPC (migration
+  `20260925230000_chapters.sql`). Worker renders up to
+  `WORKER_CHAPTER_CONCURRENCY` (default 2) chapters in parallel and stitches
+  with FFmpeg concat demuxer (`-c copy`, no re-encode).
+- **Continuity brief (D42):** exactly one brief (voice, language, pacing,
+  caption style, tone) per long-form render, passed by reference to every
+  chapter; identical codec settings so the stitch is byte-compatible.
+- **TTS paragraph cache:** unchanged paragraphs are never re-synthesized;
+  chapter-only re-render re-renders only the edited chapter.
+- **Checkpoint/resume (D44):** the chapter MP4 in Supabase storage is the
+  durable resume checkpoint — a crash resumes from the last finished chapter,
+  never from zero.
+- **Parent-only billing (D43):** chapters never debit/refund; the parent holds
+  the exact quote up front and settles idempotently on completion.
+- **Language-aware captions:** font stack, RTL, and caption line length come
+  from the `languages` table (data, never code branches). Worker `buildWordAss`
+  accepts font-size/language options.
+- **Voice picker verified-only:** the UI lists only verified voices per
+  language; unverified entries are not user-selectable.
+- **Quality gates:** `language_voices` + `language_quality_gates` tables with
+  per-language `llm_instructions` seeds. English is release-blocking and must
+  pass; the other 11 stay 'beta' behind the gate (3 golden scripts +
+  back-translation + native-speaker review). Test matrix covers English,
+  Arabic (RTL), Japanese (font + 20-char lines), and an Indic-script language.
+  `docs/LANGUAGES.md` documents per-language status.
+- **Story Mode (D40):** fourth creation mode (`/studio?create=story`) with a
+  five-beat template — hook 8% → setup 20% → rising tension 42% → payoff 20%
+  → loop/CTA 10% — implemented on both engines (`src/lib/story-template.ts`
+  canonical, `worker/src/story.ts` mirror). Story Mode bills at the standard
+  1.0 multiplier.
+- **2.5D parallax:** filter builder in `src/lib/render/parallax.ts` mirrored by
+  `worker/src/parallax.ts` (cover-scale + overscan + slow zoom + diagonal pan,
+  intensity clamped 0–1). RenderPanel toggle (off by default); server engine
+  bills **+0.25 credits/min** via `quoteMultiAspectRender` — the shown price is
+  the charged price; browser preview applies it free.
+- **20-minute benchmark — target HIT:** `worker/scripts/benchmark-20min.ts`
+  drove the REAL chapter code (`renderChapter` + `stitchChapters`) on 2 x 150 s
+  chapters with synthetic paragraph audio (zero spend, no API calls). Measured
+  on this VM: chapter 0 = 59.3 s, chapter 1 = 61.6 s (~2.5x realtime, single
+  x264 pass preset medium CRF 20); stitch = 0.5 s (real concat copy). Projected
+  20-minute totals via the unit-tested model (`benchmark-model.ts`): **C=1:
+  9m 31s with proposed loudnorm / 8m 06s without — HIT; C=2 (default): 5m 29s
+  / 4m 04s — HIT** (target ≤ 15m 00s). Full methodology, per-stage tables, and
+  honest exclusions (TTS/LLM/image wall time NOT measured; −14 LUFS pass
+  proposed, measured separately at 14.0x realtime) in
+  `worker/benchmark-results.md`. Bottleneck: the single-pass x264 chapter
+  encode (CPU-bound).
+- **music_tracks RLS fix:** Lovable's pre-publish scan flagged the
+  "Signed-in users read music tracks" policy as effectively public (anonymous
+  sign-ins enabled). music_tracks is a shared royalty-free catalog with no
+  user data serving the live Studio v2 music picker, so reads are now
+  explicitly public (`music_tracks public catalog read`, documented in the
+  policy comment). Writes remain service-role only. Migration
+  `20260925234000_music_tracks_public_read.sql`. Next pre-publish scan should
+  be clean.
 
-**Projected 20-minute totals (target ≤ 15m 00s):** C=1 (sequential): **9m 31s
-with proposed loudnorm / 8m 06s without — HIT**. C=2 (`WORKER_CHAPTER_CONCURRENCY`
-default): **5m 29s / 4m 04s — HIT**. C=4 hypothetical: 3m 28s / 2m 03s — HIT
-(unmeasured, needs >2 vCPU). Bottleneck is the single-pass x264 chapter
-encode; stitch is a cheap copy pass. Run: `npx tsx scripts/benchmark-20min.ts`,
-2026-09-25 16:24 UTC, load 1.12 at start, commit `b03dc6b`.
+**Claims-table diff (vs Sprints 1–2):**
 
-**Adapter seam:** the harness renders through a `ChapterPipeline` interface and
-auto-detects `worker/src/chapters.ts#renderChapter`/`stitchChapters` when
-present (used here); otherwise it falls back to `BaselineChapterPipeline`,
-which mirrors the legacy scene pipeline's ffmpeg args. No changes were made to
-`chapters.ts`, `pipeline.ts`, or any chapter code.
+- "20-minute long-form rendering": NOT SHIPPED → PARTIAL (pipeline, resume,
+  and chapter rerender ship in code; no worker deployed yet — founder TODO)
+- "Story Mode": NOT SHIPPED → LIVE (code; template + both engines + mode entry)
+- "2.5D parallax": NOT SHIPPED → LIVE (code; toggle + +0.25/min billing wired)
+- "12-language pipeline": NOT SHIPPED → PARTIAL (data model, gates, English
+  live; 11 languages beta behind quality gates)
+- "Chapter-only rerender / checkpoint-resume": NOT SHIPPED → LIVE (code)
+- "20-min video in < 15 min on one worker": unproven → MEASURED (benchmark HIT,
+  exclusions documented)
 
-**Bug found (not fixed — routed to pipeline owner):** `pipeline.ts`'s music
-ducking filtergraph feeds the voice bus into BOTH `sidechaincompress` (as
-sidechain) and `amix` without `asplit`; ffmpeg 8 rejects a doubly-consumed
-filter pad (`Stream specifier 'v1' ... matches no streams`), so ANY render with
+**Stranger checklist:** The Playwright stranger suite (`e2e/stranger.spec.ts`,
+`E2E_BASE_URL=<url> npm run test:e2e -- stranger`) is written, typechecks, and
+is CI-ready, but the live-browser pass is BLOCKED on this VM (Chromium cannot
+reach the public internet — environmental; the pre-existing `public.spec.ts`
+fails identically). Needs a network-capable runner. Homepage/pricing honesty
+checks run without credentials.
+
+**Proof:**
+
+- `npm run test`: **564/564 vitest pass** (68 files; was 474), including
+  `src/lib/rls-policies.test.ts` (RLS audit), `src/lib/copy-scan.test.ts`
+  (copy-honesty audit), `src/lib/language-neutrality.test.ts`
+  (language-neutrality audit), language test matrix, quality-gate tests,
+  chapter/parallax/story unit tests
+- `npx tsc --noEmit`: clean. Worker `tsc --noEmit`: clean.
+- Worker tests: **66/66** (`npx tsx --test`) across 22 suites incl.
+  heartbeat, chapters, parallax-story, benchmark-model.
+- `npm run build` (production): green.
+- Benchmark: `worker/benchmark-results.md` — measured 59.3 s / 61.6 s per
+  150 s chapter, projected 20-min totals above; run 2026-09-25 16:24 UTC,
+  commit `b03dc6b`, 2 x AMD EPYC, load 1.12 at start.
+- Parallax filters ffmpeg-validated in tests; chapter outputs H.264/AAC
+  per the benchmark's real encode pass.
+- No force-push, no destructive migrations, no secrets in repo.
+
+**New founder TODO items:** item #9 rewritten — the Sprints 0–2 migrations
+(seven files + `languages_table`) were **applied 2026-09-25 via the SQL
+editor** (all succeeded, tables verified, `/status` schema-cache error
+resolved). **Pending, in order:** `20260925230000_chapters.sql`
+(`render_chapters` + `tts_cache` + requeue RPC),
+`20260925233000_language_voices_and_gates.sql` (`language_voices` +
+`language_quality_gates` + LLM instruction seeds),
+`20260925234000_music_tracks_public_read.sql` (policy change only).
+
+**Decisions:** `docs/DECISIONS.md` D40–D44 (Story Mode + parallax ships, chapter
+pipeline, one continuity brief, parent-only chapter billing, storage MP4 as
+resume checkpoint).
+
+**Known issue (not fixed — routed to next sprint):** the benchmark's honest
+exclusion surfaced a real bug — `pipeline.ts`'s music-ducking filtergraph feeds
+the voice bus into BOTH `sidechaincompress` (sidechain) and `amix` without
+`asplit`; ffmpeg 8 rejects the doubly-consumed pad, so any render with
 `musicUrl` + `musicDucking` fails at the audio-mix stage. Fix: insert
-`asplit=2` on the voice bus. The fallback baseline measures the corrected
-graph (one extra `asplit`, negligible cost); production `pipeline.ts` still
-needs the fix.
+`asplit=2` on the voice bus (one extra filter, negligible cost). Chapter-mode
+renders have no music/ducking stage and are unaffected.
+
+**Blockers only the founder can resolve:** unchanged — Oracle worker deploy
+(no SSH access; single-command script ready), Dodo/Razorpay live keys,
+`vidora.ai` domain, legal entity/grievance officer, Resend key for completion
+email (in-app bell works without it), YouTube test channel, production
+migration application (the 3 files above), credit-migration email.
