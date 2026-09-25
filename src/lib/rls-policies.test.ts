@@ -24,11 +24,21 @@ function allMigrationSql(): string {
   return files.map((f) => readFileSync(join(MIGRATIONS_DIR, f), "utf8")).join("\n");
 }
 
+function stripSqlComments(sql: string): string {
+  // Remove /* … */ blocks, then -- line comments, so prose like
+  // "-- Non-destructive: CREATE TABLE IF NOT EXISTS only" is never
+  // mistaken for a real CREATE TABLE statement.
+  return sql
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
+    .replace(/--[^\n]*/g, " ");
+}
+
 function tableNames(sql: string): string[] {
   const names = new Set<string>();
+  const clean = stripSqlComments(sql);
   const re = /CREATE TABLE (?:IF NOT EXISTS )?(?:public\.)?([a-z_][a-z0-9_]*)/gi;
   let m: RegExpExecArray | null;
-  while ((m = re.exec(sql)) !== null) names.add(m[1]!);
+  while ((m = re.exec(clean)) !== null) names.add(m[1]!);
   return [...names].sort();
 }
 
@@ -81,6 +91,9 @@ const OWNER_SCOPED_TABLES = [
   "video_analytics",
   "channel_stats",
   "learning_insights",
+  "platform_video_stats",
+  "retention_curves",
+  "nps_responses",
   "referrals",
   "workflow_jobs",
   "workflow_job_events",
@@ -89,6 +102,28 @@ const OWNER_SCOPED_TABLES = [
   "content_duplicate_flags",
   "notifications",
   "render_chapters",
+  "meta_connections",
+  // Sprint 7-8 C: server-enforced approval records + publish warnings.
+  // Owner SELECT only; NO client write policies (service-role writes only).
+  "approvals",
+  "publish_warnings",
+];
+
+/**
+ * Workspace-member-scoped tables (Sprint 7-8 agency tier). Rows belong to a
+ * workspace's member set, not a single user: a caller sees ONLY workspaces
+ * they belong to, enforced by the SECURITY DEFINER membership helpers
+ * (is_workspace_member/owner/editor/creator) or by inline policies that join
+ * workspace_members and reference auth.uid(). Same invariants as
+ * owner-scoped tables: RLS on, member-scoped policies present, no permissive
+ * USING (true).
+ */
+const WORKSPACE_MEMBER_SCOPED_TABLES = [
+  "workspaces",
+  "workspace_members",
+  "client_channels",
+  "brand_kits",
+  "workspace_approvals",
 ];
 
 /** Tables intentionally readable/writable without auth (documented exceptions). */
@@ -113,6 +148,10 @@ const PUBLIC_BY_DESIGN: Record<string, string> = {
   // Per-language quality-gate records; no user data, read-only for all
   // (service_role writes only).
   language_quality_gates: "public read",
+  // Sprint 7-8 C: versioned safety-scoring rules (weights, thresholds,
+  // deductions). Reference data like languages (D45/D63): no user data,
+  // read-only for all, service-role writes only.
+  safety_rules: "public read",
 };
 
 /**
@@ -141,6 +180,42 @@ describe("RLS static audit", () => {
     }
   });
 
+  it("agency membership helpers are SECURITY DEFINER and caller-scoped", () => {
+    // The is_workspace_* helpers let policies check membership without
+    // recursing into workspace_members' own RLS policies. A helper that is
+    // not SECURITY DEFINER would re-trigger RLS (infinite recursion); a
+    // helper that does not filter on auth.uid() would leak other users'
+    // membership. Both properties are asserted here.
+    const sql = allMigrationSql();
+    for (const fn of [
+      "is_workspace_member",
+      "is_workspace_owner",
+      "is_workspace_editor",
+      "is_workspace_creator",
+    ]) {
+      const bodyRe = new RegExp(
+        `CREATE OR REPLACE FUNCTION public\\.${fn}\\([^)]*\\)[\\s\\S]*?AS \\$\\$([\\s\\S]*?)\\$\\$`,
+        "i",
+      );
+      const m = bodyRe.exec(sql);
+      expect(m, `${fn}: helper function not found in migrations`).toBeTruthy();
+      const def = m![0];
+      const body = m![1]!;
+      expect(def, `${fn}: must be SECURITY DEFINER`).toMatch(/SECURITY DEFINER/i);
+      expect(
+        body,
+        `${fn}: helper must scope to the caller via auth.uid()`,
+      ).toContain("auth.uid()");
+      expect(
+        body,
+        `${fn}: helper must read workspace membership, not return a constant`,
+      ).toMatch(/workspace_members|workspaces/i);
+      expect(body, `${fn}: helper must not be permissive`).not.toMatch(
+        /RETURN\s+true/i,
+      );
+    }
+  });
+
   it("enables ROW LEVEL SECURITY on every table", () => {
     const missing = tables.filter((t) => !rlsEnabled(sql, t));
     expect(missing).toEqual([]);
@@ -161,6 +236,29 @@ describe("RLS static audit", () => {
   it("has no permissive USING (true) / WITH CHECK (true) on owner-scoped tables", () => {
     for (const table of OWNER_SCOPED_TABLES) {
       const policies = policiesFor(sql, table);
+      const permissive = policies.filter(
+        (p) => /USING\s*\(\s*true\s*\)/i.test(p) || /WITH CHECK\s*\(\s*true\s*\)/i.test(p),
+      );
+      expect(permissive, `${table}: permissive policy found`).toEqual([]);
+    }
+  });
+
+  it("gives every workspace-member-scoped table a membership policy", () => {
+    // Isolation proof at the policy level: each agency table must carry at
+    // least one policy whose predicate references the caller's identity
+    // (auth.uid()) against workspace_members, and none may be permissive.
+    for (const table of WORKSPACE_MEMBER_SCOPED_TABLES) {
+      const policies = policiesFor(sql, table);
+      expect(policies.length, `${table}: no policies`).toBeGreaterThan(0);
+      const memberPolicies = policies.filter(
+        (p) =>
+          (p.includes("auth.uid()") && /workspace_members/i.test(p)) ||
+          /is_workspace_(member|owner|editor|creator)\s*\(/i.test(p),
+      );
+      expect(
+        memberPolicies.length,
+        `${table}: no workspace-membership-scoped policy (inline auth.uid() predicate or is_workspace_* helper)`,
+      ).toBeGreaterThan(0);
       const permissive = policies.filter(
         (p) => /USING\s*\(\s*true\s*\)/i.test(p) || /WITH CHECK\s*\(\s*true\s*\)/i.test(p),
       );
@@ -206,6 +304,7 @@ describe("RLS static audit", () => {
     // A new table must be deliberately placed in one of the three lists.
     const known = new Set([
       ...OWNER_SCOPED_TABLES,
+      ...WORKSPACE_MEMBER_SCOPED_TABLES,
       ...Object.keys(PUBLIC_BY_DESIGN),
       ...Object.keys(SERVICE_ROLE_ONLY),
     ]);

@@ -516,3 +516,293 @@ export const adminSetMessageHandled = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+/* ------------------------------------------------------------------ */
+/* adminGrowthMetrics — Sprint 7-8                                     */
+/* ------------------------------------------------------------------ */
+
+import {
+  computeActivation,
+  computeCohortRetention,
+  computeConversion,
+  computeMrr,
+  computeP95RenderTimePerMinute,
+  computePublishing,
+  computeRenderSuccess,
+  computeSignups,
+} from "./growth-metrics";
+
+export interface ModeCost {
+  mode: "story" | "cinema";
+  costPerMinuteUsd: number | null;
+  totalCostUsd: number;
+  finishedMinutes: number;
+}
+
+export interface GrowthMetrics {
+  signups: ReturnType<typeof computeSignups>;
+  activation: ReturnType<typeof computeActivation>;
+  retention: ReturnType<typeof computeCohortRetention>;
+  conversion: ReturnType<typeof computeConversion>;
+  mrr: ReturnType<typeof computeMrr>;
+  renderQuality: ReturnType<typeof computeRenderSuccess>;
+  p95: ReturnType<typeof computeP95RenderTimePerMinute>;
+  costPerMode: ModeCost[];
+  publishing: ReturnType<typeof computePublishing>;
+}
+
+/**
+ * Business metrics for the admin dashboard, computed from REAL tables only:
+ * profiles, renders, video_jobs, projects, subscriptions, plans,
+ * publish_jobs, api_usage (via measuredCostPerMinute). Every sub-metric
+ * carries hasData — the UI shows "No data yet" instead of fake zeros.
+ */
+export const adminGrowthMetrics = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<GrowthMetrics> => {
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { measuredCostPerMinute } = await import("./billing/measured-cost");
+
+    const [
+      profilesRes,
+      rendersRes,
+      jobsRes,
+      projectsRes,
+      subsRes,
+      plansRes,
+      publishedRes,
+      dubShortRes,
+    ] = await Promise.all([
+      supabaseAdmin.from("profiles").select("id, created_at").limit(20000),
+      supabaseAdmin
+        .from("renders")
+        .select("user_id, status, created_at, render_started_at, render_completed_at, duration, project_id, parent_id, meta")
+        .limit(20000),
+      supabaseAdmin.from("video_jobs").select("user_id, status, created_at").limit(20000),
+      supabaseAdmin.from("projects").select("user_id, created_at").limit(20000),
+      supabaseAdmin.from("subscriptions").select("user_id, plan_slug, status").limit(20000),
+      supabaseAdmin.from("plans").select("slug, price_usd_cents, interval").eq("active", true),
+      supabaseAdmin
+        .from("publish_jobs")
+        .select("id, project_id")
+        .eq("status", "published")
+        .limit(20000),
+      // candidate dub/short renders (filtered in JS on meta.kind)
+      supabaseAdmin
+        .from("renders")
+        .select("project_id, status, parent_id, meta")
+        .in("status", ["completed"])
+        .not("parent_id", "is", null)
+        .limit(20000),
+    ]);
+    for (const r of [profilesRes, rendersRes, jobsRes, projectsRes, subsRes, plansRes, publishedRes, dubShortRes]) {
+      if (r.error) throw new Error(r.error.message);
+    }
+
+    const profiles = (profilesRes.data ?? []).map((p) => ({
+      id: p.id as string,
+      created_at: p.created_at as string,
+    }));
+
+    const renders = (rendersRes.data ?? []) as {
+      user_id: string; status: string; created_at: string;
+      render_started_at: string | null; render_completed_at: string | null;
+      duration: number | null; project_id: string | null;
+      parent_id: string | null; meta: { kind?: string; language?: string } | null;
+    }[];
+    const jobs = (jobsRes.data ?? []) as { user_id: string; status: string; created_at: string }[];
+    const projects = (projectsRes.data ?? []) as { user_id: string; created_at: string }[];
+
+    // First completed render/job per user (activation).
+    const firstCompletedAt = new Map<string, string>();
+    const consider = (uid: string, at: string) => {
+      const prev = firstCompletedAt.get(uid);
+      if (!prev || at < prev) firstCompletedAt.set(uid, at);
+    };
+    for (const r of renders) {
+      if (r.status === "completed") consider(r.user_id, r.created_at);
+    }
+    for (const j of jobs) {
+      if (j.status === "completed") consider(j.user_id, j.created_at);
+    }
+
+    // Any activity timestamp per user (D7/D30 retention).
+    const activityAt = new Map<string, string[]>();
+    const addActivity = (uid: string, at: string) => {
+      const list = activityAt.get(uid) ?? [];
+      list.push(at);
+      activityAt.set(uid, list);
+    };
+    for (const r of renders) addActivity(r.user_id, r.created_at);
+    for (const j of jobs) addActivity(j.user_id, j.created_at);
+    for (const p of projects) addActivity(p.user_id, p.created_at);
+
+    const subs = (subsRes.data ?? []) as {
+      user_id: string; plan_slug: string | null; status: string | null;
+    }[];
+    const paidUserIds = new Set(
+      subs
+        .filter((s) => s.status === "active" || s.status === "trialing")
+        .map((s) => s.user_id),
+    );
+    const plans = (plansRes.data ?? []).map((p) => ({
+      slug: p.slug as string,
+      priceUsdCents: p.price_usd_cents as number | null,
+      interval: (p.interval === "month" ? "month" : "once") as "month" | "once",
+    }));
+
+    const publishedJobs = (publishedRes.data ?? []).map((j) => ({
+      id: j.id as string,
+      project_id: j.project_id as string,
+    }));
+
+    const derived = (dubShortRes.data ?? []) as {
+      project_id: string | null; status: string; parent_id: string | null;
+      meta: { kind?: string; language?: string } | null;
+    }[];
+    const dubRenders = derived
+      .filter((r) => r.meta?.kind === "dub")
+      .map((r) => ({
+        project_id: r.project_id ?? "",
+        language: r.meta?.language ?? null,
+        status: r.status,
+      }));
+    const shortRenders = derived
+      .filter((r) => r.meta?.kind === "short")
+      .map((r) => ({ status: r.status, parentId: r.parent_id, kind: "short" as const }));
+
+    // Per-mode measured cost (30d window, api_usage + finished minutes).
+    const [storyCost, cinemaCost] = await Promise.all([
+      measuredCostPerMinute(supabaseAdmin, "story").catch(() => null),
+      measuredCostPerMinute(supabaseAdmin, "cinema").catch(() => null),
+    ]);
+
+    return {
+      signups: computeSignups(profiles),
+      activation: computeActivation({ profiles, firstCompletedAt }),
+      retention: computeCohortRetention({ profiles, activityAt }),
+      conversion: computeConversion(profiles.length, paidUserIds),
+      mrr: computeMrr(subs, plans),
+      renderQuality: computeRenderSuccess(renders),
+      p95: computeP95RenderTimePerMinute(renders),
+      costPerMode: [
+        {
+          mode: "story" as const,
+          costPerMinuteUsd: storyCost?.costPerMinuteUsd ?? null,
+          totalCostUsd: storyCost?.totalCostUsd ?? 0,
+          finishedMinutes: storyCost?.finishedMinutes ?? 0,
+        },
+        {
+          mode: "cinema" as const,
+          costPerMinuteUsd: cinemaCost?.costPerMinuteUsd ?? null,
+          totalCostUsd: cinemaCost?.totalCostUsd ?? 0,
+          finishedMinutes: cinemaCost?.finishedMinutes ?? 0,
+        },
+      ],
+      publishing: computePublishing(publishedJobs, dubRenders, shortRenders),
+    };
+  });
+
+/* ------------------------------------------------------------------ */
+/* adminNpsResults — Sprint 7-8                                        */
+/* ------------------------------------------------------------------ */
+
+import { computeNps, recentComments } from "./nps";
+
+export interface NpsAdminResult {
+  summary: ReturnType<typeof computeNps>;
+  comments: ReturnType<typeof recentComments>;
+}
+
+/** NPS summary + recent verbatims for the admin dashboard. */
+export const adminNpsResults = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<NpsAdminResult> => {
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await supabaseAdmin
+      .from("nps_responses")
+      .select("score, comment, created_at")
+      .order("created_at", { ascending: false })
+      .limit(500);
+    if (error) throw new Error(error.message);
+    const responses = (data ?? []).map((r) => ({
+      score: Number(r.score),
+      comment: r.comment as string | null,
+      createdAt: r.created_at as string,
+    }));
+    return {
+      summary: computeNps(responses),
+      comments: recentComments(responses, 20),
+    };
+  });
+
+/** A single safety rule row for the admin panel. */
+export interface AdminSafetyRule {
+  ruleKey: string;
+  description: string;
+  /** Numeric rule params only (the loader filters non-numeric values). */
+  params: Record<string, number>;
+  version: number;
+  active: boolean;
+  lastReviewedAt: string;
+  reviewOverdue: boolean;
+}
+
+/** Review cadence for safety rules: founders review them quarterly. */
+export const SAFETY_RULE_REVIEW_DAYS = 90;
+
+/**
+ * Sprint 7-8 C: safety rules with their last_reviewed_at dates for the admin
+ * panel. Rules with no review in SAFETY_RULE_REVIEW_DAYS are flagged overdue
+ * so the quarterly review (FOUNDER_TODO) doesn't silently slip.
+ */
+export const adminSafetyRules = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data, error } = await supabaseAdmin
+      .from("safety_rules")
+      .select("rule_key, description, params, version, active, last_reviewed_at")
+      .order("version", { ascending: false })
+      .order("rule_key");
+    if (error) throw new Error(error.message);
+
+    const rows = (data ?? []) as {
+      rule_key: string;
+      description: string;
+      params: Record<string, unknown> | null;
+      version: number;
+      active: boolean;
+      last_reviewed_at: string;
+    }[];
+    const activeVersion = rows.find((r) => r.active)?.version ?? null;
+    const cutoff = Date.now() - SAFETY_RULE_REVIEW_DAYS * 24 * 3600 * 1000;
+    const rules: AdminSafetyRule[] = rows.map((r) => {
+      // Keep only numeric params (serializable; matches the scorer's loader).
+      const params: Record<string, number> = {};
+      for (const [k, v] of Object.entries(r.params ?? {})) {
+        if (typeof v === "number" && Number.isFinite(v)) params[k] = v;
+      }
+      return {
+        ruleKey: r.rule_key,
+        description: r.description,
+        params,
+        version: r.version,
+        active: r.active,
+        lastReviewedAt: r.last_reviewed_at,
+        reviewOverdue: new Date(r.last_reviewed_at).getTime() < cutoff,
+      };
+    });
+    return {
+      activeVersion,
+      rules,
+      overdueCount: rules.filter((r) => r.reviewOverdue && r.active).length,
+    };
+  });

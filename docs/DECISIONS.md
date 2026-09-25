@@ -3,6 +3,109 @@
 Non-obvious decisions made under autopilot (Investor Reply #3: "Decide, don't
 ask"). Each entry: decision, reason, how to reverse. Newest first.
 
+## 2026-09-26 — Sprint 7–8 workstream E (agency tier)
+
+### D78. `workspace_approvals` is client sign-off; the server `approvals` record (D61) stays the publish gate
+- **Decision:** agency workspaces get their own `workspace_approvals` table (pending → approved/rejected, `decided_by` must equal `auth.uid()`), where any member — including the viewer/client — records sign-off on a scheduled draft. It is deliberately NOT the same table as workstream C's `approvals`: after client sign-off, the agency operator still runs the existing `approvePublishJob`, which writes the server-enforced `approvals` row, and only then may `executePublishJob` upload. The UI surfaces both states (`publishGateApproved`).
+- **Reason:** clients need an agency review stage, but a client-writable row must never satisfy the server upload gate — otherwise a compromised client account (or a forged request) could publish. Two tables keep the trust boundaries explicit.
+- **Reverse:** if the shared `approvals` schema later gains workspace/client-signoff fields with safe lifecycle states, migrate `workspace_approvals` rows into it and drop this table in a forward-only migration.
+
+### D79. Render watermark defaults ON; only a verified paid workspace plan disables it
+- **Decision:** `buildServerRenderRows` sets `watermark: true` unless the enqueue carried workspace export meta resolving to a paid `plan_tier`; the worker's `RenderJobMetaSchema` also defaults `watermark` to `true`. `resolveExportMeta` is the single place that maps `plan_tier` → watermark/brand overlay, resolved app-side at enqueue — the worker never decides billing.
+- **Reason:** fail closed against accidental free white-label exports: any path that forgets to pass agency meta (or a workspace whose plan lookup fails) still burns the Vidora bug in. Paid white-label is an explicit, verified grant, not an omission.
+- **Reverse:** change the default only if account-level paid plans become the authoritative source instead of workspace `plan_tier`.
+
+## 2026-09-26 — Sprint 7–8 workstream D (analytics + admin metrics)
+
+### D71. Platform snapshots live in `platform_video_stats`, separate from legacy `video_analytics`
+- **Decision:** new `platform_video_stats` table (platform-agnostic snapshots, `metrics` JSONB for views/likes/comments/watch_time_minutes) alongside the existing YouTube-specific `video_analytics`; `snapshotUserVideos` dual-writes both, and the legacy table keeps feeding the channel overview unchanged.
+- **Reason:** 24h/7d deltas need timestamped snapshots, not one-row-per-day; a separate table lets other platforms reuse the same shape without disturbing the existing analytics pipeline.
+- **Reverse:** stop dual-writing once every consumer reads `platform_video_stats`.
+
+### D72. 24h/7d deltas only from a real baseline within six hours
+- **Decision:** `computeViewsWindows` returns `null` for a window unless a snapshot exists within 6h of the exact 24h/7d mark; negative corrections clamp to zero; UI shows the honest "No data yet" empty state.
+- **Reason:** interpolating a missing baseline would fabricate a growth number. A sparse-but-honest metric beats a dense invented one.
+- **Reverse:** widen the tolerance only with evidence that snapshot cadence is reliable.
+
+### D73. Retention chapter boundaries use real paragraph audio durations only
+- **Decision:** chapter segments come from `render_chapters.paragraphs[].duration_seconds` (via renders → the video job's `video_job_id`); chapters with no usable durations are skipped, and curves with fewer than 3 points degrade to no-data.
+- **Reason:** guessing chapter timing would misalign the curve and mislabel "weakest chapter" — the whole point of the feature.
+- **Reverse:** none planned.
+
+### D74. "Next 5 videos" is deterministic and explainable over existing ideas — no LLM call
+- **Decision:** `recommendNextVideos` is pure scoring (topic overlap, hook overlap, outlier evidence, safety, saved status, difficulty) over `video_ideas`; every recommendation carries machine-readable reasons; no extra credit-charged model call.
+- **Reason:** recommendations must be free, instant, and auditable. An LLM call would add cost, latency, and non-determinism to a list that should be explainable.
+- **Reverse:** add an LLM rerank layer only if deterministic picks underperform in real usage.
+
+### D75. Activation denominator excludes users younger than 24 hours; D7/D30 use exact one-day windows
+- **Decision:** activation = first render or publish within 24h of signup, computed only for users old enough to have completed the window; cohort retention = activity inside the [day, day+1) window after signup, not "still subscribed".
+- **Reason:** including day-0 users deflates activation; "D7 retention" without a day-window definition means different things to different readers.
+- **Reverse:** none planned — the definitions are documented in the pure functions.
+
+### D76. NPS prompts only after a completed render and at most every 90 days
+- **Decision:** `shouldPromptNps` returns true only with ≥1 completed render and no `nps_responses` row in the last 90 days; the prompt is a dismissible floating card, never a blocking modal.
+- **Reason:** surveying users who never rendered anything measures nothing; repeated prompts are a churn driver, not a metric.
+- **Reverse:** adjust the 90-day window if response volume is too low.
+
+### D77. MRR counts active/trialing monthly subscriptions only; packs excluded
+- **Decision:** `computeMrr` sums `price_usd_cents` for subscriptions with status active/trialing and monthly interval; one-time credit packs never count as MRR.
+- **Reason:** MRR means recurring. Counting packs would inflate it and mislead pricing decisions.
+- **Reverse:** none planned.
+
+## 2026-09-26 — Sprint 7–8 workstream A (YouTube + Meta publishing adapters)
+
+### D65. YouTube quota uses the September 2026 three-bucket model, recorded in `api_usage`
+- **Decision:** `videos.insert` (100/day) and `search.list` (100/day) each get their own daily bucket; everything else shares 10,000 units/day (midnight PT reset). Every upload/schedule/thumbnail call writes an `api_usage` row with `cost_basis = "youtube-quota-units-not-usd"`, `cost 0`, and an explicit `quota_bucket` — reusing the existing table instead of a new quota table.
+- **Reason:** Google's official quota-cost page (updated 2026-09-15) retired the old 1,600-unit flat model; recording quota next to real spend keeps one cost dashboard, and $0 cost keeps measured-cost-per-minute honest.
+- **Reverse:** split into a dedicated quota table if `api_usage` queries ever conflate quota with spend.
+
+### D66. `youtube.force-ssl` (not `youtube`) is the scheduling scope
+- **Decision:** publish flow requests `youtube.upload` + `youtube.force-ssl` incrementally. `videos.update` (scheduled publish via `status.publishAt`) rejects `youtube.upload` with 403 — it needs `youtube`, `youtube.force-ssl`, or partner scope; `force-ssl` is the least-privileged of the three.
+- **Reason:** minimum-scope principle for the sensitive-scope OAuth verification. `youtube.upload` stays classified SENSITIVE (verification needed, no third-party security assessment).
+- **Reverse:** swap in the broader `youtube` scope only if Google deprecates `force-ssl`.
+
+### D67. Test-account gates are hard env vars that fail closed
+- **Decision:** `YOUTUBE_TEST_CHANNEL_ID`, `META_TEST_PAGE_ID`, `META_TEST_IG_USER_ID` — unset or blank disables that platform's publishing outright (`PublishingDisabledError`); a connected account that doesn't exactly match throws `TestAccountMismatchError`. Checked before any token refresh, network call, or quota spend.
+- **Reason:** pre-launch, no upload may ever reach a real channel/Page. A missing config must be loud, never silently permissive.
+- **Reverse:** when the founder designates production accounts, point the vars at them — no code change needed.
+
+### D68. Adapter re-checks the approval record at execute time (second layer under D61)
+- **Decision:** `publishVideoJob` accepts `publishJobId` and asserts the approval record (`assertPublishJobApproved`) immediately before uploading — in addition to workstream C's server-enforced `approvals` table check in `runExecutePublishJob`. The Meta executor (`publishJobToMeta`) does the same before calling the Graph API.
+- **Reason:** the check closest to the platform call is the one that can't be skipped by a future caller that bypasses the outer function.
+- **Reverse:** keep both layers; removing the outer check is a workstream C call.
+
+### D69. Meta uses Graph v26.0, minimum permissions, same token envelope as YouTube
+- **Decision:** Page token via `/me/accounts` (never the user token), AES-256-GCM encrypted with `META_TOKEN_ENCRYPTION_KEY` (same envelope as `youtube_connections`), signed OAuth state, long-lived token exchange. Permissions: `pages_show_list`, `pages_read_engagement`, `pages_manage_posts` + `instagram_basic`, `instagram_content_publish`. IG publish is always container → poll FINISHED → `media_publish`; an ERROR container is never published.
+- **Reason:** least privilege for Meta app review; one token-storage pattern to audit; the two-step IG flow is mandatory (publishing before FINISHED fails).
+- **Reverse:** none planned — permissions only grow if Meta requires it.
+
+### D70. Instagram publishing limit is read at runtime, never hardcoded
+- **Decision:** `getInstagramPublishingLimit` queries `/{ig-user-id}/content_publishing_limit`; the documented number has changed over time.
+- **Reason:** a hardcoded limit becomes wrong silently and either blocks legit publishes or lets users blow past the real cap.
+- **Reverse:** cache it with a TTL if the lookup ever becomes a hot path.
+
+## 2026-09-26 — Sprint 7–8 workstream C (safety rules, approvals, publish blocking)
+
+### D61. Approval = separate server-written `approvals` row; execute verifies it before upload
+- **Decision:** `approvePublishJob` writes an `approvals` row through the service-role client; `executePublishJob` re-queries that row (matching user + job + scope) and refuses to call the platform uploader without it. The publish_jobs.status flag alone is NOT trusted.
+- **Reason:** a forged/tampered job row (or a direct call to executePublishJob) must never publish. The approval is an immutable, server-only record; the uploader is unreachable without it (proven by publish-gate tests with a mocked uploader).
+- **Reverse:** migrate the lookup back to another immutable server-controlled approval mechanism — never to a client-writable flag.
+
+### D62. Score < 50 blocks PUBLIC publishing with no override; private/unlisted proceed with a recorded warning
+- **Decision:** the P6 "acknowledge the risk" override checkbox is removed. `evaluatePublishGate(score, privacy)`: score < 50 + public → hard block at both approve and execute (execute re-checks the *current* score — defense in depth); score < 50 + private/unlisted → allowed, with an immutable `publish_warnings` row. `safety_override` input is accepted but ignored (backward compat).
+- **Reason:** an override that lets a single click publish a demonetization-risk video defeats the safety feature; the founder asked for a real block. Non-public publishing stays available because the blast radius is small, and the warning preserves the audit trail.
+- **Reverse:** change the active data threshold/policy only after founder/security review — the threshold itself lives in the `safety_rules` table (D63), not code.
+
+### D63. Tunable numbers live in versioned DB data; detection patterns stay in code
+- **Decision:** `safety_rules` holds one row per (version, rule_key) with numeric params (weights, thresholds, deductions). The scorer reads the highest active version via `getActiveSafetyRules()` and records `rule_version` on every score. Word lists and regexes stay in code (they're detection logic, not tuning). Built-in v1 is a fail-safe fallback with seed parity enforced by tests.
+- **Reason:** tuning a threshold shouldn't need a deploy; but moving patterns into data would need validation/versioning machinery we don't have yet. The fallback means scoring never hard-fails if the migration isn't applied.
+- **Reverse:** move patterns into validated rule definitions later (needs a schema for patterns + review tooling).
+
+### D64. Safety rules are reviewed quarterly; /admin/safety flags stale rules
+- **Decision:** `safety_rules.last_reviewed_at` + `getReviewStatus()` (90-day threshold); `/admin/safety` shows the active rule version, all params, and an overdue banner. Founder action: review the active rules at least quarterly.
+- **Reason:** a block threshold nobody revisits rots. Making staleness visible in the admin panel is the cheapest enforcement.
+- **Reverse:** change the review cadence constant.
+
 ## 2026-09-26 — Sprint 5–6 (cinema, source priority, dubbing, shorts, exports)
 
 ### D46. Cinema is a render tier, not a creation mode
