@@ -222,6 +222,14 @@ export const regenerateScene = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // 30 regenerations per hour per user (image + TTS provider spend).
+    const { enforcePostgresRateLimit } = await import("./rate-limit");
+    await enforcePostgresRateLimit(
+      supabaseAdmin,
+      `studio:regen:${userId}`,
+      { max: 30, windowSeconds: 3600 },
+      "You're regenerating scenes too fast. Please wait a bit and try again.",
+    );
     const { resolveSceneVisual, generateSceneVoice, buildCues } = await import("./studio.server");
 
     const { data: scene } = await supabase
