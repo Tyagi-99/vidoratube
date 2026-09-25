@@ -1319,6 +1319,7 @@ export type Database = {
           id: string
           language: string | null
           niches: string[] | null
+          status: string | null
           topic: string | null
           user_id: string
         }
@@ -1327,6 +1328,7 @@ export type Database = {
           id?: string
           language?: string | null
           niches?: string[] | null
+          status?: string | null
           topic?: string | null
           user_id: string
         }
@@ -1335,6 +1337,7 @@ export type Database = {
           id?: string
           language?: string | null
           niches?: string[] | null
+          status?: string | null
           topic?: string | null
           user_id?: string
         }
@@ -1719,24 +1722,39 @@ export type Database = {
       }
       video_ideas: {
         Row: {
+          angle: string | null
           created_at: string
+          difficulty: string | null
+          format: string | null
+          hook: string | null
           id: string
           project_id: string | null
           status: string | null
+          title: string | null
           user_id: string
         }
         Insert: {
+          angle?: string | null
           created_at?: string
+          difficulty?: string | null
+          format?: string | null
+          hook?: string | null
           id?: string
           project_id?: string | null
           status?: string | null
+          title?: string | null
           user_id: string
         }
         Update: {
+          angle?: string | null
           created_at?: string
+          difficulty?: string | null
+          format?: string | null
+          hook?: string | null
           id?: string
           project_id?: string | null
           status?: string | null
+          title?: string | null
           user_id?: string
         }
         Relationships: []
