@@ -19,7 +19,58 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageToggle } from "@/components/vidora/LanguageToggle";
 import { Toaster } from "@/components/ui/sonner";
 import { useSession } from "@/hooks/useSession";
+import { supabase } from "@/integrations/supabase/client";
 
+/** True when the error looks like a failed JS chunk / module load (flaky CDN). */
+function isChunkLoadError(error: unknown): boolean {
+  const msg =
+    error instanceof Response
+      ? `Response ${error.status}`
+      : error instanceof Error
+        ? error.message
+        : String(error);
+  return /failed to fetch dynamically imported module|loading chunk|chunkloaderror|failed to load module/i.test(
+    msg,
+  );
+}
+
+/**
+ * Fire-and-forget crash telemetry into public.client_errors (insert-only RLS).
+ * This is how we learn the real message behind intermittent production
+ * crashes that can't be reproduced with devtools. Never throws.
+ */
+function reportClientError(error: unknown) {
+  try {
+    const message =
+      error instanceof Response
+        ? `Response ${error.status}${error.url ? ` at ${error.url}` : ""}`
+        : error instanceof Error
+          ? error.message
+          : String(error);
+    const stack = error instanceof Error ? error.stack?.slice(0, 4000) : undefined;
+    // Untyped insert: the generated Database types only learn about new
+    // tables after Lovable applies the migration and regenerates types.ts.
+    // The cast can be dropped once client_errors appears in the types.
+    const untyped = supabase.from as (
+      relation: string,
+    ) => {
+      insert: (row: Record<string, string | null>) => PromiseLike<unknown>;
+    };
+    void untyped("client_errors")
+      .insert({
+        message: message.slice(0, 1000),
+        stack: stack ?? null,
+        route: window.location.pathname.slice(0, 200),
+        user_agent: window.navigator.userAgent.slice(0, 300),
+      })
+      .then(
+        () => undefined,
+        () => undefined,
+      );
+  } catch {
+    /* telemetry must never break the page */
+  }
+}
 
 function NotFoundComponent() {
   return (
@@ -47,8 +98,23 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
   useEffect(() => {
+    reportClientError(error);
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
     captureError(error, { extra: { boundary: "tanstack_root_error_component" } });
+    // Flaky chunk loads (CDN/VPN hiccups) are the most common intermittent
+    // cause of this page: retry once automatically instead of making the
+    // user tap. Guarded so a genuinely broken chunk can never loop.
+    if (isChunkLoadError(error)) {
+      try {
+        const key = `vidora-chunk-retry:${window.location.pathname}`;
+        if (!window.sessionStorage.getItem(key)) {
+          window.sessionStorage.setItem(key, "1");
+          window.location.reload();
+        }
+      } catch {
+        /* storage unavailable — show the page as normal */
+      }
+    }
   }, [error]);
 
   return (

@@ -130,6 +130,9 @@ const WORKSPACE_MEMBER_SCOPED_TABLES = [
 const PUBLIC_BY_DESIGN: Record<string, string> = {
   // Anonymous contact form: anyone can INSERT; reads/updates are admin-only.
   contact_messages: "anon INSERT only",
+  // Client crash telemetry from the root error boundary: anyone can INSERT;
+  // no SELECT policy, so reads are service-role only. No PII stored.
+  client_errors: "anon/authenticated INSERT only",
   // Marketing content served to logged-out visitors.
   site_content: "public read",
   pricing_plans: "public read",
