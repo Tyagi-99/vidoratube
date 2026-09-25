@@ -153,3 +153,111 @@ schema-cache error was resolved:
 - **Unblocks:** The "close the tab" email promise. Until then the promise
   holds via the in-app notification bell only — do not advertise email
   notifications in copy.
+
+## 11. Apply the Sprints 3–4 + 5–6 Supabase migrations
+
+- **What:** Apply in filename order via Lovable dashboard → Cloud/Database SQL
+  editor (the GitHub repo is private to browser sessions — paste file contents
+  inline, one file at a time). All are non-destructive (new tables/functions,
+  policy recreation, ADD COLUMN IF NOT EXISTS).
+- **Files:**
+  - `supabase/migrations/20260925230000_chapters.sql` (`render_chapters` +
+    `tts_cache` tables, RLS, `requeue_stale_chapters` RPC)
+  - `supabase/migrations/20260925233000_language_voices_and_gates.sql`
+    (`language_voices` + `language_quality_gates` tables, RLS, per-language
+    `llm_instructions` seeds)
+  - `supabase/migrations/20260925234000_music_tracks_public_read.sql`
+    (policy change only: explicit public read on the shared music catalog —
+    resolves the pre-publish security scan finding)
+  - `supabase/migrations/20260926001000_renders_parent_id.sql` (Sprint 5–6:
+    `renders.parent_id` self-referential FK + partial index; powers dubbing
+    and Shorts parent linkage)
+- **Note:** Sprints 3–4 were published live 2026-09-26 ~00:15 IST with
+  migrations reported applied, but this file still marked the first three
+  "Pending" — verify via
+  `select table_name from information_schema.tables where table_name in
+  ('render_chapters','tts_cache','language_voices','language_quality_gates')`
+  and `select column_name from information_schema.columns where
+  table_name='renders' and column_name='parent_id';` and apply whatever is
+  missing.
+- **Time:** 10–15 min.
+- **Unblocks:** Long-form chapter rendering, per-language voice picker, clean
+  security scan, dubbing/Shorts parent linkage.
+
+## 12. Pexels API key (Cinema Mode live stock) — ~10 min
+
+- **What:** Create a free Pexels account, confirm email, request an API key at
+  https://www.pexels.com/api/ (use case: "Video-creation app searching stock
+  photos/videos to illustrate documentary scenes; we display the creator's
+  name and link back to Pexels per the license."). Add as server-side secret
+  `PEXELS_API_KEY` in Lovable Cloud Secrets (and `.env` for dev — never
+  commit).
+- **Time:** ~10 min.
+- **Unblocks:** Real Pexels stock in the Cinema planner (planner tries Pexels
+  first). Until then the planner uses clearly-marked mock assets and scenes
+  fall back to AI-generated visuals — nothing breaks. Free tier is
+  rate-limited (limits shown on the Pexels API page after signup).
+
+## 13. Pixabay API key (Cinema Mode fallback stock) — ~10 min
+
+- **What:** Create a free Pixabay account → account settings → API section
+  (https://pixabay.com/api/docs/), copy the account API key. Add as
+  server-side secret `PIXABAY_API_KEY` in Lovable Cloud Secrets.
+- **Time:** ~10 min.
+- **Unblocks:** Pixabay fallback when Pexels has no match. One key is enough
+  to go live; two gives fallback coverage. Free tier has per-minute request
+  limits (shown on the API docs page).
+
+## 14. Verify TTS voice IDs for dubbing — 30–60 min per language batch
+
+- **What:** Dubbing only ever uses **verified** voices
+  (`language_voices.verified`). Verified today: English (George, Sarah,
+  Rachel, Domi — ElevenLabs), Hindi (Aisha, Arjun — ElevenLabs; Kavya, Vikram
+  — gateway). For each additional language: pick a multilingual-capable
+  premade voice in the ElevenLabs dashboard, run a real TTS call with a 2–3
+  sentence script IN THE TARGET LANGUAGE and listen (end-to-end check, not
+  just "id exists"), then
+  `update language_voices set provider_voice_id='<id>', verified=true,
+  selectable=true where language_code='<code>' and slot=N;` and mirror
+  `verified: true` in `src/lib/voices.ts`, then `npx vitest run
+  src/lib/voices.test.ts`.
+- **Also:** beta languages stay behind the quality gate (3 golden scripts +
+  back-translation + native-speaker review) before the "Beta" label drops —
+  that needs native speakers, not code (see `language_quality_gates`).
+- **Time:** 30–60 min per batch of voices.
+- **Unblocks:** Dubbing into that language without the "no verified voice"
+  error.
+
+## 15. YouTube Data API verification + audit + quota — start now (2–6+ week wait)
+
+- **What:** Three separate gates: (1) Google OAuth verification — dedicated
+  Cloud project, YouTube Data API v3 enabled, External consent screen in
+  production, policy pages live (privacy/terms covering Google user data use,
+  retention, revocation, deletion), brand consistency, unlisted 3–5 min demo
+  screencast (OAuth grant → each scope in-app → disconnect/revoke → data
+  deletion), submit verification form; (2) YouTube API compliance audit
+  (separate submission, recurs annually); (3) quota extension request with
+  usage math. Full ordered checklist in-app: `/guides/youtube-api-app-review`.
+- **Time:** 0.5–1 day prep; **review wait 2–6+ weeks** (the long pole — start
+  steps 1–5 immediately; do not promise users a launch date before this
+  clears).
+- **Unblocks:** Real YouTube publishing (server-enforced human approval gate
+  already exists in code; publishing stays founder-gated to the designated
+  TEST channel until then).
+
+## 16. Meta (Facebook/Instagram) app review — start business verification first
+
+- **What:** Create a Meta app (Facebook Login + Instagram products), live
+  privacy policy + terms + working data-deletion callback endpoint, business
+  verification (legal docs, domain, phone/email — several business days),
+  request minimum permissions with justifications
+  (`pages_manage_posts`, `pages_read_engagement`, `instagram_basic`,
+  `instagram_content_publish`), reviewer-ready test users + seeded demo Page,
+  one screencast per permission, submit. Annual Data Use Checkup to stay
+  approved. Full ordered checklist in-app: `/guides/meta-app-review`.
+  (IG publishing needs a Facebook Page linked to an IG Business/Creator
+  account — personal IG accounts can't publish via API.)
+- **Time:** ~1 day prep; business verification several business days;
+  review days–2 weeks.
+- **Unblocks:** Real Instagram/Facebook publishing (founder-gated to TEST
+  channels; human-approval gate stays enforced).

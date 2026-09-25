@@ -3,6 +3,83 @@
 Non-obvious decisions made under autopilot (Investor Reply #3: "Decide, don't
 ask"). Each entry: decision, reason, how to reverse. Newest first.
 
+## 2026-09-26 — Sprint 5–6 (cinema, source priority, dubbing, shorts, exports)
+
+### D46. Cinema is a render tier, not a creation mode
+- **Decision:** "cinema" stays a `RenderMode` (billing/render treatment), not a 6th entry in `CREATION_MODES` (script/voiceover/auto_edit/story), which are about *input*, not render treatment.
+- **Reason:** billing already had `RenderMode = "story" | "cinema"`; the gap was that it was unreachable (no caller ever passed `stockFootage: true`), not that it was misclassified. Wired it end-to-end (RenderPanel → enqueue → buildServerRenderRows) instead of touching the single source of truth.
+- **Reverse:** add `{ id: "cinema", ... }` to `CREATION_MODES` if cinema ever becomes an input mode (e.g. "upload a rough cut, get a cinema grade").
+
+### D47. per-minute.ts untouched — dead pricing wired, not rewritten
+- **Decision:** `renderCreditCost` already computed ×1.5 cinema, per-second hero billing, dubbing 0.5/min/language, and shorts 0.5 each correctly. No change was needed; the work was wiring callers (RenderPanel quote, server enqueue, dub/short quote UIs) to pass the inputs.
+- **Reason:** the single source of truth was right; the callers were silent. Editing it would have risked the tested math for zero gain.
+- **Reverse:** n/a (no change made).
+
+### D48. Stock providers: reuse the existing interface, mock by default
+- **Decision:** reused `src/lib/providers/stock.server.ts`'s `StockProvider` (Pexels + Pixabay real implementations already existed, key-gated) and widened the id unions with `"mock"` instead of building a second interface. `resolveStockProviders()` returns real providers only when `PEXELS_API_KEY`/`PIXABAY_API_KEY` exist; otherwise a deterministic mock (`mock://` URLs, "MOCK — preview asset, not licensed for use", no network I/O).
+- **Reason:** two provider interfaces would drift; the planner must stay usable/testable without keys, and `mock://` URLs can never be mistaken for downloadable stock.
+- **Reverse:** make `resolveStockProviders()` return `{ providers: [], mock: false }` and let stock tiers fall back to AI hero.
+
+### D49. Source priority is strict: upload > stock > AI hero, with provenance for all
+- **Decision:** `planSceneSources()` picks visuals per scene in strict priority order — 1) user-uploaded footage, 2) licensed stock (Pexels → Pixabay), 3) AI hero — and every upload/stock decision writes a row to the existing `asset_provenance` table (provider, license, license_url, asset id/URL, scene link).
+- **Reason:** provenance is the product promise ("know what you're looking at"); recording it at decision time is the only point where the choice is certain.
+- **Reverse:** change `SOURCE_PRIORITY` order in `src/lib/stock/types.ts`.
+
+### D50. AI hero cap: ≤10% of runtime, trim by default, server re-applies
+- **Decision:** the planner enforces the 10% AI-hero runtime cap with default policy `"trim"` (scales hero seconds proportionally, flags `heroTrimmed`; `"reject"` throws `HeroCapExceededError`). The server re-applies the cap at enqueue (`buildServerRenderRows`) and quotes/bills the capped value, recorded in row meta.
+- **Reason:** never trust the client's hero-seconds number for money math; a visible trim beats silent over-billing or silent cap-breaking.
+- **Reverse:** flip the default `heroPolicy` in `planSceneSources`; remove the `applyHeroCap` call in `server-renders.functions.ts`.
+
+### D51. Cinema and Story mutually exclusive; heroes bill in Cinema only
+- **Decision:** RenderPanel disables one when the other is on; `aiHeroSeconds` enters the quote only in Cinema Mode (Story quotes unchanged byte-for-byte).
+- **Reason:** exactly one treatment drives per-scene motion/pacing — stacking would make the quote and the render disagree; AI heroes are a cinema-tier feature with the cap as guardrail.
+- **Reverse:** pass hero seconds for story too; allow both with defined precedence.
+
+### D52. Export presets are data + one ffmpeg-arg builder
+- **Decision:** `src/lib/exports/presets.ts` holds the four presets (youtube-longform 1920×1080; youtube-shorts / instagram-reels / tiktok 1080×1920) as data; `exportEncodeArgs(preset, fps)` is the single source of truth for ffmpeg output flags (MP4, H.264 High, yuv420p, AAC 48kHz stereo, +faststart). Preset encode is `-preset veryfast -crf 23`; the no-preset path is byte-identical to before (ultrafast/crf-26).
+- **Reason:** ffmpeg flags previously lived inline in three places; a preset that drifts from the renderer is worse than no preset. Presets promise platform-grade output, and ultrafast/crf-26 is a preview-speed trade-off that shouldn't ship as "YouTube-ready".
+- **Reverse:** delete the module and inline flags again (tests are the tripwire); change `x264Preset`/`crf` in the preset `base` object.
+
+### D53. Preset determines the output frame; preset is in the cache fingerprint
+- **Decision:** when `exportPreset` is set, resolution comes from the preset (picker labels show dimensions, e.g. "1080×1920"); `options.exportPreset` is part of `sceneFingerprint` so cached segments from another preset are never reused. Square projects default to youtube-longform (no square preset in scope).
+- **Reason:** a preset that silently kept the old frame would be dishonest; a resume cache keyed on old dims would produce a corrupt mixed-frame MP4 after switching presets.
+- **Reverse:** prefer aspect dims in `resolutionForRender`; remove the fingerprint field (cache collisions return — don't).
+
+### D54. Dubs and Shorts are renders: parent_id, no new tables
+- **Decision:** derived videos reuse the `renders` table with a new self-referential `renders.parent_id` (migration `20260926001000_renders_parent_id.sql`); kind travels in `meta.kind` (`"dub"`/`"short"`), existing pattern.
+- **Reason:** zero new RLS policy surface — the owner-scoped policy covers children automatically; the RLS static audit stays green without new entries.
+- **Reverse:** add a `derived_renders` table later and backfill from parent_id if dubs/shorts ever need their own lifecycle.
+
+### D55. Dubbing uses verified voices only — no silent substitution
+- **Decision:** `selectDubVoice()` reads a `verified` boolean mirrored in-code from `language_voices.verified`; with no verified voice the default path throws `DubError("no-verified-voice")` naming the language. Only `allowStub: true` returns a stub, marked `stub: true` / "pending verification".
+- **Reason:** picking "the closest voice" would ship a video with the wrong voice/language and the user would never know.
+- **Reverse:** flip flags true after the end-to-end TTS checks (FOUNDER_TODO #13).
+
+### D56. Shorts highlight scoring is rule-based, documented as a stand-in
+- **Decision:** the idea engine scores whole videos (outlier_score), not scenes — so `scoreSegment()` uses an honest documented heuristic (beat bonuses: hook +3 / payoff +2 / rising_tension +1.5 / loop_cta +1 / setup +0.5; caption density; 20–45 s sweet spot; greedy non-overlapping top-k, clamped 5–8).
+- **Reason:** inventing "AI scores" would be a fake claim; a documented heuristic is replaceable.
+- **Reverse:** replace `scoreSegment()`'s body when a learned per-scene scorer ships; the `selectShorts()` contract stays unchanged.
+
+### D57. Dub/Short queue actions ship disabled with an honest date
+- **Decision:** the RenderPanel Dubbing & Shorts section shows the exact `formatRenderCost` quote (real math through per-minute.ts) but the queue button is disabled: "Queue — Shipping next (target Oct 2026)". Same for unfinished stock automation in the Cinema blurb.
+- **Reason:** the worker isn't deployed in production — enqueueing must not pretend to work. The no-fake-claims rule requires a date; Oct 2026 is a target, flagged for the founder to confirm.
+- **Reverse:** enable the button and wire `quoteDubRender`/`suggestShorts` → enqueue when the worker ships; founder confirms/changes the date (one string in `DubShortsQuote.tsx` / `src/lib/stock/cinema.ts`).
+
+### D58. App-review checklists ship as guides, generically framed
+- **Decision:** YouTube and Meta review checklists are entries in `src/lib/guides.ts` (`/guides/youtube-api-app-review`, `/guides/meta-app-review`), framed as "a founder / your app" — claiming nothing about Vidora's review status.
+- **Reason:** zero new routes/components; the generic framing keeps the marketing-honesty scan green and avoids implying an approval we can't verify.
+- **Reverse:** move to a dedicated founder-gated route if needed.
+
+### D59. Music provenance gate: filter at selection, hard check at attach
+- **Decision:** `searchMusic`/`listMusicTracks` hide tracks missing provenance (provider + license + license_url, or documented equivalents `"Public domain"` / `"Vidora original composition"`, logged via `[music-catalog]` warn); `updateProjectSettings` rejects attaching an unprovenanced track. BYO music (`music_url`) is untouched. No migration — all columns already exist.
+- **Reason:** picker filtering alone is bypassable (anyone can POST a track id); the attach-time check is the real gate. Logging (not silent dropping) makes catalog hygiene visible.
+- **Reverse:** remove the `hasMusicProvenance` check to restore attach-anything.
+
+### D60. Mid-sprint shared-tree incident (2026-09-26 ~18:47 IST)
+- **Decision (process):** when multiple agents share one working tree on one branch, agents must commit early and often, and never run `git add -A`, `git stash`, or `git reset --hard` while siblings may have uncommitted work.
+- **Reason:** a sibling's `git add -A` swept another lane's uncommitted files into its commit; a later stash + `reset --hard` wiped all uncommitted work across lanes. Recovery from `stash@{0}`/`stash@{0}^3` worked but cost ~40 min per lane. Serializing push/pull cycles or per-lane worktrees avoids the whole class.
+- **Reverse:** n/a (process lesson; recorded so the next multi-lane sprint uses worktrees).
+
 ## 2026-09-25 — Sprint 3–4 (language pipeline)
 
 ### D36. music_tracks reads are explicitly public (D25-class RLS fix)

@@ -434,3 +434,150 @@ renders have no music/ducking stage and are unaffected.
 `vidora.ai` domain, legal entity/grievance officer, Resend key for completion
 email (in-app bell works without it), YouTube test channel, production
 migration application (the 3 files above), credit-migration email.
+
+---
+
+## Sprints 5–6 — 2026-09-26: Cinema Mode, source provenance, dubbing, Shorts, platform exports
+
+**Published URL:** https://vidoratube.lovable.app/ (publish pending — parent to apply
+migrations then run Lovable publish after this handoff; all verification below is local
+unless noted)
+
+**Commits (forward-only, `2dd2de8` on top of Sprints 3–4's `3e93695`, pushed to `origin/main`):**
+`d2bc45a` (platform export presets + render wiring + music provenance gate),
+`5ef2c85` (strict source priority, AI hero runtime cap, stock planner, Cinema wiring),
+`2dd2de8` (dubbing/localize + long-form → Shorts), plus this report's docs commit.
+
+**What shipped:**
+
+- **Cinema Mode as a real render tier (D46):** "cinema" stays a `RenderMode`
+  (not a 6th creation mode — modes are about *input*). It was previously
+  unreachable dead pricing: `renderCreditCost` already computed ×1.5 correctly
+  but no caller ever passed `stockFootage: true`. Now wired end-to-end
+  (RenderPanel → enqueue → `buildServerRenderRows`); RenderPanel treats Cinema
+  and Story as mutually exclusive; treatment = premium stock-driven visuals,
+  richer motion cycle (slow_zoom → slow_pan → zoom_out), dip-to-black, 0.9
+  parallax (`src/lib/stock/cinema.ts`). Unfinished automation is honestly
+  labeled "Shipping next (Oct 2026)" (D57; founder to confirm the date).
+- **Source priority — hard rule in code + tests (D49/D50):**
+  `src/lib/stock/source-select.ts` picks visuals per scene in strict order —
+  1) user-uploaded footage, 2) licensed Pexels/Pixabay stock, 3) AI hero —
+  with `AI hero ≤ 10% of runtime` enforced (default `"trim"`, scales hero
+  seconds proportionally and flags `heroTrimmed`; `"reject"` throws).
+  The server re-applies the cap at enqueue and quotes/bills the capped value
+  (never trust the client for money math; trim recorded in row meta). Every
+  upload/stock decision writes a provenance row to the existing
+  `asset_provenance` table (provider, license, license_url, asset id/URL,
+  scene link). The cap is visible in the quote UI.
+- **Stock providers (D48):** reused the existing `StockProvider` interface
+  (Pexels + Pixabay implementations, key-gated) instead of building a second
+  one. Without `PEXELS_API_KEY`/`PIXABAY_API_KEY` the planner uses a
+  deterministic mock (`mock://` URLs, "MOCK — preview asset, not licensed for
+  use", zero network I/O). Keys are a FOUNDER_TODO item (#12/#13, ~10 min
+  each); the app goes live automatically once they exist.
+- **Dubbing / localize (D55):** new `src/lib/dubbing/` — finished video →
+  target language: language validated against the `languages` table,
+  `selectDubVoice()` uses ONLY verified voices (`language_voices.verified`
+  mirrored in-code; no silent substitution — throws `DubError("no-verified-voice")`
+  naming the language unless `allowStub: true`), narration re-synthesized via
+  the existing TTS path, narration stem replaced, captions re-timed/re-wrapped
+  with the target language's `caption_max_chars`, music/SFX untouched, output
+  linked via `renders.parent_id`. Pricing: 0.5 credits/min/language through
+  per-minute.ts (was already wired — verified, not changed). Beta languages
+  allowed but every UI surface labels results "Beta" (tested).
+- **Long-form → Shorts (D56):** new `src/lib/shorts/` — 5–8 Shorts per long
+  video. The idea engine scores whole videos, not scenes, so highlight
+  selection uses a documented rule-based stand-in (beat bonuses,
+  caption density, 20–45 s sweet spot, greedy non-overlapping top-k, clamped
+  5–8); 9:16 cuts with burned-in captions via the exact ffmpeg arg builder;
+  each Short links `parent_id`; 0.5 credits each through per-minute.ts.
+- **Platform export presets (D52/D53):** `src/lib/exports/presets.ts` —
+  youtube-longform (1920×1080), youtube-shorts / instagram-reels / tiktok
+  (1080×1920); each pins MP4 + H.264 High + yuv420p + AAC 48 kHz stereo +
+  `+faststart`. `exportEncodeArgs(preset, fps)` is the single source of truth;
+  preset encode is `-preset veryfast -crf 23` (the no-preset path is
+  byte-identical to before). The preset determines the output frame and is
+  part of the segment fingerprint (no corrupt mixed-frame resumes).
+  RenderPanel picker shows only for the browser engine (server flow keeps its
+  aspect checkboxes; wiring presets there needs a preset-per-aspect design —
+  documented, not faked).
+- **Music provenance gate (D59):** a catalog track is selectable only with
+  `provider` + `license` + `license_url` (or documented equivalents "Public
+  domain" / "Vidora original composition"); enforced at selection
+  (`searchMusic`/`listMusicTracks`, exclusions logged) AND at attach
+  (`updateProjectSettings` rejects unprovenanced tracks — picker filtering
+  alone is bypassable). BYO music untouched. No migration — columns already
+  exist.
+- **App-review checklists (D58):** in-app guides at
+  `/guides/youtube-api-app-review` and `/guides/meta-app-review` (YouTube
+  OAuth verification + API audit + quota; Meta business verification +
+  permissions + screencasts + Data Use Checkup), generically framed —
+  claiming nothing about Vidora's review status. Mirrored with time estimates
+  in FOUNDER_TODO #15/#16.
+- **Approval gate:** the P5 server-enforced human approval gate verified
+  intact — nothing in this sprint's scope publishes, and no publish file was
+  weakened.
+
+**Claims-table diff (vs Sprints 3–4):**
+
+- "Cinema Mode": NOT SHIPPED → PARTIAL (tier wired, ×1.5 billed, treatment
+  ships in code; per-scene stock planning automation is "Shipping next")
+- "Source provenance": NOT SHIPPED → LIVE (priority rule + cap enforced in
+  code; provenance recorded per scene)
+- "AI hero ≤10% cap": NOT SHIPPED → LIVE (code; enforced planner + server
+  re-check + quote visibility)
+- "Dubbing/localize": NOT SHIPPED → PARTIAL (pipeline + verified-only voices
+  + beta labels + exact quote ship in code; queue action disabled until the
+  worker is deployed)
+- "Long-form → Shorts": NOT SHIPPED → PARTIAL (5–8 selection + 9:16 cuts +
+  exact quote ship in code; queue action disabled until the worker is deployed)
+- "Platform export presets": NOT SHIPPED → LIVE (code; browser engine)
+- "Licensed music with provenance": NOT SHIPPED → LIVE (code; gate enforced)
+- "App-review checklists": NOT SHIPPED → LIVE (in-app guides + founder steps)
+
+**Stranger checklist:** The Playwright stranger suite (`e2e/stranger.spec.ts`)
+is written, typechecks, and is CI-ready, but the live-browser pass is still
+BLOCKED on this VM (Chromium cannot reach the public internet —
+environmental; pre-existing `public.spec.ts` fails identically). Needs a
+network-capable runner. Homepage/pricing honesty checks run without
+credentials.
+
+**Proof:**
+
+- `npm run test`: **646/646 vitest pass** (77 files; was 564), including
+  `src/lib/rls-policies.test.ts` (RLS audit — no new tables, stays green),
+  `src/lib/copy-scan.test.ts` (copy-honesty), `src/lib/language-neutrality.test.ts`,
+  stock/source/cap/quote tests (68), export preset ffmpeg-arg tests,
+  dubbing/shorts pricing + beta-label tests
+- `npx tsc --noEmit`: clean (zero errors, combined sprint tree)
+- `npm run build` (production): green
+- No force-push, no destructive migrations, no secrets in repo
+- New migration (1): `supabase/migrations/20260926001000_renders_parent_id.sql`
+  (`renders.parent_id` + partial index; ADD COLUMN IF NOT EXISTS)
+
+**New founder TODO items:** #11 (apply the 4 pending migrations — 3 from
+Sprints 3–4 + `renders_parent_id`; includes a verify-first note because item
+#9's "Pending" list may already be applied), #12 (Pexels key, ~10 min), #13
+(Pixabay key, ~10 min), #14 (verify TTS voice IDs per dubbing language +
+beta quality gates), #15 (YouTube verification/audit/quota — 2–6+ week
+wait), #16 (Meta app review — start business verification first).
+
+**Decisions:** `docs/DECISIONS.md` D46–D60 (cinema as render tier, per-minute.ts
+untouched, stock interface reuse + mock default, strict source priority,
+hero cap trim-by-default with server re-check, cinema/story exclusivity,
+presets-as-data + single ffmpeg-arg builder, preset-determines-frame +
+fingerprint, parent_id over new tables, verified-voices-only with no silent
+substitution, rule-based shorts scoring documented as stand-in, disabled
+queue actions with honest dates, guides-not-pages for checklists, music
+provenance double-gate, shared-tree incident process lesson).
+
+**Honest gaps (not claimed as done):** `planSceneSources()` is built and
+unit-tested but not yet called by the Studio chapter-assembly flow (upload/
+stock/AI hooks are in place); server render path not wired to presets
+(needs preset-per-aspect design once the worker exists); dub/Short enqueue
+is UI-disabled until the worker is deployed; no explicit
+no-network-without-keys test (key-gated behavior is covered); "Shipping next
+(target Oct 2026)" dates are targets the founder must confirm. The mid-sprint
+shared-working-tree incident (sibling `git add -A` + stash/reset wiping
+uncommitted work across lanes) cost recovery time — recorded as D60 with the
+process fix (commit early; per-lane worktrees next time).
