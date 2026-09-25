@@ -1,5 +1,36 @@
 # Changelog
 
+## 2026-09-25 — P2: Server Render Worker
+
+### Database
+- Migration `20260925143500_server_render_worker.sql`: extends `renders` with
+  `attempts`, `max_attempts`, `claimed_at`, `claimed_by`, `checkpoint`,
+  `cancel_requested`.
+- `claim_render_job()` RPC: atomic job claiming with `SKIP LOCKED` and
+  5-minute lease for crash recovery.
+- `heartbeat_render_job()` RPC: progress/stage updates from the worker.
+
+### Worker (`worker/`)
+- Node.js + TypeScript, native FFmpeg (not wasm).
+- Pipeline: download assets → per-scene segments (resume-safe) → concat →
+  audio mix (narration + voiceover + music) → ASS word captions → faststart.
+- Multi-aspect: 16:9 (1920x1080), 9:16 (1080x1920), 1:1 (1080x1080).
+- Word-level karaoke captions via ASS.
+- Graceful cancellation via `cancel_requested`; SIGTERM handling.
+- Crash recovery: stale `running` jobs requeued on boot.
+- README with local run + systemd VPS deployment.
+- Verified end-to-end: real FFmpeg produced valid H.264/AAC 4s MP4.
+
+### App integration
+- `enqueueServerRender` / `cancelServerRender` / `listServerRenders` server functions.
+- RenderPanel: "Fast (browser)" vs "High quality (server)" toggle.
+- `ServerRenderQueue` component: live progress via Realtime, cancel, download.
+- Rate limit: 10 server renders/hour per user.
+
+### Tests
+- Vitest: 182/182 (up from 171) — shared aspect/caption utils.
+- Worker: 9/9 unit tests (payload validation, retry policy, ASS).
+
 ## 2026-09-25 — P1: Hardening (billing, abuse, security, YouTube UX, observability, E2E)
 
 ### Billing & abuse (Stream A)
