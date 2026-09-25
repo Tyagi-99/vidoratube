@@ -21,6 +21,8 @@ import { Route as StatusRouteImport } from './routes/status'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedStudioRouteImport } from './routes/_authenticated/studio'
+import { Route as GuidesIndexRouteImport } from './routes/guides.index'
+import { Route as GuidesSlugRouteImport } from './routes/guides.$slug'
 import { Route as RCodeRouteImport } from './routes/r.$code'
 import { Route as RobotsTxtRouteImport } from './routes/robots.txt'
 import { Route as SitemapXmlRouteImport } from './routes/sitemap.xml'
@@ -99,6 +101,16 @@ const AuthenticatedStudioRoute = AuthenticatedStudioRouteImport.update({
   id: '/studio',
   path: '/studio',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const GuidesIndexRoute = GuidesIndexRouteImport.update({
+  id: '/guides/',
+  path: '/guides/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuidesSlugRoute = GuidesSlugRouteImport.update({
+  id: '/guides/$slug',
+  path: '/guides/$slug',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const RCodeRoute = RCodeRouteImport.update({
   id: '/r/$code',
@@ -218,9 +230,11 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/studio': typeof AuthenticatedStudioRoute
+  '/guides/$slug': typeof GuidesSlugRoute
   '/r/$code': typeof RCodeRoute
   '/robots/txt': typeof RobotsTxtRoute
   '/sitemap/xml': typeof SitemapXmlRoute
+  '/guides/': typeof GuidesIndexRoute
   '/admin/content': typeof AuthenticatedAdminContentRoute
   '/admin/integrations': typeof AuthenticatedAdminIntegrationsRoute
   '/admin/jobs': typeof AuthenticatedAdminJobsRoute
@@ -249,9 +263,11 @@ export interface FileRoutesByTo {
   '/status': typeof StatusRoute
   '/terms': typeof TermsRoute
   '/studio': typeof AuthenticatedStudioRoute
+  '/guides/$slug': typeof GuidesSlugRoute
   '/r/$code': typeof RCodeRoute
   '/robots/txt': typeof RobotsTxtRoute
   '/sitemap/xml': typeof SitemapXmlRoute
+  '/guides': typeof GuidesIndexRoute
   '/admin/content': typeof AuthenticatedAdminContentRoute
   '/admin/integrations': typeof AuthenticatedAdminIntegrationsRoute
   '/admin/jobs': typeof AuthenticatedAdminJobsRoute
@@ -283,9 +299,11 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/_authenticated/studio': typeof AuthenticatedStudioRoute
+  '/guides/$slug': typeof GuidesSlugRoute
   '/r/$code': typeof RCodeRoute
   '/robots/txt': typeof RobotsTxtRoute
   '/sitemap/xml': typeof SitemapXmlRoute
+  '/guides/': typeof GuidesIndexRoute
   '/_authenticated/admin/content': typeof AuthenticatedAdminContentRoute
   '/_authenticated/admin/integrations': typeof AuthenticatedAdminIntegrationsRoute
   '/_authenticated/admin/jobs': typeof AuthenticatedAdminJobsRoute
@@ -317,9 +335,11 @@ export interface FileRouteTypes {
     | '/terms'
     | '/admin'
     | '/studio'
+    | '/guides/$slug'
     | '/r/$code'
     | '/robots/txt'
     | '/sitemap/xml'
+    | '/guides/'
     | '/admin/content'
     | '/admin/integrations'
     | '/admin/jobs'
@@ -348,9 +368,11 @@ export interface FileRouteTypes {
     | '/status'
     | '/terms'
     | '/studio'
+    | '/guides/$slug'
     | '/r/$code'
     | '/robots/txt'
     | '/sitemap/xml'
+    | '/guides'
     | '/admin/content'
     | '/admin/integrations'
     | '/admin/jobs'
@@ -381,9 +403,11 @@ export interface FileRouteTypes {
     | '/terms'
     | '/_authenticated/admin'
     | '/_authenticated/studio'
+    | '/guides/$slug'
     | '/r/$code'
     | '/robots/txt'
     | '/sitemap/xml'
+    | '/guides/'
     | '/_authenticated/admin/content'
     | '/_authenticated/admin/integrations'
     | '/_authenticated/admin/jobs'
@@ -413,9 +437,11 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   StatusRoute: typeof StatusRoute
   TermsRoute: typeof TermsRoute
+  GuidesSlugRoute: typeof GuidesSlugRoute
   RCodeRoute: typeof RCodeRoute
   RobotsTxtRoute: typeof RobotsTxtRoute
   SitemapXmlRoute: typeof SitemapXmlRoute
+  GuidesIndexRoute: typeof GuidesIndexRoute
   ApiPublicYoutubeCallbackRoute: typeof ApiPublicYoutubeCallbackRoute
   ApiWebhooksRazorpayRoute: typeof ApiWebhooksRazorpayRoute
   ApiWebhooksStripeRoute: typeof ApiWebhooksStripeRoute
@@ -506,6 +532,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/studio'
       preLoaderRoute: typeof AuthenticatedStudioRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/guides/': {
+      id: '/guides/'
+      path: '/guides'
+      fullPath: '/guides/'
+      preLoaderRoute: typeof GuidesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guides/$slug': {
+      id: '/guides/$slug'
+      path: '/guides/$slug'
+      fullPath: '/guides/$slug'
+      preLoaderRoute: typeof GuidesSlugRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/r/$code': {
       id: '/r/$code'
@@ -702,9 +742,11 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   StatusRoute: StatusRoute,
   TermsRoute: TermsRoute,
+  GuidesSlugRoute: GuidesSlugRoute,
   RCodeRoute: RCodeRoute,
   RobotsTxtRoute: RobotsTxtRoute,
   SitemapXmlRoute: SitemapXmlRoute,
+  GuidesIndexRoute: GuidesIndexRoute,
   ApiPublicYoutubeCallbackRoute: ApiPublicYoutubeCallbackRoute,
   ApiWebhooksRazorpayRoute: ApiWebhooksRazorpayRoute,
   ApiWebhooksStripeRoute: ApiWebhooksStripeRoute,
