@@ -72,9 +72,30 @@ export const listMyReferrals = createServerFn({ method: "GET" })
   });
 
 /**
- * Server-only claim. Called when an invitee's email is verified.
- * Never exposed to the client — the invitee could otherwise claim for
- * themselves.
+ * Client-callable claim. The invitee's browser stores the code from /r/{code}
+ * in localStorage; after the invitee verifies their email this function
+ * claims it. Idempotent and abuse-guarded on the server.
+ */
+const SubmitSchema = z.object({
+  code: z.string().trim().max(16),
+  deviceHash: z.string().max(128).optional(),
+});
+
+export const submitPendingReferral = createServerFn({ method: "POST" })
+  .middleware([requireAppUser])
+  .inputValidator((i: unknown) => SubmitSchema.parse(i))
+  .handler(async ({ data, context }) => {
+    return claimReferralOnVerification({
+      code: data.code,
+      inviteeId: context.userId,
+      deviceHash: data.deviceHash,
+    });
+  });
+
+/**
+ * Internal claim engine. Invoked via submitPendingReferral after the
+ * invitee's email is verified. All anti-abuse checks run here; the client
+ * can only submit a code, never grant credits.
  */
 export async function claimReferralOnVerification(input: {
   code: string;
