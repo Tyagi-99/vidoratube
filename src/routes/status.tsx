@@ -67,7 +67,7 @@ function StatusPage() {
 
         {isLoading ? (
           <div className="mt-8 space-y-3">
-            {[0, 1, 2, 3].map((i) => (
+            {[0, 1, 2, 3, 4].map((i) => (
               <div key={i} className="h-20 animate-pulse rounded-xl bg-muted/60" />
             ))}
           </div>
