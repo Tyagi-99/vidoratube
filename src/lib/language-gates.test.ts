@@ -64,14 +64,14 @@ function voiceRows(): VoiceRow[] {
     /^\s*\('([a-z]{2})',\s*(\d+),\s*'[^']*',\s*'(?:masculine|feminine|neutral)',\s*'(elevenlabs|gateway|none)',\s*(NULL|'[^']*'),\s*(true|false),\s*(true|false)\),?\s*$/gm;
   let m: RegExpExecArray | null;
   while ((m = re.exec(block)) !== null) {
-    const idRaw = m[6]!;
+    const idRaw = m[4]!;
     rows.push({
       code: m[1]!,
       slot: Number(m[2]),
-      provider: m[5]!,
+      provider: m[3]!,
       providerVoiceId: idRaw === "NULL" ? null : idRaw.slice(1, -1),
-      verified: m[7] === "true",
-      selectable: m[8] === "true",
+      verified: m[5] === "true",
+      selectable: m[6] === "true",
     });
   }
   return rows;

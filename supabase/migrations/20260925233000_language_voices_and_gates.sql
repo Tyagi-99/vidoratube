@@ -11,8 +11,8 @@
 --    src/lib/language-gates.test.ts keeps the two in sync.
 -- 3) Seed llm_instructions for all 12 languages (was default '').
 --
--- Non-destructive: CREATE TABLE IF NOT EXISTS + INSERT ... ON CONFLICT DO
--- UPDATE, never drops.
+-- Non-destructive: tables are created only when missing; seeds use
+-- INSERT ... ON CONFLICT DO UPDATE, never drops.
 
 -- ---------------------------------------------------------------------------
 -- language_voices
