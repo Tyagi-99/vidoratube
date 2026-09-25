@@ -34,7 +34,7 @@ const faqs = [
   {
     question: "Which languages are supported?",
     answer:
-      "Hindi and English voices are live today — 4 Hindi and 6 English built-in voices, plus more from the connected voice library. Spanish, French and 8 more languages are on the roadmap; anything not listed here is not shipped yet.",
+      "Narration is available in English and Hindi today — 12 English and 4 Hindi built-in voices, plus more from the connected voice library. More languages are in Beta and ship from November 2026.",
   },
 ];
 

@@ -14,7 +14,7 @@ finding the site, understanding it in their language, and inviting others.
 - Expand P3's minimal dictionary to full coverage: nav, studio, research,
   publish, billing, analytics, auth, errors
 - Language toggle persisted (localStorage + profile)
-- Hindi-first defaults where appropriate (voice picker already does this)
+- English-first defaults where appropriate (voice picker already does this)
 - `npm run i18n:check` — script that fails if any UI string lacks hi
 
 ### 2. Landing page SEO

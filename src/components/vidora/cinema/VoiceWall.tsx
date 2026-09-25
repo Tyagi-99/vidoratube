@@ -1,16 +1,18 @@
 const VOICES = [
-  "Aarav — Hindi, warm",
-  "Meera — Hindi, bright",
-  "Kabir — Hindi, deep",
-  "Anaya — Hindi, young",
-  "Vikram — English, narrator",
-  "Sofia — English, crisp",
-  "Arjun — Hinglish, casual",
-  "Priya — Hindi, storytelling",
-  "Rohan — English, documentary",
-  "Ishaan — Hindi, dramatic",
-  "Elena — Spanish, warm",
-  "Camille — French, soft",
+  "George — English, narrator",
+  "Sarah — English, storyteller",
+  "Rachel — English, warm",
+  "Adam — English, deep",
+  "Domi — English, expressive",
+  "Elli — English, bright",
+  "Josh — English, conversational",
+  "Arnold — English, documentary",
+  "Antoni — English, calm",
+  "Nova — English, modern",
+  "Aisha — Hindi, warm",
+  "Arjun — Hindi, deep",
+  "Kavya — Hindi, bright",
+  "Vikram — Hindi, steady",
 ];
 
 export function VoiceWall() {
@@ -27,8 +29,8 @@ export function VoiceWall() {
               Cast your narrator.
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
-              25+ voices, Hindi-first. Not the flat robot read — directors pick
-              for warmth, gravity, or mischief.
+              16 built-in voices. Not the flat robot read — directors pick
+              for warmth, gravity, or mischief. More languages in beta.
             </p>
           </div>
           <a

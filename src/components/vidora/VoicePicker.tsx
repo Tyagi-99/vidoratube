@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
-/** P4 voice picker — Hindi-first ordering, cached TTS previews. */
+/** P4 voice picker — English-first ordering, cached TTS previews. */
 export function VoicePicker({
   value,
   onChange,

@@ -2,22 +2,18 @@ import { describe, expect, it } from "vitest";
 import { VOICE_CATALOG, sortedVoices, voiceById } from "./voices";
 
 describe("voice catalog", () => {
-  it("has 25+ voices", () => {
-    expect(VOICE_CATALOG.length).toBeGreaterThanOrEqual(25);
+  it("has at least 16 built-in voices: 12 English + 4 Hindi", () => {
+    const builtin = VOICE_CATALOG.filter((v) => !v.library);
+    expect(builtin.filter((v) => v.languageCode === "en").length).toBeGreaterThanOrEqual(12);
+    expect(builtin.filter((v) => v.languageCode === "hi").length).toBeGreaterThanOrEqual(4);
   });
 
-  it("sorts Hindi first, then English", () => {
+  it("sorts English first (language-neutral default)", () => {
     const sorted = sortedVoices();
-    const firstNonHi = sorted.findIndex((v) => v.languageCode !== "hi");
-    const firstNonEn = sorted.findIndex(
-      (v) => v.languageCode !== "hi" && v.languageCode !== "en"
-    );
-    // All Hindi come before any non-Hindi
-    expect(firstNonHi).toBeGreaterThan(0);
-    for (let i = 0; i < firstNonHi; i++) expect(sorted[i]!.languageCode).toBe("hi");
-    // All English come before other languages
-    for (let i = firstNonHi; i < firstNonEn; i++)
-      expect(sorted[i]!.languageCode).toBe("en");
+    const firstNonEn = sorted.findIndex((v) => v.languageCode !== "en");
+    // All English come before any non-English
+    expect(firstNonEn).toBeGreaterThan(0);
+    for (let i = 0; i < firstNonEn; i++) expect(sorted[i]!.languageCode).toBe("en");
   });
 
   it("built-in voices have concrete provider ids; library voices do not", () => {

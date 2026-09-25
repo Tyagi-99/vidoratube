@@ -41,7 +41,7 @@ export function formatPrice(plan: Plan, currency: Currency): string {
   return `$${dollars.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 }
 
-/** Default currency: INR for India (user is Hindi-first), USD elsewhere. */
+/** Default currency: USD everywhere; INR shown to visitors in India (geo-IP + manual toggle) because Razorpay needs it. Currency is not language. */
 export function defaultCurrency(countryCode?: string | null): Currency {
   return countryCode?.toUpperCase() === "IN" ? "inr" : "usd";
 }

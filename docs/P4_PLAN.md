@@ -2,7 +2,7 @@
 
 ## Goal
 Upgrade the studio's creative capabilities: visual styles, character
-consistency, expanded voices (Hindi-first), background music, and full asset
+consistency, expanded voices (English-first), background music, and full asset
 provenance. The studio can already render; P4 makes what it renders *good*.
 
 ## Scope
@@ -20,9 +20,9 @@ provenance. The studio can already render; P4 makes what it renders *good*.
 - Character appears in scene prompts automatically ("featuring {name}")
 - Store character_id on scenes; show character badge in timeline
 
-### 3. Voice expansion (25+ voices, Hindi-first)
+### 3. Voice expansion (25+ voices, English-first)
 - Extend voice list: 25+ voices across en/hi + major languages
-- Hindi voices prioritized in the picker (user is Hindi-first)
+- Hindi voices prioritized in the picker (user is English-first)
 - Voice preview (short sample via TTS, cached)
 - Per-scene voice override (dialogue scenes)
 

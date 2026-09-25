@@ -12,7 +12,7 @@ ledger and debits; P7 connects money. This is what makes it a business.
 
 ### 1. Payment providers
 - **Stripe** (global, USD): subscriptions + one-time credit packs
-- **Razorpay** (India, INR): subscriptions + one-time — user is Hindi-first,
+- **Razorpay** (India, INR): subscriptions + one-time — user is English-first,
   India is a primary market
 - Provider abstraction: `src/lib/billing/providers.ts` — Stripe | Razorpay
   behind one interface (createCheckout, handleWebhook, etc.)

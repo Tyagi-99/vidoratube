@@ -5,19 +5,19 @@ const SCENES = [
     no: "01",
     icon: FileText,
     title: "The script",
-    body: "Drop in a topic or a rough draft. Vidora structures it into scenes with hooks, beats, and a payoff — in English or Hindi.",
+    body: "Drop in a topic or a rough draft. Vidora structures it into scenes with hooks, beats, and a payoff — written natively in your chosen language.",
   },
   {
     no: "02",
     icon: Mic,
     title: "The voice",
-    body: "Pick from 25+ narrators. Hindi-first voices that actually sound human, plus English, Spanish, and French.",
+    body: "Pick from 12 built-in English voices — narrators, calm storytellers, energetic hosts. Hindi voices available too; more languages in beta.",
   },
   {
     no: "03",
     icon: Image,
     title: "The stills",
-    body: "Every scene gets a generated still in one of 10 visual styles — cinematic, anime, documentary, and more. Characters stay consistent.",
+    body: "Every scene gets a generated still in one of 6 visual styles — cinematic, anime, documentary, and more.",
   },
   {
     no: "04",
@@ -29,7 +29,7 @@ const SCENES = [
     no: "05",
     icon: Clapperboard,
     title: "The film",
-    body: "Music ducked under the voiceover, scenes cut to 1080p, one MP4. Download it or publish straight to YouTube.",
+    body: "Bring your own music — we auto-duck it under the voiceover. Scenes cut to 1080p, one MP4. Download it or publish straight to YouTube.",
   },
 ];
 

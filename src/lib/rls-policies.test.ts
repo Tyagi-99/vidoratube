@@ -103,6 +103,8 @@ const PUBLIC_BY_DESIGN: Record<string, string> = {
   disposable_email_domains: "public read",
   // Royalty-free music catalog; no user data, read-only for authenticated.
   music_tracks: "authenticated read",
+  // Language catalog driving UI dropdowns; no user data, read-only for all.
+  languages: "public read",
 };
 
 /**

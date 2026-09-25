@@ -14,7 +14,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Vidora turns a script into a 1080p MP4 with AI narration, scene stills, and burned-in captions. 25+ voices, 10 visual styles, English and Hindi.",
+          "Vidora turns a script into a 1080p MP4 with AI narration, scene stills, and burned-in captions. 16 built-in voices, 6 visual styles, English narration — more languages coming.",
       },
       { property: "og:title", content: "Vidora AI — Script in. Film out." },
       {
