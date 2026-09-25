@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { LangToggle } from "./research.index";
+import { VideoInsights } from "@/components/vidora/VideoInsights";
 
 export const Route = createFileRoute("/_authenticated/analytics/")({
   component: AnalyticsIndex,
@@ -218,6 +219,7 @@ function AnalyticsIndex() {
               </Card>
             </div>
           </div>
+          <VideoInsights videos={data.videos.map((v) => ({ youtubeVideoId: v.youtubeVideoId, title: v.title }))} />
         </>
       )}
     </div>

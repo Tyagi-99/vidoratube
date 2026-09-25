@@ -9,6 +9,7 @@ import { adminOverview, adminUnitEconomics, adminWorkerStatus } from "@/lib/admi
 import { formatRelativeTime } from "@/lib/worker-health";
 import { captureError, sentryEnabled, sentryTestError } from "@/lib/sentry";
 import { analyticsEnabled } from "@/lib/analytics";
+import { GrowthMetricsPanel, NpsPanel } from "@/components/vidora/AdminMetrics";
 
 export const Route = createFileRoute("/_authenticated/admin/")({
   component: AdminOverviewPage,
@@ -53,6 +54,8 @@ function AdminOverviewPage() {
 
       <WorkerPanel />
       <UnitEconomicsPanel />
+      <GrowthMetricsPanel />
+      <NpsPanel />
 
       <h2 className="mt-10 text-lg font-bold tracking-tight text-foreground">Latest renders</h2>      <div className="mt-4 overflow-hidden rounded-2xl border border-border">
         <table className="w-full text-sm">

@@ -145,3 +145,44 @@ export async function fetchVideoDurations(
   }
   return out;
 }
+
+/**
+ * Audience-retention curve for one video: audienceWatchRatio per
+ * elapsedVideoTimeRatio bucket, converted to absolute seconds using the
+ * video duration. Returns [] when the API has no retention data — callers
+ * degrade to the honest empty state rather than guessing.
+ */
+export async function fetchRetentionCurve(
+  accessToken: string,
+  videoId: string,
+): Promise<Array<{ t: number; r: number }>> {
+  const durations = await fetchVideoDurations(accessToken, [videoId]);
+  const durationSec = durations.get(videoId) ?? 0;
+  if (durationSec <= 0) return [];
+  const end = new Date();
+  const start = new Date(end.getTime() - 90 * 86_400_000);
+  const params = new URLSearchParams({
+    ids: "channel==MINE",
+    startDate: toDate(start),
+    endDate: toDate(end),
+    metrics: "audienceWatchRatio",
+    dimensions: "elapsedVideoTimeRatio",
+    filters: `video==${videoId}`,
+  });
+  const res = await fetch(`${ANALYTICS_BASE}?${params}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return [];
+  const payload = (await res.json()) as ReportsResponse;
+  const headers = (payload.columnHeaders ?? []).map((h) => h.name);
+  const tIdx = headers.indexOf("elapsedVideoTimeRatio");
+  const rIdx = headers.indexOf("audienceWatchRatio");
+  if (tIdx < 0 || rIdx < 0) return [];
+  return (payload.rows ?? [])
+    .map((row) => ({
+      t: Number(row[tIdx]) * durationSec,
+      r: Number(row[rIdx]) * 100,
+    }))
+    .filter((p) => Number.isFinite(p.t) && Number.isFinite(p.r) && p.t >= 0)
+    .sort((a, b) => a.t - b.t);
+}

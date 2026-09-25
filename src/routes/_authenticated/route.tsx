@@ -2,8 +2,10 @@ import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { isAppUser, locationToNext, safeAuthNext } from "@/lib/auth-user";
 import { AppChrome } from "@/components/vidora/AppChrome";
+import { NpsPrompt } from "@/components/vidora/NpsPrompt";
 import { useReferralClaim } from "@/hooks/useReferralClaim";
 import { useLanguageProfileSync } from "@/hooks/useLanguageProfileSync";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -28,10 +30,23 @@ export const Route = createFileRoute("/_authenticated")({
 function AuthenticatedLayout() {
   useReferralClaim();
   useLanguageProfileSync();
+  const { t } = useI18n();
   return (
     <div className="min-h-screen bg-background">
       <AppChrome />
       <Outlet />
+      <div className="pointer-events-none fixed bottom-4 right-4 z-50 w-[320px] max-w-[calc(100vw-2rem)]">
+        <div className="pointer-events-auto">
+          <NpsPrompt
+            question={t("nps_question")}
+            commentPlaceholder={t("nps_comment_placeholder")}
+            submitLabel={t("nps_submit")}
+            thanksLabel={t("nps_thanks")}
+            dismissLabel={t("nps_dismiss")}
+            errorLabel={t("nps_error")}
+          />
+        </div>
+      </div>
     </div>
   );
 }

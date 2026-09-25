@@ -149,7 +149,26 @@ export async function snapshotUserVideos(
       },
       { onConflict: "youtube_video_id,snapshot_date" },
     );
-    if (!error) saved++;
+    if (!error) {
+      // Sprint 7-8: dual-write the platform-agnostic snapshot used for
+      // 24h/7d deltas. video_analytics stays the source for the legacy
+      // channel overview — neither write is allowed to fail the other.
+      const { error: statsError } = await admin.from("platform_video_stats").insert({
+        user_id: userId,
+        publish_job_id: d.publishJobId,
+        youtube_video_id: d.youtubeVideoId,
+        platform: "youtube",
+        metrics: {
+          views: r.views,
+          likes: r.likes,
+          comments: r.comments,
+          watch_time_minutes: r.estimatedMinutesWatched,
+        },
+        captured_at: new Date().toISOString(),
+      });
+      if (statsError) console.error("[analytics] platform_video_stats insert failed", statsError.message);
+      saved++;
+    }
   }
 
   // Channel-level snapshot (one per user per day).
