@@ -70,32 +70,22 @@ export const adminAdjustCredits = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     await assertAdmin(supabase, userId);
 
-    // Credits and ledger entries are protected from direct user writes, so
-    // privileged changes go through the service role after the admin check.
+    // Atomic balance update + ledger insert in a single transaction via RPC.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: profile, error } = await supabaseAdmin
-      .from("profiles")
-      .select("credits")
-      .eq("id", data.userId)
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (!profile) throw new Error("User not found");
-
-    const next = Math.max(0, profile.credits + data.delta);
-    const { error: updateError } = await supabaseAdmin
-      .from("profiles")
-      .update({ credits: next })
-      .eq("id", data.userId);
-    if (updateError) throw new Error(updateError.message);
-
-    await supabaseAdmin.from("credit_ledger").insert({
-      user_id: data.userId,
-      delta: data.delta,
-      reason: data.reason,
-      admin_id: userId,
+    const { data: credits, error: adjustError } = await supabaseAdmin.rpc("adjust_credits", {
+      p_user_id: data.userId,
+      p_delta: data.delta,
+      p_reason: data.reason,
+      p_admin_id: userId,
     });
+    if (adjustError) {
+      if (adjustError.message.includes("PROFILE_NOT_FOUND")) {
+        throw new Error("User not found");
+      }
+      throw new Error(adjustError.message);
+    }
 
-    return { credits: next };
+    return { credits: credits ?? 0 };
   });
 
 export const adminSetUserStatus = createServerFn({ method: "POST" })

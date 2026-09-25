@@ -527,6 +527,7 @@ export type Database = {
           delta: number
           id: string
           reason: string
+          ref_id: string | null
           user_id: string
         }
         Insert: {
@@ -535,6 +536,7 @@ export type Database = {
           delta: number
           id?: string
           reason: string
+          ref_id?: string | null
           user_id: string
         }
         Update: {
@@ -543,6 +545,7 @@ export type Database = {
           delta?: number
           id?: string
           reason?: string
+          ref_id?: string | null
           user_id?: string
         }
         Relationships: []
@@ -1394,9 +1397,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      adjust_credits: {
+        Args: { p_user_id: string; p_delta: number; p_reason: string; p_admin_id?: string | null }
+        Returns: number
+      }
       content_rights_approved: {
         Args: { _content_id: string }
         Returns: boolean
+      }
+      debit_credits_for_job: {
+        Args: { p_user_id: string; p_reason: string; p_job_id?: string | null }
+        Returns: number
       }
       has_role: {
         Args: {
@@ -1404,6 +1415,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      refund_credits: {
+        Args: { p_user_id: string; p_reason: string; p_job_id?: string | null }
+        Returns: number
       }
     }
     Enums: {

@@ -4,6 +4,13 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
 import { generateVideoPlan } from "./jobs.server";
 import {
+  canFinalizeJobStage,
+  claimJobStage,
+  isReapableJob,
+  REAP_AFTER_MS,
+  releaseJobStageClaim,
+} from "./jobs/stage-claim";
+import {
   looksLikeMp4,
   nextStageAfterVisuals,
   validateClientFinalizeMeta,
@@ -110,19 +117,21 @@ export const createVideoJob = createServerFn({ method: "POST" })
         .single();
       if (error) throw new Error(error.message);
 
-      // Reserve the credit once the plan exists. Privileged write: credits and
-      // ledger entries can only change through the service role (users can no
-      // longer modify them directly), so use the admin client after validation.
+      // Reserve the credit once the plan exists. The debit is a single atomic
+      // RPC (balance check + update + ledger insert in one transaction), so
+      // concurrent requests can never double-spend the same credit.
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      await supabaseAdmin
-        .from("profiles")
-        .update({ credits: profile.credits - 1 })
-        .eq("id", userId);
-      await supabaseAdmin.from("credit_ledger").insert({
-        user_id: userId,
-        delta: -1,
-        reason: `Video render: ${plan.title}`,
+      const { error: debitError } = await supabaseAdmin.rpc("debit_credits_for_job", {
+        p_user_id: userId,
+        p_reason: `Video render: ${plan.title}`,
+        p_job_id: job.id,
       });
+      if (debitError) {
+        if (debitError.message.includes("INSUFFICIENT_CREDITS")) {
+          throw new Error("You're out of credits. Upgrade your plan to keep rendering.");
+        }
+        throw new Error(debitError.message);
+      }
 
       return updated;
     } catch (error) {
@@ -177,73 +186,119 @@ export const advanceVideoJob = createServerFn({ method: "POST" })
       return next;
     };
 
+    // Lost a stage race (another tab claimed it): return the fresh job state
+    // with no side effects so the client just polls again.
+    const refetch = async () => {
+      const { data: fresh, error: err } = await supabase
+        .from("video_jobs")
+        .select("*")
+        .eq("id", job.id)
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (err) throw new Error(err.message);
+      if (!fresh) throw new Error("Job not found");
+      return fresh;
+    };
+
     try {
       switch (job.stage) {
         case "voiceover": {
-          const { url, estimatedSeconds } = await generateVoiceover(
-            supabaseAdmin,
-            job.id,
-            userId,
-            job.narration || job.script,
-            job.voice,
-          );
-          return await save({
-            audio_url: url,
-            duration_seconds: estimatedSeconds,
-            stage: "visuals",
-            progress: 45,
-            step: "Matching footage",
-          });
+          // Claim atomically: only the winner runs the paid TTS call.
+          const claimed = await claimJobStage(supabase, job.id, userId, "voiceover");
+          if (!claimed) return await refetch();
+          try {
+            const { url, estimatedSeconds } = await generateVoiceover(
+              supabaseAdmin,
+              job.id,
+              userId,
+              job.narration || job.script,
+              job.voice,
+            );
+            return await save({
+              audio_url: url,
+              duration_seconds: estimatedSeconds,
+              stage: "visuals",
+              progress: 45,
+              step: "Matching footage",
+            });
+          } catch (err) {
+            await releaseJobStageClaim(supabase, job.id, userId, "voiceover");
+            throw err;
+          }
         }
 
         case "visuals": {
-          const images = await generateSceneImages(
-            supabaseAdmin,
-            job.id,
-            userId,
-            scenes,
-            job.format,
-          );
-          const next = nextStageAfterVisuals(shotstackConfigured());
-          return await save({
-            assets: images,
-            thumbnail_url: images[0] ?? job.thumbnail_url,
-            stage: next.stage,
-            progress: next.progress,
-            step: next.step,
-          });
+          const claimed = await claimJobStage(supabase, job.id, userId, "visuals");
+          if (!claimed) return await refetch();
+          try {
+            const images = await generateSceneImages(
+              supabaseAdmin,
+              job.id,
+              userId,
+              scenes,
+              job.format,
+            );
+            const next = nextStageAfterVisuals(shotstackConfigured());
+            return await save({
+              assets: images,
+              thumbnail_url: images[0] ?? job.thumbnail_url,
+              stage: next.stage,
+              progress: next.progress,
+              step: next.step,
+            });
+          } catch (err) {
+            await releaseJobStageClaim(supabase, job.id, userId, "visuals");
+            throw err;
+          }
         }
 
         case "render": {
-          const images = (Array.isArray(job.assets) ? job.assets : []) as string[];
-          const renderId = await submitRender({
-            images,
-            audioUrl: job.audio_url!,
-            captions: scenes.map((s) => s.caption),
-            durationSeconds: job.duration_seconds ?? 45,
-            title: job.title ?? "Vidora video",
-          });
-          return await save({
-            render_id: renderId,
-            stage: "rendering",
-            progress: 80,
-            step: "Final render",
-          });
+          const claimed = await claimJobStage(supabase, job.id, userId, "render");
+          if (!claimed) return await refetch();
+          try {
+            const images = (Array.isArray(job.assets) ? job.assets : []) as string[];
+            const renderId = await submitRender({
+              images,
+              audioUrl: job.audio_url!,
+              captions: scenes.map((s) => s.caption),
+              durationSeconds: job.duration_seconds ?? 45,
+              title: job.title ?? "Vidora video",
+            });
+            return await save({
+              render_id: renderId,
+              stage: "rendering",
+              progress: 80,
+              step: "Final render",
+            });
+          } catch (err) {
+            await releaseJobStageClaim(supabase, job.id, userId, "render");
+            throw err;
+          }
         }
 
         case "rendering": {
           const status = await pollRender(job.render_id!);
           if (status.status === "done" && status.url) {
-            const stored = await storeFinishedVideo(supabaseAdmin, job.id, userId, status.url);
-            return await save({
-              result_url: stored,
-              status: "completed",
-              stage: "done",
-              progress: 100,
-              step: "Ready",
-            });
+            const claimed = await claimJobStage(supabase, job.id, userId, "rendering");
+            if (!claimed) return await refetch();
+            try {
+              const stored = await storeFinishedVideo(supabaseAdmin, job.id, userId, status.url);
+              return await save({
+                result_url: stored,
+                status: "completed",
+                stage: "done",
+                progress: 100,
+                step: "Ready",
+              });
+            } catch (err) {
+              await releaseJobStageClaim(supabase, job.id, userId, "rendering");
+              throw err;
+            }
           }
           if (status.status === "failed") {
+            const claimed = await claimJobStage(supabase, job.id, userId, "rendering");
+            if (!claimed) return await refetch();
+            // save() moves the claimed stage straight to failed; no release needed.
             return await save({
               status: "failed",
               stage: "failed",
@@ -341,6 +396,11 @@ export const finalizeVideoJob = createServerFn({ method: "POST" })
     if (jobError) throw new Error(jobError.message);
     if (!job) throw new Error("Job not found");
     if (job.status === "completed" && job.result_url) return job;
+    // Only a running job in a client-compose stage may attach a final MP4 —
+    // this blocks force-completing jobs that are still in voiceover/visuals/render.
+    if (!canFinalizeJobStage(job)) {
+      throw new Error("This job is not waiting for a final video upload.");
+    }
 
     const { data: blob, error: dlError } = await supabase.storage
       .from(VIDEO_BUCKET)
@@ -397,6 +457,8 @@ export const failVideoJobCompose = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
+    // Only a running job can be marked failed — never rewrite completed/failed
+    // history, even if the client retries this call after the job resolved.
     const { data: updated, error } = await context.supabase
       .from("video_jobs")
       .update({
@@ -407,8 +469,76 @@ export const failVideoJobCompose = createServerFn({ method: "POST" })
       })
       .eq("id", data.id)
       .eq("user_id", context.userId)
+      .eq("status", "running")
       .select("*")
-      .single();
+      .maybeSingle();
     if (error) throw new Error(error.message);
+    if (!updated) throw new Error("Job is already resolved.");
     return updated;
+  });
+
+/**
+ * Fail jobs stuck in `running` (browser closed / request died mid-stage) and
+ * refund the reserved credit when the ledger shows this job was actually
+ * charged. Safe to call repeatedly: the fail-mark is conditional on
+ * status='running' and refunds are idempotent per job (see refund_credits).
+ */
+export const reapStaleVideoJobs = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { userId } = context;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const cutoff = new Date(Date.now() - REAP_AFTER_MS).toISOString();
+
+    const { data: stale, error } = await supabaseAdmin
+      .from("video_jobs")
+      .select("id, stage, status, updated_at")
+      .eq("user_id", userId)
+      .eq("status", "running")
+      .not("stage", "in", "(done,failed)")
+      .lt("updated_at", cutoff);
+    if (error) throw new Error(error.message);
+
+    let reaped = 0;
+    let refunded = 0;
+    for (const job of stale ?? []) {
+      if (!isReapableJob(job)) continue;
+      // Conditional mark: concurrent reapers cannot double-process a job.
+      const { data: marked, error: markError } = await supabaseAdmin
+        .from("video_jobs")
+        .update({
+          status: "failed",
+          stage: "failed",
+          step: "Failed",
+          error: "Render timed out and was stopped.",
+        })
+        .eq("id", job.id)
+        .eq("user_id", userId)
+        .eq("status", "running")
+        .select("id")
+        .maybeSingle();
+      if (markError) throw new Error(markError.message);
+      if (!marked) continue;
+      reaped++;
+
+      // Refund only if this job was actually charged (debit recorded with ref_id).
+      const { data: debit } = await supabaseAdmin
+        .from("credit_ledger")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("ref_id", job.id)
+        .eq("delta", -1)
+        .limit(1)
+        .maybeSingle();
+      if (!debit) continue;
+      const { error: refundError } = await supabaseAdmin.rpc("refund_credits", {
+        p_user_id: userId,
+        p_reason: `Refund: stale render ${job.id}`,
+        p_job_id: job.id,
+      });
+      if (refundError) throw new Error(refundError.message);
+      refunded++;
+    }
+
+    return { reaped, refunded };
   });
