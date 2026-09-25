@@ -7,14 +7,21 @@ import {
 } from "./creation-modes";
 
 describe("home creation modes", () => {
-  it("exposes three home links that open a page, not a dialog", () => {
-    expect(CREATION_MODES.map((mode) => mode.id)).toEqual(["script", "voiceover", "auto_edit"]);
+  it("exposes four home links that open a page, not a dialog", () => {
+    expect(CREATION_MODES.map((mode) => mode.id)).toEqual([
+      "script",
+      "voiceover",
+      "auto_edit",
+      "story",
+    ]);
     expect(CREATION_MODES.every((mode) => mode.href.startsWith("/studio?create="))).toBe(true);
     expect(creationModeHref("script")).toBe("/studio?create=script");
+    expect(creationModeHref("story")).toBe("/studio?create=story");
   });
 
   it("ignores unknown create query values", () => {
     expect(parseCreateMode("script")).toBe("script");
+    expect(parseCreateMode("story")).toBe("story");
     expect(parseCreateMode("nope")).toBeNull();
     expect(parseCreateMode(null)).toBeNull();
   });
@@ -22,6 +29,7 @@ describe("home creation modes", () => {
   it("reads create from router search on the first render", () => {
     expect(studioSearchFromUnknown({ create: "script" })).toEqual({ create: "script" });
     expect(studioSearchFromUnknown({ create: "voiceover" })).toEqual({ create: "voiceover" });
+    expect(studioSearchFromUnknown({ create: "story" })).toEqual({ create: "story" });
     expect(studioSearchFromUnknown({})).toEqual({});
     expect(studioSearchFromUnknown({ create: ["script"] })).toEqual({});
   });

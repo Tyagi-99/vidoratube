@@ -20,6 +20,13 @@ export const CREATION_MODES = [
     title: "Automatic edit",
     line: "Trim to a target length, add captions, optional voice. One MP4 out.",
   },
+  {
+    id: "story",
+    href: "/studio?create=story",
+    kicker: "Five beats",
+    title: "Story Mode",
+    line: "Hook, setup, rising tension, payoff, loop — a script structured to hold attention.",
+  },
 ] as const;
 
 export type CreationModeId = (typeof CREATION_MODES)[number]["id"];
@@ -29,7 +36,8 @@ export function creationModeHref(id: CreationModeId): string {
 }
 
 export function parseCreateMode(value: string | null): CreationModeId | null {
-  if (value === "script" || value === "voiceover" || value === "auto_edit") return value;
+  if (value === "script" || value === "voiceover" || value === "auto_edit" || value === "story")
+    return value;
   return null;
 }
 
