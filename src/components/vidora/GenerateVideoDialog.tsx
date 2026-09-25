@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
-import { Check, Loader2, RotateCcw, Wand2 } from "lucide-react";
+import { Check, Loader2, RotateCcw, Wand2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FinalVideoPreview } from "@/components/vidora/FinalVideoPreview";
 import { supabase } from "@/integrations/supabase/client";
@@ -82,10 +82,15 @@ export function GenerateVideoDialog({
   const [result, setResult] = useState<JobResult | null>(null);
   const [composeError, setComposeError] = useState<string | null>(null);
   const [pendingComposeJob, setPendingComposeJob] = useState<JobResult | null>(null);
+  // A job that hit the polling cap while still running — resumable against
+  // the same job id instead of burning a new credit on a fresh job.
+  const [resumableJob, setResumableJob] = useState<JobResult | null>(null);
 
   // Keep the tab alive and warn before closing while the compose is running.
   useRenderGuard(pendingComposeJob != null);
   const abortRef = useRef<AbortController | null>(null);
+  // Set by the Cancel button; the drive loop checks it between iterations.
+  const cancelLoopRef = useRef(false);
 
   const { user, loading: sessionLoading } = useSession();
   const queryClient = useQueryClient();
@@ -134,6 +139,8 @@ export function GenerateVideoDialog({
     });
 
     setStepLabel("Saving final video");
+    // Don't upload/finalize after the user cancelled the compose.
+    if (controller.signal.aborted) throw new Error("Render cancelled");
     const storagePath = `${user.id}/${job.id}/video.mp4`;
     const upload = await supabase.storage
       .from("generated-videos")
@@ -159,6 +166,92 @@ export function GenerateVideoDialog({
     return finalized;
   };
 
+  // Drives an existing job (fresh or resumed) through the server pipeline and
+  // the client-side compose. Bounded iterations; cancelling fails the job
+  // server-side so it never sits at "running" forever.
+  const driveJob = async (startJob: JobResult): Promise<JobResult> => {
+    let job = startJob;
+
+    const failCancelled = async () => {
+      try {
+        await failCompose({ data: { id: job.id, error: "Render cancelled" } });
+      } catch {
+        /* already resolved — nothing to fail */
+      }
+      throw new Error("Render cancelled");
+    };
+
+    for (let i = 0; i < 90 && job.status === "running"; i++) {
+      if (cancelLoopRef.current) await failCancelled();
+
+      if (needsClientCompose(job)) {
+        try {
+          job = await runClientCompose(job);
+        } catch (err) {
+          if (cancelLoopRef.current) {
+            // User-cancelled compose: leave the job resumable (segments stay
+            // cached under the job run key) instead of marking it failed.
+            throw new Error("Render cancelled");
+          }
+          const message = err instanceof Error ? err.message : "Compose failed";
+          try {
+            job = (await failCompose({ data: { id: job.id, error: message } })) as JobResult;
+          } catch {
+            job = {
+              ...job,
+              status: "failed",
+              stage: "failed",
+              step: "Failed",
+              error: message,
+            };
+          }
+          throw new Error(message);
+        }
+        break;
+      }
+
+      job = (await advance({ data: { id: job.id } })) as JobResult;
+      setProgress(job.progress ?? 0);
+      setStepLabel(job.step ?? "Working");
+      setShowPercent(true);
+
+      if (needsClientCompose(job)) {
+        continue;
+      }
+      if (cancelLoopRef.current) await failCancelled();
+      if (job.status === "running") await sleep(job.stage === "rendering" ? 4000 : 400);
+    }
+
+    if (job.status === "failed") throw new Error(job.error ?? "Render failed");
+    if (!isFinalVideoReady(job)) {
+      if (job.status === "running") {
+        // The server job may still be working — keep it resumable against
+        // the same job id instead of forcing a brand-new (paid) job.
+        setResumableJob(job);
+        throw new Error("Still rendering — resume instead of starting over.");
+      }
+      throw new Error("Render finished without a final MP4. Please retry.");
+    }
+    return job;
+  };
+
+  const handleDriveSuccess = (job: JobResult) => {
+    setProgress(100);
+    setShowPercent(true);
+    setResult(job);
+    setComposeError(null);
+    setPendingComposeJob(null);
+    setResumableJob(null);
+    queryClient.invalidateQueries({ queryKey: ["my-jobs"] });
+  };
+
+  const handleDriveError = (error: Error) => {
+    setProgress(0);
+    setComposeError(error.message || "Render failed");
+    queryClient.invalidateQueries({ queryKey: ["my-jobs"] });
+    toast.error(error.message || "Render failed");
+  };
+
   const mutation = useMutation({
     mutationFn: async () => {
       setStepLabel("Writing narration");
@@ -166,64 +259,30 @@ export function GenerateVideoDialog({
       setShowPercent(true);
       setComposeError(null);
       setPendingComposeJob(null);
+      setResumableJob(null);
+      cancelLoopRef.current = false;
 
-      let job = (await create({ data: { script, voice, format } })) as JobResult;
+      const job = (await create({ data: { script, voice, format } })) as JobResult;
       setProgress(job.progress ?? 20);
       setStepLabel(job.step ?? "Recording voiceover");
-
-      for (let i = 0; i < 90 && job.status === "running"; i++) {
-        if (needsClientCompose(job)) {
-          try {
-            job = await runClientCompose(job);
-          } catch (err) {
-            const message = err instanceof Error ? err.message : "Compose failed";
-            try {
-              job = (await failCompose({ data: { id: job.id, error: message } })) as JobResult;
-            } catch {
-              job = {
-                ...job,
-                status: "failed",
-                stage: "failed",
-                step: "Failed",
-                error: message,
-              };
-            }
-            throw new Error(message);
-          }
-          break;
-        }
-
-        job = (await advance({ data: { id: job.id } })) as JobResult;
-        setProgress(job.progress ?? 0);
-        setStepLabel(job.step ?? "Working");
-        setShowPercent(true);
-
-        if (needsClientCompose(job)) {
-          continue;
-        }
-        if (job.status === "running") await sleep(job.stage === "rendering" ? 4000 : 400);
-      }
-
-      if (job.status === "failed") throw new Error(job.error ?? "Render failed");
-      if (!isFinalVideoReady(job)) {
-        throw new Error("Render finished without a final MP4. Please retry.");
-      }
-      return job;
+      return driveJob(job);
     },
-    onSuccess: (job) => {
-      setProgress(100);
-      setShowPercent(true);
-      setResult(job);
+    onSuccess: handleDriveSuccess,
+    onError: handleDriveError,
+  });
+
+  const resume = useMutation({
+    mutationFn: async () => {
+      const job = resumableJob;
+      if (!job) throw new Error("Nothing to resume.");
+      cancelLoopRef.current = false;
       setComposeError(null);
-      setPendingComposeJob(null);
-      queryClient.invalidateQueries();
+      setProgress(job.progress ?? 0);
+      setStepLabel(job.step ?? "Working");
+      return driveJob(job);
     },
-    onError: (error: Error) => {
-      setProgress(0);
-      setComposeError(error.message || "Render failed");
-      queryClient.invalidateQueries();
-      toast.error(error.message || "Render failed");
-    },
+    onSuccess: handleDriveSuccess,
+    onError: handleDriveError,
   });
 
   const retryCompose = useMutation({
@@ -237,7 +296,8 @@ export function GenerateVideoDialog({
       setResult(job);
       setComposeError(null);
       setPendingComposeJob(null);
-      queryClient.invalidateQueries();
+      setResumableJob(null);
+      queryClient.invalidateQueries({ queryKey: ["my-jobs"] });
       toast.success("Your MP4 is ready");
     },
     onError: (error: Error) => {
@@ -247,6 +307,7 @@ export function GenerateVideoDialog({
   });
 
   const reset = () => {
+    cancelLoopRef.current = true;
     abortRef.current?.abort();
     abortRef.current = null;
     setResult(null);
@@ -255,14 +316,22 @@ export function GenerateVideoDialog({
     setScript("");
     setComposeError(null);
     setPendingComposeJob(null);
+    setResumableJob(null);
     mutation.reset();
     retryCompose.reset();
+    resume.reset();
+    cancelLoopRef.current = false;
+  };
+
+  const cancelRender = () => {
+    cancelLoopRef.current = true;
+    abortRef.current?.abort();
   };
 
   const ready = result && isFinalVideoReady(result);
   const status = ready
     ? "done"
-    : mutation.isPending || retryCompose.isPending
+    : mutation.isPending || retryCompose.isPending || resume.isPending
       ? "generating"
       : composeError
         ? "failed"
@@ -275,7 +344,7 @@ export function GenerateVideoDialog({
       asPage={asPage}
       open={open}
       onOpenChange={(next) => {
-        if (!next && !mutation.isPending && !retryCompose.isPending) reset();
+        if (!next && !mutation.isPending && !retryCompose.isPending && !resume.isPending) reset();
         onOpenChange(next);
       }}
       title={
@@ -365,6 +434,10 @@ export function GenerateVideoDialog({
               );
             })}
           </div>
+          <Button variant="outline" className="w-full gap-2" onClick={cancelRender}>
+            <X className="h-4 w-4" />
+            Cancel render
+          </Button>
         </div>
       ) : status === "failed" ? (
         <div className="space-y-6 py-6">
@@ -383,8 +456,21 @@ export function GenerateVideoDialog({
                 <RotateCcw className="h-4 w-4" />
                 Retry compose
               </Button>
+            ) : resumableJob ? (
+              <Button
+                className="flex-1 gap-2"
+                onClick={() => resume.mutate()}
+                disabled={resume.isPending}
+              >
+                <RotateCcw className="h-4 w-4" />
+                Resume render
+              </Button>
             ) : (
-              <Button className="flex-1 gap-2" onClick={() => mutation.mutate()}>
+              <Button
+                className="flex-1 gap-2"
+                onClick={() => mutation.mutate()}
+                disabled={mutation.isPending}
+              >
                 <RotateCcw className="h-4 w-4" />
                 Try again
               </Button>
@@ -393,6 +479,11 @@ export function GenerateVideoDialog({
               Start over
             </Button>
           </div>
+          {resumableJob && (
+            <p className="text-xs text-muted-foreground">
+              Resuming continues the same render — it does not use another credit.
+            </p>
+          )}
         </div>
       ) : (
         <div className="space-y-5 py-4">
@@ -463,7 +554,7 @@ export function GenerateVideoDialog({
 
           <Button
             onClick={() => mutation.mutate()}
-            disabled={script.trim().length < 20}
+            disabled={mutation.isPending || script.trim().length < 20}
             className="w-full gap-2"
           >
             <Wand2 className="h-4 w-4" />

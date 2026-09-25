@@ -14,6 +14,17 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -25,6 +36,7 @@ import { RenderPanel } from "@/components/vidora/RenderPanel";
 import { VoiceoverEditorPanel } from "@/components/vidora/VoiceoverEditorPanel";
 import { AutoEditEditorPanel } from "@/components/vidora/AutoEditEditorPanel";
 import { projectCreationMode } from "@/lib/mode2/settings";
+import { formatSrtTimecode } from "@/lib/srt";
 
 
 export const Route = createFileRoute("/_authenticated/projects/$projectId")({
@@ -106,6 +118,24 @@ function ProjectEditor() {
   }, [running, project, projectId, advanceFn, queryClient]);
 
   if (data.isLoading || !project) {
+    if (data.isError) {
+      return (
+        <main className="mx-auto max-w-5xl px-4 py-20">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            Couldn&apos;t load this project
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {(data.error as Error)?.message ?? "Something went wrong."}
+          </p>
+          <div className="mt-6 flex gap-3">
+            <Button onClick={() => data.refetch()}>Try again</Button>
+            <Button asChild variant="outline">
+              <Link to="/projects">All projects</Link>
+            </Button>
+          </div>
+        </main>
+      );
+    }
     return (
       <main className="mx-auto max-w-5xl px-4 py-20">
         <Skeleton className="h-10 w-64" />
@@ -145,84 +175,115 @@ function ProjectEditor() {
       ? 100
       : Math.min(95, Math.round(((stageIndex + (scenes.length ? readyScenes / scenes.length : 0)) / STAGES.length) * 100));
 
-  const exportPackage = async () => {
-    const zip = new JSZip();
-    const safe = project.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase().slice(0, 60) || "vidora-project";
+  const [exporting, setExporting] = useState(false);
 
-    zip.file("narration.txt", scenes.map((s, i) => `SCENE ${i + 1}\n${s.narration}`).join("\n\n"));
-    zip.file(
-      "shot-list.txt",
-      scenes
-        .map(
-          (s, i) =>
-            `SCENE ${i + 1} — ${s.visual_type} — ${Number(s.duration).toFixed(1)}s\nMotion: ${s.motion_type} | Transition: ${s.transition}\nVisual: ${s.asset_url ?? "missing"}\n`,
-        )
-        .join("\n"),
-    );
+  const exportPackage = async (): Promise<number> => {
+    // -1: already running (button is disabled, this is a belt-and-braces guard)
+    if (exporting) return -1;
+    setExporting(true);
+    try {
+      const zip = new JSZip();
+      const safe = project.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase().slice(0, 60) || "vidora-project";
 
-    let offset = 0;
-    const srt: string[] = [];
-    let index = 1;
-    const stamp = (t: number) => {
-      const ms = Math.round((t % 1) * 1000);
-      const total = Math.floor(t);
-      return `${String(Math.floor(total / 3600)).padStart(2, "0")}:${String(Math.floor((total % 3600) / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")},${String(ms).padStart(3, "0")}`;
-    };
-    for (const scene of scenes) {
-      const cap = captions.find((c) => c.scene_id === scene.id);
-      const cues = (cap?.cues ?? []) as { start: number; end: number; text: string }[];
-      for (const cue of cues) {
-        srt.push(`${index++}\n${stamp(offset + cue.start)} --> ${stamp(offset + cue.end)}\n${cue.text}\n`);
+      zip.file("narration.txt", scenes.map((s, i) => `SCENE ${i + 1}\n${s.narration}`).join("\n\n"));
+      zip.file(
+        "shot-list.txt",
+        scenes
+          .map(
+            (s, i) =>
+              `SCENE ${i + 1} — ${s.visual_type} — ${Number(s.duration).toFixed(1)}s\nMotion: ${s.motion_type} | Transition: ${s.transition}\nVisual: ${s.asset_url ?? "missing"}\n`,
+          )
+          .join("\n"),
+      );
+
+      let offset = 0;
+      const srt: string[] = [];
+      let index = 1;
+      for (const scene of scenes) {
+        const cap = captions.find((c) => c.scene_id === scene.id);
+        const cues = (cap?.cues ?? []) as { start: number; end: number; text: string }[];
+        for (const cue of cues) {
+          srt.push(
+            `${index++}\n${formatSrtTimecode(offset + cue.start)} --> ${formatSrtTimecode(offset + cue.end)}\n${cue.text}\n`,
+          );
+        }
+        offset += Number(scene.duration);
       }
-      offset += Number(scene.duration);
+      zip.file("captions.srt", srt.join("\n"));
+
+      const missing: string[] = [];
+      const fetchChecked = async (url: string, what: string) => {
+        const res = await fetch(url);
+        if (!res.ok) {
+          missing.push(`${what} (HTTP ${res.status})`);
+          return null;
+        }
+        return res.blob();
+      };
+
+      await Promise.all(
+        scenes.map(async (scene, i) => {
+          const num = String(i + 1).padStart(2, "0");
+          if (scene.asset_url) {
+            try {
+              const blob = await fetchChecked(scene.asset_url, `visuals/scene-${num}`);
+              if (blob) {
+                const ext = scene.visual_type === "STOCK_VIDEO" ? "mp4" : "png";
+                zip.file(`visuals/scene-${num}.${ext}`, blob);
+              }
+            } catch {
+              missing.push(`visuals/scene-${num} (download failed)`);
+            }
+          }
+          const voice = voiceovers.find((v) => v.scene_id === scene.id);
+          if (voice?.audio_url) {
+            try {
+              const blob = await fetchChecked(voice.audio_url, `audio/scene-${num}.mp3`);
+              if (blob) zip.file(`audio/scene-${num}.mp3`, blob);
+            } catch {
+              missing.push(`audio/scene-${num}.mp3 (download failed)`);
+            }
+          }
+        }),
+      );
+
+      if (missing.length > 0) {
+        zip.file(
+          "MISSING-ASSETS.txt",
+          ["The following assets could not be downloaded and are missing from this package:", ""]
+            .concat(missing.map((m) => `- ${m}`))
+            .join("\n"),
+        );
+      }
+      zip.file(
+        "README.txt",
+        [
+          `${project.title}`,
+          "",
+          "1. Import every file in /visuals onto the timeline in order.",
+          "2. Import /audio clips in the same order on the audio track.",
+          "3. Match each visual to its audio clip length (see shot-list.txt).",
+          "4. Import captions.srt for synced subtitles.",
+          "5. Add the motion + transition listed per scene in shot-list.txt.",
+        ].join("\n"),
+      );
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${safe}-package.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      // Revoke on a later tick: revoking synchronously can cancel the
+      // download in Firefox when the anchor is detached.
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+      return missing.length;
+    } finally {
+      setExporting(false);
     }
-    zip.file("captions.srt", srt.join("\n"));
-
-    await Promise.all(
-      scenes.map(async (scene, i) => {
-        const num = String(i + 1).padStart(2, "0");
-        if (scene.asset_url) {
-          try {
-            const res = await fetch(scene.asset_url);
-            const blob = await res.blob();
-            const ext = scene.visual_type === "STOCK_VIDEO" ? "mp4" : "png";
-            zip.file(`visuals/scene-${num}.${ext}`, blob);
-          } catch {
-            /* skip unreachable asset */
-          }
-        }
-        const voice = voiceovers.find((v) => v.scene_id === scene.id);
-        if (voice?.audio_url) {
-          try {
-            const res = await fetch(voice.audio_url);
-            zip.file(`audio/scene-${num}.mp3`, await res.blob());
-          } catch {
-            /* skip unreachable asset */
-          }
-        }
-      }),
-    );
-
-    zip.file(
-      "README.txt",
-      [
-        `${project.title}`,
-        "",
-        "1. Import every file in /visuals onto the timeline in order.",
-        "2. Import /audio clips in the same order on the audio track.",
-        "3. Match each visual to its audio clip length (see shot-list.txt).",
-        "4. Import captions.srt for synced subtitles.",
-        "5. Add the motion + transition listed per scene in shot-list.txt.",
-      ].join("\n"),
-    );
-
-    const blob = await zip.generateAsync({ type: "blob" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${safe}-package.zip`;
-    a.click();
-    URL.revokeObjectURL(url);
   };
 
   return (
@@ -263,13 +324,18 @@ function ProjectEditor() {
               onClick={() =>
                 toast.promise(exportPackage(), {
                   loading: "Packaging assets…",
-                  success: "Package downloaded",
+                  success: (missingCount: number) =>
+                    missingCount > 0
+                      ? `Package downloaded — ${missingCount} asset${missingCount === 1 ? "" : "s"} missing (see MISSING-ASSETS.txt)`
+                      : missingCount === 0
+                        ? "Package downloaded"
+                        : "Export already running",
                   error: "Export failed",
                 })
               }
-              disabled={scenes.length === 0}
+              disabled={scenes.length === 0 || exporting}
             >
-              <Download className="h-4 w-4" />
+              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
               Export package
             </Button>
           </div>
@@ -352,7 +418,20 @@ function SceneCard({
   const [narration, setNarration] = useState(scene.narration);
   const [query, setQuery] = useState(scene.search_query ?? "");
   const [visualType, setVisualType] = useState(scene.visual_type);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["project", projectId] });
+
+  // Resync the form when the server row changes (regenerate/refetch);
+  // local edits only change state, never the props, so typing is not clobbered.
+  useEffect(() => {
+    setNarration(scene.narration);
+  }, [scene.narration]);
+  useEffect(() => {
+    setQuery(scene.search_query ?? "");
+  }, [scene.search_query]);
+  useEffect(() => {
+    setVisualType(scene.visual_type);
+  }, [scene.visual_type]);
 
   const save = useMutation({
     mutationFn: () =>
@@ -475,14 +554,39 @@ function SceneCard({
             )}
             Voice
           </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => remove.mutate()}
-            aria-label={`Delete scene ${scene.scene_number}`}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+            <AlertDialogTrigger asChild>
+              <Button
+                size="sm"
+                variant="ghost"
+                aria-label={`Delete scene ${scene.scene_number}`}
+                disabled={remove.isPending}
+              >
+                {remove.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete scene {scene.scene_number}?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This removes the scene, its visual and its voiceover. This cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Keep scene</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => remove.mutate()}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Delete scene
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
     </div>

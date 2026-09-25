@@ -96,6 +96,7 @@ export function RenderPanel({
   const [result, setResult] = useState<RenderResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [burnCaptions, setBurnCaptions] = useState(true);
+  const [confirmPartial, setConfirmPartial] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const lastPushRef = useRef(0);
 
@@ -113,6 +114,12 @@ export function RenderPanel({
 
   const readyScenes = scenes.filter((s) => s.asset_url);
   const missing = scenes.length - readyScenes.length;
+
+  // The explicit partial-render confirmation only applies while scenes are
+  // actually missing.
+  useEffect(() => {
+    if (missing === 0) setConfirmPartial(false);
+  }, [missing]);
 
   const buildTimeline = useCallback((): RenderScene[] => {
     return readyScenes.map((scene) => {
@@ -155,12 +162,18 @@ export function RenderPanel({
     const settings = (project.settings ?? {}) as { music_url?: string | null };
 
     let renderId: string | null = null;
-    const { renderProject, resolutionFor, RenderCancelled, releaseFfmpeg } = await import(
-      "@/lib/render/browser-render"
-    );
-    const { width, height } = resolutionFor(project.aspect_ratio);
+    // Bound inside try: a chunk/CDN failure while loading the renderer must
+    // land in the catch below (resetting state) instead of leaving the UI
+    // stuck in "rendering" forever on an unhandled rejection.
+    let RenderCancelled: (new () => Error) | null = null;
+    let releaseFfmpeg: (() => Promise<void>) | null = null;
 
     try {
+      const mod = await import("@/lib/render/browser-render");
+      const { renderProject, resolutionFor } = mod;
+      RenderCancelled = mod.RenderCancelled;
+      releaseFfmpeg = mod.releaseFfmpeg;
+      const { width, height } = resolutionFor(project.aspect_ratio);
       const row = await startFn({
         data: {
           projectId: project.id,
@@ -197,13 +210,23 @@ export function RenderPanel({
       setResult(output);
       setPreviewUrl(URL.createObjectURL(output.blob));
 
+      // Cancel also stops the upload and the finalize call — they must not
+      // run to completion after the user aborted the render.
+      const throwIfCancelled = () => {
+        if (!controller.signal.aborted) return;
+        if (RenderCancelled) throw new RenderCancelled();
+        throw new Error("Render cancelled");
+      };
+
       setProgress({ stage: "finalize", label: "Saving to your library", progress: 99 });
+      throwIfCancelled();
       const path = `${user.id}/renders/${renderId}.mp4`;
       const upload = await supabase.storage
         .from("generated-videos")
         .upload(path, output.blob, { contentType: "video/mp4", upsert: true });
       if (upload.error) throw new Error(`Saving to your library failed: ${upload.error.message}`);
 
+      throwIfCancelled();
       await completeFn({
         data: {
           id: renderId!,
@@ -219,14 +242,14 @@ export function RenderPanel({
       void renders.refetch();
       queryClient.invalidateQueries({ queryKey: ["project", project.id] });
     } catch (err) {
-      const cancelled = err instanceof RenderCancelled || controller.signal.aborted;
+      const cancelled =
+        (RenderCancelled != null && err instanceof RenderCancelled) || controller.signal.aborted;
       const message = cancelled ? "Render cancelled" : (err as Error).message;
       if (!cancelled) setError(message);
       if (renderId) {
         void failFn({ data: { id: renderId, error: message, cancelled } }).catch(() => undefined);
       }
       if (cancelled) {
-        await releaseFfmpeg();
         toast.message("Render cancelled");
       } else {
         toast.error(message);
@@ -235,6 +258,15 @@ export function RenderPanel({
     } finally {
       abortRef.current = null;
       setRendering(false);
+      // Always free the ffmpeg worker when the render settles — the cancel
+      // path is no longer the only way out.
+      if (releaseFfmpeg) {
+        try {
+          await releaseFfmpeg();
+        } catch {
+          /* best effort */
+        }
+      }
     }
   };
 
@@ -267,7 +299,16 @@ export function RenderPanel({
               Cancel
             </Button>
           ) : (
-            <Button className="gap-2" onClick={run} disabled={readyScenes.length === 0}>
+            <Button
+              className="gap-2"
+              onClick={run}
+              disabled={readyScenes.length === 0 || (missing > 0 && !confirmPartial)}
+              title={
+                missing > 0 && !confirmPartial
+                  ? "Some scenes are missing visuals — confirm a partial draft below to render anyway"
+                  : undefined
+              }
+            >
               <Film className="h-4 w-4" />
               {result || completed.length > 0 ? "Render again" : "Render MP4"}
             </Button>
@@ -285,6 +326,18 @@ export function RenderPanel({
           </Badge>
         )}
       </div>
+
+      {missing > 0 && !rendering && (
+        <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+          <Switch
+            checked={confirmPartial}
+            onCheckedChange={setConfirmPartial}
+            aria-label="Render a partial draft from ready scenes only"
+          />
+          Render a partial draft from the {readyScenes.length} ready scene
+          {readyScenes.length === 1 ? "" : "s"} only
+        </label>
+      )}
 
       {(rendering || progress) && (
         <div className="mt-6">
@@ -353,6 +406,8 @@ export function RenderPanel({
             <Button asChild className="gap-2">
               <a
                 href={previewUrl ?? completed[0]?.file_url ?? "#"}
+                target="_blank"
+                rel="noreferrer"
                 download={`${project.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.mp4`}
               >
                 <Download className="h-4 w-4" />

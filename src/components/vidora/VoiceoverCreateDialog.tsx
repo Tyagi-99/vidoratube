@@ -18,6 +18,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/useSession";
+import { probeVideoDuration } from "@/lib/probe-video";
 import { createVoiceoverProject } from "@/lib/mode2/mode2.functions";
 import { COMMENTARY_STYLES, DURATION_PRESETS } from "@/lib/mode2/duration";
 import { PERMISSION_STATUSES } from "@/lib/content/stages";
@@ -108,22 +109,8 @@ export function VoiceoverCreateDialog({
         source_video_url = signed.signedUrl;
         source_storage_path = path;
 
-        // Best-effort duration probe
-        source_duration_seconds = await new Promise<number | undefined>((resolve) => {
-          const url = URL.createObjectURL(file);
-          const el = document.createElement("video");
-          el.preload = "metadata";
-          el.onloadedmetadata = () => {
-            const d = Number.isFinite(el.duration) ? el.duration : undefined;
-            URL.revokeObjectURL(url);
-            resolve(d);
-          };
-          el.onerror = () => {
-            URL.revokeObjectURL(url);
-            resolve(undefined);
-          };
-          el.src = url;
-        });
+        // Best-effort duration probe (times out instead of hanging the dialog).
+        source_duration_seconds = await probeVideoDuration(file);
       }
 
       const project = await createFn({

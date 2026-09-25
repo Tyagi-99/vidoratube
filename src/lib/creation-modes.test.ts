@@ -25,4 +25,21 @@ describe("home creation modes", () => {
     expect(studioSearchFromUnknown({})).toEqual({});
     expect(studioSearchFromUnknown({ create: ["script"] })).toEqual({});
   });
+
+  it("whitelists the YouTube OAuth callback params and strips everything else", () => {
+    // The callback redirects to /studio?youtube=connected|error&reason=…
+    expect(studioSearchFromUnknown({ youtube: "connected" })).toEqual({ youtube: "connected" });
+    expect(studioSearchFromUnknown({ youtube: "error", reason: "access_denied" })).toEqual({
+      youtube: "error",
+      reason: "access_denied",
+    });
+    // Invalid values are stripped, not passed through.
+    expect(studioSearchFromUnknown({ youtube: "hacked" })).toEqual({});
+    // reason is only kept for the error case.
+    expect(studioSearchFromUnknown({ youtube: "connected", reason: "x" })).toEqual({
+      youtube: "connected",
+    });
+    // Unrelated params never leak through.
+    expect(studioSearchFromUnknown({ create: "script", foo: "bar" })).toEqual({ create: "script" });
+  });
 });

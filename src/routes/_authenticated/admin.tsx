@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect } from "react";
 import { getMyAccount } from "@/lib/jobs.functions";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import {
   Gauge,
   Users,
@@ -52,6 +53,24 @@ function AdminLayout() {
   }, [account.data, navigate]);
 
   if (account.isLoading || !account.data?.isAdmin) {
+    if (account.isError) {
+      return (
+        <main className="mx-auto max-w-6xl px-4 py-20">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            Couldn&apos;t load the admin panel
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {(account.error as Error)?.message ?? "Something went wrong."}
+          </p>
+          <div className="mt-6 flex gap-3">
+            <Button onClick={() => account.refetch()}>Try again</Button>
+            <Button asChild variant="outline">
+              <Link to="/studio">Back to studio</Link>
+            </Button>
+          </div>
+        </main>
+      );
+    }
     return (
       <main className="mx-auto max-w-6xl px-4 py-20">
         <Skeleton className="h-10 w-52" />

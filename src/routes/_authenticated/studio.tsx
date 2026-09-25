@@ -1,11 +1,22 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { GenerateVideoDialog } from "@/components/vidora/GenerateVideoDialog";
 import { ModeChooser } from "@/components/vidora/ModeChooser";
 import { VoiceoverCreateDialog } from "@/components/vidora/VoiceoverCreateDialog";
@@ -18,7 +29,7 @@ import { CREATION_MODES, studioSearchFromUnknown } from "@/lib/creation-modes";
 import { ResumeComposeButton, isStalledCompose } from "@/components/vidora/ResumeComposeButton";
 
 import { publishJobToYouTube } from "@/lib/youtube.functions";
-import { getMyAccount, listMyJobs, deleteMyJob } from "@/lib/jobs.functions";
+import { getMyAccount, listMyJobs, deleteMyJob, reapStaleVideoJobs } from "@/lib/jobs.functions";
 import {
   Coins,
   Film,
@@ -59,7 +70,7 @@ const statusStyles: Record<string, string> = {
 };
 
 function StudioPage() {
-  const { create: pageMode } = Route.useSearch();
+  const { create: pageMode, youtube, reason } = Route.useSearch();
   const [modeChooserOpen, setModeChooserOpen] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -67,9 +78,34 @@ function StudioPage() {
   const accountFn = useServerFn(getMyAccount);
   const jobsFn = useServerFn(listMyJobs);
   const removeFn = useServerFn(deleteMyJob);
+  const reapFn = useServerFn(reapStaleVideoJobs);
 
   const account = useQuery({ queryKey: ["account"], queryFn: () => accountFn({}) });
   const jobs = useQuery({ queryKey: ["my-jobs"], queryFn: () => jobsFn({}) });
+
+  // Clean up jobs stuck in "running" from a dead tab: fails them and refunds
+  // the credit exactly once. Fire-and-forget, once per studio visit.
+  useEffect(() => {
+    void reapFn({}).catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Surface the YouTube OAuth outcome, then strip the params so a refresh
+  // doesn't re-toast. (The callback redirects here with ?youtube=…&reason=…;
+  // the search schema used to strip them before this component ever saw them.)
+  useEffect(() => {
+    if (!youtube) return;
+    if (youtube === "connected") {
+      toast.success("YouTube connected", {
+        description: "You can now publish finished videos straight to your channel.",
+      });
+    } else {
+      const detail = (reason ?? "unknown_error").replace(/_/g, " ");
+      toast.error("YouTube connection failed", { description: detail });
+    }
+    void navigate({ to: "/studio", search: {}, replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [youtube]);
 
   const remove = useMutation({
     mutationFn: (id: string) => removeFn({ data: { id } }),
@@ -134,19 +170,34 @@ function StudioPage() {
             <StatCard
               icon={<Coins className="h-4 w-4" />}
               label="Credits left"
-              value={account.isLoading ? null : String(profile?.credits ?? 0)}
+              value={
+                account.isLoading ? null : account.isError ? "—" : String(profile?.credits ?? 0)
+              }
             />
             <StatCard
               icon={<Film className="h-4 w-4" />}
               label="Videos rendered"
-              value={account.isLoading ? null : String(account.data?.jobCount ?? 0)}
+              value={
+                account.isLoading ? null : account.isError ? "—" : String(account.data?.jobCount ?? 0)
+              }
             />
             <StatCard
               icon={<LayoutDashboard className="h-4 w-4" />}
               label="Plan"
-              value={account.isLoading ? null : (profile?.plan ?? "free")}
+              value={account.isLoading ? null : account.isError ? "—" : (profile?.plan ?? "free")}
             />
           </dl>
+          {account.isError && (
+            <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3">
+              <p className="text-sm text-muted-foreground">
+                Couldn&apos;t load your account ({(account.error as Error)?.message ?? "unknown error"}).
+                Your credits are shown as “—”, not 0.
+              </p>
+              <Button size="sm" variant="outline" onClick={() => account.refetch()}>
+                Retry
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -313,7 +364,7 @@ function StudioPage() {
                             variant="secondary"
                             className="flex-1 gap-1"
                             onClick={() => publish.mutate(job.id)}
-                            disabled={publish.isPending}
+                            disabled={publish.isPending && publish.variables === job.id}
                           >
                             {publish.isPending && publish.variables === job.id ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
@@ -323,14 +374,40 @@ function StudioPage() {
                             Publish
                           </Button>
                         ))}
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => remove.mutate(job.id)}
-                        aria-label={`Delete ${job.title}`}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            aria-label={`Delete ${job.title}`}
+                            disabled={remove.isPending && remove.variables === job.id}
+                          >
+                            {remove.isPending && remove.variables === job.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete &ldquo;{job.title}&rdquo;?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This permanently deletes the video and its files. This cannot be
+                              undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Keep video</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => remove.mutate(job.id)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Delete video
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </div>
                 </article>

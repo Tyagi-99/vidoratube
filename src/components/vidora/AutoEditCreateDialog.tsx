@@ -19,6 +19,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/useSession";
+import { probeVideoDuration } from "@/lib/probe-video";
 import { createAutoEditProject } from "@/lib/mode3/mode3.functions";
 import { DURATION_PRESETS } from "@/lib/mode2/duration";
 import { PERMISSION_STATUSES } from "@/lib/content/stages";
@@ -161,21 +162,7 @@ export function AutoEditCreateDialog({
         .createSignedUrl(path, 60 * 60 * 24 * 365);
       if (signErr || !signed) throw new Error(signErr?.message || "Could not sign upload URL");
 
-      const source_duration_seconds = await new Promise<number | undefined>((resolve) => {
-        const url = URL.createObjectURL(file);
-        const el = document.createElement("video");
-        el.preload = "metadata";
-        el.onloadedmetadata = () => {
-          const d = Number.isFinite(el.duration) ? el.duration : undefined;
-          URL.revokeObjectURL(url);
-          resolve(d);
-        };
-        el.onerror = () => {
-          URL.revokeObjectURL(url);
-          resolve(undefined);
-        };
-        el.src = url;
-      });
+      const source_duration_seconds = await probeVideoDuration(file);
 
       const { project } = await createFn({
         data: {

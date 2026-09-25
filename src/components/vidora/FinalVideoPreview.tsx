@@ -20,8 +20,9 @@ export type FinalVideoPreviewJob = {
 
 function formatDuration(seconds: number | null) {
   if (!seconds) return "—";
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
+  const total = Math.round(seconds);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
@@ -39,7 +40,16 @@ export function FinalVideoPreview({
   onDone?: () => void;
 }) {
   const downloadUrl = selectDownloadUrl(job);
-  if (!downloadUrl) return null;
+  if (!downloadUrl) {
+    return (
+      <div className="rounded-xl border border-border bg-muted/40 p-10 text-center">
+        <p className="text-sm font-medium text-foreground">Your video isn't ready yet</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          The final MP4 hasn't been composed — finish the render first.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 py-4">
@@ -61,9 +71,7 @@ export function FinalVideoPreview({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="font-semibold text-foreground">{job.title}</p>
-            <p className="text-sm text-muted-foreground">
-              1080p · {formatDuration(job.duration_seconds)}
-            </p>
+            <p className="text-sm text-muted-foreground">{formatDuration(job.duration_seconds)}</p>
           </div>
           <div className="flex items-center gap-2">
             <CapCutExportButton

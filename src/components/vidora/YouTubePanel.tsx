@@ -44,15 +44,28 @@ export function YouTubePanel() {
         </div>
         <div>
           <p className="font-semibold text-foreground">YouTube publishing</p>
-          <p className="text-sm text-muted-foreground">
-            {state.isLoading
-              ? "Checking connection…"
-              : !state.data?.configured
-                ? "Not configured yet — add your Google OAuth keys in Admin → Integrations."
-                : connection
-                  ? `Connected to ${connection.channel_title ?? "your channel"}`
-                  : "Connect your channel to publish finished videos straight to YouTube."}
-          </p>
+          {state.isError ? (
+            <p className="text-sm text-destructive">
+              Couldn&apos;t check the connection ({state.error instanceof Error ? state.error.message : "unknown error"}).{" "}
+              <button
+                type="button"
+                className="font-medium underline underline-offset-2"
+                onClick={() => state.refetch()}
+              >
+                Retry
+              </button>
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              {state.isLoading
+                ? "Checking connection…"
+                : !state.data?.configured
+                  ? "Not configured yet — add your Google OAuth keys in Admin → Integrations."
+                  : connection
+                    ? `Connected to ${connection.channel_title ?? "your channel"}`
+                    : "Connect your channel to publish finished videos straight to YouTube."}
+            </p>
+          )}
         </div>
       </div>
       {state.data?.configured &&

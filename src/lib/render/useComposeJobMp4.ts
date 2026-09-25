@@ -95,7 +95,7 @@ export function useComposeJobMp4(options?: { silent?: boolean }) {
       composeActiveRef.current = false;
       setLabel(null);
       if (!options?.silent) toast.success("Your MP4 is ready");
-      queryClient.invalidateQueries();
+      queryClient.invalidateQueries({ queryKey: ["my-jobs"] });
     },
     onError: async (error: Error, job) => {
       composeActiveRef.current = false;
@@ -106,10 +106,14 @@ export function useComposeJobMp4(options?: { silent?: boolean }) {
       } catch {
         /* keep the original error visible */
       }
-      queryClient.invalidateQueries();
+      queryClient.invalidateQueries({ queryKey: ["my-jobs"] });
       if (!options?.silent) toast.error(message);
     },
   });
 
-  return { run, label };
+  const cancel = () => {
+    abortRef.current?.abort();
+  };
+
+  return { run, label, cancel };
 }

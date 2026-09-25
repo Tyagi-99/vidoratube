@@ -116,6 +116,15 @@ export function AppChrome() {
                 <Film className="size-4 text-muted-foreground" aria-hidden="true" /> {item.label}
               </Link>
             ))}
+            {account.data?.isAdmin && (
+              <Link
+                to="/admin"
+                className="flex min-h-11 items-center gap-2 border-b border-border px-2 text-sm font-medium"
+                onClick={() => setMobileOpen(false)}
+              >
+                <Shield className="size-4 text-muted-foreground" aria-hidden="true" /> Admin
+              </Link>
+            )}
             <div className="flex items-center justify-between gap-2 pt-2">
               <span className="text-sm text-muted-foreground">
                 <span className="tabular-nums text-foreground">

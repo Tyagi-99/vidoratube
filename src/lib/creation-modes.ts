@@ -36,7 +36,18 @@ export function parseCreateMode(value: string | null): CreationModeId | null {
 /** Router search for /studio — available on the first client render, no useEffect. */
 export function studioSearchFromUnknown(search: Record<string, unknown>): {
   create?: CreationModeId;
+  youtube?: "connected" | "error";
+  reason?: string;
 } {
   const create = parseCreateMode(typeof search["create"] === "string" ? search["create"] : null);
-  return create ? { create } : {};
+  const youtubeRaw = search["youtube"];
+  const youtube = youtubeRaw === "connected" || youtubeRaw === "error" ? youtubeRaw : undefined;
+  const reason = typeof search["reason"] === "string" ? search["reason"] : undefined;
+  return {
+    ...(create ? { create } : {}),
+    // Kept (not stripped): the YouTube OAuth callback redirects here with
+    // ?youtube=connected|error&reason=… and the studio toasts the outcome.
+    ...(youtube ? { youtube } : {}),
+    ...(youtube === "error" && reason ? { reason } : {}),
+  };
 }
