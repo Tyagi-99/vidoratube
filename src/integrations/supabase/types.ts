@@ -58,6 +58,84 @@ export type Database = {
           },
         ]
       }
+      asset_provenance: {
+        Row: {
+          asset_url: string | null
+          cost_credits: number | null
+          created_at: string
+          id: string
+          kind: string | null
+          license: string | null
+          license_url: string | null
+          model: string | null
+          project_id: string | null
+          prompt: string | null
+          provider: string | null
+          scene_id: string | null
+          seed: string | null
+          type: string | null
+          user_id: string
+        }
+        Insert: {
+          asset_url?: string | null
+          cost_credits?: number | null
+          created_at?: string
+          id?: string
+          kind?: string | null
+          license?: string | null
+          license_url?: string | null
+          model?: string | null
+          project_id?: string | null
+          prompt?: string | null
+          provider?: string | null
+          scene_id?: string | null
+          seed?: string | null
+          type?: string | null
+          user_id: string
+        }
+        Update: {
+          asset_url?: string | null
+          cost_credits?: number | null
+          created_at?: string
+          id?: string
+          kind?: string | null
+          license?: string | null
+          license_url?: string | null
+          model?: string | null
+          project_id?: string | null
+          prompt?: string | null
+          provider?: string | null
+          scene_id?: string | null
+          seed?: string | null
+          type?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      billing_events: {
+        Row: {
+          created_at: string
+          event_id: string | null
+          id: string
+          payload: Json | null
+          provider: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          payload?: Json | null
+          provider?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          payload?: Json | null
+          provider?: string | null
+        }
+        Relationships: []
+      }
       captions: {
         Row: {
           created_at: string
@@ -130,6 +208,60 @@ export type Database = {
           name?: string
           slug?: string
           sort_order?: number
+        }
+        Relationships: []
+      }
+      channel_stats: {
+        Row: {
+          created_at: string
+          id: string
+          metrics: Json | null
+          snapshot_date: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          metrics?: Json | null
+          snapshot_date?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          metrics?: Json | null
+          snapshot_date?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      characters: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string | null
+          reference_image_url: string | null
+          style: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string | null
+          reference_image_url?: string | null
+          style?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string | null
+          reference_image_url?: string | null
+          style?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -592,6 +724,90 @@ export type Database = {
         }
         Relationships: []
       }
+      learning_insights: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string | null
+          monetization_status: string | null
+          note: string | null
+          payload: Json | null
+          safety_score: number | null
+          title: string | null
+          user_id: string
+          youtube_video_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind?: string | null
+          monetization_status?: string | null
+          note?: string | null
+          payload?: Json | null
+          safety_score?: number | null
+          title?: string | null
+          user_id: string
+          youtube_video_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string | null
+          monetization_status?: string | null
+          note?: string | null
+          payload?: Json | null
+          safety_score?: number | null
+          title?: string | null
+          user_id?: string
+          youtube_video_id?: string | null
+        }
+        Relationships: []
+      }
+      music_tracks: {
+        Row: {
+          artist: string | null
+          created_at: string
+          download_url: string | null
+          duration_secs: number | null
+          id: string
+          license: string | null
+          license_url: string | null
+          mood: string | null
+          preview_url: string | null
+          provider: string | null
+          provider_track_id: string | null
+          title: string | null
+        }
+        Insert: {
+          artist?: string | null
+          created_at?: string
+          download_url?: string | null
+          duration_secs?: number | null
+          id?: string
+          license?: string | null
+          license_url?: string | null
+          mood?: string | null
+          preview_url?: string | null
+          provider?: string | null
+          provider_track_id?: string | null
+          title?: string | null
+        }
+        Update: {
+          artist?: string | null
+          created_at?: string
+          download_url?: string | null
+          duration_secs?: number | null
+          id?: string
+          license?: string | null
+          license_url?: string | null
+          mood?: string | null
+          preview_url?: string | null
+          provider?: string | null
+          provider_track_id?: string | null
+          title?: string | null
+        }
+        Relationships: []
+      }
       niches: {
         Row: {
           content_style: string
@@ -655,6 +871,87 @@ export type Database = {
           target_platforms?: string[]
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      outlier_videos: {
+        Row: {
+          channel_title: string | null
+          created_at: string
+          ctr: number | null
+          id: string
+          outlier_score: number | null
+          patterns: Json | null
+          project_id: string | null
+          published_at: string | null
+          retention: number | null
+          source: string | null
+          title: string | null
+          user_id: string
+          view_count: number | null
+          youtube_id: string | null
+        }
+        Insert: {
+          channel_title?: string | null
+          created_at?: string
+          ctr?: number | null
+          id?: string
+          outlier_score?: number | null
+          patterns?: Json | null
+          project_id?: string | null
+          published_at?: string | null
+          retention?: number | null
+          source?: string | null
+          title?: string | null
+          user_id: string
+          view_count?: number | null
+          youtube_id?: string | null
+        }
+        Update: {
+          channel_title?: string | null
+          created_at?: string
+          ctr?: number | null
+          id?: string
+          outlier_score?: number | null
+          patterns?: Json | null
+          project_id?: string | null
+          published_at?: string | null
+          retention?: number | null
+          source?: string | null
+          title?: string | null
+          user_id?: string
+          view_count?: number | null
+          youtube_id?: string | null
+        }
+        Relationships: []
+      }
+      plans: {
+        Row: {
+          created_at: string
+          credits: number | null
+          features: Json | null
+          id: string
+          name: string | null
+          price_cents: number | null
+          slug: string | null
+        }
+        Insert: {
+          created_at?: string
+          credits?: number | null
+          features?: Json | null
+          id?: string
+          name?: string | null
+          price_cents?: number | null
+          slug?: string | null
+        }
+        Update: {
+          created_at?: string
+          credits?: number | null
+          features?: Json | null
+          id?: string
+          name?: string | null
+          price_cents?: number | null
+          slug?: string | null
         }
         Relationships: []
       }
@@ -834,6 +1131,108 @@ export type Database = {
           },
         ]
       }
+      publish_jobs: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          description: string | null
+          error: string | null
+          id: string
+          made_for_kids: boolean | null
+          privacy: string | null
+          project_id: string | null
+          published_at: string | null
+          safety_override: boolean | null
+          safety_score: number | null
+          scheduled_for: string | null
+          status: string
+          tags: string[] | null
+          thumbnail_id: string | null
+          title: string | null
+          updated_at: string
+          user_id: string
+          video_job_id: string | null
+          youtube_url: string | null
+          youtube_video_id: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          description?: string | null
+          error?: string | null
+          id?: string
+          made_for_kids?: boolean | null
+          privacy?: string | null
+          project_id?: string | null
+          published_at?: string | null
+          safety_override?: boolean | null
+          safety_score?: number | null
+          scheduled_for?: string | null
+          status?: string
+          tags?: string[] | null
+          thumbnail_id?: string | null
+          title?: string | null
+          updated_at?: string
+          user_id: string
+          video_job_id?: string | null
+          youtube_url?: string | null
+          youtube_video_id?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          description?: string | null
+          error?: string | null
+          id?: string
+          made_for_kids?: boolean | null
+          privacy?: string | null
+          project_id?: string | null
+          published_at?: string | null
+          safety_override?: boolean | null
+          safety_score?: number | null
+          scheduled_for?: string | null
+          status?: string
+          tags?: string[] | null
+          thumbnail_id?: string | null
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+          video_job_id?: string | null
+          youtube_url?: string | null
+          youtube_video_id?: string | null
+        }
+        Relationships: []
+      }
+      referrals: {
+        Row: {
+          code: string | null
+          created_at: string
+          id: string
+          referee_id: string | null
+          referrer_id: string
+          status: string | null
+        }
+        Insert: {
+          code?: string | null
+          created_at?: string
+          id?: string
+          referee_id?: string | null
+          referrer_id: string
+          status?: string | null
+        }
+        Update: {
+          code?: string | null
+          created_at?: string
+          id?: string
+          referee_id?: string | null
+          referrer_id?: string
+          status?: string | null
+        }
+        Relationships: []
+      }
       renders: {
         Row: {
           aspect_ratio: string | null
@@ -914,6 +1313,33 @@ export type Database = {
           },
         ]
       }
+      research_projects: {
+        Row: {
+          created_at: string
+          id: string
+          language: string | null
+          niches: string[] | null
+          topic: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          language?: string | null
+          niches?: string[] | null
+          topic?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          language?: string | null
+          niches?: string[] | null
+          topic?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       rights_decisions: {
         Row: {
           content_item_id: string
@@ -967,6 +1393,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      safety_scores: {
+        Row: {
+          band: string | null
+          created_at: string
+          dimensions: Json | null
+          id: string
+          issues: Json | null
+          model: string | null
+          project_id: string | null
+          score: number | null
+          suggestions: Json | null
+          user_id: string
+          version: string | null
+        }
+        Insert: {
+          band?: string | null
+          created_at?: string
+          dimensions?: Json | null
+          id?: string
+          issues?: Json | null
+          model?: string | null
+          project_id?: string | null
+          score?: number | null
+          suggestions?: Json | null
+          user_id: string
+          version?: string | null
+        }
+        Update: {
+          band?: string | null
+          created_at?: string
+          dimensions?: Json | null
+          id?: string
+          issues?: Json | null
+          model?: string | null
+          project_id?: string | null
+          score?: number | null
+          suggestions?: Json | null
+          user_id?: string
+          version?: string | null
+        }
+        Relationships: []
       }
       scenes: {
         Row: {
@@ -1045,6 +1513,57 @@ export type Database = {
           },
         ]
       }
+      seo_metadata: {
+        Row: {
+          chapters: Json | null
+          created_at: string
+          description: string | null
+          hashtags: string[] | null
+          id: string
+          project_id: string | null
+          selected_title: string | null
+          status: string | null
+          tags: string[] | null
+          thumbnail_id: string | null
+          titles: Json | null
+          updated_at: string
+          user_id: string
+          video_job_id: string | null
+        }
+        Insert: {
+          chapters?: Json | null
+          created_at?: string
+          description?: string | null
+          hashtags?: string[] | null
+          id?: string
+          project_id?: string | null
+          selected_title?: string | null
+          status?: string | null
+          tags?: string[] | null
+          thumbnail_id?: string | null
+          titles?: Json | null
+          updated_at?: string
+          user_id: string
+          video_job_id?: string | null
+        }
+        Update: {
+          chapters?: Json | null
+          created_at?: string
+          description?: string | null
+          hashtags?: string[] | null
+          id?: string
+          project_id?: string | null
+          selected_title?: string | null
+          status?: string | null
+          tags?: string[] | null
+          thumbnail_id?: string | null
+          titles?: Json | null
+          updated_at?: string
+          user_id?: string
+          video_job_id?: string | null
+        }
+        Relationships: []
+      }
       site_content: {
         Row: {
           key: string
@@ -1066,6 +1585,84 @@ export type Database = {
         }
         Relationships: []
       }
+      subscriptions: {
+        Row: {
+          cancel_at_period_end: boolean | null
+          created_at: string
+          current_period_end: string | null
+          current_period_start: string | null
+          external_id: string | null
+          id: string
+          plan_slug: string | null
+          provider: string | null
+          status: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cancel_at_period_end?: boolean | null
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          external_id?: string | null
+          id?: string
+          plan_slug?: string | null
+          provider?: string | null
+          status?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cancel_at_period_end?: boolean | null
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          external_id?: string | null
+          id?: string
+          plan_slug?: string | null
+          provider?: string | null
+          status?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      thumbnails: {
+        Row: {
+          created_at: string
+          id: string
+          image_url: string | null
+          model: string | null
+          project_id: string | null
+          provider: string | null
+          selected: boolean | null
+          text_overlay: Json | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          model?: string | null
+          project_id?: string | null
+          provider?: string | null
+          selected?: boolean | null
+          text_overlay?: Json | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          model?: string | null
+          project_id?: string | null
+          provider?: string | null
+          selected?: boolean | null
+          text_overlay?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -1083,6 +1680,63 @@ export type Database = {
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      video_analytics: {
+        Row: {
+          age_days: number | null
+          created_at: string
+          id: string
+          metrics: Json | null
+          publish_job_id: string | null
+          snapshot_date: string | null
+          user_id: string
+          youtube_video_id: string | null
+        }
+        Insert: {
+          age_days?: number | null
+          created_at?: string
+          id?: string
+          metrics?: Json | null
+          publish_job_id?: string | null
+          snapshot_date?: string | null
+          user_id: string
+          youtube_video_id?: string | null
+        }
+        Update: {
+          age_days?: number | null
+          created_at?: string
+          id?: string
+          metrics?: Json | null
+          publish_job_id?: string | null
+          snapshot_date?: string | null
+          user_id?: string
+          youtube_video_id?: string | null
+        }
+        Relationships: []
+      }
+      video_ideas: {
+        Row: {
+          created_at: string
+          id: string
+          project_id: string | null
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          project_id?: string | null
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          project_id?: string | null
+          status?: string | null
           user_id?: string
         }
         Relationships: []
@@ -1349,6 +2003,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      youtube_api_cache: {
+        Row: {
+          cache_key: string | null
+          created_at: string
+          expires_at: string | null
+          id: string
+          payload: Json | null
+          user_id: string | null
+        }
+        Insert: {
+          cache_key?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          payload?: Json | null
+          user_id?: string | null
+        }
+        Update: {
+          cache_key?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          payload?: Json | null
+          user_id?: string | null
+        }
+        Relationships: []
       }
       youtube_connections: {
         Row: {
