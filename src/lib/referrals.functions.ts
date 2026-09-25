@@ -9,7 +9,7 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireAppUser } from "./auth-user";
+import { requireAppUser } from "./server-auth";
 import {
   REFERRAL_REWARD_CREDITS,
   decideReferralClaim,
@@ -54,7 +54,7 @@ export const getMyReferralLink = createServerFn({ method: "GET" })
       if (!code) throw new Error("Could not create a referral code right now");
     }
 
-    const base = process.env.SITE_URL ?? "https://vidoratube.lovable.app";
+    const base = process.env["SITE_URL"] ?? "https://vidoratube.lovable.app";
     return { code, link: `${base}/r/${code}`, reward: REFERRAL_REWARD_CREDITS };
   });
 
