@@ -72,6 +72,42 @@ const createSchema = z.object({
 /** Idempotency window: a retry with the same key returns the in-flight job. */
 const IDEMPOTENCY_WINDOW_MS = 10 * 60 * 1000;
 
+/**
+ * Refund whatever a job was actually debited (Sprint 1-2). Looks up the real
+ * negative ledger row for the job and refunds exactly that amount.
+ * refundMinutesForJob is idempotent per job id and clamps to the actual
+ * debit — a job that was never charged is a no-op. Never throws: callers
+ * use it on failure paths where the original error must not be masked.
+ */
+async function refundDebitedMinutes(
+  supabaseAdmin: import("@supabase/supabase-js").SupabaseClient<import("@/integrations/supabase/types").Database>,
+  userId: string,
+  jobId: string,
+): Promise<void> {
+  try {
+    const { refundMinutesForJob } = await import("./credits");
+    const { data: debit } = await supabaseAdmin
+      .from("credit_ledger")
+      .select("delta")
+      .eq("user_id", userId)
+      .eq("ref_id", jobId)
+      .lt("delta", 0)
+      .limit(1)
+      .maybeSingle();
+    if (debit) {
+      await refundMinutesForJob(
+        supabaseAdmin,
+        userId,
+        jobId,
+        Math.abs(debit.delta),
+        `Refund: failed render ${jobId}`,
+      );
+    }
+  } catch {
+    // Never mask the original failure with a refund error.
+  }
+}
+
 /** Step 1 — reserve a credit, write the plan (title, narration, scenes). */
 export const createVideoJob = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -147,7 +183,11 @@ export const createVideoJob = createServerFn({ method: "POST" })
     const { finishedMinutes } = await import("./billing/per-minute");
     let reserveMinutes = 1;
     try {
-      const plan = await generateVideoPlan(data.script, data.format, data.voice);
+      const plan = await generateVideoPlan(data.script, data.format, data.voice, {
+        admin: supabaseAdmin,
+        userId,
+        jobId: job.id,
+      });
       reserveMinutes = finishedMinutes(plan.durationSeconds);
       const { data: updated, error } = await supabase
         .from("video_jobs")
@@ -187,21 +227,8 @@ export const createVideoJob = createServerFn({ method: "POST" })
         .from("video_jobs")
         .update({ status: "failed", stage: "failed", step: "Failed", error: message })
         .eq("id", job.id);
-      // Failed renders refund automatically. refundMinutesForJob is idempotent
-      // per job id: a job that was never charged (debit failed first) is a
-      // no-op, and a duplicate refund can never double-credit.
-      try {
-        const { refundMinutesForJob } = await import("./credits");
-        await refundMinutesForJob(
-          supabaseAdmin,
-          userId,
-          job.id,
-          reserveMinutes,
-          `Refund: failed render ${job.id}`,
-        );
-      } catch {
-        // Never mask the original render failure with a refund error.
-      }
+      // Failed renders refund the actually-debited minutes automatically.
+      await refundDebitedMinutes(supabaseAdmin, userId, job.id);
       throw new Error(message);
     }
   });
@@ -319,13 +346,16 @@ export const advanceVideoJob = createServerFn({ method: "POST" })
           if (!claimed) return await refetch();
           try {
             const images = (Array.isArray(job.assets) ? job.assets : []) as string[];
-            const renderId = await submitRender({
-              images,
-              audioUrl: job.audio_url!,
-              captions: scenes.map((s) => s.caption),
-              durationSeconds: job.duration_seconds ?? 45,
-              title: job.title ?? "Vidora video",
-            });
+            const renderId = await submitRender(
+              {
+                images,
+                audioUrl: job.audio_url!,
+                captions: scenes.map((s) => s.caption),
+                durationSeconds: job.duration_seconds ?? 45,
+                title: job.title ?? "Vidora video",
+              },
+              { admin: supabaseAdmin, userId, mode: "story" },
+            );
             return await save({
               render_id: renderId,
               stage: "rendering",
@@ -360,7 +390,9 @@ export const advanceVideoJob = createServerFn({ method: "POST" })
           if (status.status === "failed") {
             const claimed = await claimJobStage(supabase, job.id, userId, "rendering");
             if (!claimed) return await refetch();
+            // The provider failed the render: refund the debited minutes.
             // save() moves the claimed stage straight to failed; no release needed.
+            await refundDebitedMinutes(supabaseAdmin, userId, job.id);
             return await save({
               status: "failed",
               stage: "failed",
@@ -384,6 +416,9 @@ export const advanceVideoJob = createServerFn({ method: "POST" })
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Render failed";
+      // Failed renders refund the actually-debited minutes automatically.
+      // refundDebitedMinutes never throws, so the original error survives.
+      await refundDebitedMinutes(supabaseAdmin, userId, job.id);
       return await save({ status: "failed", stage: "failed", step: "Failed", error: message });
     }
   });
@@ -549,6 +584,11 @@ export const failVideoJobCompose = createServerFn({ method: "POST" })
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!updated) throw new Error("Job is already resolved.");
+
+    // The render genuinely failed: refund the debited minutes. Idempotent per
+    // job id, and the RPC only refunds what was actually debited.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await refundDebitedMinutes(supabaseAdmin, context.userId, data.id);
     return updated;
   });
 
