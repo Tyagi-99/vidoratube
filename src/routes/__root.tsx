@@ -113,7 +113,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "canonical", href: "https://vidoratube.lovable.app/" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Manrope:wght@400;500;600;700&display=swap" },
+      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" },
     ],
     scripts: [
       {
@@ -191,15 +191,14 @@ function Wordmark({ size = "md" }: { size?: "sm" | "md" }) {
   const box = size === "sm" ? "h-6 w-6" : "h-8 w-8";
   const text = size === "sm" ? "text-base" : "text-lg";
   return (
-    <span className="flex items-center gap-2">
+    <span className="flex items-center gap-2.5">
       <span
-        className={`relative flex ${box} items-center justify-center rounded-[10px] bg-foreground`}
+        className={`relative flex ${box} items-center justify-center rounded-md bg-[oklch(0.82_0.145_78)]`}
       >
-        <span className="absolute inset-[3px] rounded-[6px] border border-accent/70" />
-        <Aperture className="relative h-3.5 w-3.5 text-accent" strokeWidth={2.4} />
+        <Aperture className="relative h-4 w-4 text-black" strokeWidth={2.4} />
       </span>
-      <span className={`font-display ${text} font-bold tracking-tight text-foreground`}>
-        Vidora<span className="text-primary">.ai</span>
+      <span className={`font-display ${text} font-extrabold tracking-tight text-foreground`}>
+        Vidora
       </span>
     </span>
   );
@@ -216,7 +215,7 @@ function Header() {
   ] as const;
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border bg-background/85 backdrop-blur-xl">
+    <header className="sticky top-0 z-50 w-full border-b border-white/[0.07] bg-background/80 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-6 px-4 sm:px-6 lg:px-8">
         <Link to="/" aria-label="Vidora AI home" className="shrink-0">
           <Wordmark />
@@ -227,8 +226,8 @@ function Header() {
             <Link
               key={item.label}
               to={item.to}
-              activeProps={{ className: "text-foreground after:opacity-100" }}
-              className="relative rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors duration-200 after:absolute after:inset-x-3 after:-bottom-[9px] after:h-px after:bg-accent after:opacity-0 after:transition-opacity after:duration-200 hover:text-foreground"
+              activeProps={{ className: "text-foreground" }}
+              className="relative rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors duration-200 hover:text-foreground"
             >
               {item.label}
             </Link>
@@ -242,7 +241,7 @@ function Header() {
             <>
               <Link
                 to="/studio"
-                className="inline-flex items-center justify-center gap-1.5 rounded-[10px] border border-border px-3.5 py-2 text-sm font-medium text-foreground transition-colors duration-200 hover:bg-muted"
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border px-3.5 py-2 text-sm font-medium text-foreground transition-colors duration-200 hover:bg-white/5"
               >
                 <LayoutDashboard className="h-4 w-4" />
                 Studio
@@ -250,7 +249,7 @@ function Header() {
               <Link
                 to="/studio"
                 search={{ create: "script" }}
-                className="inline-flex items-center justify-center gap-1.5 rounded-[10px] bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors duration-200 hover:bg-primary/90"
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition-transform duration-200 hover:scale-[1.02]"
               >
                 New video
               </Link>
@@ -258,7 +257,7 @@ function Header() {
           ) : (
             <Link
               to="/studio"
-              className="inline-flex items-center justify-center gap-1.5 rounded-[10px] bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors duration-200 hover:bg-primary/90"
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition-transform duration-200 hover:scale-[1.02]"
             >
               Open studio
               <ArrowUpRight className="h-4 w-4" />
@@ -311,19 +310,21 @@ function Header() {
 
 function Footer() {
   return (
-    <footer className="w-full border-t border-border bg-background">
+    <footer className="w-full border-t border-white/[0.07] bg-background">
       <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         <div className="grid gap-12 md:grid-cols-[minmax(0,1.4fr)_repeat(2,minmax(0,1fr))]">
           <div className="max-w-sm">
             <Wordmark size="sm" />
             <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-              A script-to-MP4 studio in early access — narration, scene stills and burned-in
-              captions, without a timeline.
+              Script in, film out. An AI video studio in early access.
+            </p>
+            <p className="mt-4 font-mono text-xs text-muted-foreground/60">
+              00:00:00:00 — every video starts here
             </p>
           </div>
 
           <div>
-            <p className="rule-label">Product</p>
+            <p className="font-mono text-xs tracking-[0.2em] text-muted-foreground">PRODUCT</p>
             <div className="mt-5 flex flex-col gap-3">
               <Link to="/features" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
                 Features
@@ -338,7 +339,7 @@ function Footer() {
           </div>
 
           <div>
-            <p className="rule-label">Company</p>
+            <p className="font-mono text-xs tracking-[0.2em] text-muted-foreground">COMPANY</p>
             <div className="mt-5 flex flex-col gap-3">
               <a href="mailto:hello@vidora.ai" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
                 hello@vidora.ai
@@ -356,9 +357,9 @@ function Footer() {
           </div>
         </div>
 
-        <div className="mt-14 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-6 text-sm text-muted-foreground">
+        <div className="mt-14 flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.07] pt-6 font-mono text-xs text-muted-foreground">
           <span>© {new Date().getFullYear()} Vidora AI</span>
-          <span>Remote · worldwide</span>
+          <span>Cut in the cloud · Rendered with care</span>
         </div>
       </div>
     </footer>

@@ -32,33 +32,31 @@ export function PricingSection({ compact = false }: { compact?: boolean }) {
   return (
     <section
       className={cn(
-        "w-full border-y border-border bg-muted/40",
+        "w-full border-t border-border",
         compact ? "py-16" : "py-20 sm:py-24",
       )}
     >
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <div className="mb-12 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div className="max-w-2xl">
-            <p className="mb-3 text-xs font-semibold text-accent">
-              Future packaging
-            </p>
-            <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-              Less than a coffee per finished cut
-            </h2>
-          </div>
-          <p className="max-w-sm text-muted-foreground">
-            Credit packs for finished 1080p MP4s. Prices are what we intend to charge when checkout goes live.
+        <div className="mb-12 max-w-2xl">
+          <p className="font-mono text-xs tracking-[0.2em] text-[oklch(0.82_0.145_78)]">
+            THE RATES
+          </p>
+          <h2 className="font-display mt-4 text-balance text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
+            Less than a coffee per finished cut.
+          </h2>
+          <p className="mt-4 text-lg text-muted-foreground">
+            Credit packs for finished 1080p MP4s. One credit, one video.
           </p>
         </div>
 
         {isLoading ? (
           <div className="grid gap-5 lg:grid-cols-3">
             {[0, 1, 2].map((i) => (
-              <Skeleton key={i} className="h-[420px] rounded-3xl" />
+              <Skeleton key={i} className="h-[420px] rounded-xl" />
             ))}
           </div>
         ) : (
-          <div className="grid items-start gap-5 lg:grid-cols-3">
+          <div className="grid items-stretch gap-px overflow-hidden rounded-xl border border-border bg-border lg:grid-cols-3">
             {plans.map((plan) => {
               const popular = plan.highlighted;
               const features = displayPlanFeatures({
@@ -74,71 +72,49 @@ export function PricingSection({ compact = false }: { compact?: boolean }) {
                 <div
                   key={plan.id}
                   className={cn(
-                    "relative flex flex-col rounded-2xl border border-border bg-card p-7",
-                    popular && "border-accent/40 bg-secondary",
+                    "relative flex flex-col bg-background p-8",
+                    popular && "bg-card",
                   )}
                 >
                   {popular && (
-                    <span className="absolute -top-3 left-7 rounded-md bg-accent px-3 py-1 text-[11px] font-semibold text-accent-foreground">
-                      Most popular
+                    <span className="absolute right-8 top-8 font-mono text-[11px] tracking-widest text-[oklch(0.82_0.145_78)]">
+                      MOST PICKED
                     </span>
                   )}
-                  <div className="mb-5">
-                    <h3
-                      className={cn(
-                        "text-sm font-semibold uppercase tracking-[0.18em]",
-                        popular ? "text-accent" : "text-primary",
-                      )}
-                    >
-                      {plan.name}
+                  <div className="mb-6">
+                    <h3 className="font-mono text-xs tracking-[0.2em] text-muted-foreground">
+                      {plan.name.toUpperCase()}
                     </h3>
-                    <div className="mt-3 flex items-baseline gap-2">
-                      <span className="font-display text-4xl font-bold">
+                    <div className="mt-4 flex items-baseline gap-2">
+                      <span className="font-display text-5xl font-extrabold tracking-tight">
                         ${Number(plan.price_monthly).toFixed(0)}
                       </span>
-                      <span className="text-muted-foreground">
-                        /mo
-                      </span>
+                      <span className="text-muted-foreground">/mo</span>
                     </div>
                     {perVideo && (
-                      <p
-                        className={cn(
-                          "mt-1 text-sm font-medium",
-                          popular ? "text-accent" : "text-primary",
-                        )}
-                      >
+                      <p className="mt-2 text-sm font-medium text-[oklch(0.82_0.145_78)]">
                         {perVideo}
                       </p>
                     )}
-                    <p className="mt-2 text-sm text-muted-foreground">
+                    <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
                       {plan.blurb}
                     </p>
                   </div>
 
-                  <div
-                    className={cn(
-                      "mb-5 rounded-2xl p-4",
-                      popular ? "bg-background/10" : "bg-muted",
-                    )}
-                  >
+                  <div className="mb-6 border-y border-border py-4">
                     <div className="flex items-center gap-2 font-semibold">
-                      <Check className={cn("h-4 w-4", popular ? "text-accent" : "text-primary")} />
+                      <Check className="h-4 w-4 text-[oklch(0.82_0.145_78)]" />
                       {plan.credits.toLocaleString()} credits
                     </div>
-                    <p className="ml-6 text-sm text-muted-foreground">
+                    <p className="ml-6 mt-1 text-sm text-muted-foreground">
                       1 credit = 1 finished video
                     </p>
                   </div>
 
-                  <ul className="mb-7 flex-1 space-y-3">
+                  <ul className="mb-8 flex-1 space-y-3">
                     {features.map((feature) => (
-                      <li key={feature} className="flex items-start gap-3 text-sm">
-                        <Check
-                          className={cn(
-                            "mt-0.5 h-4 w-4 shrink-0",
-                            popular ? "text-accent" : "text-primary",
-                          )}
-                        />
+                      <li key={feature} className="flex items-start gap-3 text-sm text-foreground/80">
+                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-[oklch(0.82_0.145_78)]" />
                         {feature}
                       </li>
                     ))}
@@ -147,8 +123,10 @@ export function PricingSection({ compact = false }: { compact?: boolean }) {
                   <Link
                     to={loggedIn ? "/billing" : "/auth"}
                     className={cn(
-                      "w-full rounded-[10px] px-4 py-3 text-center text-sm font-semibold transition-transform hover:-translate-y-0.5",
-                      "bg-primary text-primary-foreground",
+                      "w-full rounded-lg px-4 py-3.5 text-center text-sm font-bold transition-transform duration-200 hover:scale-[1.01]",
+                      popular
+                        ? "bg-primary text-primary-foreground"
+                        : "border border-border text-foreground hover:border-foreground/30",
                     )}
                   >
                     {loggedIn ? `Get ${plan.name}` : `Start with ${plan.name}`}
@@ -159,7 +137,7 @@ export function PricingSection({ compact = false }: { compact?: boolean }) {
           </div>
         )}
 
-        <p className="mt-8 text-sm text-muted-foreground">
+        <p className="mt-8 font-mono text-xs text-muted-foreground">
           {checkoutLive ? PRICING_FOOTNOTE : PRICING_FOOTNOTE_SETUP}
         </p>
       </div>

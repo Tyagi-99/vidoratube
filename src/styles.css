@@ -57,7 +57,8 @@
   --color-sidebar-ring: var(--sidebar-ring);
 
   --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Sora", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Syne", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
   /* Vidora brand tokens */
   --color-vd-teal: var(--vd-teal);
@@ -126,59 +127,58 @@
 }
 
 .dark {
-  /* Cinematic graphite — deep near-black canvas, warm off-white ink */
-  --background: oklch(0.135 0.004 265);
-  --foreground: oklch(0.945 0.012 90);
-  --card: oklch(0.175 0.005 265);
-  --card-foreground: oklch(0.945 0.012 90);
-  --popover: oklch(0.185 0.005 265);
-  --popover-foreground: oklch(0.945 0.012 90);
-  --primary: oklch(0.945 0.012 90);
-  --primary-foreground: oklch(0.135 0.004 265);
-  --secondary: oklch(0.215 0.006 265);
-  --secondary-foreground: oklch(0.945 0.012 90);
-  --muted: oklch(0.215 0.006 265);
-  --muted-foreground: oklch(0.72 0.014 90);
-  --accent: oklch(0.84 0.06 175);
-  --accent-foreground: oklch(0.135 0.004 265);
-  --destructive: oklch(0.64 0.17 30);
-  --destructive-foreground: oklch(0.96 0.02 90);
-  --border: oklch(0.945 0.012 90 / 0.1);
-  --input: oklch(0.945 0.012 90 / 0.16);
-  --ring: oklch(0.84 0.06 175);
-  --chart-1: oklch(0.84 0.06 175);
-  --chart-2: oklch(0.72 0.014 90);
-  --chart-3: oklch(0.55 0.07 180);
-  --chart-4: oklch(0.4 0.03 260);
-  --chart-5: oklch(0.75 0.04 175);
-  --sidebar: oklch(0.155 0.005 265);
-  --sidebar-foreground: oklch(0.945 0.012 90);
-  --sidebar-primary: oklch(0.945 0.012 90);
-  --sidebar-primary-foreground: oklch(0.135 0.004 265);
-  --sidebar-accent: oklch(0.215 0.006 265);
-  --sidebar-accent-foreground: oklch(0.84 0.06 175);
-  --sidebar-border: oklch(0.945 0.012 90 / 0.1);
-  --sidebar-ring: oklch(0.84 0.06 175);
+  /* The Cutting Room — a video studio, not a SaaS app.
+   * Deep warm black, paper whites, tungsten amber accent.
+   * Red is reserved for REC/live moments only. */
+  --background: oklch(0.165 0.01 75);
+  --foreground: oklch(0.945 0.014 85);
+  --card: oklch(0.20 0.012 75);
+  --card-foreground: oklch(0.945 0.014 85);
+  --popover: oklch(0.215 0.012 75);
+  --popover-foreground: oklch(0.945 0.014 85);
+  --primary: oklch(0.82 0.145 78);
+  --primary-foreground: oklch(0.165 0.01 75);
+  --secondary: oklch(0.25 0.014 75);
+  --secondary-foreground: oklch(0.945 0.014 85);
+  --muted: oklch(0.25 0.014 75);
+  --muted-foreground: oklch(0.68 0.022 80);
+  --accent: oklch(0.82 0.145 78);
+  --accent-foreground: oklch(0.165 0.01 75);
+  --destructive: oklch(0.62 0.22 25);
+  --destructive-foreground: oklch(0.97 0.01 85);
+  --border: oklch(0.945 0.014 85 / 0.1);
+  --input: oklch(0.945 0.014 85 / 0.15);
+  --ring: oklch(0.82 0.145 78);
+  --chart-1: oklch(0.82 0.145 78);
+  --chart-2: oklch(0.72 0.014 85);
+  --chart-3: oklch(0.62 0.22 25);
+  --chart-4: oklch(0.55 0.1 78);
+  --chart-5: oklch(0.75 0.05 85);
+  --sidebar: oklch(0.18 0.011 75);
+  --sidebar-foreground: oklch(0.945 0.014 85);
+  --sidebar-primary: oklch(0.82 0.145 78);
+  --sidebar-primary-foreground: oklch(0.165 0.01 75);
+  --sidebar-accent: oklch(0.25 0.014 75);
+  --sidebar-accent-foreground: oklch(0.82 0.145 78);
+  --sidebar-border: oklch(0.945 0.014 85 / 0.1);
+  --sidebar-ring: oklch(0.82 0.145 78);
 
-  --vd-teal: oklch(0.84 0.06 175);
-  --vd-teal-deep: oklch(0.55 0.07 180);
-  --vd-mint: oklch(0.84 0.06 175);
-  --vd-ink: oklch(0.945 0.012 90);
-  --vd-muted: oklch(0.72 0.014 90);
-  --vd-surface: oklch(0.175 0.005 265);
-  --vd-border: oklch(0.945 0.012 90 / 0.1);
+  --vd-teal: oklch(0.82 0.145 78);
+  --vd-teal-deep: oklch(0.55 0.1 78);
+  --vd-mint: oklch(0.82 0.145 78);
+  --vd-ink: oklch(0.945 0.014 85);
+  --vd-muted: oklch(0.68 0.022 80);
+  --vd-surface: oklch(0.20 0.012 75);
+  --vd-border: oklch(0.945 0.014 85 / 0.1);
 
-  --glow-1: oklch(0.84 0.06 175 / 0.08);
-  --glow-2: oklch(0.135 0.004 265);
-  --glow-3: oklch(0.135 0.004 265);
-  --grad-1: oklch(0.84 0.06 175);
-  --grad-2: oklch(0.75 0.05 175);
-  --grad-3: oklch(0.7 0.04 175);
-  --shadow-tint: oklch(0 0 0 / 0.3);
-  --shadow-tint-strong: oklch(0 0 0 / 0.6);
-  --elev-1: 0 1px 2px oklch(0 0 0 / 0.4);
-  --elev-2: 0 12px 32px -12px oklch(0 0 0 / 0.7);
+  --glow-1: oklch(0.82 0.145 78 / 0.1);
+  --glow-2: oklch(0.165 0.01 75);
+  --glow-3: oklch(0.165 0.01 75);
+  --grad-1: oklch(0.82 0.145 78);
+  --grad-2: oklch(0.7 0.1 78);
+  --grad-3: oklch(0.6 0.07 78);
 }
+
 
 @layer base {
   * {
@@ -304,4 +304,60 @@
     border-color: color-mix(in oklch, var(--accent) 35%, var(--border));
     box-shadow: none;
   }
+}
+
+/* ——— The Cutting Room: cinematic utilities ——— */
+
+@utility film-grain {
+  position: relative;
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.5;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
+  }
+}
+
+@utility text-balance {
+  text-wrap: balance;
+}
+
+@utility letterbox-x {
+  /* Cinematic side mattes on ultrawide */
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+}
+
+/* Ticking REC dot */
+@keyframes rec-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+@utility animate-rec {
+  animation: rec-pulse 1.6s ease-in-out infinite;
+}
+
+/* Slow drift for ambient hero visuals */
+@keyframes drift {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -12px, 0); }
+}
+@utility animate-drift {
+  animation: drift 9s ease-in-out infinite;
+}
+
+/* Marquee for the voice wall */
+@keyframes marquee-x {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@utility animate-marquee {
+  animation: marquee-x 40s linear infinite;
+}
+
+::selection {
+  background: oklch(0.82 0.145 78 / 0.85);
+  color: oklch(0.165 0.01 75);
 }
