@@ -27,6 +27,11 @@ export interface CatalogVoice {
   providerVoiceId: string | null;
   /** True when the voice comes from the user's ElevenLabs library. */
   library?: boolean;
+  /**
+   * False = BETA placeholder: provider id unverified, must NOT appear in the
+   * UI picker. Undefined/true = user-selectable (see userSelectableVoices).
+   */
+  selectable?: boolean;
   description: string;
 }
 

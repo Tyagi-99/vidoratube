@@ -36,6 +36,9 @@ export function coverFilter(aspect: string): string {
   );
 }
 
+import type { CaptionLanguage } from "../languages";
+import { primaryFontName } from "../languages";
+
 /** Word-level caption cue. */
 export type WordCue = {
   /** seconds */
@@ -58,51 +61,124 @@ function escapeAss(text: string): string {
   return text.replace(/\{/g, "(").replace(/\}/g, ")").replace(/\n/g, " ");
 }
 
+function splitChars(word: string, maxChars: number): string[] {
+  const chars = [...word];
+  if (chars.length <= maxChars) return [word];
+  const out: string[] = [];
+  for (let i = 0; i < chars.length; i += maxChars) {
+    out.push(chars.slice(i, i + maxChars).join(""));
+  }
+  return out;
+}
+
+type LineChunk = { text: string; cs: number };
+type CaptionLine = { chunks: LineChunk[]; start: number; end: number };
+
+/**
+ * Group cues into caption lines by character budget (from the language's
+ * caption_max_chars). Words longer than the budget are split by character —
+ * this is what makes CJK scripts (no whitespace) wrap correctly.
+ * Karaoke durations are prorated across the chunks of a word.
+ */
+function groupCuesByChars(cues: WordCue[], maxChars: number): CaptionLine[] {
+  const lines: CaptionLine[] = [];
+  let chunks: LineChunk[] = [];
+  let lineLen = 0;
+  let lineStart = 0;
+  let lineEnd = 0;
+  const flush = () => {
+    if (chunks.length > 0) {
+      lines.push({ chunks, start: lineStart, end: lineEnd });
+      chunks = [];
+      lineLen = 0;
+    }
+  };
+  for (const cue of cues) {
+    const wordLen = Math.max(1, [...cue.word].length);
+    for (const part of splitChars(cue.word, maxChars)) {
+      const partLen = [...part].length;
+      const cs = Math.max(
+        1,
+        Math.round(((cue.end - cue.start) * partLen * 100) / wordLen),
+      );
+      if (chunks.length > 0 && lineLen + 1 + partLen > maxChars) flush();
+      if (chunks.length === 0) lineStart = cue.start;
+      lineEnd = cue.end;
+      chunks.push({ text: part, cs });
+      lineLen = chunks.length === 1 ? partLen : lineLen + 1 + partLen;
+    }
+  }
+  flush();
+  return lines;
+}
+
+/** Legacy grouping: fixed number of words per line (no language given). */
+function groupCuesByWords(cues: WordCue[], wordsPerLine: number): CaptionLine[] {
+  const lines: CaptionLine[] = [];
+  for (let i = 0; i < cues.length; i += wordsPerLine) {
+    const group = cues.slice(i, i + wordsPerLine);
+    if (group.length === 0) continue;
+    lines.push({
+      chunks: group.map((c) => ({
+        text: c.word,
+        cs: Math.max(1, Math.round((c.end - c.start) * 100)),
+      })),
+      start: group[0]!.start,
+      end: group[group.length - 1]!.end,
+    });
+  }
+  return lines;
+}
+
 /**
  * Build an ASS subtitle file with karaoke-style per-word highlighting.
  *
  * Words are grouped into lines of up to `wordsPerLine`; each word gets its
  * own karaoke timing tag so the current word highlights as it's spoken.
  * Colors: white base, yellow highlight — readable on darkened video.
+ *
+ * Pass `language` (from the `languages` table) for language-aware captions:
+ * the style's Fontname comes from the language's font_stack, lines wrap at
+ * the language's caption_max_chars, and RTL languages are marked so the
+ * burn-in layer applies right-to-left direction. Text is always kept in
+ * logical (reading) order — libass applies the Unicode bidi algorithm.
  */
 export function buildWordAss(
   cues: WordCue[],
-  opts: { wordsPerLine?: number; fontSize?: number } = {},
+  opts: { wordsPerLine?: number; fontSize?: number; language?: CaptionLanguage } = {},
 ): string {
-  const wordsPerLine = Math.max(1, opts.wordsPerLine ?? 4);
   const fontSize = opts.fontSize ?? 64;
+  const fontName = opts.language
+    ? primaryFontName(opts.language.fontStack)
+    : "Inter";
+  const directionComment = opts.language?.rtl ? "; Direction: RTL\n" : "";
 
   const header = `[Script Info]
 ScriptType: v4.00+
 PlayResX: 1920
 PlayResY: 1080
 ScaledBorderAndShadow: yes
-
+${directionComment}
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Vidora,Inter,${fontSize},&H00FFFFFF,&H0000FFFF,&H80000000,&H80000000,-1,0,0,0,100,100,0,0,1,3,1,5,40,40,80,1
+Style: Vidora,${fontName},${fontSize},&H00FFFFFF,&H0000FFFF,&H80000000,&H80000000,-1,0,0,0,100,100,0,0,1,3,1,5,40,40,80,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 `;
 
-  const lines: string[] = [];
-  for (let i = 0; i < cues.length; i += wordsPerLine) {
-    const group = cues.slice(i, i + wordsPerLine);
-    if (group.length === 0) continue;
-    const start = assTimestamp(group[0]!.start);
-    const end = assTimestamp(group[group.length - 1]!.end);
-    // Karaoke: each word's tag duration is in centiseconds.
-    const text = group
-      .map((c) => {
-        const cs = Math.max(1, Math.round((c.end - c.start) * 100));
-        return `{\\kf${cs}}${escapeAss(c.word)}`;
-      })
-      .join(" ");
-    lines.push(`Dialogue: 0,${start},${end},Vidora,,0,0,0,,${text}`);
-  }
+  const lines = opts.language
+    ? groupCuesByChars(cues, Math.max(1, opts.language.captionMaxChars))
+    : groupCuesByWords(cues, Math.max(1, opts.wordsPerLine ?? 4));
 
-  return header + lines.join("\n") + "\n";
+  const dialogue = lines.map((line) => {
+    const text = line.chunks
+      .map((c) => `{\\kf${c.cs}}${escapeAss(c.text)}`)
+      .join(" ");
+    return `Dialogue: 0,${assTimestamp(line.start)},${assTimestamp(line.end)},Vidora,,0,0,0,,${text}`;
+  });
+
+  return header + dialogue.join("\n") + "\n";
 }
 
 /**

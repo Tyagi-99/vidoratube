@@ -34,32 +34,154 @@ function escapeAss(t: string): string {
   return t.replace(/\{/g, "(").replace(/\}/g, ")").replace(/\n/g, " ");
 }
 
+/** Caption language behaviour, mirroring one row of the `languages` table.
+ * Duplicate of the src/lib/languages.ts shape to keep the worker
+ * dependency-free. */
+export type CaptionLanguage = {
+  code: string;
+  rtl: boolean;
+  fontStack: string;
+  captionMaxChars: number;
+};
+
+const GENERIC_FONT_FAMILIES = new Set([
+  "system-ui",
+  "sans-serif",
+  "serif",
+  "monospace",
+  "cursive",
+  "fantasy",
+  "ui-sans-serif",
+  "ui-serif",
+  "ui-monospace",
+  "-apple-system",
+]);
+
+/** Primary family from a CSS font stack; generic stacks fall back to Inter. */
+export function primaryFontName(fontStack: string): string {
+  const first = (fontStack.split(",")[0] ?? "")
+    .trim()
+    .replace(/^["']|["']$/g, "");
+  if (!first || GENERIC_FONT_FAMILIES.has(first.toLowerCase())) return "Inter";
+  return first;
+}
+
+function splitChars(word: string, maxChars: number): string[] {
+  const chars = [...word];
+  if (chars.length <= maxChars) return [word];
+  const out: string[] = [];
+  for (let i = 0; i < chars.length; i += maxChars) {
+    out.push(chars.slice(i, i + maxChars).join(""));
+  }
+  return out;
+}
+
+type LineChunk = { text: string; cs: number };
+type CaptionLine = { chunks: LineChunk[]; start: number; end: number };
+
+/** Group cues into lines by character budget (language.caption_max_chars). */
+function groupCuesByChars(
+  cues: { word: string; start: number; end: number }[],
+  maxChars: number,
+): CaptionLine[] {
+  const lines: CaptionLine[] = [];
+  let chunks: LineChunk[] = [];
+  let lineLen = 0;
+  let lineStart = 0;
+  let lineEnd = 0;
+  const flush = () => {
+    if (chunks.length > 0) {
+      lines.push({ chunks, start: lineStart, end: lineEnd });
+      chunks = [];
+      lineLen = 0;
+    }
+  };
+  for (const cue of cues) {
+    const wordLen = Math.max(1, [...cue.word].length);
+    for (const part of splitChars(cue.word, maxChars)) {
+      const partLen = [...part].length;
+      const cs = Math.max(
+        1,
+        Math.round(((cue.end - cue.start) * partLen * 100) / wordLen),
+      );
+      if (chunks.length > 0 && lineLen + 1 + partLen > maxChars) flush();
+      if (chunks.length === 0) lineStart = cue.start;
+      lineEnd = cue.end;
+      chunks.push({ text: part, cs });
+      lineLen = chunks.length === 1 ? partLen : lineLen + 1 + partLen;
+    }
+  }
+  flush();
+  return lines;
+}
+
 export function buildWordAss(
   cues: { word: string; start: number; end: number }[],
-  fontSize = 64,
+  opts: { fontSize?: number; language?: CaptionLanguage } = {},
 ): string {
+  const fontSize = opts.fontSize ?? 64;
+  const fontName = opts.language
+    ? primaryFontName(opts.language.fontStack)
+    : "Inter";
+  const directionComment = opts.language?.rtl ? "; Direction: RTL\n" : "";
   const header = `[Script Info]
 ScriptType: v4.00+
 PlayResX: 1920
 PlayResY: 1080
 ScaledBorderAndShadow: yes
-
+${directionComment}
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Vidora,Inter,${fontSize},&H00FFFFFF,&H0000FFFF,&H80000000,&H80000000,-1,0,0,0,100,100,0,0,1,3,1,5,40,40,80,1
+Style: Vidora,${fontName},${fontSize},&H00FFFFFF,&H0000FFFF,&H80000000,&H80000000,-1,0,0,0,100,100,0,0,1,3,1,5,40,40,80,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 `;
-  const lines: string[] = [];
-  for (let i = 0; i < cues.length; i += 4) {
-    const g = cues.slice(i, i + 4);
-    const text = g
-      .map((c) => `{\\kf${Math.max(1, Math.round((c.end - c.start) * 100))}}${escapeAss(c.word)}`)
-      .join(" ");
-    lines.push(`Dialogue: 0,${assTimestamp(g[0]!.start)},${assTimestamp(g[g.length - 1]!.end)},Vidora,,0,0,0,,${text}`);
+  const lines: CaptionLine[] = [];
+  if (opts.language) {
+    lines.push(...groupCuesByChars(cues, Math.max(1, opts.language.captionMaxChars)));
+  } else {
+    for (let i = 0; i < cues.length; i += 4) {
+      const g = cues.slice(i, i + 4);
+      lines.push({
+        chunks: g.map((c) => ({
+          text: c.word,
+          cs: Math.max(1, Math.round((c.end - c.start) * 100)),
+        })),
+        start: g[0]!.start,
+        end: g[g.length - 1]!.end,
+      });
+    }
   }
-  return header + lines.join("\n") + "\n";
+  const dialogue = lines.map((line) => {
+    const text = line.chunks
+      .map((c) => `{\\kf${c.cs}}${escapeAss(c.text)}`)
+      .join(" ");
+    return `Dialogue: 0,${assTimestamp(line.start)},${assTimestamp(line.end)},Vidora,,0,0,0,,${text}`;
+  });
+  return header + dialogue.join("\n") + "\n";
+}
+
+/** Resolve caption language behaviour from the `languages` table. */
+async function fetchCaptionLanguage(
+  supabase: SupabaseClient,
+  code: string | undefined,
+): Promise<CaptionLanguage | null> {
+  const { data, error } = await supabase
+    .from("languages")
+    .select("code, rtl, font_stack, caption_max_chars")
+    .eq("code", code || "en")
+    .maybeSingle();
+  if (error || !data) return null;
+  return {
+    code: String(data.code),
+    rtl: Boolean(data.rtl),
+    fontStack: typeof data.font_stack === "string" ? data.font_stack : "system-ui",
+    captionMaxChars:
+      typeof data.caption_max_chars === "number" && data.caption_max_chars > 0
+        ? data.caption_max_chars
+        : 42,
+  };
 }
 
 export type PipelineHooks = {
@@ -317,7 +439,10 @@ async function assemble(ctx: Ctx, segments: string[], scenes: SceneInput[]): Pro
     });
     if (allCues.length > 0) {
       const assPath = join(dir, "captions.ass");
-      await writeFile(assPath, buildWordAss(allCues));
+      // Language behaviour (font, RTL, line length) comes from the languages
+      // table — never hardcoded. Unknown codes fall back to defaults.
+      const language = await fetchCaptionLanguage(ctx.supabase, meta.languageCode);
+      await writeFile(assPath, buildWordAss(allCues, { language: language ?? undefined }));
       captioned = join(dir, "captioned.mp4");
       await runFFmpeg({
         ffmpegPath: cfg.FFMPEG_PATH,

@@ -1,12 +1,16 @@
 /** Client-safe caption PNG for Mode 2 compose (mirrors browser-render caption look). */
 
+import type { CaptionLanguage } from "../languages";
+import { primaryFontName } from "../languages";
+
 type CaptionLook = { font: string; size: number; color: string; maxLines: number; bg: string };
 
-function captionLook(style: string | undefined, height: number): CaptionLook {
+function captionLook(style: string | undefined, height: number, family?: string): CaptionLook {
   const unit = height / 1080;
+  const fam = family ?? null;
   if (style === "sleep")
     return {
-      font: `500 ${Math.round(40 * unit)}px Manrope, system-ui, sans-serif`,
+      font: `500 ${Math.round(40 * unit)}px ${fam ?? "Manrope"}, system-ui, sans-serif`,
       size: Math.round(40 * unit),
       color: "rgba(255,255,255,0.82)",
       maxLines: 2,
@@ -14,14 +18,14 @@ function captionLook(style: string | undefined, height: number): CaptionLook {
     };
   if (style === "dynamic" || style === "energetic")
     return {
-      font: `800 ${Math.round(64 * unit)}px Sora, system-ui, sans-serif`,
+      font: `800 ${Math.round(64 * unit)}px ${fam ?? "Sora"}, system-ui, sans-serif`,
       size: Math.round(64 * unit),
       color: "#ffffff",
       maxLines: 2,
       bg: "rgba(0,0,0,0.35)",
     };
   return {
-    font: `600 ${Math.round(50 * unit)}px Manrope, system-ui, sans-serif`,
+    font: `600 ${Math.round(50 * unit)}px ${fam ?? "Manrope"}, system-ui, sans-serif`,
     size: Math.round(50 * unit),
     color: "#ffffff",
     maxLines: 3,
@@ -52,6 +56,7 @@ export async function captionPngForCompose(
   width: number,
   height: number,
   style?: string,
+  language?: CaptionLanguage,
 ): Promise<Uint8Array> {
   // Wait for webfonts so captions don't silently fall back to a system font.
   try {
@@ -62,7 +67,10 @@ export async function captionPngForCompose(
   } catch {
     /* fonts API unavailable — proceed with fallbacks */
   }
-  const look = captionLook(style, height);
+  // Language behaviour comes from the languages table (data), never from
+  // hardcoded language branches.
+  const family = language ? primaryFontName(language.fontStack) : undefined;
+  const look = captionLook(style, height, family);
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
@@ -70,6 +78,7 @@ export async function captionPngForCompose(
   if (!ctx) throw new Error("Canvas unavailable");
   ctx.clearRect(0, 0, width, height);
   ctx.font = look.font;
+  ctx.direction = language?.rtl ? "rtl" : "ltr";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   const maxWidth = width * 0.86;

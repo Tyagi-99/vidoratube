@@ -27,6 +27,8 @@ export const RenderJobMetaSchema = z.object({
   aspect: z.enum(["16:9", "9:16", "1:1"]).default("16:9"),
   fps: z.number().int().min(24).max(60).default(30),
   burnCaptions: z.boolean().default(true),
+  /** BCP-47-ish code into the `languages` table; drives caption font, RTL, line length. */
+  languageCode: z.string().max(16).default("en"),
   musicUrl: z.string().nullable().default(null),
   musicVolume: z.number().min(0).max(1).default(0.15),
   musicDucking: z.boolean().default(true),

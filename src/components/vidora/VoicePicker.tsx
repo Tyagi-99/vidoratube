@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Play, Loader2 } from "lucide-react";
 import { previewVoice } from "@/lib/studio-v2.functions";
 import { sortedVoices, voiceById, type CatalogVoice } from "@/lib/voices";
+import { userSelectableVoices } from "@/lib/languages";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,7 +31,9 @@ export function VoicePicker({
   const { t } = useI18n();
   const previewFn = useServerFn(previewVoice);
   const [playing, setPlaying] = useState<string | null>(null);
-  const voices = sortedVoices();
+  // UI offers verified voices only: BETA placeholders (selectable: false)
+  // never reach the picker.
+  const voices = sortedVoices(userSelectableVoices());
 
   const preview = useMutation({
     mutationFn: (voiceId: string) =>
