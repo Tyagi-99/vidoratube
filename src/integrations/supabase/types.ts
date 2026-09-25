@@ -1767,6 +1767,165 @@ export type Database = {
         }
         Relationships: []
       }
+      thumbnails: {
+        Row: {
+          id: string
+          user_id: string
+          project_id: string
+          variant: number
+          aspect: string
+          url: string
+          final_url: string | null
+          text_overlay: Json
+          prompt: string | null
+          provider: string | null
+          model: string | null
+          license: string
+          selected: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          project_id: string
+          variant?: number
+          aspect?: string
+          url: string
+          final_url?: string | null
+          text_overlay?: Json
+          prompt?: string | null
+          provider?: string | null
+          model?: string | null
+          license?: string
+          selected?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          project_id?: string
+          variant?: number
+          aspect?: string
+          url?: string
+          final_url?: string | null
+          text_overlay?: Json
+          prompt?: string | null
+          provider?: string | null
+          model?: string | null
+          license?: string
+          selected?: boolean
+          created_at?: string
+        }
+        Relationships: []
+      }
+      seo_metadata: {
+        Row: {
+          id: string
+          user_id: string
+          project_id: string
+          titles: Json
+          selected_title: string | null
+          description: string | null
+          tags: string[]
+          hashtags: string[]
+          chapters: Json
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          project_id: string
+          titles?: Json
+          selected_title?: string | null
+          description?: string | null
+          tags?: string[]
+          hashtags?: string[]
+          chapters?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          project_id?: string
+          titles?: Json
+          selected_title?: string | null
+          description?: string | null
+          tags?: string[]
+          hashtags?: string[]
+          chapters?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      publish_jobs: {
+        Row: {
+          id: string
+          user_id: string
+          project_id: string
+          video_job_id: string | null
+          status: string
+          thumbnail_id: string | null
+          title: string | null
+          description: string | null
+          tags: string[]
+          privacy: string
+          made_for_kids: boolean | null
+          scheduled_for: string | null
+          youtube_video_id: string | null
+          youtube_url: string | null
+          error: string | null
+          approved_by: string | null
+          approved_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          project_id: string
+          video_job_id?: string | null
+          status?: string
+          thumbnail_id?: string | null
+          title?: string | null
+          description?: string | null
+          tags?: string[]
+          privacy?: string
+          made_for_kids?: boolean | null
+          scheduled_for?: string | null
+          youtube_video_id?: string | null
+          youtube_url?: string | null
+          error?: string | null
+          approved_by?: string | null
+          approved_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          project_id?: string
+          video_job_id?: string | null
+          status?: string
+          thumbnail_id?: string | null
+          title?: string | null
+          description?: string | null
+          tags?: string[]
+          privacy?: string
+          made_for_kids?: boolean | null
+          scheduled_for?: string | null
+          youtube_video_id?: string | null
+          youtube_url?: string | null
+          error?: string | null
+          approved_by?: string | null
+          approved_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

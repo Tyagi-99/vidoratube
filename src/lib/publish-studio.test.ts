@@ -101,7 +101,7 @@ describe("rankTitles", () => {
       ["x", "How to Budget Money in 2026: A Complete Guide"],
       "budget",
     );
-    expect(ranked[0].score).toBeGreaterThanOrEqual(ranked[1].score);
+    expect(ranked[0]!.score).toBeGreaterThanOrEqual(ranked[1]!.score);
   });
 });
 

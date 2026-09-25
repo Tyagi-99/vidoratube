@@ -69,5 +69,5 @@ export function selectThumbnailVariant<T extends { variant: number; selected: bo
   variants: T[],
 ): T | null {
   if (variants.length === 0) return null;
-  return variants.find((v) => v.selected) ?? variants.find((v) => v.variant === 1) ?? variants[0];
+  return variants.find((v) => v.selected) ?? variants.find((v) => v.variant === 1) ?? variants[0] ?? null;
 }

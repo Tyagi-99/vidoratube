@@ -14,6 +14,9 @@ CREATE TABLE IF NOT EXISTS public.thumbnails (
   variant INTEGER NOT NULL DEFAULT 1 CHECK (variant BETWEEN 1 AND 3),
   aspect TEXT NOT NULL DEFAULT '16:9' CHECK (aspect IN ('16:9', '9:16')),
   url TEXT NOT NULL,
+  -- final_url: overlay-burned version uploaded by the client (canvas).
+  -- Falls back to url when no overlay was applied.
+  final_url TEXT,
   text_overlay JSONB NOT NULL DEFAULT '{}'::jsonb,
   -- text_overlay: { headline, font, color, position, fontSize }
   prompt TEXT,
