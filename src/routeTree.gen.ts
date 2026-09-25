@@ -30,6 +30,8 @@ import { Route as AuthenticatedAdminPlansRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin.users'
 import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authenticated/projects.index'
 import { Route as AuthenticatedProjectsProjectIdRouteImport } from './routes/_authenticated/projects.$projectId'
+import { Route as AuthenticatedResearchIndexRouteImport } from './routes/_authenticated/research.index'
+import { Route as AuthenticatedResearchProjectIdRouteImport } from './routes/_authenticated/research.$projectId'
 import { Route as ApiPublicYoutubeCallbackRouteImport } from './routes/api/public/youtube-callback'
 
 const IndexRoute = IndexRouteImport.update({
@@ -141,6 +143,18 @@ const AuthenticatedProjectsProjectIdRoute =
     path: '/projects/$projectId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedResearchIndexRoute =
+  AuthenticatedResearchIndexRouteImport.update({
+    id: '/research/',
+    path: '/research/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedResearchProjectIdRoute =
+  AuthenticatedResearchProjectIdRouteImport.update({
+    id: '/research/$projectId',
+    path: '/research/$projectId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ApiPublicYoutubeCallbackRoute =
   ApiPublicYoutubeCallbackRouteImport.update({
     id: '/api/public/youtube-callback',
@@ -167,9 +181,11 @@ export interface FileRoutesByFullPath {
   '/admin/plans': typeof AuthenticatedAdminPlansRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
+  '/research/$projectId': typeof AuthenticatedResearchProjectIdRoute
   '/api/public/youtube-callback': typeof ApiPublicYoutubeCallbackRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/projects/': typeof AuthenticatedProjectsIndexRoute
+  '/research/': typeof AuthenticatedResearchIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -189,9 +205,11 @@ export interface FileRoutesByTo {
   '/admin/plans': typeof AuthenticatedAdminPlansRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
+  '/research/$projectId': typeof AuthenticatedResearchProjectIdRoute
   '/api/public/youtube-callback': typeof ApiPublicYoutubeCallbackRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/projects': typeof AuthenticatedProjectsIndexRoute
+  '/research': typeof AuthenticatedResearchIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -214,9 +232,11 @@ export interface FileRoutesById {
   '/_authenticated/admin/plans': typeof AuthenticatedAdminPlansRoute
   '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
   '/_authenticated/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
+  '/_authenticated/research/$projectId': typeof AuthenticatedResearchProjectIdRoute
   '/api/public/youtube-callback': typeof ApiPublicYoutubeCallbackRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/projects/': typeof AuthenticatedProjectsIndexRoute
+  '/_authenticated/research/': typeof AuthenticatedResearchIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -239,9 +259,11 @@ export interface FileRouteTypes {
     | '/admin/plans'
     | '/admin/users'
     | '/projects/$projectId'
+    | '/research/$projectId'
     | '/api/public/youtube-callback'
     | '/admin/'
     | '/projects/'
+    | '/research/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -261,9 +283,11 @@ export interface FileRouteTypes {
     | '/admin/plans'
     | '/admin/users'
     | '/projects/$projectId'
+    | '/research/$projectId'
     | '/api/public/youtube-callback'
     | '/admin'
     | '/projects'
+    | '/research'
   id:
     | '__root__'
     | '/'
@@ -285,9 +309,11 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/plans'
     | '/_authenticated/admin/users'
     | '/_authenticated/projects/$projectId'
+    | '/_authenticated/research/$projectId'
     | '/api/public/youtube-callback'
     | '/_authenticated/admin/'
     | '/_authenticated/projects/'
+    | '/_authenticated/research/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -453,6 +479,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProjectsProjectIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/research/': {
+      id: '/_authenticated/research/'
+      path: '/research'
+      fullPath: '/research/'
+      preLoaderRoute: typeof AuthenticatedResearchIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/research/$projectId': {
+      id: '/_authenticated/research/$projectId'
+      path: '/research/$projectId'
+      fullPath: '/research/$projectId'
+      preLoaderRoute: typeof AuthenticatedResearchProjectIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/public/youtube-callback': {
       id: '/api/public/youtube-callback'
       path: '/api/public/youtube-callback'
@@ -490,14 +530,18 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRouteWithChildren
   AuthenticatedStudioRoute: typeof AuthenticatedStudioRoute
   AuthenticatedProjectsProjectIdRoute: typeof AuthenticatedProjectsProjectIdRoute
+  AuthenticatedResearchProjectIdRoute: typeof AuthenticatedResearchProjectIdRoute
   AuthenticatedProjectsIndexRoute: typeof AuthenticatedProjectsIndexRoute
+  AuthenticatedResearchIndexRoute: typeof AuthenticatedResearchIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRouteWithChildren,
   AuthenticatedStudioRoute: AuthenticatedStudioRoute,
   AuthenticatedProjectsProjectIdRoute: AuthenticatedProjectsProjectIdRoute,
+  AuthenticatedResearchProjectIdRoute: AuthenticatedResearchProjectIdRoute,
   AuthenticatedProjectsIndexRoute: AuthenticatedProjectsIndexRoute,
+  AuthenticatedResearchIndexRoute: AuthenticatedResearchIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

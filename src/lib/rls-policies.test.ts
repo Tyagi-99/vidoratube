@@ -59,6 +59,10 @@ const OWNER_SCOPED_TABLES = [
   "youtube_connections",
   "credit_ledger",
   "content_items",
+  "research_projects",
+  "outlier_videos",
+  "video_ideas",
+  "youtube_api_cache",
 ];
 
 /** Tables intentionally readable/writable without auth (documented exceptions). */
