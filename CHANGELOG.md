@@ -1,5 +1,51 @@
 # Changelog
 
+## 2026-09-25 — P8: Analytics & Learning Loop
+
+Closes the flywheel: YouTube performance data flows back into research (P3)
+and safety validation (P6).
+
+### Ingestion
+- `src/lib/yt-analytics.server.ts`: YouTube Analytics API v2 client —
+  per-video reports (views, watch time, CTR, avg view duration, likes,
+  comments, subs gained, impressions) batched 50/call, channel totals,
+  video durations via Data API for retention.
+- `snapshotAnalytics` (user, 4/hour) + `snapshotAnalyticsCron` (service-role,
+  `ANALYTICS_CRON_SECRET`) in `src/lib/analytics.functions.ts`.
+- Snapshot cadence: day 1 and day 7 after publish (`isSnapshotDay`);
+  one snapshot per video per day enforced by
+  `UNIQUE(youtube_video_id, snapshot_date)`.
+- `video_analytics` / `channel_stats` / `learning_insights` tables (owner RLS).
+- `publish_jobs.published_at` recorded on publish; `outlier_videos.source`
+  (`import` | `own`) added.
+
+### Learning loop
+- `runLearningLoop`: own-channel outliers (5x+ median) → `outlier_videos`
+  with `source='own'` under a "My Channel Performance" research project;
+  style↔CTR correlations → `learning_insights` (labeled correlation, never
+  causation); safety score vs actual status → `safety_validation` insights.
+- P3 `generateIdeas` now boosts the creator's own top winners into every
+  idea-generation prompt (documented weighting: top-5 own outliers).
+- `getWeeklyDigest` (top video, totals, ≤3 suggestions; honest
+  `hasEnoughData: false` below 3 videos), `getLearningInsights`,
+  `exportAnalyticsCsv`.
+
+### UI
+- `/analytics` route + nav link: overview cards, top-videos table with
+  vs-average badges and outlier badges, weekly digest card, learnings panel,
+  sync + CSV export. Honest empty states. en/hi strings.
+- `docs/P8_CRON.md`: secret setup, pg_cron / external cron instructions.
+
+### Tests
+- 22 new: metric math, outlier detection on own videos, style correlations,
+  weekly digest (thin-data honesty), snapshot helpers, input schema validation.
+- RLS static audit extended to the 3 new tables.
+
+### Needs live YouTube API
+- Connected channel with `youtube.readonly` scope for snapshot ingestion.
+- `ANALYTICS_CRON_SECRET` set + daily cron scheduled for automatic snapshots.
+- P8 migrations applied to live Supabase (`supabase db push`).
+
 ## 2026-09-25 — P7: Billing & Payments
 
 Real money: Stripe (USD, global) + Razorpay (INR, India) behind one provider

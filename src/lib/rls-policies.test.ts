@@ -66,6 +66,9 @@ const OWNER_SCOPED_TABLES = [
   "characters",
   "asset_provenance",
   "safety_scores",
+  "video_analytics",
+  "channel_stats",
+  "learning_insights",
 ];
 
 /** Tables intentionally readable/writable without auth (documented exceptions). */
