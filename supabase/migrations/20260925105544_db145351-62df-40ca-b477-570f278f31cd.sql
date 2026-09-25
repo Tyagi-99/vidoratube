@@ -1,1 +1,0 @@
-DO $$ BEGIN RAISE NOTICE 'types refresh'; END $$;
