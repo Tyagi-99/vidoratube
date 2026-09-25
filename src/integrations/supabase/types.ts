@@ -92,12 +92,12 @@ export type Database = {
           created_at: string
           id: string
           kind: string | null
-          license: string | null
+          license: string
           license_url: string | null
           model: string | null
           project_id: string | null
           prompt: string | null
-          provider: string | null
+          provider: string
           scene_id: string | null
           seed: string | null
           type: string | null
@@ -109,12 +109,12 @@ export type Database = {
           created_at?: string
           id?: string
           kind?: string | null
-          license?: string | null
+          license?: string
           license_url?: string | null
           model?: string | null
           project_id?: string | null
           prompt?: string | null
-          provider?: string | null
+          provider?: string
           scene_id?: string | null
           seed?: string | null
           type?: string | null
@@ -126,12 +126,12 @@ export type Database = {
           created_at?: string
           id?: string
           kind?: string | null
-          license?: string | null
+          license?: string
           license_url?: string | null
           model?: string | null
           project_id?: string | null
           prompt?: string | null
-          provider?: string | null
+          provider?: string
           scene_id?: string | null
           seed?: string | null
           type?: string | null
@@ -936,7 +936,7 @@ export type Database = {
           created_at: string
           ctr: number | null
           id: string
-          outlier_score: number | null
+          outlier_score: number
           patterns: Json | null
           project_id: string | null
           published_at: string | null
@@ -954,7 +954,7 @@ export type Database = {
           created_at?: string
           ctr?: number | null
           id?: string
-          outlier_score?: number | null
+          outlier_score?: number
           patterns?: Json | null
           project_id?: string | null
           published_at?: string | null
@@ -972,7 +972,7 @@ export type Database = {
           created_at?: string
           ctr?: number | null
           id?: string
-          outlier_score?: number | null
+          outlier_score?: number
           patterns?: Json | null
           project_id?: string | null
           published_at?: string | null
@@ -990,51 +990,51 @@ export type Database = {
           active: boolean
           created_at: string
           credits: number | null
-          credits_granted: number | null
+          credits_granted: number
           features: Json | null
           id: string
           interval: string
           kind: string | null
-          name: string | null
+          name: string
           price_cents: number | null
           price_inr_paise: number | null
           price_usd_cents: number | null
           razorpay_plan_id: string | null
-          slug: string | null
+          slug: string
           stripe_price_id: string | null
         }
         Insert: {
           active?: boolean
           created_at?: string
           credits?: number | null
-          credits_granted?: number | null
+          credits_granted?: number
           features?: Json | null
           id?: string
           interval?: string
           kind?: string | null
-          name?: string | null
+          name: string
           price_cents?: number | null
           price_inr_paise?: number | null
           price_usd_cents?: number | null
           razorpay_plan_id?: string | null
-          slug?: string | null
+          slug: string
           stripe_price_id?: string | null
         }
         Update: {
           active?: boolean
           created_at?: string
           credits?: number | null
-          credits_granted?: number | null
+          credits_granted?: number
           features?: Json | null
           id?: string
           interval?: string
           kind?: string | null
-          name?: string | null
+          name?: string
           price_cents?: number | null
           price_inr_paise?: number | null
           price_usd_cents?: number | null
           razorpay_plan_id?: string | null
-          slug?: string | null
+          slug?: string
           stripe_price_id?: string | null
         }
         Relationships: []
@@ -1139,9 +1139,9 @@ export type Database = {
           job_id: string | null
           language: string
           mode: string
-          music_ducking: boolean | null
+          music_ducking: boolean
           music_track_id: string | null
-          music_volume: number | null
+          music_volume: number
           narration: string | null
           preset: string
           result_url: string | null
@@ -1170,9 +1170,9 @@ export type Database = {
           job_id?: string | null
           language?: string
           mode?: string
-          music_ducking?: boolean | null
+          music_ducking?: boolean
           music_track_id?: string | null
-          music_volume?: number | null
+          music_volume?: number
           narration?: string | null
           preset?: string
           result_url?: string | null
@@ -1201,9 +1201,9 @@ export type Database = {
           job_id?: string | null
           language?: string
           mode?: string
-          music_ducking?: boolean | null
+          music_ducking?: boolean
           music_track_id?: string | null
-          music_volume?: number | null
+          music_volume?: number
           narration?: string | null
           preset?: string
           result_url?: string | null
@@ -1240,13 +1240,13 @@ export type Database = {
           id: string
           made_for_kids: boolean | null
           privacy: string | null
-          project_id: string | null
+          project_id: string
           published_at: string | null
           safety_override: boolean | null
           safety_score: number | null
           scheduled_for: string | null
           status: string
-          tags: string[] | null
+          tags: string[]
           thumbnail_id: string | null
           title: string | null
           updated_at: string
@@ -1264,13 +1264,13 @@ export type Database = {
           id?: string
           made_for_kids?: boolean | null
           privacy?: string | null
-          project_id?: string | null
+          project_id: string
           published_at?: string | null
           safety_override?: boolean | null
           safety_score?: number | null
           scheduled_for?: string | null
           status?: string
-          tags?: string[] | null
+          tags?: string[]
           thumbnail_id?: string | null
           title?: string | null
           updated_at?: string
@@ -1288,13 +1288,13 @@ export type Database = {
           id?: string
           made_for_kids?: boolean | null
           privacy?: string | null
-          project_id?: string | null
+          project_id?: string
           published_at?: string | null
           safety_override?: boolean | null
           safety_score?: number | null
           scheduled_for?: string | null
           status?: string
-          tags?: string[] | null
+          tags?: string[]
           thumbnail_id?: string | null
           title?: string | null
           updated_at?: string
@@ -1474,7 +1474,7 @@ export type Database = {
           created_at: string
           id: string
           language: string | null
-          niches: string[] | null
+          niches: Json | null
           status: string | null
           topic: string | null
           updated_at: string
@@ -1484,7 +1484,7 @@ export type Database = {
           created_at?: string
           id?: string
           language?: string | null
-          niches?: string[] | null
+          niches?: Json | null
           status?: string | null
           topic?: string | null
           updated_at?: string
@@ -1494,7 +1494,7 @@ export type Database = {
           created_at?: string
           id?: string
           language?: string | null
-          niches?: string[] | null
+          niches?: Json | null
           status?: string | null
           topic?: string | null
           updated_at?: string
@@ -1559,42 +1559,42 @@ export type Database = {
       safety_scores: {
         Row: {
           ai_review: Json | null
-          band: string | null
+          band: string
           created_at: string
           dimensions: Json | null
           id: string
           issues: Json | null
           model: string | null
-          project_id: string | null
-          score: number | null
+          project_id: string
+          score: number
           suggestions: Json | null
           user_id: string
           version: string | null
         }
         Insert: {
           ai_review?: Json | null
-          band?: string | null
+          band?: string
           created_at?: string
           dimensions?: Json | null
           id?: string
           issues?: Json | null
           model?: string | null
-          project_id?: string | null
-          score?: number | null
+          project_id: string
+          score?: number
           suggestions?: Json | null
           user_id: string
           version?: string | null
         }
         Update: {
           ai_review?: Json | null
-          band?: string | null
+          band?: string
           created_at?: string
           dimensions?: Json | null
           id?: string
           issues?: Json | null
           model?: string | null
-          project_id?: string | null
-          score?: number | null
+          project_id?: string
+          score?: number
           suggestions?: Json | null
           user_id?: string
           version?: string | null
@@ -1762,10 +1762,10 @@ export type Database = {
           created_at: string
           current_period_end: string | null
           current_period_start: string | null
-          external_id: string | null
+          external_id: string
           id: string
           plan_slug: string | null
-          provider: string | null
+          provider: string
           status: string | null
           updated_at: string
           user_id: string
@@ -1775,10 +1775,10 @@ export type Database = {
           created_at?: string
           current_period_end?: string | null
           current_period_start?: string | null
-          external_id?: string | null
+          external_id: string
           id?: string
           plan_slug?: string | null
-          provider?: string | null
+          provider: string
           status?: string | null
           updated_at?: string
           user_id: string
@@ -1788,10 +1788,10 @@ export type Database = {
           created_at?: string
           current_period_end?: string | null
           current_period_start?: string | null
-          external_id?: string | null
+          external_id?: string
           id?: string
           plan_slug?: string | null
-          provider?: string | null
+          provider?: string
           status?: string | null
           updated_at?: string
           user_id?: string
@@ -1807,12 +1807,12 @@ export type Database = {
           image_url: string | null
           license: string
           model: string | null
-          project_id: string | null
+          project_id: string
           prompt: string | null
           provider: string | null
           selected: boolean | null
           text_overlay: Json | null
-          url: string | null
+          url: string
           user_id: string
           variant: number
         }
@@ -1824,12 +1824,12 @@ export type Database = {
           image_url?: string | null
           license?: string
           model?: string | null
-          project_id?: string | null
+          project_id: string
           prompt?: string | null
           provider?: string | null
           selected?: boolean | null
           text_overlay?: Json | null
-          url?: string | null
+          url: string
           user_id: string
           variant?: number
         }
@@ -1841,12 +1841,12 @@ export type Database = {
           image_url?: string | null
           license?: string
           model?: string | null
-          project_id?: string | null
+          project_id?: string
           prompt?: string | null
           provider?: string | null
           selected?: boolean | null
           text_overlay?: Json | null
-          url?: string | null
+          url?: string
           user_id?: string
           variant?: number
         }
@@ -1919,7 +1919,7 @@ export type Database = {
           id: string
           project_id: string | null
           project_ref: string | null
-          safety_flag: string | null
+          safety_flag: string
           status: string | null
           title: string | null
           updated_at: string
@@ -1934,7 +1934,7 @@ export type Database = {
           id?: string
           project_id?: string | null
           project_ref?: string | null
-          safety_flag?: string | null
+          safety_flag?: string
           status?: string | null
           title?: string | null
           updated_at?: string
@@ -1949,7 +1949,7 @@ export type Database = {
           id?: string
           project_id?: string | null
           project_ref?: string | null
-          safety_flag?: string | null
+          safety_flag?: string
           status?: string | null
           title?: string | null
           updated_at?: string
