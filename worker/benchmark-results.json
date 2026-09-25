@@ -1,0 +1,175 @@
+{
+  "methodology": "see scripts/benchmark-20min.ts header; measured 2x150s chapters via real FFmpeg, synthetic assets, projection via benchmark-model.ts",
+  "exactCommand": "npx tsx scripts/benchmark-20min.ts",
+  "vm": {
+    "date": "2026-09-25T16:24:21.940Z",
+    "git": "b03dc6b",
+    "node": "v24.20.0",
+    "ffmpeg": "ffmpeg version 8.1.2 Copyright (c) 2000-2026 the FFmpeg developers",
+    "cpus": 2,
+    "cpuModel": "AMD EPYC 9D25 126-Core Processor",
+    "memGB": 8,
+    "loadavgStart": [
+      1.12,
+      1.37,
+      0.62
+    ],
+    "loadavgEnd": [
+      3.8,
+      2.46,
+      1.14
+    ]
+  },
+  "flags": {
+    "chaptersMeasured": 2,
+    "chapterSec": 150,
+    "scenesPerChapter": 5,
+    "aspect": "16:9",
+    "fps": 30,
+    "captionPreset": "medium",
+    "loudnormMeasured": true
+  },
+  "implementation": "RealChapterPipeline (worker/src/chapters.ts renderChapter + stitchChapters; synthetic paragraph audio over local HTTP)",
+  "chapters": [
+    {
+      "index": 0,
+      "mediaSec": 150,
+      "stages": [
+        {
+          "stage": "paragraph audio prep",
+          "sec": 0.937169688,
+          "note": "synthetic (mock TTS), local files"
+        },
+        {
+          "stage": "chapter render (single pass)",
+          "sec": 58.3469188,
+          "note": "real: loopback download + audio concat + solid-bg x264 with subtitles burn"
+        }
+      ],
+      "totalSec": 59.284896439,
+      "output": "/tmp/vidora-bench-PJ68pO/ch-0/chapter-0.mp4"
+    },
+    {
+      "index": 1,
+      "mediaSec": 150,
+      "stages": [
+        {
+          "stage": "paragraph audio prep",
+          "sec": 0.927923348,
+          "note": "synthetic (mock TTS), local files"
+        },
+        {
+          "stage": "chapter render (single pass)",
+          "sec": 60.715439021,
+          "note": "real: loopback download + audio concat + solid-bg x264 with subtitles burn"
+        }
+      ],
+      "totalSec": 61.64374265,
+      "output": "/tmp/vidora-bench-PJ68pO/ch-1/chapter-1.mp4"
+    }
+  ],
+  "stitch": {
+    "mediaSec": 300,
+    "chapterCount": 2,
+    "concatSec": 0.457956541,
+    "loudnormSec": 21.375566735,
+    "finalizeSec": 0,
+    "totalSec": 21.986623636
+  },
+  "measuredChapters": [
+    {
+      "index": 0,
+      "mediaSec": 150,
+      "wallSec": 59.284896439
+    },
+    {
+      "index": 1,
+      "mediaSec": 150,
+      "wallSec": 61.64374265
+    }
+  ],
+  "measuredStitch": {
+    "mediaSec": 300,
+    "concatSec": 0.457956541,
+    "chapterCount": 2,
+    "loudnormSec": 21.375566735,
+    "finalizeSec": 0
+  },
+  "projections": [
+    {
+      "chapterConcurrency": 1,
+      "withProposedLoudnorm": {
+        "perChapterSec": 60.4643195445,
+        "chapterPhaseSec": 483.714556356,
+        "concatSec": 1.831826164,
+        "loudnormSec": 85.50226694,
+        "finalizeSec": 0,
+        "stitchSec": 87.334093104,
+        "totalSec": 571.04864946,
+        "targetSec": 900,
+        "hitsTarget": true
+      },
+      "withoutLoudnorm": {
+        "perChapterSec": 60.4643195445,
+        "chapterPhaseSec": 483.714556356,
+        "concatSec": 1.831826164,
+        "loudnormSec": 0,
+        "finalizeSec": 0,
+        "stitchSec": 1.831826164,
+        "totalSec": 485.54638252,
+        "targetSec": 900,
+        "hitsTarget": true
+      }
+    },
+    {
+      "chapterConcurrency": 2,
+      "withProposedLoudnorm": {
+        "perChapterSec": 60.4643195445,
+        "chapterPhaseSec": 241.857278178,
+        "concatSec": 1.831826164,
+        "loudnormSec": 85.50226694,
+        "finalizeSec": 0,
+        "stitchSec": 87.334093104,
+        "totalSec": 329.191371282,
+        "targetSec": 900,
+        "hitsTarget": true
+      },
+      "withoutLoudnorm": {
+        "perChapterSec": 60.4643195445,
+        "chapterPhaseSec": 241.857278178,
+        "concatSec": 1.831826164,
+        "loudnormSec": 0,
+        "finalizeSec": 0,
+        "stitchSec": 1.831826164,
+        "totalSec": 243.689104342,
+        "targetSec": 900,
+        "hitsTarget": true
+      }
+    },
+    {
+      "chapterConcurrency": 4,
+      "withProposedLoudnorm": {
+        "perChapterSec": 60.4643195445,
+        "chapterPhaseSec": 120.928639089,
+        "concatSec": 1.831826164,
+        "loudnormSec": 85.50226694,
+        "finalizeSec": 0,
+        "stitchSec": 87.334093104,
+        "totalSec": 208.262732193,
+        "targetSec": 900,
+        "hitsTarget": true
+      },
+      "withoutLoudnorm": {
+        "perChapterSec": 60.4643195445,
+        "chapterPhaseSec": 120.928639089,
+        "concatSec": 1.831826164,
+        "loudnormSec": 0,
+        "finalizeSec": 0,
+        "stitchSec": 1.831826164,
+        "totalSec": 122.760465253,
+        "targetSec": 900,
+        "hitsTarget": true
+      }
+    }
+  ]
+}
