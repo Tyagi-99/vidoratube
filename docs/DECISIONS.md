@@ -535,3 +535,7 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
 - **Reason:** Storage survives worker crashes; `/tmp` does not.
 - **Reverse:** Add a `chapter_mp4_sha256` column and verify hashes on resume
   if silent storage corruption ever shows up.
+### D45. Public-read catalog tables stay public; the scan warning is accepted by design
+- **Decision:** `languages`, `language_voices`, `language_quality_gates`, and `music_tracks` keep `FOR SELECT USING (true)` policies. Lovable's pre-publish scan flags them ("Some access rules let everyone through") — this warning is accepted, not fixed, because every one of these tables is reference/catalog data with zero user PII: language metadata and quality-gate status (drives UI dropdowns and honest Beta labels), the voice catalog (names/verified flags only), and the royalty-free music catalog (D25).
+- **Reason:** Scoping reads to "the caller's rows" is meaningless for shared catalogs; the scanner's own guidance allows keeping a permissive policy "only if the data is meant to be shared across all users" — it is. Writes on all four remain service-role-only (no INSERT/UPDATE/DELETE policies for anon/authenticated), so the warning concerns reads of public data only.
+- **Reverse:** If any of these tables ever stores user data, add owner-scoped policies and re-run the scan.
