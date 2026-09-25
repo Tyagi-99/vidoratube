@@ -1,13 +1,20 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireAppUser } from "./server-auth";
+import { looksLikeMp4Container, parseMp4Duration } from "./media/mp4";
 
-const SIGNED_URL_TTL = 60 * 60 * 24 * 365;
+/** Signed URLs are bearer tokens — keep them short-lived; refreshRenderUrl re-signs on demand. */
+const SIGNED_URL_TTL = 60 * 60 * 24 * 7;
+
+const BUCKET = "generated-videos";
+
+/** Bytes fetched from the head of an upload for validation (moov/mvhd sit up front with faststart). */
+const PROBE_BYTES = 262_144;
 
 const idSchema = z.object({ id: z.string().uuid() });
 
 export const listRenders = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAppUser])
   .inputValidator((i: unknown) => z.object({ projectId: z.string().uuid() }).parse(i))
   .handler(async ({ data, context }) => {
     const { data: rows, error } = await context.supabase
@@ -22,7 +29,7 @@ export const listRenders = createServerFn({ method: "GET" })
   });
 
 export const startRender = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAppUser])
   .inputValidator((i: unknown) =>
     z
       .object({
@@ -64,7 +71,7 @@ export const startRender = createServerFn({ method: "POST" })
   });
 
 export const updateRenderProgress = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAppUser])
   .inputValidator((i: unknown) =>
     z
       .object({ id: z.string().uuid(), stage: z.string().max(40), progress: z.number().min(0).max(100) })
@@ -80,8 +87,45 @@ export const updateRenderProgress = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/**
+ * Fetch just the head of a stored object over its signed URL (bounded memory —
+ * the full file can be gigabytes). Returns the total object size when the
+ * server honors Range, plus up to PROBE_BYTES of content for sniffing.
+ */
+async function probeStorageHead(url: string): Promise<{ totalBytes: number | null; head: Uint8Array }> {
+  const res = await fetch(url, { headers: { Range: `bytes=0-${PROBE_BYTES - 1}` } });
+  if (!res.ok || !res.body) {
+    throw new Error(`Uploaded file is missing from storage (HTTP ${res.status}).`);
+  }
+  let totalBytes: number | null = null;
+  const contentRange = res.headers.get("content-range"); // e.g. "bytes 0-262143/12345678"
+  const total = contentRange?.split("/")[1];
+  if (total && Number.isFinite(Number(total))) totalBytes = Number(total);
+
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let taken = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    taken += value.length;
+    if (taken >= PROBE_BYTES) {
+      await reader.cancel();
+      break;
+    }
+  }
+  const head = new Uint8Array(taken);
+  let offset = 0;
+  for (const chunk of chunks) {
+    head.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return { totalBytes, head };
+}
+
 export const completeRender = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAppUser])
   .inputValidator((i: unknown) =>
     z
       .object({
@@ -94,40 +138,78 @@ export const completeRender = createServerFn({ method: "POST" })
       .parse(i),
   )
   .handler(async ({ data, context }) => {
-    if (!data.path.startsWith(`${context.userId}/`)) throw new Error("Invalid upload path");
+    const { supabase, userId } = context;
 
-    const { data: signed, error: signError } = await context.supabase.storage
-      .from("generated-videos")
+    // Exact path match — the client uploads to <userId>/renders/<renderId>.mp4.
+    const expectedPath = `${userId}/renders/${data.id}.mp4`;
+    if (data.path !== expectedPath) throw new Error("Invalid upload path for this render");
+
+    const { data: existing } = await supabase
+      .from("renders")
+      .select("*")
+      .eq("id", data.id)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (!existing) throw new Error("Render not found");
+    // Idempotent: a retried completion must not resurrect or double-process.
+    if (existing.status === "completed") return existing;
+
+    // Reject obviously bogus client claims before touching storage.
+    if (!Number.isFinite(data.file_size) || data.file_size < 1024) {
+      throw new Error("Rendered file is too small to be a valid MP4.");
+    }
+    if (!Number.isFinite(data.duration) || data.duration <= 0) {
+      throw new Error("Rendered file has no playable duration.");
+    }
+
+    const { data: signed, error: signError } = await supabase.storage
+      .from(BUCKET)
       .createSignedUrl(data.path, SIGNED_URL_TTL);
-    if (signError) throw new Error(signError.message);
+    if (signError || !signed?.signedUrl) {
+      throw new Error(signError?.message ?? "Could not sign result URL");
+    }
 
-    const { data: row, error } = await context.supabase
+    // Validate the stored object itself — never trust client file claims alone.
+    const { totalBytes, head } = await probeStorageHead(signed.signedUrl);
+    if (totalBytes !== null && totalBytes < 1024) {
+      throw new Error("Uploaded video is empty or truncated.");
+    }
+    if (!looksLikeMp4Container(head)) {
+      throw new Error("Uploaded file is not a valid MP4 (missing ftyp).");
+    }
+    // Prefer the server-probed duration over the client claim when parseable.
+    const probed = parseMp4Duration(head);
+    const duration =
+      probed !== null && probed > 0 && probed < 86400 ? probed : data.duration;
+
+    const { data: row, error } = await supabase
       .from("renders")
       .update({
         status: "completed",
         stage: "done",
         progress: 100,
-        file_url: signed?.signedUrl ?? null,
-        file_size: data.file_size,
-        duration: data.duration,
+        file_url: signed.signedUrl,
+        file_size: totalBytes ?? data.file_size,
+        duration,
         resolution: data.resolution,
         error: null,
         render_completed_at: new Date().toISOString(),
         meta: { path: data.path },
       })
       .eq("id", data.id)
-      .eq("user_id", context.userId)
+      .eq("user_id", userId)
+      .neq("status", "completed")
       .select("*")
       .single();
     if (error) throw new Error(error.message);
 
     // Studio path: promote finished render URL onto the project when missing.
     if (row?.project_id && row.file_url) {
-      await context.supabase
+      await supabase
         .from("projects")
         .update({ result_url: row.file_url })
         .eq("id", row.project_id)
-        .eq("user_id", context.userId)
+        .eq("user_id", userId)
         .is("result_url", null);
     }
 
@@ -135,11 +217,12 @@ export const completeRender = createServerFn({ method: "POST" })
   });
 
 export const failRender = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAppUser])
   .inputValidator((i: unknown) =>
     z.object({ id: z.string().uuid(), error: z.string().max(1000), cancelled: z.boolean().default(false) }).parse(i),
   )
   .handler(async ({ data, context }) => {
+    // Never rewrite history: a completed render stays completed.
     const { error } = await context.supabase
       .from("renders")
       .update({
@@ -148,13 +231,14 @@ export const failRender = createServerFn({ method: "POST" })
         render_completed_at: new Date().toISOString(),
       })
       .eq("id", data.id)
-      .eq("user_id", context.userId);
+      .eq("user_id", context.userId)
+      .neq("status", "completed");
     if (error) throw new Error(error.message);
     return { ok: true };
   });
 
 export const refreshRenderUrl = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAppUser])
   .inputValidator((i: unknown) => idSchema.parse(i))
   .handler(async ({ data, context }) => {
     const { data: row } = await context.supabase
@@ -166,7 +250,7 @@ export const refreshRenderUrl = createServerFn({ method: "POST" })
     const path = (row?.meta as { path?: string } | null)?.path;
     if (!path) throw new Error("This render has no stored file");
     const { data: signed, error } = await context.supabase.storage
-      .from("generated-videos")
+      .from(BUCKET)
       .createSignedUrl(path, SIGNED_URL_TTL);
     if (error) throw new Error(error.message);
     await context.supabase

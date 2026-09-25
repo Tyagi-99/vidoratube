@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireAppUser } from "./server-auth";
 
 /* ------------------------------- schemas -------------------------------- */
 
@@ -21,7 +21,7 @@ const idSchema = z.object({ id: z.string().uuid() });
 /* -------------------------------- reads --------------------------------- */
 
 export const listCategories = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAppUser])
   .handler(async ({ context }) => {
     const { data } = await context.supabase
       .from("categories")
@@ -32,7 +32,7 @@ export const listCategories = createServerFn({ method: "GET" })
   });
 
 export const listProjects = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAppUser])
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("projects")
@@ -44,7 +44,7 @@ export const listProjects = createServerFn({ method: "GET" })
   });
 
 export const getProject = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAppUser])
   .inputValidator((i: unknown) => idSchema.parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
@@ -67,7 +67,7 @@ export const getProject = createServerFn({ method: "GET" })
   });
 
 export const getUsageSummary = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAppUser])
   .handler(async ({ context }) => {
     const { data } = await context.supabase
       .from("api_usage")
@@ -88,7 +88,7 @@ export const getUsageSummary = createServerFn({ method: "GET" })
 /* ------------------------------- mutations ------------------------------- */
 
 export const createProject = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAppUser])
   .inputValidator((i: unknown) => createSchema.parse(i))
   .handler(async ({ data, context }) => {
     if (data.mode === "video") throw new Error("Complete Video Mode is coming soon.");
@@ -119,7 +119,7 @@ export const createProject = createServerFn({ method: "POST" })
   });
 
 export const deleteProject = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAppUser])
   .inputValidator((i: unknown) => idSchema.parse(i))
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase
@@ -132,7 +132,7 @@ export const deleteProject = createServerFn({ method: "POST" })
   });
 
 export const duplicateProject = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAppUser])
   .inputValidator((i: unknown) => idSchema.parse(i))
   .handler(async ({ data, context }) => {
     const { data: source, error } = await context.supabase
@@ -180,7 +180,7 @@ const sceneUpdateSchema = z.object({
 });
 
 export const updateScene = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAppUser])
   .inputValidator((i: unknown) => sceneUpdateSchema.parse(i))
   .handler(async ({ data, context }) => {
     const { id, ...rest } = data;
@@ -199,7 +199,7 @@ export const updateScene = createServerFn({ method: "POST" })
   });
 
 export const deleteScene = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAppUser])
   .inputValidator((i: unknown) => idSchema.parse(i))
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase
@@ -213,7 +213,7 @@ export const deleteScene = createServerFn({ method: "POST" })
 
 /** Regenerates one scene only — visual, voice and captions — without touching the rest. */
 export const regenerateScene = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAppUser])
   .inputValidator((i: unknown) =>
     z
       .object({ id: z.string().uuid(), what: z.enum(["visual", "voice", "both"]).default("both") })
@@ -231,7 +231,12 @@ export const regenerateScene = createServerFn({ method: "POST" })
       .eq("user_id", userId)
       .maybeSingle();
     if (!scene) throw new Error("Scene not found");
-    const { data: project } = await supabase.from("projects").select("*").eq("id", scene.project_id).maybeSingle();
+    const { data: project } = await supabase
+      .from("projects")
+      .select("*")
+      .eq("id", scene.project_id)
+      .eq("user_id", userId)
+      .maybeSingle();
     if (!project) throw new Error("Project not found");
 
     try {
@@ -299,7 +304,7 @@ export const regenerateScene = createServerFn({ method: "POST" })
  * The client polls this and renders the real stage list.
  */
 export const advanceProject = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAppUser])
   .inputValidator((i: unknown) => idSchema.parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;

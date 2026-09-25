@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { createPublicSupabase } from "./public.server";
+import { createRateLimiter } from "./rate-limit";
 
 export const getSiteContent = createServerFn({ method: "GET" }).handler(async () => {
   const supabase = createPublicSupabase();
@@ -35,6 +37,13 @@ const contactSchema = z.object({
 export const submitContactMessage = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => contactSchema.parse(input))
   .handler(async ({ data }) => {
+    // Best-effort per-IP throttle: the form is intentionally public (no auth),
+    // so without this it is an unauthenticated spam sink into contact_messages.
+    // In-memory counters blunt casual abuse; they are per-instance on
+    // serverless, not a hard global cap.
+    if (!contactLimiter.check(clientIp())) {
+      throw new Error("Too many messages — please try again later.");
+    }
     const supabase = createPublicSupabase();
     const { error } = await supabase.from("contact_messages").insert({
       name: data.name,
@@ -45,3 +54,12 @@ export const submitContactMessage = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+const contactLimiter = createRateLimiter({ windowMs: 60 * 60 * 1000, max: 5 });
+
+function clientIp(): string {
+  const headers = getRequest()?.headers;
+  const forwarded = headers?.get("x-forwarded-for");
+  if (forwarded) return forwarded.split(",")[0]!.trim();
+  return headers?.get("cf-connecting-ip") ?? headers?.get("x-real-ip") ?? "unknown";
+}

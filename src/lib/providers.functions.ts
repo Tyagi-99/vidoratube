@@ -1,11 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireAppUser } from "./server-auth";
+import { assertAdmin } from "./admin.server";
 
-/** Provider configuration status — never returns a key, only a masked hint. */
+/** Provider configuration status — admin only: never returns a key, only a masked hint. */
 export const getProviderStatus = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async () => {
+  .middleware([requireAppUser])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.supabase, context.userId);
     const { maskKey } = await import("./providers/http.server");
     const { videoModeAvailable } = await import("./providers/video.server");
     const entry = (id: string, label: string, env: string, note: string) => ({
@@ -43,8 +45,9 @@ export const getProviderStatus = createServerFn({ method: "GET" })
   });
 
 export const listElevenLabsVoices = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async () => {
+  .middleware([requireAppUser])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.supabase, context.userId);
     const { elevenLabsConfigured, listVoices } = await import("./providers/voice.server");
     if (!elevenLabsConfigured()) return { configured: false, voices: [] as { id: string; name: string }[] };
     try {
@@ -56,7 +59,7 @@ export const listElevenLabsVoices = createServerFn({ method: "GET" })
 
 /** Fires one tiny live request per provider so key problems surface immediately. */
 export const testProvider = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAppUser])
   .inputValidator((i: unknown) =>
     z
       .object({
@@ -66,7 +69,8 @@ export const testProvider = createServerFn({ method: "POST" })
       })
       .parse(i),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
     try {
       if (data.provider === "pexels" || data.provider === "pixabay") {
         const { pexels, pixabay } = await import("./providers/stock.server");
