@@ -17,6 +17,12 @@
  * Set VIDORA_VENDOR_WASM=1 when building for a self-hosted production
  * target to get a fully self-contained dist/ instead.
  *
+ * Resilience: vendoring is a build-time optimization and must NEVER fail
+ * the production build. If anything goes wrong (missing node_modules,
+ * partial install, read-only filesystem), it warns and exits 0 —
+ * public/wasm/ffmpeg-core-esm.js is committed as a fallback and the
+ * runtime loader falls back to the hosted core URL.
+ *
  * Usage:
  *   node scripts/vendor-ffmpeg-core.mjs --dev    # predev: vendor js + wasm
  *   node scripts/vendor-ffmpeg-core.mjs --build  # prebuild: vendor js (+ wasm iff VIDORA_VENDOR_WASM=1)
@@ -36,37 +42,42 @@ const outWasm = join(outDir, "ffmpeg-core.wasm");
 const WASM_MAGIC = Buffer.from([0x00, 0x61, 0x73, 0x6d]);
 const mode = process.argv.includes("--dev") ? "dev" : "build";
 
-function fail(message) {
-  console.error(`[ffmpeg-core] ${message}`);
-  process.exit(1);
+try {
+  vendor();
+} catch (err) {
+  console.warn(
+    `[ffmpeg-core] WARNING: ${err instanceof Error ? err.message : String(err)} — continuing without re-vendoring.`,
+  );
 }
 
-if (!existsSync(srcJs) || !existsSync(srcWasm)) {
-  fail(`@ffmpeg/core esm files not found in ${esmDir} — run the package manager install first.`);
-}
-
-mkdirSync(outDir, { recursive: true });
-
-// The core JS is small (111 KB) and safe for every deploy target: always vendor.
-copyFileSync(srcJs, outJs);
-const jsSize = readFileSync(outJs).length;
-if (jsSize < 50_000) fail(`copied core JS looks wrong (${jsSize} bytes).`);
-console.log(`[ffmpeg-core] vendored ffmpeg-core-esm.js (${jsSize} bytes)`);
-
-// The wasm exceeds Cloudflare Workers' 25 MB static-asset limit: only vendor it
-// for local dev, or for production builds that explicitly opt in.
-const wantWasm = mode === "dev" || process.env["VIDORA_VENDOR_WASM"] === "1";
-if (wantWasm) {
-  copyFileSync(srcWasm, outWasm);
-  const buf = readFileSync(outWasm);
-  if (buf.length < 30_000_000 || !buf.subarray(0, 4).equals(WASM_MAGIC)) {
-    fail(`copied wasm failed verification (${buf.length} bytes).`);
+function vendor() {
+  if (!existsSync(srcJs) || !existsSync(srcWasm)) {
+    throw new Error(`@ffmpeg/core esm files not found in ${esmDir} — run the package manager install first.`);
   }
-  console.log(`[ffmpeg-core] vendored ffmpeg-core.wasm (${buf.length} bytes)`);
-} else if (existsSync(outWasm)) {
-  // A dev-vendored copy must not leak into dist/ and break the Cloudflare deploy.
-  rmSync(outWasm);
-  console.log("[ffmpeg-core] removed dev-vendored ffmpeg-core.wasm for production build (set VIDORA_VENDOR_WASM=1 to keep it)");
-} else {
-  console.log("[ffmpeg-core] skipping ffmpeg-core.wasm for production build (set VIDORA_VENDOR_WASM=1 to vendor it)");
+
+  mkdirSync(outDir, { recursive: true });
+
+  // The core JS is small (111 KB) and safe for every deploy target: always vendor.
+  copyFileSync(srcJs, outJs);
+  const jsSize = readFileSync(outJs).length;
+  if (jsSize < 50_000) throw new Error(`copied core JS looks wrong (${jsSize} bytes).`);
+  console.log(`[ffmpeg-core] vendored ffmpeg-core-esm.js (${jsSize} bytes)`);
+
+  // The wasm exceeds Cloudflare Workers' 25 MB static-asset limit: only vendor it
+  // for local dev, or for production builds that explicitly opt in.
+  const wantWasm = mode === "dev" || process.env["VIDORA_VENDOR_WASM"] === "1";
+  if (wantWasm) {
+    copyFileSync(srcWasm, outWasm);
+    const buf = readFileSync(outWasm);
+    if (buf.length < 30_000_000 || !buf.subarray(0, 4).equals(WASM_MAGIC)) {
+      throw new Error(`copied wasm failed verification (${buf.length} bytes).`);
+    }
+    console.log(`[ffmpeg-core] vendored ffmpeg-core.wasm (${buf.length} bytes)`);
+  } else if (existsSync(outWasm)) {
+    // A dev-vendored copy must not leak into dist/ and break the Cloudflare deploy.
+    rmSync(outWasm);
+    console.log("[ffmpeg-core] removed dev-vendored ffmpeg-core.wasm for production build (set VIDORA_VENDOR_WASM=1 to keep it)");
+  } else {
+    console.log("[ffmpeg-core] skipping ffmpeg-core.wasm for production build (set VIDORA_VENDOR_WASM=1 to vendor it)");
+  }
 }
