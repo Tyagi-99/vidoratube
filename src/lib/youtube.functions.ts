@@ -156,6 +156,26 @@ export const publishJobToYouTube = createServerFn({ method: "POST" })
     if (precheck.action === "already-uploading") {
       throw new Error("This video is already being published — check YouTube shortly.");
     }
+
+    // Scope check BEFORE the atomic claim: a read-only connection must not
+    // mark the job as "uploading", or the resumed publish after the
+    // incremental OAuth grant would be rejected as "already uploading".
+    const { data: connection } = await supabaseAdmin
+      .from("youtube_connections")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (!connection) throw new Error("Connect your YouTube channel first.");
+    // Incremental scope: the connection may only have read-only access. The
+    // client catches this and starts the upload-scope upgrade flow.
+    if (!hasUploadScope(connection.scope)) {
+      const error = new Error(
+        "YouTube upload permission is missing. Grant it to publish.",
+      ) as Error & { code?: string };
+      error.code = "NEEDS_UPLOAD_SCOPE";
+      throw error;
+    }
+
     // Atomic claim: the UPDATE only applies if the status hasn't changed since
     // we read it, so two racing publishes can't both proceed.
     const claimed = await claimJobForUpload(supabase, job.id, job.youtube_status);
@@ -173,22 +193,6 @@ export const publishJobToYouTube = createServerFn({ method: "POST" })
         };
       }
       throw new Error("This video is already being published — check YouTube shortly.");
-    }
-
-    const { data: connection } = await supabaseAdmin
-      .from("youtube_connections")
-      .select("*")
-      .eq("user_id", userId)
-      .maybeSingle();
-    if (!connection) throw new Error("Connect your YouTube channel first.");
-    // Incremental scope: the connection may only have read-only access. The
-    // client catches this and starts the upload-scope upgrade flow.
-    if (!hasUploadScope(connection.scope)) {
-      const error = new Error(
-        "YouTube upload permission is missing. Grant it to publish.",
-      ) as Error & { code?: string };
-      error.code = "NEEDS_UPLOAD_SCOPE";
-      throw error;
     }
 
     try {

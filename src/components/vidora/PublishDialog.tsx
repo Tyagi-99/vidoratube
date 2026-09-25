@@ -73,7 +73,13 @@ export function PublishDialog({
     },
     onError: (e: Error & { code?: string }) => {
       track("publish_failed", { job_id: jobId });
-      if (e.code === "YOUTUBE_REVOKED") {
+      // TanStack Start may strip custom Error.code during serialization, so
+      // detect via the stable message as a fallback.
+      const isRevoked =
+        e.code === "YOUTUBE_REVOKED" || /connection was revoked/i.test(e.message ?? "");
+      const needsScope =
+        e.code === "NEEDS_UPLOAD_SCOPE" || /upload permission is missing/i.test(e.message ?? "");
+      if (isRevoked) {
         // The server deleted the dead connection row; mark it so the panel
         // shows "Reconnect YouTube" instead of plain "Connect".
         sessionStorage.setItem(YT_REVOKED_FLAG, "1");
@@ -84,7 +90,7 @@ export function PublishDialog({
         onOpenChange(false);
         return;
       }
-      if (e.code === "NEEDS_UPLOAD_SCOPE") {
+      if (needsScope) {
         // Refresh the connection state so the dialog shows the grant step.
         void connectionState.refetch();
         return;
