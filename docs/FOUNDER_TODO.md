@@ -87,7 +87,7 @@ takes, and what it unblocks.
 - **Unblocks:** Trust — users should hear about unit changes from you, not discover
   them on the pricing page.
 
-## 9. Apply the five new Supabase migrations
+## 9. Apply the seven new Supabase migrations
 - **What:** Apply, in order:
   - `supabase/migrations/20260925194000_per_minute_credits.sql`
     (minute-based debit/refund RPCs + append-only conversion entries)
@@ -100,8 +100,13 @@ takes, and what it unblocks.
   - `supabase/migrations/20260925197000_worker_heartbeats.sql`
     (worker liveness table for server-render feature detection)
   - `supabase/migrations/20260925200000_notifications.sql`
-    (NEW: `notifications` table + RLS — powers the studio notification bell
-    for render completion; new table only, nothing else touched)
+    (Sprint 1–2: `notifications` table + RLS — powers the studio notification
+    bell for render completion; new table only, nothing else touched)
+  - `supabase/migrations/20260925210000_requeue_stale_renders.sql`
+    (Sprint 1–2: dead-worker requeue as server-side RPC; new function + index)
+  - `supabase/migrations/20260925220000_exact_render_settle.sql`
+    (Sprint 1–2: exact-quote rows settle at the quoted credits; function-body
+    replacement only)
 - **Where:** Supabase SQL editor or `supabase db push`. All are non-destructive
   (new functions/table, one new nullable column, insert-only or narrowly
   targeted UPDATE of ledger rows).

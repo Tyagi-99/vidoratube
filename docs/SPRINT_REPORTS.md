@@ -124,3 +124,167 @@ the four new migrations). Full list in `docs/FOUNDER_TODO.md`.
 **Blockers only the founder can resolve:** unchanged from `docs/FOUNDER_TODO.md`
 (legal entity, grievance officer, Dodo/Razorpay keys, vidora.ai, Oracle deploy,
 YouTube test channel, migration email, apply migrations).
+
+---
+
+## Sprints 1–2 — 2026-09-25 (evening)
+
+**Published URL:** https://vidoratube.lovable.app/ (publish pending — parent to run
+Lovable publish after this handoff; all verification below is local unless noted)
+
+**Commits (all on `main`, forward-only, pushed to `origin/main`):**
+
+| Hash | Subject |
+|------|---------|
+| `48839c9` | Sprint 1-2 (DB/queue): dead-worker requeue as server-side RPC |
+| `f417efd` | Sprint 1-2 (DB/queue): multi-aspect enqueue, queue depth, decisions |
+| `6e8fb6b` | Sprint 1: worker-health thresholds + engine-select fallback (+tests) |
+| `524119a` | Sprint 1: quoteMultiAspectRender exact multi-aspect quote helper (+tests) |
+| `068faa8` | Sprint 1: exact deterministic render settlement migration (+tests) |
+| `4f4b4ac` | Sprint 1: reserveRenderBilling reserves the exact quoted credits |
+| `9b74976` | Sprint 1: /status render-worker check |
+| `b7c9dd7` | Sprint 1: admin worker panel + unit economics |
+| `8c8c15e` | Sprint 2: RenderPanel multi-aspect selection + exact cost UI |
+| `0570a28` | Sprint 1-2: decisions D7-D12 + stale cost_mode JSDoc fix |
+| `650cc6c` | Sprint 1-2 (cost): central recordApiCost helper + unit tests |
+| `b32abf4` | Sprint 1-2 (cost): route all provider calls through recordApiCost |
+| `42341d0` | Sprint 1-2 (billing): refund every failure path via the fixed RPC |
+| `9187d31` | Sprint 1-2 (cost): measured cost-per-minute + plan margins |
+| `277f466` | Sprint 1: status page shows 5 loading skeletons (5 checks now) |
+| `35e191c` | Sprint 1-2: stranger e2e, purchase round-trip tests, completion email + notifications |
+
+**Shipped:**
+
+1. **Exact-cost rendering (Sprint 1, app/UI)** — `quoteMultiAspectRender` is the
+   single price source: per-aspect breakdown + exact grand total, reused by the
+   RenderPanel cost box and the server enqueue reserve, so the shown price IS
+   the charged price. RenderPanel: 16:9 / 9:16 / 1:1 checkboxes (default all
+   three, min one), engine fallback via `resolveEffectiveEngine`, honest copy
+   ("exact reserve, tab can close, progress updates live"). `reserveRenderBilling`
+   reserves the exact quoted credits (no more hard-coded 10-minute estimate);
+   `finalize_render_billing` settles exact-quote rows at exactly the quoted
+   credits (migration `20260925220000_exact_render_settle.sql`, function-body
+   replacement only; legacy rows keep the output-duration/wall-clock path).
+2. **DB/queue (Sprint 1–2)** — `enqueueServerRender` accepts `aspects[]`
+   (default all three): one `renders` row per aspect, shared `meta.group_id`,
+   legacy singular `aspect` still honored. Dead-worker requeue moved server-side
+   (`requeue_stale_renders` RPC, migration `20260925210000`, SECURITY DEFINER,
+   service-role only). Worker liveness thresholds shared in
+   `src/lib/worker-health.ts` (ok <15m, degraded 15–60m, down 60m+; stale =
+   queued >1h, running >2h).
+3. **Cost tracking (Sprint 1–2)** — one `recordApiCost` helper for every
+   provider call (ElevenLabs, gateway, Shotstack; fail-open), measured
+   cost-per-finished-minute + plan margins, admin worker panel (heartbeat,
+   queue depth, stale counts) + unit economics with an honest empty state
+   ("No measured data yet" — never zeros as measurements). `/status` gains a
+   Render-worker check (5 skeletons while loading).
+4. **Refunds on every failure path (Sprint 1–2, billing)** —
+   `refundDebitedMinutes` refunds exactly the real debit via
+   `refund_credits_for_minutes` (idempotent per job id, clamps to the actual
+   debit, never throws); wired into the createVideoJob catch, the
+   provider-failed branch (previously bypassed refunds), and
+   `failVideoJobCompose`. Worker `finish-job` refunds reserved minutes on
+   failed/cancelled with `p_ref_id` = job id.
+5. **Stranger-test Playwright suite (verification)** — new `e2e/stranger.spec.ts`.
+   Runs with `E2E_BASE_URL=https://vidoratube.lovable.app/ npm run test:e2e --
+   stranger`. Homepage/pricing checks always run; signup runs only with
+   `TEST_USER_PASSWORD` set (or localhost); the real render → MP4 download →
+   ffprobe (H.264 + AAC) runs only with `E2E_RUN_RENDER=1`. Everything else is
+   `test.skip` with an explicit reason — CI-safe, no secrets required.
+6. **Test-mode purchase verification (verification)** — new
+   `src/lib/billing/purchase-roundtrip.test.ts`: full round trip for a
+   one-time pack purchase (Growth pack `pack_m`, 70 credits — no "Maker" plan
+   exists in the catalog; see D31) on Dodo USD and Razorpay INR with mocked
+   fetch (no network, no real money): checkout session/order creation →
+   webhook delivery → real HMAC signature verification → event claim → credits
+   resolved from OUR plan catalog → `grant_credits_once`; duplicate delivery
+   grants exactly once (23505 replay → deduped). Dodo `subscription.active`
+   → renewal grant + subscription upsert also covered.
+7. **Completion email + in-app notifications (verification)** —
+   `sendRenderCompleteEmail` (`src/lib/notifications.server.ts`): ALWAYS
+   stores a `notifications` row (new table, migration
+   `20260925200000_notifications.sql`, RLS: users read own / mark own read,
+   writes service-role only); sends email via Resend REST only when
+   `RESEND_API_KEY` is set (no SDK). Fire-and-forget with catch — delivery can
+   never fail a completion; email links to `/studio`, never embeds the signed
+   URL. Studio header bell (`NotificationsBell`) shows unread count + list,
+   marks read on open. Hooked into `completeRender`.
+8. **Docs** — `docs/DECISIONS.md` D25–D35 (app/UI duplicates D7–D12 renumbered
+   to D25–D30, cross-references fixed; verification decisions D31–D35);
+   `docs/FOUNDER_TODO.md` #9 updated (seven migrations), #10 added (Resend
+   setup, exact steps, 20–30 min); this report.
+
+**Claims-table diff (vs Sprint 0 remainder state):**
+
+| Claim | Before | After |
+|-------|--------|-------|
+| 1 credit = 1 finished minute | shown | unchanged, still shown (now also quoted exactly pre-render) |
+| Exact cost before rendering | shown (per-minute copy) | **strengthened → RenderPanel shows the exact per-aspect quote; reserve = quote = settle** |
+| "You can close this tab" | banner added (Sprint 2) | **backed → completion now stores a notification row; email when Resend is configured** |
+| Checkout "Coming soon" | shown (no keys) | unchanged — keys still not configured |
+| Character consistency | restored (6-scene proof) | unchanged |
+
+**Stranger checklist (honest):**
+
+- [x] `e2e/stranger.spec.ts` written: homepage (no console errors, "Script in.",
+  "16 built-in voices", "1 credit = 1 finished minute"), pricing ($19 +
+  "Coming soon" honesty), timestamped signup, cost-before-render assertion,
+  render → MP4 download → ffprobe H.264 + AAC
+- [x] Spec typechecks standalone; 2/5 tests are unconditional, 3 skip
+  gracefully without secrets (`TEST_USER_PASSWORD`, `E2E_RUN_RENDER`)
+- [x] Purchase round trips verified in test mode (mocked): Dodo USD + Razorpay
+  INR checkout → webhook → signature → grant; duplicate → single grant
+- [x] Completion email flag on/off tested (8 tests): no key → row only, no
+  network; key → Resend post; Resend failure swallowed, row kept
+- [ ] Browser run of stranger.spec against the live site — **blocked, not
+  skipped silently:** this VM's Chromium cannot reach the public internet
+  (egress proxy → `ERR_EMPTY_RESPONSE`; direct → `ERR_SSL_PROTOCOL_ERROR`).
+  The pre-existing `public.spec.ts` fails identically, so it is environmental,
+  not the spec. CI / a normal network can run it; command documented above.
+- [ ] Real render + ffprobe on prod — **not run:** needs `E2E_RUN_RENDER=1` +
+  a funded test account + live worker (money gate, by design).
+- [ ] Live publish + screenshot verification — **pending parent publish**.
+- Note: `e2e/public.spec.ts` asserts the string "checkout is not live", which
+  does not exist anywhere in `src/` (actual copy is the "Coming soon" button);
+  that test is stale and was left untouched.
+
+**Proof:**
+
+- Tests: **474 passed** (`npm run test`), 0 failed — up from 392. New: 8
+  notification tests, 5 purchase round-trip tests, worker-health 12, quote
+  tests, settle static-audit 5, recordApiCost unit tests, RLS audit updated
+  for `notifications`.
+- `npx tsc --noEmit`: clean. Production build (`npm run build`): clean.
+- Purchase round trips: Dodo TEST endpoint `https://test.dodopayments.com/
+  checkout/sessions` asserted with metadata `{plan_slug, user_id}`; Razorpay
+  `https://api.razorpay.com/v1/orders` asserted with `amount: 159900,
+  currency: "INR"`; real HMAC verification both sides; replay → exactly one
+  `grant_credits_once` RPC call per provider.
+- Email: `sendRenderCompleteEmail` returns `{notified, emailed, emailError}`;
+  off-path performs zero network calls (fetch stub asserted not called).
+- ffprobe assertions live in `e2e/stranger.spec.ts` (H.264 + AAC on the
+  downloaded MP4); execution pending the render money gate above.
+- Demo video proof unchanged from Sprint 0 (ffprobe 1920×1080 H.264 + AAC,
+  60.000s, −14.04 LUFS).
+
+**Grep confirmations:**
+
+- `grep -rn "Maker" src/lib/billing/plans.ts` → 0 hits (no Maker plan; D31)
+- `grep -rln "RESEND_API_KEY" src/ docs/` → `src/lib/notifications.server.ts`,
+  docs only (no key values anywhere)
+- `grep -rn "checkout is not live" src/` → 0 hits (stale public.spec assertion)
+- `grep -c "create policy" supabase/migrations/20260925200000_notifications.sql` → 2
+  (select-own, update-own-read; no INSERT policy by design, D34)
+- `grep -n "^### D" docs/DECISIONS.md | awk … | sort | uniq -d` → no duplicates
+
+**New founder TODO items:** #9 updated (apply the **seven** migrations, listed in
+order), #10 (Resend setup for completion email — exact steps, 20–30 min;
+in-app bell works with zero setup). Full list in `docs/FOUNDER_TODO.md`.
+
+**Decisions:** `docs/DECISIONS.md` (D1–D35; app/UI D7–D12 renumbered to D25–D30
+with cross-references D22/D17/D20 fixed; new D31–D35 for verification calls).
+
+**Blockers only the founder can resolve:** unchanged from `docs/FOUNDER_TODO.md`
+(legal entity, grievance officer, Dodo/Razorpay keys, vidora.ai, Oracle deploy,
+YouTube test channel, migration email, apply migrations) + #10 Resend key for
+completion email.
