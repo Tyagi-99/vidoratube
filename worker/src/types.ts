@@ -20,6 +20,37 @@ export const SceneInputSchema = z.object({
 });
 export type SceneInput = z.infer<typeof SceneInputSchema>;
 
+/**
+ * Continuity brief (Sprint 3-4): generated once per chapter-mode render and
+ * passed to EVERY chapter render so voice, pacing, and visual style stay
+ * consistent. Mirrors src/lib/chapters/brief.ts (duplicated to keep the
+ * worker dependency-free, like ASPECTS in pipeline.ts).
+ */
+export const ContinuityBriefSchema = z.object({
+  version: z.literal(1),
+  voice: z.object({
+    id: z.string(),
+    languageCode: z.string(),
+    model: z.string(),
+  }),
+  pacing: z.object({
+    wordsPerMinute: z.number().positive(),
+  }),
+  visuals: z.object({
+    background: z.object({
+      type: z.literal("solid"),
+      color: z.string(),
+    }),
+    captionStyle: z.object({
+      font: z.string(),
+      fontSize: z.number().positive(),
+      primaryColor: z.string(),
+    }),
+  }),
+  tone: z.string(),
+});
+export type ContinuityBrief = z.infer<typeof ContinuityBriefSchema>;
+
 /** Validated render job payload stored in renders.meta. */
 export const RenderJobMetaSchema = z.object({
   scenes: z.array(SceneInputSchema).min(1).max(200),
@@ -33,6 +64,20 @@ export const RenderJobMetaSchema = z.object({
   musicVolume: z.number().min(0).max(1).default(0.15),
   musicDucking: z.boolean().default(true),
   voiceoverUrl: z.string().nullable().default(null),
+  /**
+   * Chapter mode (Sprint 3-4): the render is split into render_chapters
+   * rows; the worker renders chapters (possibly in parallel) and stitches
+   * them. meta.scenes carries a single synthetic scene with the total
+   * duration so quote math and legacy billing paths keep working; the real
+   * media plan lives in render_chapters.
+   */
+  chapterMode: z.boolean().default(false),
+  /** Identical brief object handed to every chapter render. */
+  continuityBrief: ContinuityBriefSchema.nullable().default(null),
+  /** 2.5D parallax treatment on stills (premium add-on, +0.25 credits/min). */
+  parallax25d: z.boolean().default(false),
+  /** Creation mode: "story" applies the Story Mode narrative template. */
+  creationMode: z.enum(["script", "voiceover", "auto_edit", "story"]).default("script"),
 });
 export type RenderJobMeta = z.infer<typeof RenderJobMetaSchema>;
 

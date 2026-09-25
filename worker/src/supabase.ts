@@ -155,3 +155,25 @@ export async function requeueStaleJobs(
   if (error) throw new Error(`requeue failed: ${error.message}`);
   return (data as number | null) ?? 0;
 }
+
+/**
+ * Requeue chapters stuck in `rendering` past the lease (crashed workers).
+ *
+ * Delegates to the `requeue_stale_chapters` SQL function (migration
+ * 20260925230000_chapters.sql), the chapter-level mirror of
+ * `requeue_stale_renders`: stale chapters with attempts left go back to
+ * 'queued' with attempts incremented; chapters whose retry budget is
+ * exhausted are marked 'failed' with 'Worker died; retries exhausted'.
+ * `done` chapters are never touched — their output_path is the resume
+ * checkpoint.
+ */
+export async function requeueStaleChapters(
+  supabase: SupabaseClient,
+  leaseSeconds: number,
+): Promise<number> {
+  const { data, error } = await supabase.rpc("requeue_stale_chapters", {
+    p_lease_seconds: leaseSeconds,
+  });
+  if (error) throw new Error(`chapter requeue failed: ${error.message}`);
+  return (data as number | null) ?? 0;
+}

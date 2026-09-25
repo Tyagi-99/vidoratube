@@ -17,6 +17,11 @@ const ConfigSchema = z.object({
   WORK_DIR: z.string().default("/tmp/vidora-worker"),
   /** Max concurrent jobs for this worker (1 = sequential). */
   CONCURRENCY: z.coerce.number().int().min(1).max(4).default(1),
+  /**
+   * Max chapters rendered concurrently within one chapter-mode job.
+   * Chapter renders are CPU/ffmpeg-bound; 2-3 is the sane default.
+   */
+  WORKER_CHAPTER_CONCURRENCY: z.coerce.number().int().min(1).max(8).default(2),
 });
 
 export type WorkerConfig = z.infer<typeof ConfigSchema>;

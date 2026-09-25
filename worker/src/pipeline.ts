@@ -6,6 +6,16 @@ import { pipeline } from "node:stream/promises";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { WorkerConfig } from "./config.js";
 import { FFmpegCancelled, probeDuration, runFFmpeg } from "./ffmpeg.js";
+import { buildParallaxFilter, PARALLAX_DEFAULT_INTENSITY } from "./parallax.js";
+import {
+  assignStoryBeats,
+  storyCaptionEmphasis,
+  storyDuckParams,
+  storyMusicSegments,
+  storyMusicVolumeExpr,
+  storyParallaxMultiplier,
+  type StoryBeatId,
+} from "./story.js";
 import { shouldCancel } from "./supabase.js";
 import type { RenderJob, RenderJobMeta, SceneInput, StageId } from "./types.js";
 
@@ -77,23 +87,25 @@ function splitChars(word: string, maxChars: number): string[] {
 }
 
 type LineChunk = { text: string; cs: number };
-type CaptionLine = { chunks: LineChunk[]; start: number; end: number };
+type CaptionLine = { chunks: LineChunk[]; start: number; end: number; emphasis: boolean };
 
 /** Group cues into lines by character budget (language.caption_max_chars). */
 function groupCuesByChars(
-  cues: { word: string; start: number; end: number }[],
+  cues: { word: string; start: number; end: number; emphasis?: boolean }[],
   maxChars: number,
 ): CaptionLine[] {
   const lines: CaptionLine[] = [];
   let chunks: LineChunk[] = [];
+  let lineEmphasis = false;
   let lineLen = 0;
   let lineStart = 0;
   let lineEnd = 0;
   const flush = () => {
     if (chunks.length > 0) {
-      lines.push({ chunks, start: lineStart, end: lineEnd });
+      lines.push({ chunks, start: lineStart, end: lineEnd, emphasis: lineEmphasis });
       chunks = [];
       lineLen = 0;
+      lineEmphasis = false;
     }
   };
   for (const cue of cues) {
@@ -107,6 +119,7 @@ function groupCuesByChars(
       if (chunks.length > 0 && lineLen + 1 + partLen > maxChars) flush();
       if (chunks.length === 0) lineStart = cue.start;
       lineEnd = cue.end;
+      if (cue.emphasis) lineEmphasis = true;
       chunks.push({ text: part, cs });
       lineLen = chunks.length === 1 ? partLen : lineLen + 1 + partLen;
     }
@@ -116,7 +129,7 @@ function groupCuesByChars(
 }
 
 export function buildWordAss(
-  cues: { word: string; start: number; end: number }[],
+  cues: { word: string; start: number; end: number; emphasis?: boolean }[],
   opts: { fontSize?: number; language?: CaptionLanguage } = {},
 ): string {
   const fontSize = opts.fontSize ?? 64;
@@ -133,6 +146,7 @@ ${directionComment}
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: Vidora,${fontName},${fontSize},&H00FFFFFF,&H0000FFFF,&H80000000,&H80000000,-1,0,0,0,100,100,0,0,1,3,1,5,40,40,80,1
+Style: VidoraHook,${fontName},${Math.round(fontSize * 1.25)},&H00FFFFFF,&H0000FFFF,&H80000000,&H80000000,-1,0,0,0,100,100,0,0,1,3,1,5,40,40,80,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -150,6 +164,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         })),
         start: g[0]!.start,
         end: g[g.length - 1]!.end,
+        // Story Mode: hook/payoff groups get the larger VidoraHook style.
+        emphasis: g.some((c) => c.emphasis === true),
       });
     }
   }
@@ -157,7 +173,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     const text = line.chunks
       .map((c) => `{\\kf${c.cs}}${escapeAss(c.text)}`)
       .join(" ");
-    return `Dialogue: 0,${assTimestamp(line.start)},${assTimestamp(line.end)},Vidora,,0,0,0,,${text}`;
+    const style = line.emphasis ? "VidoraHook" : "Vidora";
+    return `Dialogue: 0,${assTimestamp(line.start)},${assTimestamp(line.end)},${style},,0,0,0,,${text}`;
   });
   return header + dialogue.join("\n") + "\n";
 }
@@ -198,14 +215,14 @@ type Ctx = {
   hooks: PipelineHooks;
 };
 
-async function downloadTo(url: string, dest: string): Promise<void> {
+export async function downloadTo(url: string, dest: string): Promise<void> {
   const res = await fetch(url);
   if (!res.ok || !res.body) throw new Error(`Download failed (${res.status}): ${url.slice(0, 80)}`);
   await pipeline(res.body as unknown as NodeJS.ReadableStream, createWriteStream(dest));
 }
 
 /** Resolve a scene asset reference to a downloadable URL. */
-async function resolveAssetUrl(
+export async function resolveAssetUrl(
   supabase: SupabaseClient,
   bucket: string,
   ref: string,
@@ -272,6 +289,22 @@ async function renderSegment(
   const input = scene.image;
   if (!input) throw new Error(`Scene ${scene.number} has no image`);
 
+  // Story Mode: the scene's narrative beat scales the parallax intensity.
+  // 2.5D parallax replaces the static cover when enabled (premium add-on).
+  const storyBeats: StoryBeatId[] | null =
+    meta.creationMode === "story" ? assignStoryBeats(meta.scenes.map((s) => s.duration)) : null;
+  const beat = storyBeats?.[index] ?? null;
+  const vf = meta.parallax25d
+    ? `${buildParallaxFilter({
+        width: dims.width,
+        height: dims.height,
+        frames: Math.max(1, Math.round(scene.duration * meta.fps)),
+        intensity:
+          PARALLAX_DEFAULT_INTENSITY * (beat ? storyParallaxMultiplier(beat) : 1),
+        direction: index % 2 === 0 ? "in" : "out",
+      })},format=yuv420p`
+    : `${coverFilter(meta.aspect)},format=yuv420p`;
+
   const args = [
     "-y",
     "-loop",
@@ -281,7 +314,7 @@ async function renderSegment(
     "-i",
     input,
     "-vf",
-    `${coverFilter(meta.aspect)},format=yuv420p`,
+    vf,
     "-c:v",
     "libx264",
     "-preset",
@@ -378,15 +411,23 @@ async function assemble(ctx: Ctx, segments: string[], scenes: SceneInput[]): Pro
     if (musicPath) {
       audioInputs.push("-i", musicPath);
       const mIdx = inputIdx++;
+      // Story Mode: the bed follows the per-beat volume envelope (quoted in
+      // the filtergraph because the expression contains commas).
+      const storyMode = meta.creationMode === "story";
+      const bedVolume = storyMode
+        ? `volume='${storyMusicVolumeExpr(storyMusicSegments(scenes.map((s) => s.duration)), meta.musicVolume)}':eval=frame`
+        : `volume=${meta.musicVolume}`;
       // Music: volume + fade in/out, trim to total duration
       filterParts.push(
-        `[${mIdx}:a]volume=${meta.musicVolume},afade=t=in:st=0:d=1,afade=t=out:st=${Math.max(0, totalDur - 2).toFixed(2)}:d=2,apad,atrim=0:${totalDur.toFixed(2)}[music]`,
+        `[${mIdx}:a]${bedVolume},afade=t=in:st=0:d=1,afade=t=out:st=${Math.max(0, totalDur - 2).toFixed(2)}:d=2,apad,atrim=0:${totalDur.toFixed(2)}[music]`,
       );
       if (voiceBus && meta.musicDucking) {
-        // P4: duck music under the voice bus via sidechain compression
-        filterParts.push(
-          `[music]${voiceBus}sidechaincompress=threshold=0.02:ratio=8:attack=200:release=800:makeup=1[ducked]`,
-        );
+        // P4: duck music under the voice bus via sidechain compression.
+        // Story Mode uses the deeper/faster story duck profile.
+        const duckParams = storyMode
+          ? storyDuckParams()
+          : "threshold=0.02:ratio=8:attack=200:release=800";
+        filterParts.push(`[music]${voiceBus}sidechaincompress=${duckParams}:makeup=1[ducked]`);
         filterParts.push(`${voiceBus}[ducked]amix=inputs=2:normalize=0[aout]`);
       } else if (voiceBus) {
         filterParts.push(`${voiceBus}[music]amix=inputs=2:normalize=0[aout]`);
@@ -432,10 +473,14 @@ async function assemble(ctx: Ctx, segments: string[], scenes: SceneInput[]): Pro
   let captioned = withAudio;
   if (meta.burnCaptions) {
     await hooks.onStage("captions", 0);
+    const storyBeats: StoryBeatId[] | null =
+      meta.creationMode === "story" ? assignStoryBeats(scenes.map((s) => s.duration)) : null;
     const allCues = scenes.flatMap((s, si) => {
       const offset = scenes.slice(0, si).reduce((a, x) => a + x.duration, 0);
       const cues = s.cues.length > 0 ? s.cues : spreadFallback(s.narration, s.duration);
-      return cues.map((c) => ({ ...c, start: c.start + offset, end: c.end + offset }));
+      const beat = storyBeats?.[si] ?? null;
+      const emphasis = beat ? storyCaptionEmphasis(beat) : false;
+      return cues.map((c) => ({ ...c, start: c.start + offset, end: c.end + offset, emphasis }));
     });
     if (allCues.length > 0) {
       const assPath = join(dir, "captions.ass");
@@ -497,7 +542,7 @@ async function assemble(ctx: Ctx, segments: string[], scenes: SceneInput[]): Pro
   return final;
 }
 
-function spreadFallback(narration: string, duration: number): { word: string; start: number; end: number }[] {
+export function spreadFallback(narration: string, duration: number): { word: string; start: number; end: number }[] {
   const words = narration.split(/\s+/).filter(Boolean);
   if (!words.length || duration <= 0) return [];
   const per = duration / words.length;

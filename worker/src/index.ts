@@ -14,6 +14,7 @@
  */
 import { mkdir, rm } from "node:fs/promises";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { runChapterPipeline } from "./chapters.js";
 import { loadConfig, type WorkerConfig } from "./config.js";
 import { probeDuration } from "./ffmpeg.js";
 import { jobDir, runPipeline } from "./pipeline.js";
@@ -23,10 +24,11 @@ import {
   finishJob,
   heartbeat,
   reportWorkerHeartbeat,
+  requeueStaleChapters,
   requeueStaleJobs,
   shouldCancel,
 } from "./supabase.js";
-import { RenderJobMetaSchema, type RenderJob, type StageId } from "./types.js";
+import { RenderJobMetaSchema, type RenderJob, type RenderJobMeta, type StageId } from "./types.js";
 
 const LEASE_SECONDS = 300;
 
@@ -39,6 +41,44 @@ for (const sig of ["SIGTERM", "SIGINT"]) {
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Upload the final MP4 and mark the job completed (shared by both pipelines). */
+async function uploadFinalAndFinish(
+  cfg: WorkerConfig,
+  supabase: SupabaseClient,
+  job: RenderJob,
+  meta: RenderJobMeta,
+  finalMp4: string,
+  hooks: { onStage: (stage: StageId, progress: number, detail?: string) => Promise<void> },
+): Promise<void> {
+  await hooks.onStage("upload", 0, "Uploading MP4");
+  const storagePath = `${job.user_id}/renders/${job.id}.mp4`;
+  const { error: upErr } = await supabase.storage
+    .from(cfg.RENDER_BUCKET)
+    .upload(storagePath, await BunOrNodeFile(finalMp4), {
+      contentType: "video/mp4",
+      upsert: true,
+    });
+  if (upErr) throw new Error(`Upload failed: ${upErr.message}`);
+
+  const { data: signed } = await supabase.storage
+    .from(cfg.RENDER_BUCKET)
+    .createSignedUrl(storagePath, 60 * 60 * 24 * 7);
+
+  const { size } = await import("node:fs/promises").then((m) => m.stat(finalMp4));
+  const duration = await probeDuration(cfg.FFPROBE_PATH, finalMp4).catch(() => null);
+  const dims = { "16:9": "1920x1080", "9:16": "1080x1920", "1:1": "1080x1080" } as const;
+
+  await finishJob(supabase, job.id, {
+    status: "completed",
+    file_url: signed?.signedUrl ?? null,
+    file_size: size,
+    duration,
+    resolution: dims[meta.aspect as keyof typeof dims] ?? dims["16:9"],
+    checkpoint: { storagePath },
+  });
+  console.log(`[worker] job ${job.id} completed (${size} bytes)`);
+}
 
 async function processJob(cfg: WorkerConfig, supabase: SupabaseClient, job: RenderJob): Promise<void> {
   const dir = jobDir(cfg.WORK_DIR, job.id);
@@ -82,41 +122,20 @@ async function processJob(cfg: WorkerConfig, supabase: SupabaseClient, job: Rend
   };
 
   try {
-    const finalMp4 = await runPipeline({ cfg, supabase, job, meta, dir, hooks });
+    // Chapter mode (Sprint 3-4): render chapters in parallel and stitch.
+    // Otherwise the classic single-timeline pipeline. Both produce one
+    // final MP4 that goes through the same upload + billing settlement.
+    const finalMp4 = meta.chapterMode
+      ? await runChapterPipeline({ cfg, supabase, job, meta, dir, hooks })
+      : await runPipeline({ cfg, supabase, job, meta, dir, hooks });
 
     if (await hooks.isCancelled()) {
       await finishJob(supabase, job.id, { status: "cancelled", error: "Cancelled by user" });
       return;
     }
 
-    // Upload
-    await hooks.onStage("upload", 0, "Uploading MP4");
-    const storagePath = `${job.user_id}/renders/${job.id}.mp4`;
-    const { error: upErr } = await supabase.storage
-      .from(cfg.RENDER_BUCKET)
-      .upload(storagePath, await BunOrNodeFile(finalMp4), {
-        contentType: "video/mp4",
-        upsert: true,
-      });
-    if (upErr) throw new Error(`Upload failed: ${upErr.message}`);
-
-    const { data: signed } = await supabase.storage
-      .from(cfg.RENDER_BUCKET)
-      .createSignedUrl(storagePath, 60 * 60 * 24 * 7);
-
-    const { size } = await import("node:fs/promises").then((m) => m.stat(finalMp4));
-    const duration = await probeDuration(cfg.FFPROBE_PATH, finalMp4).catch(() => null);
-    const dims = { "16:9": "1920x1080", "9:16": "1080x1920", "1:1": "1080x1080" } as const;
-
-    await finishJob(supabase, job.id, {
-      status: "completed",
-      file_url: signed?.signedUrl ?? null,
-      file_size: size,
-      duration,
-      resolution: dims[meta.aspect as keyof typeof dims] ?? dims["16:9"],
-      checkpoint: { storagePath },
-    });
-    console.log(`[worker] job ${job.id} completed (${size} bytes)`);
+    await uploadFinalAndFinish(cfg, supabase, job, meta, finalMp4, hooks);
+    console.log(`[worker] job ${job.id} completed`);
   } catch (err) {
     const isCancel = (err as Error)?.name === "FFmpegCancelled" || cancelled || shuttingDown;
     if (isCancel) {
@@ -155,12 +174,17 @@ async function main(): Promise<void> {
   await mkdir(cfg.WORK_DIR, { recursive: true });
   console.log(`[worker] ${cfg.WORKER_ID} started — bucket=${cfg.RENDER_BUCKET} ffmpeg=${cfg.FFMPEG_PATH}`);
 
-  // Crash recovery on boot.
+  // Crash recovery on boot: jobs AND chapters (chapter-mode renders).
   const requeued = await requeueStaleJobs(supabase, LEASE_SECONDS).catch((e) => {
     console.error("[worker] requeue failed:", (e as Error).message);
     return 0;
   });
   if (requeued > 0) console.log(`[worker] reclaimed ${requeued} stale job(s)`);
+  const requeuedChapters = await requeueStaleChapters(supabase, LEASE_SECONDS).catch((e) => {
+    console.error("[worker] chapter requeue failed:", (e as Error).message);
+    return 0;
+  });
+  if (requeuedChapters > 0) console.log(`[worker] reclaimed ${requeuedChapters} stale chapter(s)`);
 
   // Independent liveness signal (see worker_heartbeats migration): heartbeat
   // on boot and every minute, so the app sees an idle worker as online even
