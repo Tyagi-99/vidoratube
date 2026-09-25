@@ -4,10 +4,43 @@ import type { Database } from "@/integrations/supabase/types";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const REVOKE_URL = "https://oauth2.googleapis.com/revoke";
 const GENERATED_VIDEOS_BUCKET = "generated-videos";
-export const YOUTUBE_SCOPES = [
-  "https://www.googleapis.com/auth/youtube.upload",
-  "https://www.googleapis.com/auth/youtube.readonly",
-].join(" ");
+
+/** Requested at connect time: enough to read the channel, never to publish. */
+export const YOUTUBE_CONNECT_SCOPES = ["https://www.googleapis.com/auth/youtube.readonly"].join(
+  " ",
+);
+/** Requested incrementally, only when the user first clicks Publish. */
+export const YOUTUBE_UPLOAD_SCOPE = "https://www.googleapis.com/auth/youtube.upload";
+
+/**
+ * @deprecated Kept for reference only — connect now requests
+ * {@link YOUTUBE_CONNECT_SCOPES} and upgrades to {@link YOUTUBE_UPLOAD_SCOPE}
+ * incrementally at publish time.
+ */
+export const YOUTUBE_SCOPES = `${YOUTUBE_UPLOAD_SCOPE} ${YOUTUBE_CONNECT_SCOPES}`;
+
+/** The two OAuth purposes carried in the signed state parameter. */
+export type YouTubeOAuthPurpose = "connect" | "upload";
+
+/** True when the granted scope string includes the upload scope. */
+export function hasUploadScope(scope: string | null | undefined): boolean {
+  if (!scope) return false;
+  return scope.split(/\s+/).includes(YOUTUBE_UPLOAD_SCOPE);
+}
+
+/** Thrown when Google reports the grant is dead (401 / invalid_grant). */
+export class YouTubeRevokedError extends Error {
+  readonly code = "YOUTUBE_REVOKED";
+  constructor(message = "Your YouTube connection was revoked. Please reconnect your channel.") {
+    super(message);
+    this.name = "YouTubeRevokedError";
+  }
+}
+
+/** True for OAuth token responses that mean the grant is gone for good. */
+export function isRevokedTokenResponse(status: number, errorCode?: string): boolean {
+  return status === 401 || (status === 400 && errorCode === "invalid_grant");
+}
 
 export function googleCredentials(): { clientId: string; clientSecret: string } {
   const clientId = process.env["GOOGLE_OAUTH_CLIENT_ID"];
@@ -104,27 +137,52 @@ export async function createPkcePair(): Promise<{ verifier: string; challenge: s
 
 export async function signState(
   userId: string,
+  purpose: YouTubeOAuthPurpose = "connect",
 ): Promise<{ state: string; verifier: string; challenge: string }> {
   const { verifier, challenge } = await createPkcePair();
-  const payload = `${userId}.${Date.now()}.${verifier}`;
+  const payload = `${userId}.${purpose}.${Date.now()}.${verifier}`;
   return { state: `${payload}.${await hmac(payload)}`, verifier, challenge };
 }
 
 export async function verifyState(
   state: string,
-): Promise<{ userId: string; verifier: string } | null> {
+): Promise<{ userId: string; verifier: string; purpose: YouTubeOAuthPurpose } | null> {
   const parts = state.split(".");
-  if (parts.length !== 4) return null;
-  const [userId, issuedRaw, verifier, sig] = parts;
+  if (parts.length !== 5) return null;
+  const [userId, purposeRaw, issuedRaw, verifier, sig] = parts;
   if (!userId || !verifier || !sig) return null;
-  const payload = `${userId}.${issuedRaw}.${verifier}`;
+  const purpose: YouTubeOAuthPurpose = purposeRaw === "upload" ? "upload" : "connect";
+  const payload = `${userId}.${purpose}.${issuedRaw}.${verifier}`;
   const expected = hexToBytes(await hmac(payload));
   const actual = hexToBytes(sig);
   if (!expected || !actual || !constantTimeEqual(expected, actual)) return null;
   const issued = Number(issuedRaw);
   if (!Number.isFinite(issued)) return null;
   if (Date.now() - issued > 15 * 60 * 1000) return null;
-  return { userId, verifier };
+  return { userId, verifier, purpose };
+}
+
+/** Builds the Google OAuth consent URL for the given scopes. */
+export function buildConsentUrl(input: {
+  clientId: string;
+  origin: string;
+  state: string;
+  challenge: string;
+  scopes: string;
+}): string {
+  const params = new URLSearchParams({
+    client_id: input.clientId,
+    redirect_uri: redirectUri(input.origin),
+    response_type: "code",
+    scope: input.scopes,
+    access_type: "offline",
+    prompt: "consent",
+    include_granted_scopes: "true",
+    code_challenge: input.challenge,
+    code_challenge_method: "S256",
+    state: input.state,
+  });
+  return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
 }
 
 /* --------------------- token encryption at rest (AES-256-GCM) -------------- */
@@ -193,6 +251,7 @@ type TokenResponse = {
   refresh_token?: string;
   expires_in?: number;
   scope?: string;
+  error?: string;
   error_description?: string;
 };
 
@@ -215,7 +274,10 @@ export async function exchangeCode(
     }),
   });
   const payload = (await res.json()) as TokenResponse;
-  if (!res.ok) throw new Error(payload.error_description ?? "Google rejected the sign-in.");
+  if (!res.ok) {
+    if (isRevokedTokenResponse(res.status, payload.error)) throw new YouTubeRevokedError();
+    throw new Error(payload.error_description ?? "Google rejected the sign-in.");
+  }
   return payload;
 }
 
@@ -232,7 +294,12 @@ export async function refreshAccessToken(refreshToken: string): Promise<TokenRes
     }),
   });
   const payload = (await res.json()) as TokenResponse;
-  if (!res.ok) throw new Error(payload.error_description ?? "Could not refresh the YouTube token.");
+  if (!res.ok) {
+    // Google returns 400 + invalid_grant when the user revoked access or the
+    // grant expired — the stored tokens are dead and must not be retried.
+    if (isRevokedTokenResponse(res.status, payload.error)) throw new YouTubeRevokedError();
+    throw new Error(payload.error_description ?? "Could not refresh the YouTube token.");
+  }
   return payload;
 }
 
@@ -257,7 +324,9 @@ export async function getValidAccessToken(
   }
   const refreshToken = await decryptToken(connection.refresh_token);
   if (!refreshToken) {
-    throw new Error("The YouTube connection lost its credentials — please reconnect your channel.");
+    throw new YouTubeRevokedError(
+      "The YouTube connection lost its credentials — please reconnect your channel.",
+    );
   }
   const tokens = await refreshAccessToken(refreshToken);
   if (!tokens.access_token) throw new Error("Could not refresh the YouTube token.");
@@ -287,6 +356,7 @@ export async function fetchChannel(
     "https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true",
     { headers: { Authorization: `Bearer ${accessToken}` } },
   );
+  if (res.status === 401) throw new YouTubeRevokedError();
   if (!res.ok) return { id: null, title: null };
   const payload = (await res.json()) as {
     items?: { id?: string; snippet?: { title?: string } }[];
@@ -475,6 +545,8 @@ export async function uploadToYouTube(input: {
   title: string;
   description: string;
   privacyStatus: "private" | "unlisted" | "public";
+  /** The uploader's own "made for kids" declaration (COPPA). Required by YouTube. */
+  madeForKids: boolean;
   tags: string[];
   onProgress?: (uploadedBytes: number, totalBytes: number) => void;
 }): Promise<string> {
@@ -489,7 +561,7 @@ export async function uploadToYouTube(input: {
       tags: input.tags.slice(0, 10),
       categoryId: "22",
     },
-    status: { privacyStatus: input.privacyStatus, selfDeclaredMadeForKids: false },
+    status: { privacyStatus: input.privacyStatus, selfDeclaredMadeForKids: input.madeForKids },
   };
 
   const start = await fetch(
@@ -506,6 +578,8 @@ export async function uploadToYouTube(input: {
     },
   );
   if (!start.ok) {
+    // 401 here means the access token died between the refresh and the upload.
+    if (start.status === 401) throw new YouTubeRevokedError();
     throw new Error(
       `YouTube rejected the upload (${start.status}): ${(await start.text().catch(() => "")).slice(0, 200)}`,
     );

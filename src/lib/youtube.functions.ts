@@ -10,37 +10,69 @@ function origin(): string {
 export const getYouTubeConnection = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { youtubeConfigured } = await import("./youtube.server");
+    const { youtubeConfigured, hasUploadScope } = await import("./youtube.server");
     const { data } = await context.supabase
       .from("youtube_connections")
-      .select("channel_id, channel_title, created_at")
+      .select("channel_id, channel_title, scope, created_at")
       .eq("user_id", context.userId)
       .maybeSingle();
-    return { configured: youtubeConfigured(), connection: data ?? null };
+    return {
+      configured: youtubeConfigured(),
+      connection: data
+        ? {
+            channel_id: data.channel_id,
+            channel_title: data.channel_title,
+            created_at: data.created_at,
+            hasUploadScope: hasUploadScope(data.scope),
+          }
+        : null,
+    };
   });
 
-/** Returns the Google consent URL the user should be sent to. */
+/**
+ * Returns the Google consent URL the user should be sent to. Requests only
+ * the read-only scope — the upload scope is granted incrementally at publish
+ * time so connecting never asks for more than it needs.
+ */
 export const startYouTubeConnect = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { googleCredentials, redirectUri, signState, YOUTUBE_SCOPES } = await import(
+    const { googleCredentials, signState, buildConsentUrl, YOUTUBE_CONNECT_SCOPES } = await import(
       "./youtube.server"
     );
     const { clientId } = googleCredentials();
-    const { state, challenge } = await signState(context.userId);
-    const params = new URLSearchParams({
-      client_id: clientId,
-      redirect_uri: redirectUri(origin()),
-      response_type: "code",
-      scope: YOUTUBE_SCOPES,
-      access_type: "offline",
-      prompt: "consent",
-      include_granted_scopes: "true",
-      code_challenge: challenge,
-      code_challenge_method: "S256",
+    const { state, challenge } = await signState(context.userId, "connect");
+    const url = buildConsentUrl({
+      clientId,
+      origin: origin(),
       state,
+      challenge,
+      scopes: YOUTUBE_CONNECT_SCOPES,
     });
-    return { url: `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}` };
+    return { url };
+  });
+
+/**
+ * Returns the consent URL that grants the upload scope on top of whatever the
+ * user already granted (include_granted_scopes=true). Called when the user
+ * first clicks Publish on a connection that only has read-only access.
+ */
+export const requestUploadScope = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { googleCredentials, signState, buildConsentUrl, YOUTUBE_UPLOAD_SCOPE } = await import(
+      "./youtube.server"
+    );
+    const { clientId } = googleCredentials();
+    const { state, challenge } = await signState(context.userId, "upload");
+    const url = buildConsentUrl({
+      clientId,
+      origin: origin(),
+      state,
+      challenge,
+      scopes: YOUTUBE_UPLOAD_SCOPE,
+    });
+    return { url };
   });
 
 export const disconnectYouTube = createServerFn({ method: "POST" })
