@@ -27,6 +27,7 @@ export const startYouTubeConnect = createServerFn({ method: "POST" })
       "./youtube.server"
     );
     const { clientId } = googleCredentials();
+    const { state, challenge } = await signState(context.userId);
     const params = new URLSearchParams({
       client_id: clientId,
       redirect_uri: redirectUri(origin()),
@@ -35,7 +36,9 @@ export const startYouTubeConnect = createServerFn({ method: "POST" })
       access_type: "offline",
       prompt: "consent",
       include_granted_scopes: "true",
-      state: await signState(context.userId),
+      code_challenge: challenge,
+      code_challenge_method: "S256",
+      state,
     });
     return { url: `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}` };
   });
@@ -43,6 +46,17 @@ export const startYouTubeConnect = createServerFn({ method: "POST" })
 export const disconnectYouTube = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    const { decryptToken, revokeGoogleToken } = await import("./youtube.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // Revoke the grant at Google before deleting the row. Revoke never throws;
+    // the row is deleted regardless since the user asked to disconnect.
+    const { data: connection } = await supabaseAdmin
+      .from("youtube_connections")
+      .select("refresh_token")
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    const refreshToken = await decryptToken(connection?.refresh_token ?? null);
+    if (refreshToken) await revokeGoogleToken(refreshToken);
     const { error } = await context.supabase
       .from("youtube_connections")
       .delete()
@@ -63,8 +77,14 @@ export const publishJobToYouTube = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => publishSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { refreshAccessToken, uploadToYouTube } = await import("./youtube.server");
-    const { downloadStoredVideo } = await import("./render.server");
+    const {
+      getValidAccessToken,
+      uploadToYouTube,
+      streamStoredVideo,
+      publishPrecheck,
+      claimJobForUpload,
+      encryptToken,
+    } = await import("./youtube.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { data: job } = await supabase
@@ -78,6 +98,38 @@ export const publishJobToYouTube = createServerFn({ method: "POST" })
       throw new Error("This video hasn't finished rendering yet.");
     }
 
+    // Idempotent publish: a job that is already published returns its video id
+    // instead of uploading a duplicate; a concurrent publish is refused.
+    const precheck = publishPrecheck(job);
+    if (precheck.action === "return-existing") {
+      return {
+        videoId: precheck.videoId,
+        url: `https://youtu.be/${precheck.videoId}`,
+        job,
+      };
+    }
+    if (precheck.action === "already-uploading") {
+      throw new Error("This video is already being published — check YouTube shortly.");
+    }
+    // Atomic claim: the UPDATE only applies if the status hasn't changed since
+    // we read it, so two racing publishes can't both proceed.
+    const claimed = await claimJobForUpload(supabase, job.id, job.youtube_status);
+    if (!claimed) {
+      const { data: fresh } = await supabase
+        .from("video_jobs")
+        .select("youtube_status, youtube_video_id")
+        .eq("id", job.id)
+        .maybeSingle();
+      if (fresh?.youtube_status === "published" && fresh.youtube_video_id) {
+        return {
+          videoId: fresh.youtube_video_id,
+          url: `https://youtu.be/${fresh.youtube_video_id}`,
+          job: { ...job, ...fresh },
+        };
+      }
+      throw new Error("This video is already being published — check YouTube shortly.");
+    }
+
     const { data: connection } = await supabaseAdmin
       .from("youtube_connections")
       .select("*")
@@ -85,18 +137,13 @@ export const publishJobToYouTube = createServerFn({ method: "POST" })
       .maybeSingle();
     if (!connection) throw new Error("Connect your YouTube channel first.");
 
-    await supabase
-      .from("video_jobs")
-      .update({ youtube_status: "uploading" })
-      .eq("id", job.id);
-
     try {
-      const tokens = await refreshAccessToken(connection.refresh_token);
-      if (!tokens.access_token) throw new Error("Could not refresh the YouTube token.");
+      // Reuses the stored access token while valid; refreshes only when needed.
+      const { accessToken, refreshed } = await getValidAccessToken(connection);
 
-      const video = await downloadStoredVideo(supabaseAdmin, job.id, userId);
+      const video = await streamStoredVideo(supabaseAdmin, job.id, userId);
       const videoId = await uploadToYouTube({
-        accessToken: tokens.access_token,
+        accessToken,
         video,
         title: data.title ?? job.title ?? "Vidora video",
         description: data.description ?? job.narration ?? "",
@@ -104,14 +151,16 @@ export const publishJobToYouTube = createServerFn({ method: "POST" })
         tags: ["vidora", job.format].filter(Boolean) as string[],
       });
 
-      await supabaseAdmin
-        .from("youtube_connections")
-        .update({
-          access_token: tokens.access_token,
-          expires_at: new Date(Date.now() + (tokens.expires_in ?? 3500) * 1000).toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq("user_id", userId);
+      if (refreshed?.access_token) {
+        await supabaseAdmin
+          .from("youtube_connections")
+          .update({
+            access_token: await encryptToken(refreshed.access_token),
+            expires_at: new Date(Date.now() + (refreshed.expires_in ?? 3500) * 1000).toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("user_id", userId);
+      }
 
       const { data: updated } = await supabase
         .from("video_jobs")
