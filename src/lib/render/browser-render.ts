@@ -256,8 +256,15 @@ export async function loadFfmpeg(onLog?: (line: string) => void): Promise<Ffmpeg
     import("./ffmpeg-worker?worker&url"),
     import("./ffmpeg-core-wasm.asset.json"),
   ]);
-  const ffmpeg = new FFmpeg();
-  if (onLog) ffmpeg.on("log", ({ message }) => onLog(message));
+
+  // The wasm core is vendored at build/dev time by scripts/fetch-ffmpeg-wasm.mjs
+  // into public/wasm/, so it works on any host. If that file is absent (e.g. a
+  // deploy pipeline that skipped the prebuild step), fall back to the
+  // Lovable-hosted asset URL.
+  const coreURL = new URL("/wasm/ffmpeg-core-esm.js", window.location.origin).href;
+  const localWasmURL = new URL("/wasm/ffmpeg-core.wasm", window.location.origin).href;
+  const remoteWasmURL = new URL(coreWasmAsset.url, window.location.origin).href;
+  const wasmCandidates = localWasmURL === remoteWasmURL ? [localWasmURL] : [localWasmURL, remoteWasmURL];
 
   const describe = (error: unknown) =>
     error instanceof Error && error.message
@@ -265,21 +272,34 @@ export async function loadFfmpeg(onLog?: (line: string) => void): Promise<Ffmpeg
       : typeof error === "string"
         ? error
         : "download or worker startup failed — check your connection and reload";
-  try {
-    await ffmpeg.load({
-      // Module workers resolve dynamic imports poorly from relative paths —
-      // hand the worker fully-qualified same-origin URLs.
-      coreURL: new URL("/wasm/ffmpeg-core-esm.js", window.location.origin).href,
-      wasmURL: new URL(coreWasmAsset.url, window.location.origin).href,
-      classWorkerURL: workerUrl,
-    });
-  } catch (error) {
-    throw new Error(
-      `FFmpeg could not start in this browser (${describe(error)}). Try Chrome, Firefox or Brave with a normal (non-private) window.`,
-    );
+
+  let lastError: unknown = null;
+  for (const wasmURL of wasmCandidates) {
+    // A fresh instance per attempt: a failed load must not poison the singleton.
+    const attempt = new FFmpeg();
+    if (onLog) attempt.on("log", ({ message }) => onLog(message));
+    try {
+      await attempt.load({
+        // Module workers resolve dynamic imports poorly from relative paths —
+        // hand the worker fully-qualified same-origin URLs.
+        coreURL,
+        wasmURL,
+        classWorkerURL: workerUrl,
+      });
+      ffmpegSingleton = attempt;
+      return attempt;
+    } catch (error) {
+      lastError = error;
+      try {
+        attempt.terminate();
+      } catch {
+        /* already torn down */
+      }
+    }
   }
-  ffmpegSingleton = ffmpeg;
-  return ffmpeg;
+  throw new Error(
+    `FFmpeg could not start in this browser (${describe(lastError)}). Try Chrome, Firefox or Brave with a normal (non-private) window.`,
+  );
 }
 
 export async function releaseFfmpeg() {

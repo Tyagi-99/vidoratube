@@ -38,3 +38,6 @@ dist-ssr
 
 # Test / coverage
 coverage
+
+# FFmpeg.wasm core binary (fetched at build/dev time by scripts/fetch-ffmpeg-wasm.mjs)
+public/wasm/ffmpeg-core.wasm

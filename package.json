@@ -11,7 +11,10 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "predev": "node scripts/fetch-ffmpeg-wasm.mjs",
+    "prebuild": "node scripts/fetch-ffmpeg-wasm.mjs",
+    "prebuild:dev": "node scripts/fetch-ffmpeg-wasm.mjs"
   },
   "dependencies": {
     "@ffmpeg/core": "0.12.10",
