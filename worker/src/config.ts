@@ -5,6 +5,8 @@ const ConfigSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(20),
   /** Storage bucket for inputs/outputs. */
   RENDER_BUCKET: z.string().default("generated-videos"),
+  /** Storage bucket for agency brand-kit logos. */
+  BRAND_LOGOS_BUCKET: z.string().default("brand-logos"),
   /** Path to the ffmpeg binary. */
   FFMPEG_PATH: z.string().default("ffmpeg"),
   /** Path to the ffprobe binary. */

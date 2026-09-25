@@ -17,6 +17,7 @@ import {
   type StoryBeatId,
 } from "./story.js";
 import { shouldCancel } from "./supabase.js";
+import { buildWatermarkAss, planBrandFilters } from "./watermark.js";
 import type { RenderJob, RenderJobMeta, SceneInput, StageId } from "./types.js";
 
 /** Duplicate of src/lib/render/shared.ts to keep the worker dependency-free. */
@@ -513,15 +514,63 @@ async function assemble(ctx: Ctx, segments: string[], scenes: SceneInput[]): Pro
     }
   }
 
-  // --- finalize: faststart + metadata ---
+  // --- finalize: brand/watermark pass, then faststart + metadata ---
   await hooks.onStage("finalize", 0);
+  let preFinal = captioned;
+  const brandLogoPath = meta.brandOverlay?.logoPath ?? null;
+  if (meta.watermark || brandLogoPath) {
+    let logoFile: string | null = null;
+    if (brandLogoPath) {
+      logoFile = join(dir, "brand-logo.png");
+      await downloadTo(
+        await resolveAssetUrl(supabase, cfg.BRAND_LOGOS_BUCKET, brandLogoPath),
+        logoFile,
+      );
+    }
+    let assFile: string | null = null;
+    if (meta.watermark) {
+      assFile = join(dir, "watermark.ass");
+      await writeFile(
+        assFile,
+        buildWatermarkAss(totalDur, { primaryColor: meta.brandOverlay?.primaryColor }),
+      );
+    }
+    const plan = planBrandFilters({ logoPath: logoFile, watermark: meta.watermark, assPath: assFile });
+    preFinal = join(dir, "branded.mp4");
+    const brandInputs = ["-y", "-i", captioned];
+    if (plan?.hasLogo && logoFile) brandInputs.push("-i", logoFile);
+    await runFFmpeg({
+      ffmpegPath: cfg.FFMPEG_PATH,
+      args: [
+        ...brandInputs,
+        "-filter_complex",
+        plan!.filterParts.join(";"),
+        "-map",
+        "[vbrand]",
+        "-map",
+        "0:a?",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "medium",
+        "-crf",
+        "20",
+        "-c:a",
+        "copy",
+        "-progress",
+        "pipe:2",
+        preFinal,
+      ],
+      isCancelled: () => hooks.isCancelled(),
+    });
+  }
   const final = join(dir, "final.mp4");
   await runFFmpeg({
     ffmpegPath: cfg.FFMPEG_PATH,
     args: [
       "-y",
       "-i",
-      captioned,
+      preFinal,
       "-c",
       "copy",
       "-movflags",

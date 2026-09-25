@@ -78,6 +78,26 @@ export const RenderJobMetaSchema = z.object({
   parallax25d: z.boolean().default(false),
   /** Creation mode: "story" applies the Story Mode narrative template. */
   creationMode: z.enum(["script", "voiceover", "auto_edit", "story"]).default("script"),
+  /**
+   * Agency tier (Sprint 7-8): white-label gating. The app resolves this from
+   * the workspace's plan_tier (resolveExportMeta) — true on the free tier
+   * (Vidora bug burned in), false on paid tiers (clean export). The worker
+   * never decides billing on its own; the default keeps the watermark.
+   */
+  watermark: z.boolean().default(true),
+  /**
+   * Agency tier: brand kit overlay threaded from brand_kits at enqueue time.
+   * logoPath is a storage path in the brand-logos bucket (signed at render).
+   */
+  brandOverlay: z
+    .object({
+      primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
+      secondaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
+      logoPath: z.string().max(500).nullable(),
+      fontFamily: z.string().max(60),
+    })
+    .nullable()
+    .default(null),
 });
 export type RenderJobMeta = z.infer<typeof RenderJobMetaSchema>;
 

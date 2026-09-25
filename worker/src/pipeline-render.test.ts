@@ -128,6 +128,10 @@ function makeCtx(aspect: "16:9" | "9:16" | "1:1", dir: string): Ctx {
     parallax25d: false,
     chapterMode: false,
     continuityBrief: defaultContinuityBrief(),
+    // Agency tier: explicit watermark/brandOverlay (schema defaults are
+    // watermark: true, brandOverlay: null).
+    watermark: true,
+    brandOverlay: null,
   };
   const job: RenderJob = {
     id: `fixture-${aspect.replace(":", "x")}`,
@@ -152,6 +156,7 @@ function makeCtx(aspect: "16:9" | "9:16" | "1:1", dir: string): Ctx {
       SUPABASE_URL: "http://127.0.0.1:1",
       SUPABASE_SERVICE_ROLE_KEY: "test-service-role-key-12345",
       RENDER_BUCKET: "renders",
+      BRAND_LOGOS_BUCKET: "brand-logos",
       FFMPEG_PATH: FFMPEG,
       FFPROBE_PATH: FFPROBE,
       WORKER_ID: "pipeline-render-test",

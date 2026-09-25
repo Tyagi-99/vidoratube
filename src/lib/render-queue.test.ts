@@ -161,6 +161,59 @@ describe("buildServerRenderRows", () => {
     }
     expect(metas[0]!.scenes).toEqual(metas[1]!.scenes);
   });
+
+  describe("agency export meta (Sprint 7-8 workstream E)", () => {
+    type Meta = { watermark: boolean; brandOverlay: unknown };
+    const metaOf = (rows: ReturnType<typeof buildServerRenderRows>) =>
+      rows[0]!.meta as Meta;
+
+    it("defaults to watermark ON when no agency meta is passed", () => {
+      const rows = buildServerRenderRows({ userId, groupId, input: makeInput() });
+      expect(metaOf(rows).watermark).toBe(true);
+      expect(metaOf(rows).brandOverlay).toBeNull();
+    });
+
+    it("keeps the watermark on for free-tier workspace meta", () => {
+      const rows = buildServerRenderRows({
+        userId,
+        groupId,
+        input: makeInput(),
+        agencyMeta: { watermark: true, brandOverlay: null },
+      });
+      expect(metaOf(rows).watermark).toBe(true);
+    });
+
+    it("drops the watermark for paid-tier workspace meta", () => {
+      const rows = buildServerRenderRows({
+        userId,
+        groupId,
+        input: makeInput(),
+        agencyMeta: { watermark: false, brandOverlay: null },
+      });
+      for (const row of rows) {
+        expect((row.meta as Meta).watermark).toBe(false);
+      }
+    });
+
+    it("threads the brand overlay into every row unchanged", () => {
+      const brandOverlay = {
+        primaryColor: "#F59E0B",
+        secondaryColor: "#111827",
+        logoPath: "ws-1/logo.png",
+        fontFamily: "Inter",
+      };
+      const rows = buildServerRenderRows({
+        userId,
+        groupId,
+        input: makeInput(),
+        agencyMeta: { watermark: false, brandOverlay },
+      });
+      expect(rows).toHaveLength(3);
+      for (const row of rows) {
+        expect((row.meta as Meta).brandOverlay).toEqual(brandOverlay);
+      }
+    });
+  });
 });
 
 describe("requeue_stale_renders migration (static audit)", () => {

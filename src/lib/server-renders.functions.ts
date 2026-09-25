@@ -5,6 +5,7 @@ import { requireAppUser } from "./server-auth";
 import type { Database } from "@/integrations/supabase/types";
 import { quoteMultiAspectRender } from "./billing/per-minute";
 import { applyHeroCap } from "./stock/source-select";
+import type { ResolvedExportMeta } from "./agency/agency";
 
 /**
  * Server-side render job management (P2).
@@ -92,6 +93,12 @@ const EnqueueSchema = z.object({
    * over-claim; see src/lib/stock/source-select.ts.
    */
   aiHeroSeconds: z.number().min(0).default(0),
+  /**
+   * Sprint 7-8 (agency tier): export under a workspace. The server resolves
+   * the workspace's plan tier + brand kit into meta.watermark (white-label
+   * gating) and meta.brandOverlay; membership is verified before enqueue.
+   */
+  workspaceId: z.string().uuid().optional(),
 });
 
 /** Enqueue a server-side render. Rate-limited: 10/hour per user. */
@@ -126,7 +133,17 @@ export const enqueueServerRender = createServerFn({ method: "POST" })
 
     // One renders row per aspect, linked by a shared group id.
     const groupId = randomUUID();
-    const rows = buildServerRenderRows({ userId, groupId, input: data });
+
+    // Sprint 7-8 (agency tier): resolve the workspace's export meta
+    // (watermark gating + brand overlay) after verifying membership.
+    let agencyMeta: ResolvedExportMeta | undefined;
+    if (data.workspaceId) {
+      const { getWorkspaceRole, resolveWorkspaceExportMeta } = await import("./agency/agency.functions");
+      const role = await getWorkspaceRole(supabaseAdmin, data.workspaceId, userId);
+      if (!role) throw new Error("Workspace not found");
+      agencyMeta = await resolveWorkspaceExportMeta(supabaseAdmin, data.workspaceId);
+    }
+    const rows = buildServerRenderRows({ userId, groupId, input: data, agencyMeta });
 
     // P7: reserve the EXACT quoted render cost BEFORE creating the jobs, so
     // a failed reserve never leaves orphan queued renders. Idempotent per
@@ -174,6 +191,11 @@ export function buildServerRenderRows(params: {
   userId: string;
   groupId: string;
   input: z.infer<typeof EnqueueSchema>;
+  /**
+   * Sprint 7-8 (agency tier): resolved export meta for a workspace export.
+   * Defaults keep the Vidora watermark (free-tier behavior) when absent.
+   */
+  agencyMeta?: ResolvedExportMeta | undefined;
 }): ServerRenderInsert[] {
   const aspects = resolveRenderAspects(params.input);
   const durationSeconds = params.input.scenes.reduce(
@@ -240,6 +262,19 @@ export function buildServerRenderRows(params: {
       heroCapTrimmed: hero.trimmed,
       expected_credits: quote.perAspect.totalCredits,
       expected_minutes: quote.perAspect.minutes,
+      // Sprint 7-8 (agency tier): white-label gating + brand overlay.
+      // Resolved app-side from the workspace plan tier / brand kit; the
+      // worker never decides billing. Default = watermark on (free tier).
+      // Rebuilt as a plain object so the meta stays Json-serializable.
+      watermark: params.agencyMeta?.watermark ?? true,
+      brandOverlay: params.agencyMeta?.brandOverlay
+        ? {
+            primaryColor: params.agencyMeta.brandOverlay.primaryColor,
+            secondaryColor: params.agencyMeta.brandOverlay.secondaryColor,
+            logoPath: params.agencyMeta.brandOverlay.logoPath,
+            fontFamily: params.agencyMeta.brandOverlay.fontFamily,
+          }
+        : null,
     },
   }));
 }

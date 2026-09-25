@@ -74,6 +74,7 @@ function makeCfg(workDir: string): WorkerConfig {
     SUPABASE_URL: "https://example.supabase.co",
     SUPABASE_SERVICE_ROLE_KEY: "test-key-with-enough-length",
     RENDER_BUCKET: "generated-videos",
+    BRAND_LOGOS_BUCKET: "brand-logos",
     FFMPEG_PATH: FFMPEG,
     FFPROBE_PATH: FFPROBE,
     WORKER_ID: "test-worker",
