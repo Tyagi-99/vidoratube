@@ -70,6 +70,8 @@ const PUBLIC_BY_DESIGN: Record<string, string> = {
   pricing_plans: "public read",
   categories: "public read",
   niches: "public read",
+  // Static blocklist checked at signup; no sensitive data, read-only.
+  disposable_email_domains: "public read",
 };
 
 describe("RLS static audit", () => {
