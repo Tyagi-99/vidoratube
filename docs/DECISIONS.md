@@ -250,3 +250,82 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
   and predicate keeps them consistent.
 - **Reverse:** Add a queue-depth check to `getSystemStatus` if it ever belongs on the
   public status page.
+
+### D19. One `recordApiCost` helper for every provider call (fail-open)
+- **Decision:** All paid LLM, TTS, image-generation, and render-submission
+  calls go through `recordApiCost` in `src/lib/api-cost.ts`, which computes
+  `estimated_cost = units × unitCostUsd` centrally and inserts one row into
+  `api_usage`. The helper never throws: if the cost insert fails, it logs
+  and continues — a completed provider call must never fail the user's
+  render because cost bookkeeping hiccuped.
+- **Reason:** Before this, cost rows were written by scattered `logUsage`
+  helpers with inconsistent math (one TTS path even used the wrong
+  ElevenLabs rate). One helper means one place to fix pricing.
+- **Reverse:** Reintroduce per-module loggers (loses consistent math).
+
+### D20. Gateway costs are passthrough ESTIMATES, labeled as such
+- **Decision:** Every Lovable AI gateway row carries
+  `meta.cost_basis = "gateway-passthrough-estimate"` and the admin panel
+  shows an estimate caveat next to measured numbers. Gateway LLM/image/TTS
+  unit costs are best-known model estimates (e.g. $0.03/image), because the
+  gateway does not report exact USD per call. Direct-provider rows
+  (ElevenLabs, Shotstack) use published rates.
+- **Reason:** Copy honesty (D11): measured economics must not present
+  guesses as measurements. An estimate labeled as an estimate is fine; an
+  estimate presented as a measurement is a lie.
+- **Reverse:** If the gateway ever reports exact per-call USD, switch
+  `meta.cost_basis` to `"gateway-reported"` and drop the caveat.
+
+### D21. ElevenLabs Flash TTS corrected to $0.05/1,000 chars
+- **Decision:** `ELEVENLABS_TTS_USD_PER_CHAR` is $0.05/1k characters
+  (Flash/Turbo 2.5 tier), replacing the earlier $0.03/1k assumption that one
+  code path used. Multilingual v2/v3 voices are $0.10/1k (constant kept for
+  when those models are selected).
+- **Reason:** Public ElevenLabs pricing, verified 2026-09-25.
+- **Reverse:** Change the constant in `src/lib/api-cost.ts`.
+
+### D22. Legacy settlement prefers finished output duration (amends D8)
+- **Decision:** The legacy branch of `finalize_render_billing` (rows without
+  `meta.expected_credits`) now bills `CEIL(renders.duration / 60)` — the
+  finished OUTPUT duration — minimum 1. Worker wall-clock elapsed
+  (`render_completed_at − render_started_at`) is only the fallback for
+  legacy rows that never recorded output duration. The exact-quote branch
+  is unchanged: quoted credits are the final charge, zero ledger delta.
+- **Reason:** Worker speed is not product value: a worker that renders 2×
+  realtime must not bill half, and a slow worker must not bill double.
+  Output minutes are what the user received.
+- **Reverse:** Restore the wall-clock-first branch in
+  `20260925220000_exact_render_settle.sql` (and the matching assertions in
+  `supabase/tests/finalize_render_billing.sql`).
+
+### D23. Every failure/cancellation path refunds via the fixed refund RPC
+- **Decision:** Quick-job pipeline exceptions, the provider-failed
+  `rendering` branch, `failVideoJobCompose`, queued-cancel of server
+  renders, and worker `finishJob(failed/cancelled)` all refund through
+  `refund_credits_for_minutes` (via the `refundDebitedMinutes` helper for
+  quick jobs), which is idempotent per job id and clamps to the actual
+  debit — a job that was never charged can never be refunded. No code path
+  inserts/updates/deletes `credit_ledger` rows directly. Refund errors are
+  logged, never thrown, so they can't mask the original failure.
+- **Reason:** The reserve is taken before work starts; any terminal state
+  that produces no video must return it. Idempotency + debit-clamping make
+  every path safe to retry and safe against double-cancel races.
+- **Reverse:** Remove individual refund calls (reintroduces reserve leaks).
+
+### D24. Measured cost queries: 30-day windowed, mode-attributed
+- **Decision:** `getMeasuredCostPerMinute(mode)` and `getPlanMargins()`
+  (admin-only, in `billing.functions.ts`, logic in
+  `src/lib/billing/measured-cost.ts`) aggregate the trailing 30 days:
+  provider cost from render-pipeline `api_usage` rows, finished minutes
+  from quick-job durations plus server renders' `billed_minutes`, mode from
+  `meta.mode` (`"story"` default — written at enqueue for server renders).
+  Plan margins divide measured provider cost by NET render credits consumed
+  (debits and settle/refund grants, so reserve→actual settlement nets to
+  true finished minutes) and compare against DB plan prices. Divide-by-zero
+  returns null, never NaN; empty data returns an honest null, not zeros.
+- **Note:** `adminUnitEconomics` (D11) already covers similar ground as an
+  all-time, catalog-price variant wired into the admin UI. These two are
+  the 30-day-windowed, DB-price variants the cost sprint specified.
+  Consolidate the two into one canonical implementation as a follow-up —
+  do not let them drift.
+- **Reverse:** Change the window/queries in `measured-cost.ts`.

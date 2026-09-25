@@ -151,7 +151,7 @@ export type ServerRenderInsert =
  * the same EXACT quote from quoteMultiAspectRender (the single source of
  * truth also used by the RenderPanel cost display — the number shown
  * before the render is the number reserved here). The quote is stored in
- * meta (expected_credits / expected_minutes / cost_mode) so
+ * meta (expected_credits / expected_minutes, plus the billing mode) so
  * finalize_render_billing can settle deterministically.
  */
 export function buildServerRenderRows(params: {
