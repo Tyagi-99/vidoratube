@@ -73,8 +73,8 @@ export function AutoEditCreateDialog({
   const [targetDuration, setTargetDuration] = useState(60);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [sourceDuration, setSourceDuration] = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [playing, setPlaying] = useState(false);
+  const [, setCurrentTime] = useState(0);
+  const [, setPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   const pickFile = (next: File) => {

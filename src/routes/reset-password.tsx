@@ -35,7 +35,7 @@ function ResetPasswordPage() {
   const [done, setDone] = useState(false);
 
   useEffect(() => {
-    supabase.auth.onAuthStateChange(async (event, session) => {
+    supabase.auth.onAuthStateChange(async (event, _session) => {
       if (event === "PASSWORD_RECOVERY") {
         setValidLink(true);
       }
