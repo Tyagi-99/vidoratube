@@ -1530,6 +1530,42 @@ export type Database = {
         }
         Relationships: []
       }
+      referrals: {
+        Row: {
+          id: string
+          code: string
+          referrer_id: string
+          invitee_id: string | null
+          status: string
+          device_hash: string | null
+          ip_prefix: string | null
+          created_at: string
+          rewarded_at: string | null
+        }
+        Insert: {
+          id?: string
+          code: string
+          referrer_id: string
+          invitee_id?: string | null
+          status?: string
+          device_hash?: string | null
+          ip_prefix?: string | null
+          created_at?: string
+          rewarded_at?: string | null
+        }
+        Update: {
+          id?: string
+          code?: string
+          referrer_id?: string
+          invitee_id?: string | null
+          status?: string
+          device_hash?: string | null
+          ip_prefix?: string | null
+          created_at?: string
+          rewarded_at?: string | null
+        }
+        Relationships: []
+      }
       outlier_videos: {
         Row: {
           id: string
