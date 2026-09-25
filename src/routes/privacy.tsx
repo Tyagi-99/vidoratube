@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { hasGrievanceOfficer, legalConfig } from "@/config/legal";
 
 export const Route = createFileRoute("/privacy")({
   head: () => ({
@@ -98,7 +99,40 @@ function PrivacyPage() {
           required by law are retained.
         </p>
 
-        <h2 className="text-base font-semibold text-foreground">7. Changes</h2>
+        <h2 className="text-base font-semibold text-foreground">7. Grievance redressal</h2>
+        {/*
+          Grievance timelines — FLAG FOR LEGAL REVIEW (not legal advice).
+          IT Rules 2021 (Rule 3(2)): Grievance Officer must acknowledge a complaint
+          within 24 hours and dispose of it within 15 days of receipt.
+          DPDP Act 2023 (s.13) gives every Data Principal the right to grievance
+          redressal; the draft DPDP Rules propose Board-facing timelines that may
+          layer on top of the IT Rules timelines for intermediaries. Confirm the
+          currently applicable statutory timeline with counsel before launch.
+        */}
+        {hasGrievanceOfficer() ? (
+          <p>
+            Grievance Officer: {legalConfig.grievanceName},{" "}
+            <a
+              className="text-foreground underline"
+              href={`mailto:${legalConfig.grievanceEmail}`}
+            >
+              {legalConfig.grievanceEmail}
+            </a>
+            {legalConfig.grievancePostal ? `, ${legalConfig.grievancePostal}` : ""}. We
+            acknowledge grievances within 24 hours and aim to resolve them within 15 days.
+          </p>
+        ) : (
+          <p>
+            To raise a privacy grievance, use the{" "}
+            <Link to="/contact" className="text-foreground underline">
+              contact form
+            </Link>{" "}
+            with "Grievance" in the subject. We acknowledge grievances within 24 hours and
+            aim to resolve them within 15 days.
+          </p>
+        )}
+
+        <h2 className="text-base font-semibold text-foreground">8. Changes</h2>
         <p>
           We will update this policy as the product changes and show the new "last updated" date
           here. Continued use after a change means you accept it.

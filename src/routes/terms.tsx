@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { brandName, entityLine, governingLawLine } from "@/config/legal";
 
 export const Route = createFileRoute("/terms")({
   head: () => ({
@@ -20,8 +21,13 @@ function TermsPage() {
       <p className="mt-2 text-sm text-muted-foreground">Last updated 25 September 2026</p>
       <div className="mt-8 space-y-6 text-sm leading-relaxed text-muted-foreground">
         <p>
-          These terms govern your use of Vidora AI ("Vidora", "we"). By creating an account you
+          These terms govern your use of {brandName()} ("Vidora", "we"). By creating an account you
           agree to them.
+        </p>
+
+        <h2 className="text-base font-semibold text-foreground">0. Legal entity</h2>
+        <p>
+          These terms are between you and {entityLine()}. {governingLawLine()}
         </p>
 
         <h2 className="text-base font-semibold text-foreground">1. The service</h2>
@@ -37,7 +43,7 @@ function TermsPage() {
         <p>
           AI generations, renders, and reviews consume credits. New accounts receive 10 free
           credits after email verification; free credits may be revoked if abused. Paid plans and
-          credit packs are billed through Stripe (global) or Razorpay (India) in test mode until
+          credit packs are billed through Dodo Payments (USD) or Razorpay (INR) in test mode until
           launch — no real charges are made before we announce live billing. Credits are consumed
           when a generation or render starts and are non-refundable except where required by law
           or where a failed job did not deliver; billing disputes go to{" "}
