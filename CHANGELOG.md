@@ -1,5 +1,50 @@
 # Changelog
 
+## 2026-09-25 — P4: Studio v2 Creative Upgrades
+
+### Visual style system
+- 10 curated presets: cinematic, anime, photoreal, watercolor, cyberpunk,
+  documentary, minimalist, 3D-render, vintage-film, neon-noir.
+- Each = prompt modifier + caption style + CSS gradient swatch (explicitly
+  labeled "style hint", never a fake AI preview).
+- Applied to scene image prompts via `buildStyledPrompt`; legacy
+  illustration styles still work.
+
+### Character consistency
+- New `characters` table (owner RLS); create/delete via Studio v2 panel.
+- `{character}` token injected into image prompts ("featuring {name}").
+- `character_id` on scenes; badge on timeline.
+
+### Voices (25+, Hindi-first)
+- Curated catalog: 10 built-in (4 Hindi-first) + 15 library slots resolved
+  via ElevenLabs at runtime. Picker sorts Hindi → English → rest.
+- Cached TTS voice previews (bucket `previews/`, 30/hour limit).
+- Per-scene voice override (`voice_id` on scenes).
+
+### Background music
+- **Correction:** Pixabay's API has no music endpoint (verified 2026-09-25).
+  Music uses the Jamendo API (CC-licensed, free tier, `JAMENDO_CLIENT_ID`).
+- Mood picker (uplifting/tense/calm/epic/playful); tracks cached in
+  `music_tracks` with license + license URL.
+- Auto-ducking via sidechaincompress in BOTH paths: worker pipeline
+  (voice bus → music duck → mix) and browser FFmpeg.wasm (already had it).
+- Volume + fade controls; `music_ducking` toggle per project.
+
+### Asset provenance
+- New `asset_provenance` table (owner-read, service-role writes).
+- Every image + voiceover records provider/model/prompt/license/cost.
+- Provenance drawer per scene ("made with X, licensed Y") + JSON export.
+
+### Verification
+- `npx tsc --noEmit`: clean (app + worker)
+- Vitest: 224/224 (30 files)
+- Production build: clean
+- Real FFmpeg 8.x proof: sidechaincompress ducking chain produces valid AAC
+
+### Needs live keys
+- `JAMENDO_CLIENT_ID` for music search (free tier at developer.jamendo.com)
+- P4 migration must be applied to live Supabase
+
 ## 2026-09-25 — P3: Research / Idea Engine
 
 ### Niche explorer
