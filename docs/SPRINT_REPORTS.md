@@ -24,6 +24,8 @@ Lovable publish after this handoff; all verification below is local unless noted
 | `e9d795c` | Sprint 0: Dodo webhook accepts base64-encoded secrets (whsec_) |
 | `f849329` | Sprint 0: remove character-consistency claim, add DemoReel section |
 | `15256f2` | Sprint 0: real 60s English demo video + homepage DemoReel |
+| `a3fce33` | Sprint 0: FIX refund RPC money bug + exact migration reason |
+| `5f9a905` | Sprint 0: worker idle heartbeat + payment review close-out |
 
 **Shipped:**
 
@@ -92,9 +94,12 @@ Lovable publish after this handoff; all verification below is local unless noted
 
 **Proof:**
 
-- Tests: **382 passed** (`npx vitest run`), 0 failed — includes 16 Dodo, 12
-  per-minute math, 7 currency, 9 credits, RLS audit, language-neutrality guardrail.
-- `npx tsc --noEmit`: clean. Production build: _(run before push — see below)_.
+- Tests: **392 passed** (`npx vitest run`), 0 failed — includes 20 Dodo, 12
+  per-minute math, 7 currency, 9 credits, 5 Razorpay, RLS audit, language-neutrality
+  guardrail. Refund RPC additionally verified by `scripts/test-minute-refund.sh`
+  against real PostgreSQL 16: 10/10 (no-debit no-op, exact refund, double-refund
+  no-op, inflated-claim cap, reason normalization). Worker `npx tsx --test`: 11/11.
+- `npx tsc --noEmit`: clean (app + worker). Production build: clean.
 - Demo video (`public/demo/vidora-demo-60s.mp4`, proof in `demo-assets/proof.txt`):
   ffprobe-verified 1920×1080 H.264 + AAC stereo 48kHz, **60.000s**, 18.5 MB
   (under 25 MB budget); loudness measured **−14.04 LUFS** integrated, −2.19 dBTP
@@ -112,7 +117,7 @@ Lovable publish after this handoff; all verification below is local unless noted
 - `grep -rn "migration_per_minute" supabase/migrations/` → 1 file (the new migration)
 
 **New founder TODO items:** #8 (email users about the credit migration), #9 (apply
-the two new migrations). Full list in `docs/FOUNDER_TODO.md`.
+the four new migrations). Full list in `docs/FOUNDER_TODO.md`.
 
 **Decisions:** `docs/DECISIONS.md` (D1–D13).
 
