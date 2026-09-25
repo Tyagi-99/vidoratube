@@ -1,5 +1,51 @@
 # Changelog
 
+## 2026-09-25 — P6: Monetization Safety Score
+
+The product's core differentiator: a versioned, explainable pre-publish
+demonetization risk score — "the AI YouTube studio built to keep your channel monetized."
+
+### Scoring engine (`src/lib/safety.ts`, pure + fully tested)
+- 5 dimensions summing to 100: advertiser-friendliness (30), copyright (25),
+  originality (20), metadata honesty (15), policy compliance (10).
+- Bands: 90+ safe (green), 70–89 minor (yellow), 50–69 at-risk (orange), <50 high-risk (red).
+- Profanity/sexual/violence/drugs/tragedy detection with a density penalty for
+  saturated scripts; compounding penalty for multiple critical violations.
+- Copyright from P4 provenance records; originality via shingle-Jaccard vs P3
+  outlier titles; metadata honesty via clickbait/title-content mismatch checks;
+  policy via made-for-kids, medical/financial disclaimers, synthetic disclosure.
+- `SAFETY_SCORE_VERSION = "1.0"` stored with every score.
+- 26 tests: clean script → 90+, profanity-saturated → at-risk, sexual+violent →
+  high-risk, borderline → 70s, publish-gate decisions.
+
+### Server functions (`src/lib/safety.functions.ts`)
+- `scoreProject`: gathers script + SEO metadata + provenance + outlier titles +
+  made-for-kids, stores versioned score. 1 credit, rate-limited, zod-validated.
+- `getSafetyScore`: latest + history (free).
+- `requestDeepReview`: LLM subtle-issue review for 50–89 scores, 1 credit,
+  explicitly labeled "AI opinion — not a guarantee."
+- `rewriteFlaggedSpan` ("Fix with AI"): rewrites a flagged script span, 1 credit.
+- `updateProjectScript`: owner-only script update for applying rewrites.
+
+### Publish gate (server-enforced)
+- `approvePublishJob`: score < 50 blocks approval unless `safety_override`
+  is explicitly acknowledged; the override + score are recorded on the job.
+- PublishPipeline review step shows the score; the approve button stays
+  disabled until the risk acknowledgment is checked.
+
+### UI
+- Safety section on the project page: score dial, band badge, dimension bars,
+  issue list with fix suggestions, AI deep review, score history.
+- Honesty everywhere: "Risk estimate based on public YouTube policy signals —
+  YouTube decides monetization, this is not a guarantee." Whole numbers, bands,
+  no fake precision. Never claims guaranteed monetization.
+- English + Hindi i18n for all new UI.
+
+### Data model
+- `safety_scores` table (project_id, version, score, band, dimensions/issues
+  JSONB, ai_review JSONB), owner-only RLS.
+- `publish_jobs` gains `safety_score` + `safety_override` columns.
+
 ## 2026-09-25 — P5: Thumbnail/SEO Studio + YouTube Publishing
 
 ### Thumbnail studio
