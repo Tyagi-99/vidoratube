@@ -1321,6 +1321,7 @@ export type Database = {
           niches: string[] | null
           status: string | null
           topic: string | null
+          updated_at: string
           user_id: string
         }
         Insert: {
@@ -1330,6 +1331,7 @@ export type Database = {
           niches?: string[] | null
           status?: string | null
           topic?: string | null
+          updated_at?: string
           user_id: string
         }
         Update: {
@@ -1339,6 +1341,7 @@ export type Database = {
           niches?: string[] | null
           status?: string | null
           topic?: string | null
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
@@ -1729,6 +1732,7 @@ export type Database = {
           hook: string | null
           id: string
           project_id: string | null
+          safety_flag: string | null
           status: string | null
           title: string | null
           user_id: string
@@ -1741,6 +1745,7 @@ export type Database = {
           hook?: string | null
           id?: string
           project_id?: string | null
+          safety_flag?: string | null
           status?: string | null
           title?: string | null
           user_id: string
@@ -1753,6 +1758,7 @@ export type Database = {
           hook?: string | null
           id?: string
           project_id?: string | null
+          safety_flag?: string | null
           status?: string | null
           title?: string | null
           user_id?: string
