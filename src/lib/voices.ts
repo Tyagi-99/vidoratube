@@ -7,6 +7,13 @@
  * listVoices() (requires ELEVENLABS_API_KEY) — their IDs are NOT hardcoded
  * here because library contents vary per account.
  *
+ * `verified` (Sprint 5-6) is the in-code mirror of the `verified` column on
+ * the `language_voices` table (seeded by
+ * supabase/migrations/20260925233000_language_voices_and_gates.sql): true
+ * only when the provider id has been checked against a real provider
+ * account. Dubbing may ONLY use verified voices — an unverified voice is
+ * never silently substituted; the pipeline raises an explicit error.
+ *
  * Vidora is language-neutral: English is the default. Language behaviour
  * (fonts, RTL, caption rules, LLM instructions) comes from the `languages`
  * table, never from hardcoded branches in components.
@@ -32,6 +39,13 @@ export interface CatalogVoice {
    * UI picker. Undefined/true = user-selectable (see userSelectableVoices).
    */
   selectable?: boolean;
+  /**
+   * True = the provider id has been verified against a real provider
+   * account (mirror of language_voices.verified). Only verified voices may
+   * be used for dubbing. False/undefined = unverified: not usable for
+   * dubbing, and shown as "pending verification" where visible at all.
+   */
+  verified?: boolean;
   description: string;
 }
 
@@ -44,6 +58,7 @@ export const VOICE_CATALOG: CatalogVoice[] = [
     languageCode: "en",
     gender: "masculine",
     provider: "elevenlabs",
+    verified: true,
     providerVoiceId: "JBFqnCBsd6RMkjVDRZzb",
     description: "Default English narrator, warm and clear",
   },
@@ -54,6 +69,7 @@ export const VOICE_CATALOG: CatalogVoice[] = [
     languageCode: "en",
     gender: "feminine",
     provider: "elevenlabs",
+    verified: true,
     providerVoiceId: "EXAVITQu4vr4xnSDxMaL",
     description: "Expressive English voice, great for stories",
   },
@@ -64,6 +80,7 @@ export const VOICE_CATALOG: CatalogVoice[] = [
     languageCode: "en",
     gender: "feminine",
     provider: "elevenlabs",
+    verified: true,
     providerVoiceId: "21m00Tcm4TlvDq8ikWAM",
     description: "Warm English narrator, documentary tone",
   },
@@ -74,6 +91,7 @@ export const VOICE_CATALOG: CatalogVoice[] = [
     languageCode: "en",
     gender: "feminine",
     provider: "elevenlabs",
+    verified: true,
     providerVoiceId: "AZnzlk1XvdvUeBnXmlld",
     description: "Expressive English voice, strong presence",
   },
@@ -84,6 +102,7 @@ export const VOICE_CATALOG: CatalogVoice[] = [
     languageCode: "en",
     gender: "feminine",
     provider: "elevenlabs",
+    verified: false,
     providerVoiceId: "MF3mGyEYCl7XYWb3QV9V",
     description: "Bright English voice, energetic hosting",
   },
@@ -94,6 +113,7 @@ export const VOICE_CATALOG: CatalogVoice[] = [
     languageCode: "en",
     gender: "masculine",
     provider: "elevenlabs",
+    verified: false,
     providerVoiceId: "TxGEqnHWrfWFTfGW9XjX",
     description: "Conversational English voice, natural pacing",
   },
@@ -104,6 +124,7 @@ export const VOICE_CATALOG: CatalogVoice[] = [
     languageCode: "en",
     gender: "masculine",
     provider: "elevenlabs",
+    verified: false,
     providerVoiceId: "VR6AewLTigWG4xSOukaG",
     description: "Deep English voice, documentary gravity",
   },
@@ -114,6 +135,7 @@ export const VOICE_CATALOG: CatalogVoice[] = [
     languageCode: "en",
     gender: "masculine",
     provider: "elevenlabs",
+    verified: false,
     providerVoiceId: "ErXwobaYiN019PkySvjV",
     description: "Calm English voice, sleep and stories",
   },
@@ -124,6 +146,7 @@ export const VOICE_CATALOG: CatalogVoice[] = [
     languageCode: "en",
     gender: "neutral",
     provider: "gateway",
+    verified: false,
     providerVoiceId: "alloy",
     description: "Balanced gateway voice",
   },
@@ -134,6 +157,7 @@ export const VOICE_CATALOG: CatalogVoice[] = [
     languageCode: "en",
     gender: "masculine",
     provider: "gateway",
+    verified: false,
     providerVoiceId: "echo",
     description: "Gateway voice, steady",
   },
@@ -144,6 +168,7 @@ export const VOICE_CATALOG: CatalogVoice[] = [
     languageCode: "en",
     gender: "feminine",
     provider: "gateway",
+    verified: false,
     providerVoiceId: "fable",
     description: "Gateway voice, storybook warmth",
   },
@@ -154,6 +179,7 @@ export const VOICE_CATALOG: CatalogVoice[] = [
     languageCode: "en",
     gender: "feminine",
     provider: "gateway",
+    verified: false,
     providerVoiceId: "nova",
     description: "Gateway voice, bright and modern",
   },
@@ -166,6 +192,7 @@ export const VOICE_CATALOG: CatalogVoice[] = [
     languageCode: "hi",
     gender: "feminine",
     provider: "elevenlabs",
+    verified: true,
     providerVoiceId: "21m00Tcm4TlvDq8ikWAM", // Rachel — clear multilingual
     description: "Warm Hindi narration, clear and friendly",
   },
@@ -177,6 +204,7 @@ export const VOICE_CATALOG: CatalogVoice[] = [
     languageCode: "hi",
     gender: "masculine",
     provider: "elevenlabs",
+    verified: true,
     providerVoiceId: "pNInz6obpgDQGcFmaJgB", // Adam — deep multilingual
     description: "Deep Hindi voiceover, authoritative",
   },
@@ -188,6 +216,7 @@ export const VOICE_CATALOG: CatalogVoice[] = [
     languageCode: "hi",
     gender: "feminine",
     provider: "gateway",
+    verified: true,
     providerVoiceId: "shimmer",
     description: "Bright Hindi voice via AI gateway",
   },
@@ -199,6 +228,7 @@ export const VOICE_CATALOG: CatalogVoice[] = [
     languageCode: "hi",
     gender: "masculine",
     provider: "gateway",
+    verified: true,
     providerVoiceId: "onyx",
     description: "Steady Hindi narration via AI gateway",
   },
@@ -230,6 +260,7 @@ export const VOICE_CATALOG: CatalogVoice[] = [
     languageCode: code,
     gender,
     provider: "elevenlabs" as VoiceProvider,
+    verified: false,
     providerVoiceId: null,
     library: true as const,
     description: `From your ElevenLabs library — connect a key to load`,
@@ -238,8 +269,7 @@ export const VOICE_CATALOG: CatalogVoice[] = [
 
 /** English voices first, then the rest (stable order). Vidora is language-neutral. */
 export function sortedVoices(voices: CatalogVoice[] = VOICE_CATALOG): CatalogVoice[] {
-  const rank = (v: CatalogVoice) =>
-    v.languageCode === "en" ? 0 : 1;
+  const rank = (v: CatalogVoice) => (v.languageCode === "en" ? 0 : 1);
   return [...voices].sort((a, b) => rank(a) - rank(b));
 }
 

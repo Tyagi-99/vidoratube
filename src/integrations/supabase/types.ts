@@ -817,6 +817,89 @@ export type Database = {
         }
         Relationships: []
       }
+      languages: {
+        Row: {
+          caption_max_chars: number
+          code: string
+          created_at: string
+          font_stack: string
+          llm_instructions: string
+          name_en: string
+          name_native: string
+          rtl: boolean
+          status: string
+        }
+        Insert: {
+          caption_max_chars?: number
+          code: string
+          created_at?: string
+          font_stack?: string
+          llm_instructions?: string
+          name_en: string
+          name_native: string
+          rtl?: boolean
+          status?: string
+        }
+        Update: {
+          caption_max_chars?: number
+          code?: string
+          created_at?: string
+          font_stack?: string
+          llm_instructions?: string
+          name_en?: string
+          name_native?: string
+          rtl?: boolean
+          status?: string
+        }
+        Relationships: []
+      }
+      language_voices: {
+        Row: {
+          created_at: string
+          gender: string
+          id: string
+          language_code: string
+          name: string
+          provider: string
+          provider_voice_id: string | null
+          selectable: boolean
+          slot: number
+          verified: boolean
+        }
+        Insert: {
+          created_at?: string
+          gender: string
+          id?: string
+          language_code: string
+          name: string
+          provider: string
+          provider_voice_id?: string | null
+          selectable?: boolean
+          slot: number
+          verified?: boolean
+        }
+        Update: {
+          created_at?: string
+          gender?: string
+          id?: string
+          language_code?: string
+          name?: string
+          provider?: string
+          provider_voice_id?: string | null
+          selectable?: boolean
+          slot?: number
+          verified?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "language_voices_language_code_fkey"
+            columns: ["language_code"]
+            isOneToOne: false
+            referencedRelation: "languages"
+            referencedColumns: ["code"]
+          }
+        ]
+      }
       music_tracks: {
         Row: {
           artist: string | null

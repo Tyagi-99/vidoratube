@@ -35,3 +35,38 @@ describe("voice catalog", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 });
+
+describe("voice verification (Sprint 5-6)", () => {
+  it("marks every voice verified or unverified — no silent gaps", () => {
+    for (const v of VOICE_CATALOG) {
+      expect(typeof v.verified, `${v.id}: verified must be an explicit boolean`).toBe("boolean");
+    }
+  });
+
+  it("verified voices all carry a concrete provider id", () => {
+    const verified = VOICE_CATALOG.filter((v) => v.verified === true);
+    expect(verified.length).toBeGreaterThan(0);
+    for (const v of verified) {
+      expect(v.providerVoiceId, `${v.id}: verified voice needs a provider id`).toBeTruthy();
+      expect(v.selectable).not.toBe(false);
+    }
+  });
+
+  it("library placeholders are never verified", () => {
+    const library = VOICE_CATALOG.filter((v) => v.library);
+    for (const v of library) {
+      expect(v.verified).toBe(false);
+      expect(v.providerVoiceId).toBeNull();
+    }
+  });
+
+  it("mirrors the DB-verified voices from language_voices (en + hi)", () => {
+    // Seeded verified in supabase/migrations/20260925233000_language_voices_and_gates.sql
+    for (const id of ["george", "sarah", "rachel", "domi"]) {
+      expect(voiceById(id)?.verified).toBe(true);
+    }
+    for (const id of ["aisha", "arjun", "kavya", "vikram"]) {
+      expect(voiceById(id)?.verified).toBe(true);
+    }
+  });
+});
