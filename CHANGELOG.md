@@ -1,5 +1,40 @@
 # Changelog
 
+## 2026-09-25 — P3: Research / Idea Engine
+
+### Niche explorer
+- New `/research` route: enter a topic → LLM generates sub-niches with audience,
+  content pillars, advertiser-safety rating, and competition level.
+- 1 credit per exploration, 20/hour rate limit.
+
+### Outlier analyzer
+- Import YouTube videos (URLs) or a channel (@handle/ID/URL); fetches real
+  view counts via YouTube Data API with 24h quota-saving cache.
+- Outlier score = views / channel median; tiers: breakout (10x+), outlier (5x+),
+  strong (2x+). Pure math fully unit-tested.
+- Quota estimate shown before import (~1 unit per 50 videos).
+
+### Idea generator
+- Generates titles, hooks, angles, format, difficulty, and monetization-safety
+  flags from niche + outlier patterns. 1 credit per batch, 20/hour limit.
+- Save / dismiss / "use this idea" lifecycle.
+
+### Script handoff
+- "Use this idea" creates a studio project pre-filled with title, hook, and
+  angle brief → flows into existing Mode 1/2/3 pipelines.
+
+### i18n
+- Minimal en/hi dictionary for research UI with language toggle (P9 expands).
+
+### Verification
+- `npx tsc --noEmit`: clean
+- Vitest: 204/204 tests passing (up from 182)
+- Production build: clean
+- Outlier math proven with fixtures; RLS static audit covers new tables.
+- Live YouTube Data API calls need a connected channel (OAuth); quota cache
+  prevents duplicate calls.
+
+
 ## 2026-09-25 — P2: Server Render Worker
 
 ### Database
