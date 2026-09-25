@@ -471,6 +471,7 @@ export const executePublishJob = createServerFn({ method: "POST" })
           status: "published",
           youtube_video_id: videoId,
           youtube_url: `https://youtu.be/${videoId}`,
+          published_at: new Date().toISOString(),
         })
         .eq("id", job.id)
         .select()

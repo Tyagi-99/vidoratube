@@ -1544,6 +1544,7 @@ export type Database = {
           published_at: string | null
           outlier_score: number
           patterns: Json
+          source: string
           created_at: string
         }
         Insert: {
@@ -1559,6 +1560,7 @@ export type Database = {
           published_at?: string | null
           outlier_score?: number
           patterns?: unknown
+          source?: string
           created_at?: string
         }
         Update: {
@@ -1574,6 +1576,7 @@ export type Database = {
           published_at?: string | null
           outlier_score?: number
           patterns?: unknown
+          source?: string
           created_at?: string
         }
         Relationships: []
@@ -2044,6 +2047,7 @@ export type Database = {
           error: string | null
           approved_by: string | null
           approved_at: string | null
+published_at: string | null
           safety_score: number | null
           safety_override: boolean
           created_at: string
@@ -2067,6 +2071,7 @@ export type Database = {
           error?: string | null
           approved_by?: string | null
           approved_at?: string | null
+          published_at?: string | null
           safety_score?: number | null
           safety_override?: boolean
           created_at?: string
@@ -2090,10 +2095,98 @@ export type Database = {
           error?: string | null
           approved_by?: string | null
           approved_at?: string | null
+          published_at?: string | null
           safety_score?: number | null
           safety_override?: boolean
           created_at?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      video_analytics: {
+        Row: {
+          id: string
+          user_id: string
+          publish_job_id: string | null
+          youtube_video_id: string
+          snapshot_at: string
+          snapshot_date: string
+          age_days: number
+          metrics: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          publish_job_id?: string | null
+          youtube_video_id: string
+          snapshot_at?: string
+          snapshot_date?: string
+          age_days?: number
+          metrics: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          publish_job_id?: string | null
+          youtube_video_id?: string
+          snapshot_at?: string
+          snapshot_date?: string
+          age_days?: number
+          metrics?: Json
+          created_at?: string
+        }
+        Relationships: []
+      }
+      channel_stats: {
+        Row: {
+          id: string
+          user_id: string
+          snapshot_at: string
+          snapshot_date: string
+          metrics: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          snapshot_at?: string
+          snapshot_date?: string
+          metrics: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          snapshot_at?: string
+          snapshot_date?: string
+          metrics?: Json
+          created_at?: string
+        }
+        Relationships: []
+      }
+      learning_insights: {
+        Row: {
+          id: string
+          user_id: string
+          kind: string
+          payload: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          kind: string
+          payload?: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          kind?: string
+          payload?: Json
+          created_at?: string
         }
         Relationships: []
       }
