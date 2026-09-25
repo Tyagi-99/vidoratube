@@ -242,15 +242,18 @@ export const generateVoiceoverScript = createServerFn({ method: "POST" })
       `Voiceover project: ${project.title}`,
     );
 
-    const plan = await generateCommentaryScript({
-      title: project.title,
-      description: typeof settings.source_file_name === "string" ? settings.source_file_name : null,
-      userNotes: project.topic,
-      style: String(settings.commentary_style || "documentary"),
-      targetSeconds: target,
-      sourceDurationSeconds: settings.source_duration_seconds ?? null,
-      language: project.language,
-    });
+    const plan = await generateCommentaryScript(
+      {
+        title: project.title,
+        description: typeof settings.source_file_name === "string" ? settings.source_file_name : null,
+        userNotes: project.topic,
+        style: String(settings.commentary_style || "documentary"),
+        targetSeconds: target,
+        sourceDurationSeconds: settings.source_duration_seconds ?? null,
+        language: project.language,
+      },
+      { admin: supabaseAdmin, userId: context.userId, projectId: project.id },
+    );
 
     const nextSettings = mergeSettings(project.settings, {
       analysis_uncertainty: plan.uncertainty,

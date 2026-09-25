@@ -16,7 +16,15 @@ function apiKey(): string {
 }
 
 /** Generates one thumbnail image, returns raw JPEG/PNG bytes. */
-export async function requestThumbnailImage(prompt: string): Promise<Uint8Array> {
+export async function requestThumbnailImage(
+  prompt: string,
+  /** Cost ctx: when provided, the image call's measured cost is recorded. */
+  cost?: {
+    admin: SupabaseClient<Database>;
+    userId: string;
+    projectId?: string | null | undefined;
+  },
+): Promise<Uint8Array> {
   const res = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey()}`, "Content-Type": "application/json" },
@@ -32,6 +40,19 @@ export async function requestThumbnailImage(prompt: string): Promise<Uint8Array>
   const payload = (await res.json()) as { data?: { b64_json?: string }[] };
   const b64 = payload.data?.[0]?.b64_json;
   if (!b64) throw new Error("Thumbnail generation returned no image.");
+  if (cost) {
+    // Gateway image generation: flat per-image estimate (see api-cost.ts).
+    const { GATEWAY_IMAGE_USD_PER_IMAGE, recordApiCost } = await import("./api-cost");
+    await recordApiCost(cost.admin, {
+      userId: cost.userId,
+      projectId: cost.projectId,
+      provider: "lovable-ai",
+      operation: "thumbnail",
+      units: 1,
+      unitCostUsd: GATEWAY_IMAGE_USD_PER_IMAGE,
+      meta: { model: IMAGE_MODEL, cost_basis: "gateway-passthrough-estimate" },
+    });
+  }
   return Uint8Array.from(Buffer.from(b64, "base64"));
 }
 

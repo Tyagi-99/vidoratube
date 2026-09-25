@@ -5,6 +5,16 @@ import { providerFetch } from "./providers/http.server";
 import { findBestStockAsset, type StockAsset } from "./providers/stock.server";
 import { activeImageProvider } from "./providers/image.server";
 import { mp3Duration, synthesize, DEFAULT_VOICE_ID, DEFAULT_VOICE_MODEL } from "./providers/voice.server";
+import {
+  ELEVENLABS_TTS_USD_PER_CHAR,
+  GATEWAY_IMAGE_USD_PER_IMAGE,
+  estimateTokens,
+  extractUsage,
+  gatewayChatUnitCostUsd,
+  recordApiCost,
+  type CostCtx,
+  type GatewayUsage,
+} from "./api-cost";
 
 const BUCKET = "generated-videos";
 const SIGNED_URL_TTL = 60 * 60 * 24 * 365;
@@ -27,30 +37,7 @@ export async function uploadAsset(
   return data.signedUrl;
 }
 
-export async function logUsage(
-  admin: Admin,
-  row: {
-    user_id: string;
-    project_id: string | null;
-    provider: string;
-    operation: string;
-    units?: number;
-    estimated_cost?: number;
-    meta?: Record<string, unknown>;
-  },
-) {
-  await admin.from("api_usage").insert({
-    user_id: row.user_id,
-    project_id: row.project_id,
-    provider: row.provider,
-    operation: row.operation,
-    units: row.units ?? 1,
-    estimated_cost: row.estimated_cost ?? 0,
-    meta: (row.meta ?? {}) as never,
-  });
-}
-
-async function chatJson<T>(system: string, user: string): Promise<T> {
+async function chatJson<T>(system: string, user: string): Promise<{ data: T; usage: GatewayUsage | null }> {
   const key = process.env["LOVABLE_API_KEY"];
   if (!key) throw new Error("AI is not configured on this project.");
   const res = await providerFetch("Lovable AI", "https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -67,13 +54,49 @@ async function chatJson<T>(system: string, user: string): Promise<T> {
     timeoutMs: 180_000,
   });
   const payload = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+  const usage = extractUsage(payload);
   const content = payload.choices?.[0]?.message?.content ?? "";
   const cleaned = content.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
   try {
-    return JSON.parse(cleaned) as T;
+    return { data: JSON.parse(cleaned) as T, usage };
   } catch {
     throw new Error("The AI returned an unreadable plan — try generating again.");
   }
+}
+
+/** Cost-recording context threaded through from the server-function caller. */
+export type { CostCtx } from "./api-cost";
+
+/** Records a gateway chat call's measured cost (tokens from usage, else estimated). */
+async function recordChatCost(
+  ctx: CostCtx,
+  operation: string,
+  system: string,
+  user: string,
+  usage: GatewayUsage | null,
+  model: string,
+): Promise<void> {
+  const inputTokens = usage?.inputTokens ?? estimateTokens(system + user);
+  const outputTokens = usage?.outputTokens ?? 0;
+  const total = inputTokens + outputTokens;
+  await recordApiCost(ctx.admin, {
+    userId: ctx.userId,
+    projectId: ctx.projectId,
+    provider: "lovable-ai",
+    operation,
+    units: total,
+    unitCostUsd: gatewayChatUnitCostUsd(inputTokens, outputTokens),
+    meta: {
+      model,
+      input_tokens: inputTokens,
+      output_tokens: outputTokens,
+      usage_reported: usage !== null,
+      // The gateway bills its own credits; USD is the underlying model's
+      // list price, a reference for cost direction — not an invoice.
+      cost_basis: "gateway-passthrough-estimate",
+      ...(ctx.mode ? { mode: ctx.mode } : {}),
+    },
+  });
 }
 
 /* ------------------------------ script plan ------------------------------ */
@@ -100,16 +123,20 @@ export type ProjectPlan = {
   scenes: PlannedScene[];
 };
 
-export async function planProject(input: {
-  topic: string;
-  script: string | null;
-  mode: string;
-  preset: string;
-  category: string | null;
-  language: string;
-  durationMinutes: number;
-  style: string;
-}): Promise<ProjectPlan> {
+export async function planProject(
+  input: {
+    topic: string;
+    script: string | null;
+    mode: string;
+    preset: string;
+    category: string | null;
+    language: string;
+    durationMinutes: number;
+    style: string;
+  },
+  /** Cost ctx: when provided, the gateway plan call's measured cost is recorded. */
+  cost?: CostCtx,
+): Promise<ProjectPlan> {
   const preset = presetById(input.preset);
   const targetSeconds = input.durationMinutes * 60;
   const avgScene = (preset.minScene + preset.maxScene) / 2;
@@ -152,8 +179,11 @@ ${input.category ? `- Category: ${input.category}.` : ""}
 ${input.script ? `Use this script verbatim, split into scenes:\n${input.script.slice(0, 20000)}` : `Topic: ${input.topic}`}
 `.trim();
 
-  const plan = await chatJson<ProjectPlan>(system, user);
+  const { data: plan, usage } = await chatJson<ProjectPlan>(system, user);
   if (!plan.scenes?.length) throw new Error("The AI could not plan any scenes for this topic.");
+  if (cost) {
+    await recordChatCost(cost, "llm_plan", system, user, usage, CHAT_MODEL);
+  }
   return plan;
 }
 
@@ -193,12 +223,14 @@ export async function resolveSceneVisual(
       asset = null;
     }
     if (asset) {
-      await logUsage(admin, {
-        user_id: args.userId,
-        project_id: args.projectId,
+      await recordApiCost(admin, {
+        userId: args.userId,
+        projectId: args.projectId,
         provider: asset.provider,
         operation: "stock_search",
         units: 1,
+        unitCostUsd: 0, // stock discovery is free; the license cost is measured separately
+        meta: { visual_type: asset.kind },
       });
       return {
         url: asset.url,
@@ -266,13 +298,18 @@ export async function resolveSceneVisual(
     prompt: base,
     assetUrl: url,
   });
-  await logUsage(admin, {
-    user_id: args.userId,
-    project_id: args.projectId,
+  await recordApiCost(admin, {
+    userId: args.userId,
+    projectId: args.projectId,
     provider: provider.id,
     operation: "image_generation",
     units: 1,
-    estimated_cost: 0.03,
+    // Gateway bundles its own credits; $0.03/image is an estimate (see api-cost.ts).
+    unitCostUsd: GATEWAY_IMAGE_USD_PER_IMAGE,
+    meta: {
+      model: provider.id === "gemini" ? "google/gemini-2.5-flash-image" : provider.id,
+      cost_basis: "gateway-passthrough-estimate",
+    },
   });
   return {
     url,
@@ -349,13 +386,15 @@ export async function generateSceneVoice(
     { onConflict: "id" },
   );
 
-  await logUsage(admin, {
-    user_id: args.userId,
-    project_id: args.projectId,
+  // ElevenLabs published API rate, Flash tier: $0.05 / 1k chars (see api-cost.ts).
+  await recordApiCost(admin, {
+    userId: args.userId,
+    projectId: args.projectId,
     provider: "elevenlabs",
     operation: "tts",
     units: args.narration.length,
-    estimated_cost: (args.narration.length / 1000) * 0.03,
+    unitCostUsd: ELEVENLABS_TTS_USD_PER_CHAR,
+    meta: { model },
   });
 
   // P4: provenance for the generated voiceover.

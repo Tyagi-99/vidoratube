@@ -1,5 +1,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import {
+  ELEVENLABS_TTS_USD_PER_CHAR,
+  GATEWAY_IMAGE_USD_PER_IMAGE,
+  GATEWAY_TTS_USD_PER_CHAR,
+  SHOTSTACK_USD_PER_RENDER_MINUTE,
+  recordApiCost,
+  type CostCtx,
+} from "./api-cost";
 
 const BUCKET = "generated-videos";
 
@@ -127,6 +135,9 @@ export async function generateVoiceover(
   const text = narration.slice(0, 4000);
   let audio: ArrayBuffer | null = null;
   let estimatedSeconds: number | null = null;
+  // Sprint 1: measured provider cost for this TTS call.
+  let ttsProvider = "elevenlabs";
+  let ttsUnitCostUsd = ELEVENLABS_TTS_USD_PER_CHAR;
 
   try {
     const {
@@ -156,7 +167,26 @@ export async function generateVoiceover(
     audio = await generateVoiceoverViaGateway(narration, voice);
     const words = narration.trim().split(/\s+/).length;
     estimatedSeconds = Math.max(8, Math.round((words / 150) * 60));
+    // Gateway TTS (gpt-4o-mini-tts) fallback — passthrough estimate.
+    ttsProvider = "lovable-ai";
+    ttsUnitCostUsd = GATEWAY_TTS_USD_PER_CHAR;
   }
+
+  // ElevenLabs published API rate, Flash tier: $0.05 / 1k chars (see api-cost.ts).
+  await recordApiCost(admin, {
+    userId,
+    provider: ttsProvider,
+    operation: "tts",
+    units: text.length,
+    unitCostUsd: ttsUnitCostUsd,
+    meta: {
+      job_id: jobId,
+      mode: "story",
+      ...(ttsProvider === "lovable-ai"
+        ? { model: "gpt-4o-mini-tts", cost_basis: "gateway-passthrough-estimate" }
+        : { model: "eleven_flash_v2_5" }),
+    },
+  });
 
   const url = await upload(admin, `${userId}/${jobId}/narration.mp3`, audio, "audio/mpeg");
   return { url, estimatedSeconds: estimatedSeconds ?? 8 };
@@ -220,9 +250,28 @@ export async function generateSceneImages(
     }
 
     if (!attempt.b64) continue;
-    urls.push(
-      await upload(admin, `${userId}/${jobId}/scene-${index}.png`, base64ToBytes(attempt.b64), "image/png"),
+    const imageUrl = await upload(
+      admin,
+      `${userId}/${jobId}/scene-${index}.png`,
+      base64ToBytes(attempt.b64),
+      "image/png",
     );
+    urls.push(imageUrl);
+    // Gateway image generation: flat per-image estimate (see api-cost.ts).
+    await recordApiCost(admin, {
+      userId,
+      provider: "lovable-ai",
+      operation: "image_generation",
+      units: 1,
+      unitCostUsd: GATEWAY_IMAGE_USD_PER_IMAGE,
+      meta: {
+        job_id: jobId,
+        scene: index + 1,
+        mode: "story",
+        model: IMAGE_MODEL,
+        cost_basis: "gateway-passthrough-estimate",
+      },
+    });
   }
 
   if (urls.length === 0 && blocked > 0) {
@@ -249,13 +298,17 @@ function shotstackBase(): string {
 }
 
 /** Submits the timeline (images + captions + voiceover) to the render provider. */
-export async function submitRender(input: {
-  images: string[];
-  audioUrl: string;
-  captions: string[];
-  durationSeconds: number;
-  title: string;
-}): Promise<string> {
+export async function submitRender(
+  input: {
+    images: string[];
+    audioUrl: string;
+    captions: string[];
+    durationSeconds: number;
+    title: string;
+  },
+  /** Cost ctx: when provided, the Shotstack render submission is cost-recorded. */
+  cost?: CostCtx,
+): Promise<string> {
   const key = process.env["SHOTSTACK_API_KEY"];
   if (!key) throw new Error("No render provider configured.");
 
@@ -304,6 +357,22 @@ export async function submitRender(input: {
   const payload = (await res.json()) as { response?: { id?: string } };
   const id = payload.response?.id;
   if (!id) throw new Error("Render provider did not return a job id.");
+
+  if (cost) {
+    // Shotstack bills per rendered minute on production ($0.25/min); the
+    // stage sandbox is free (see api-cost.ts).
+    const production = process.env["SHOTSTACK_ENV"] === "v1";
+    const minutes = Math.max(1, Math.ceil(input.durationSeconds / 60));
+    await recordApiCost(cost.admin, {
+      userId: cost.userId,
+      projectId: cost.projectId,
+      provider: "shotstack",
+      operation: "render_submit",
+      units: minutes,
+      unitCostUsd: production ? SHOTSTACK_USD_PER_RENDER_MINUTE : 0,
+      meta: { render_id: id, mode: "story", environment: production ? "production" : "stage" },
+    });
+  }
   return id;
 }
 

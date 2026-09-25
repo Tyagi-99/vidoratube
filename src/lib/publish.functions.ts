@@ -72,7 +72,11 @@ export const generateThumbnails = createServerFn({ method: "POST" })
           variant,
           aspect,
         });
-        const bytes = await requestThumbnailImage(prompt);
+        const bytes = await requestThumbnailImage(prompt, {
+          admin: supabaseAdmin,
+          userId,
+          projectId: data.project_id,
+        });
         const url = await uploadThumbnail(supabaseAdmin, userId, data.project_id, variant, aspect, bytes);
         const { error } = await supabase.from("thumbnails").upsert(
           {
@@ -199,12 +203,15 @@ export const generateSEOMetadata = createServerFn({ method: "POST" })
     await debitOneCredit(supabaseAdmin, userId, `seo:${data.project_id}`);
 
     const { generateSEOCopy } = await import("./seo.server");
-    const copy = await generateSEOCopy({
-      videoTitle: data.video_title,
-      scriptSummary: data.script_summary,
-      primaryKeyword: data.primary_keyword,
-      chapters: data.chapters,
-    });
+    const copy = await generateSEOCopy(
+      {
+        videoTitle: data.video_title,
+        scriptSummary: data.script_summary,
+        primaryKeyword: data.primary_keyword,
+        chapters: data.chapters,
+      },
+      { admin: supabaseAdmin, userId, projectId: data.project_id },
+    );
 
     // Deterministic ranking of the LLM's title candidates.
     const ranked = rankTitles(copy.titles, data.primary_keyword);

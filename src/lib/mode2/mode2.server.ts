@@ -8,15 +8,31 @@ import {
   synthesize,
 } from "@/lib/providers/voice.server";
 import { buildCues, type Cue } from "@/lib/studio.server";
-import { uploadAsset, logUsage } from "@/lib/studio.server";
+import { uploadAsset } from "@/lib/studio.server";
+import {
+  ELEVENLABS_TTS_USD_PER_CHAR,
+  OPENAI_GPT4O_MINI_INPUT_USD_PER_MTOK,
+  OPENAI_GPT4O_MINI_OUTPUT_USD_PER_MTOK,
+  chatUnitCostUsd,
+  estimateTokens,
+  extractUsage,
+  gatewayChatUnitCostUsd,
+  recordApiCost,
+  type CostCtx,
+  type GatewayUsage,
+} from "@/lib/api-cost";
 import { targetWordCount } from "./duration";
 export { readMode2Settings, type Mode2Settings } from "./settings";
 
 type Admin = SupabaseClient<Database>;
 
-async function chatJson<T>(system: string, user: string): Promise<T> {
+async function chatJson<T>(
+  system: string,
+  user: string,
+): Promise<{ data: T; usage: GatewayUsage | null; provider: string; model: string }> {
   const openaiKey = process.env["OPENAI_API_KEY"];
   if (openaiKey) {
+    const model = process.env["OPENAI_MODEL"] || "gpt-4o-mini";
     const res = await providerFetch("OpenAI", "https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -24,7 +40,7 @@ async function chatJson<T>(system: string, user: string): Promise<T> {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: process.env["OPENAI_MODEL"] || "gpt-4o-mini",
+        model,
         messages: [
           { role: "system", content: system },
           { role: "user", content: user },
@@ -36,7 +52,7 @@ async function chatJson<T>(system: string, user: string): Promise<T> {
     const payload = (await res.json()) as { choices?: { message?: { content?: string } }[] };
     const content = payload.choices?.[0]?.message?.content ?? "";
     const cleaned = content.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
-    return JSON.parse(cleaned) as T;
+    return { data: JSON.parse(cleaned) as T, usage: extractUsage(payload), provider: "openai", model };
   }
 
   const key = process.env["LOVABLE_API_KEY"];
@@ -45,11 +61,12 @@ async function chatJson<T>(system: string, user: string): Promise<T> {
       "Neither OPENAI_API_KEY nor LOVABLE_API_KEY is configured for commentary generation.",
     );
   }
+  const model = "google/gemini-2.5-flash";
   const res = await providerFetch("Lovable AI", "https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
+      model,
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },
@@ -61,7 +78,7 @@ async function chatJson<T>(system: string, user: string): Promise<T> {
   const payload = (await res.json()) as { choices?: { message?: { content?: string } }[] };
   const content = payload.choices?.[0]?.message?.content ?? "";
   const cleaned = content.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
-  return JSON.parse(cleaned) as T;
+  return { data: JSON.parse(cleaned) as T, usage: extractUsage(payload), provider: "lovable-ai", model };
 }
 
 export type CommentaryPlan = {
@@ -75,15 +92,19 @@ export type CommentaryPlan = {
  * Generate a Mode 2 commentary script from title/description/duration metadata.
  * Frame-level vision analysis is optional polish — this path labels uncertainty explicitly.
  */
-export async function generateCommentaryScript(input: {
-  title: string;
-  description?: string | null;
-  userNotes?: string | null;
-  style: string;
-  targetSeconds: number;
-  sourceDurationSeconds?: number | null;
-  language?: string;
-}): Promise<CommentaryPlan> {
+export async function generateCommentaryScript(
+  input: {
+    title: string;
+    description?: string | null;
+    userNotes?: string | null;
+    style: string;
+    targetSeconds: number;
+    sourceDurationSeconds?: number | null;
+    language?: string;
+  },
+  /** Cost ctx: when provided, the commentary LLM call's measured cost is recorded. */
+  cost?: CostCtx,
+): Promise<CommentaryPlan> {
   const words = targetWordCount(input.targetSeconds);
   const system = [
     "You write voiceover commentary for existing video footage.",
@@ -113,8 +134,37 @@ Rules:
 - Source media duration (seconds, if known): ${input.sourceDurationSeconds ?? "unknown"}
 `.trim();
 
-  const plan = await chatJson<CommentaryPlan>(system, user);
+  const { data: plan, usage, provider, model } = await chatJson<CommentaryPlan>(system, user);
   if (!plan.script?.trim()) throw new Error("Commentary model returned an empty script.");
+  if (cost) {
+    // OpenAI direct calls use OpenAI's published rate; gateway calls are a
+    // passthrough estimate (see api-cost.ts).
+    const isGateway = provider === "lovable-ai";
+    const inputTokens = usage?.inputTokens ?? estimateTokens(system + user);
+    const outputTokens = usage?.outputTokens ?? 0;
+    await recordApiCost(cost.admin, {
+      userId: cost.userId,
+      projectId: cost.projectId,
+      provider,
+      operation: "llm_script",
+      units: inputTokens + outputTokens,
+      unitCostUsd: isGateway
+        ? gatewayChatUnitCostUsd(inputTokens, outputTokens)
+        : chatUnitCostUsd(
+            inputTokens,
+            outputTokens,
+            OPENAI_GPT4O_MINI_INPUT_USD_PER_MTOK,
+            OPENAI_GPT4O_MINI_OUTPUT_USD_PER_MTOK,
+          ),
+      meta: {
+        model,
+        input_tokens: inputTokens,
+        output_tokens: outputTokens,
+        usage_reported: usage !== null,
+        cost_basis: isGateway ? "gateway-passthrough-estimate" : "openai-list-price",
+      },
+    });
+  }
   return {
     title: plan.title?.trim() || input.title || "Voiceover project",
     script: plan.script.trim(),
@@ -157,13 +207,15 @@ export async function synthesizeProjectVoiceover(
     model,
   });
 
-  await logUsage(admin, {
-    user_id: args.userId,
-    project_id: args.projectId,
+  // ElevenLabs published API rate, Flash tier: $0.05 / 1k chars (see api-cost.ts).
+  await recordApiCost(admin, {
+    userId: args.userId,
+    projectId: args.projectId,
     provider: "elevenlabs",
     operation: "tts",
     units: args.script.length,
-    estimated_cost: (args.script.length / 1000) * 0.03,
+    unitCostUsd: ELEVENLABS_TTS_USD_PER_CHAR,
+    meta: { model },
   });
 
   return { url, duration };

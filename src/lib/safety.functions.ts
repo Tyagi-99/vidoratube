@@ -23,6 +23,42 @@ import {
 
 const LLM_MODEL = "google/gemini-3.5-flash";
 
+/** Records a safety LLM call's measured gateway cost (passthrough estimate). */
+async function recordSafetyLlmCost(
+  admin: import("@supabase/supabase-js").SupabaseClient<import("@/integrations/supabase/types").Database>,
+  userId: string,
+  projectId: string,
+  operation: "llm_plan" | "llm_script",
+  system: string,
+  user: string,
+  payload: unknown,
+): Promise<void> {
+  const {
+    extractUsage,
+    estimateTokens,
+    gatewayChatUnitCostUsd,
+    recordApiCost,
+  } = await import("./api-cost");
+  const usage = extractUsage(payload);
+  const inputTokens = usage?.inputTokens ?? estimateTokens(system + user);
+  const outputTokens = usage?.outputTokens ?? 0;
+  await recordApiCost(admin, {
+    userId,
+    projectId,
+    provider: "lovable-ai",
+    operation,
+    units: inputTokens + outputTokens,
+    unitCostUsd: gatewayChatUnitCostUsd(inputTokens, outputTokens),
+    meta: {
+      model: LLM_MODEL,
+      input_tokens: inputTokens,
+      output_tokens: outputTokens,
+      usage_reported: usage !== null,
+      cost_basis: "gateway-passthrough-estimate",
+    },
+  });
+}
+
 async function debitSafetyCredit(admin: any, userId: string, reason: string) {
   const { error } = await admin.rpc("debit_credits_for_job_once", {
     p_user_id: userId,
@@ -263,6 +299,15 @@ export const requestDeepReview = createServerFn({ method: "POST" })
     });
     if (!res.ok) throw new Error("AI review failed. Please try again.");
     const json = await res.json();
+    await recordSafetyLlmCost(
+      supabaseAdmin,
+      userId,
+      data.project_id,
+      "llm_plan",
+      "You are a YouTube advertiser-policy analyst.",
+      `Title: ${inputs.title}`,
+      json,
+    );
     const text: string = json.choices?.[0]?.message?.content ?? "{}";
     const parsed = deepReviewSchema.parse(JSON.parse(text.replace(/```json?/g, "").trim()));
 
@@ -331,6 +376,15 @@ export const rewriteFlaggedSpan = createServerFn({ method: "POST" })
     });
     if (!res.ok) throw new Error("Rewrite failed. Please try again.");
     const json = await res.json();
+    await recordSafetyLlmCost(
+      supabaseAdmin,
+      userId,
+      data.project_id,
+      "llm_script",
+      "Rewrite the given sentence(s) to be advertiser-friendly for YouTube.",
+      span,
+      json,
+    );
     const rewritten: string = (json.choices?.[0]?.message?.content ?? "").trim();
     if (!rewritten) throw new Error("Rewrite came back empty. Please try again.");
 

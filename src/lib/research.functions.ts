@@ -65,14 +65,19 @@ async function debitResearchCredit(userId: string, reason: string) {
 }
 
 /** Call the Lovable AI gateway and parse a JSON array/object from the reply. */
-async function llmJson<T>(system: string, user: string): Promise<T> {
+async function llmJson<T>(
+  system: string,
+  user: string,
+  cost?: { admin: import("@supabase/supabase-js").SupabaseClient<import("@/integrations/supabase/types").Database>; userId: string; operation: "llm_plan" | "llm_script" },
+): Promise<T> {
   const apiKey = process.env["LOVABLE_API_KEY"];
   if (!apiKey) throw new Error("AI is not configured on this project.");
+  const model = LLM_MODEL;
   const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: LLM_MODEL,
+      model,
       messages: [
         { role: "system", content: system + "\nRespond with JSON only. No markdown fences." },
         { role: "user", content: user },
@@ -82,6 +87,31 @@ async function llmJson<T>(system: string, user: string): Promise<T> {
   });
   if (!res.ok) throw new Error(`AI request failed (${res.status})`);
   const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+  if (cost) {
+    const {
+      extractUsage,
+      estimateTokens,
+      gatewayChatUnitCostUsd,
+      recordApiCost,
+    } = await import("./api-cost");
+    const usage = extractUsage(json);
+    const inputTokens = usage?.inputTokens ?? estimateTokens(system + user);
+    const outputTokens = usage?.outputTokens ?? 0;
+    await recordApiCost(cost.admin, {
+      userId: cost.userId,
+      provider: "lovable-ai",
+      operation: cost.operation,
+      units: inputTokens + outputTokens,
+      unitCostUsd: gatewayChatUnitCostUsd(inputTokens, outputTokens),
+      meta: {
+        model,
+        input_tokens: inputTokens,
+        output_tokens: outputTokens,
+        usage_reported: usage !== null,
+        cost_basis: "gateway-passthrough-estimate",
+      },
+    });
+  }
   const content = json.choices?.[0]?.message?.content ?? "";
   const cleaned = content.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
   return JSON.parse(cleaned) as T;
@@ -131,9 +161,11 @@ export const createResearchProject = createServerFn({ method: "POST" })
     await enforceResearchRateLimit(userId, "niche");
     await debitResearchCredit(userId, "research: niche exploration");
 
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const niches = await llmJson<z.infer<typeof NicheSchema>[]>(
       `You are a YouTube strategist. Given a broad topic, return 5-7 sub-niches as a JSON array with fields: name, description (1-2 sentences), audience (who watches), content_pillars (3-4 pillar topics), advertiser_safety (safe|caution|risky — is this niche friendly to YouTube ads?), competition (low|medium|high).`,
       `Topic: ${data.topic}\nLanguage: ${data.language}`,
+      { admin: supabaseAdmin, userId, operation: "llm_plan" },
     );
     const parsed = z.array(NicheSchema).parse(niches);
 
@@ -552,13 +584,14 @@ export const generateIdeas = createServerFn({ method: "POST" })
             .join("\n")}`
         : "No outlier data yet — generate original ideas.";
 
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const ideas = await llmJson<z.infer<typeof IdeaSchema>[]>(
       `You are a YouTube strategist for the Vidora AI studio. Generate clickable, original video ideas. Each idea is a JSON object: title (max 70 chars, curiosity-driven, no clickbait lies), hook (the first 3 seconds, verbatim opener), angle (2-3 sentences: the unique take), format (short|long — short = under 60s vertical, long = 8+ min horizontal), difficulty (easy|medium|hard to produce), safety_flag (safe|caution|risky — advertiser-friendliness for YouTube monetization; mark risky only when the idea touches sensitive topics). Return a JSON array.`,
       `${nicheCtx}\nLanguage: ${project.language}\nHow many ideas: ${data.count}\n\n${ownWinnersCtx}${outlierCtx}`,
+      { admin: supabaseAdmin, userId, operation: "llm_script" },
     );
     const parsed = z.array(IdeaSchema).parse(ideas);
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: rows, error } = await supabaseAdmin
       .from("video_ideas")
       .insert(

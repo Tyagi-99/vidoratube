@@ -7,6 +7,42 @@ export type GeneratedPlan = {
   durationSeconds: number;
 };
 
+/** Cost-recording context for the plan-generation LLM call. */
+export type PlanCostCtx = {
+  admin: import("@supabase/supabase-js").SupabaseClient<import("@/integrations/supabase/types").Database>;
+  userId: string;
+  jobId: string;
+};
+
+async function recordPlanCost(
+  ctx: PlanCostCtx,
+  system: string,
+  user: string,
+  payload: unknown,
+): Promise<void> {
+  const { extractUsage, estimateTokens, gatewayChatUnitCostUsd, recordApiCost } =
+    await import("./api-cost");
+  const usage = extractUsage(payload);
+  const inputTokens = usage?.inputTokens ?? estimateTokens(system + user);
+  const outputTokens = usage?.outputTokens ?? 0;
+  await recordApiCost(ctx.admin, {
+    userId: ctx.userId,
+    provider: "lovable-ai",
+    operation: "llm_plan",
+    units: inputTokens + outputTokens,
+    unitCostUsd: gatewayChatUnitCostUsd(inputTokens, outputTokens),
+    meta: {
+      job_id: ctx.jobId,
+      mode: "story",
+      model: MODEL,
+      input_tokens: inputTokens,
+      output_tokens: outputTokens,
+      usage_reported: usage !== null,
+      cost_basis: "gateway-passthrough-estimate",
+    },
+  });
+}
+
 function fallbackPlan(script: string, format: string): GeneratedPlan {
   const words = script.trim().split(/\s+/);
   const duration = Math.max(30, Math.round((words.length / 150) * 60));
@@ -27,6 +63,8 @@ export async function generateVideoPlan(
   script: string,
   format: string,
   voice: string,
+  /** Cost ctx: when provided, the plan LLM call's measured cost is recorded. */
+  cost?: PlanCostCtx,
 ): Promise<GeneratedPlan> {
   const apiKey = process.env["LOVABLE_API_KEY"];
   if (!apiKey) return fallbackPlan(script, format);
@@ -37,6 +75,7 @@ export async function generateVideoPlan(
 - a scene-by-scene breakdown (4-8 scenes) with timestamps, a visual description and an on-screen caption
 - an estimated duration in seconds
 Respond with JSON only.`;
+  const userPrompt = script.slice(0, 8000);
 
   try {
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -46,7 +85,7 @@ Respond with JSON only.`;
         model: MODEL,
         messages: [
           { role: "system", content: system },
-          { role: "user", content: script.slice(0, 8000) },
+          { role: "user", content: userPrompt },
         ],
         tools: [
           {
@@ -95,6 +134,9 @@ Respond with JSON only.`;
     if (!args) return fallbackPlan(script, format);
 
     const parsed = JSON.parse(args) as GeneratedPlan;
+    if (cost) {
+      await recordPlanCost(cost, system, userPrompt, payload);
+    }
     return {
       title: (parsed.title || "Untitled video").slice(0, 90),
       narration: parsed.narration || script,

@@ -204,6 +204,7 @@ export const previewVoice = createServerFn({ method: "POST" })
     // Synthesize a short sample
     const { synthesize, DEFAULT_VOICE_MODEL } = await import("./providers/voice.server");
     let audio: ArrayBuffer;
+    let previewProvider = "elevenlabs";
     if (voice.provider === "elevenlabs") {
       audio = await synthesize(data.text, {
         voiceId: voice.providerVoiceId,
@@ -211,7 +212,29 @@ export const previewVoice = createServerFn({ method: "POST" })
       });
     } else {
       audio = await synthesizeGatewayPreview(data.text, voice.providerVoiceId);
+      previewProvider = "lovable-ai";
     }
+    // Sprint 1: measured TTS cost for the preview (cached replays cost nothing).
+    const {
+      ELEVENLABS_TTS_USD_PER_CHAR,
+      GATEWAY_TTS_USD_PER_CHAR,
+      recordApiCost,
+    } = await import("./api-cost");
+    await recordApiCost(supabaseAdmin, {
+      userId,
+      provider: previewProvider,
+      operation: "tts",
+      units: data.text.length,
+      unitCostUsd:
+        previewProvider === "elevenlabs" ? ELEVENLABS_TTS_USD_PER_CHAR : GATEWAY_TTS_USD_PER_CHAR,
+      meta: {
+        preview: true,
+        voice_id: data.voiceId,
+        ...(previewProvider === "lovable-ai"
+          ? { model: "gpt-4o-mini-tts", cost_basis: "gateway-passthrough-estimate" }
+          : { model: DEFAULT_VOICE_MODEL }),
+      },
+    });
     const { error: upErr } = await supabaseAdmin.storage
       .from("generated-videos")
       .upload(cachePath, audio, { contentType: "audio/mpeg", upsert: true });

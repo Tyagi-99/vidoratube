@@ -368,16 +368,19 @@ export const advanceProject = createServerFn({ method: "POST" })
       switch (project.stage) {
         case "created":
         case "script": {
-          const plan = await planProject({
-            topic: project.topic,
-            script: project.script,
-            mode: project.mode,
-            preset: project.preset,
-            category: project.category,
-            language: project.language,
-            durationMinutes: project.duration_minutes,
-            style: project.visual_style,
-          });
+          const plan = await planProject(
+            {
+              topic: project.topic,
+              script: project.script,
+              mode: project.mode,
+              preset: project.preset,
+              category: project.category,
+              language: project.language,
+              durationMinutes: project.duration_minutes,
+              style: project.visual_style,
+            },
+            { admin: supabaseAdmin, userId, projectId: project.id, mode: "story" },
+          );
           const preset = presetById(project.preset);
 
           await supabaseAdmin.from("scenes").delete().eq("project_id", project.id);

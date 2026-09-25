@@ -25,7 +25,15 @@ export interface SEOCopy {
   outlierTerms: string[];
 }
 
-export async function generateSEOCopy(input: SEOCopyInput): Promise<SEOCopy> {
+export async function generateSEOCopy(
+  input: SEOCopyInput,
+  /** Cost ctx: when provided, the SEO LLM call's measured cost is recorded. */
+  cost?: {
+    admin: import("@supabase/supabase-js").SupabaseClient<import("@/integrations/supabase/types").Database>;
+    userId: string;
+    projectId?: string | null | undefined;
+  },
+): Promise<SEOCopy> {
   const system =
     "You are a YouTube SEO specialist. Respond with JSON only: " +
     '{"titles": ["...", "...", "..."], "hook": "...", "summary": "...", "cta": "...", "hashtags": ["..."], "outlierTerms": ["..."]}. ' +
@@ -56,6 +64,32 @@ export async function generateSEOCopy(input: SEOCopyInput): Promise<SEOCopy> {
   const payload = (await res.json()) as {
     choices?: { message?: { content?: string } }[];
   };
+  if (cost) {
+    const {
+      extractUsage,
+      estimateTokens,
+      gatewayChatUnitCostUsd,
+      recordApiCost,
+    } = await import("./api-cost");
+    const usage = extractUsage(payload);
+    const inputTokens = usage?.inputTokens ?? estimateTokens(system + user);
+    const outputTokens = usage?.outputTokens ?? 0;
+    await recordApiCost(cost.admin, {
+      userId: cost.userId,
+      projectId: cost.projectId,
+      provider: "lovable-ai",
+      operation: "seo_copy",
+      units: inputTokens + outputTokens,
+      unitCostUsd: gatewayChatUnitCostUsd(inputTokens, outputTokens),
+      meta: {
+        model: "google/gemini-2.5-flash",
+        input_tokens: inputTokens,
+        output_tokens: outputTokens,
+        usage_reported: usage !== null,
+        cost_basis: "gateway-passthrough-estimate",
+      },
+    });
+  }
   const raw = payload.choices?.[0]?.message?.content ?? "{}";
   let parsed: Partial<SEOCopy>;
   try {
