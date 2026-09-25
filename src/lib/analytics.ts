@@ -12,6 +12,7 @@ export type AnalyticsEvent =
   | { name: "signup_started"; props?: Record<string, never> }
   | { name: "signup_completed"; props?: { method?: "email" | "google" } }
   | { name: "render_started"; props: { job_id: string; mode: string } }
+  | { name: "server_render_queued"; props: { aspects: number; credits: number } }
   | { name: "render_succeeded"; props: { job_id: string; mode: string } }
   | { name: "render_failed"; props: { job_id: string; mode: string; error_code?: string } }
   | { name: "download_clicked"; props: { job_id: string } }

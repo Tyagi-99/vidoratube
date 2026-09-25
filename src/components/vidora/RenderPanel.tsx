@@ -7,6 +7,7 @@ import { AlertTriangle, Check, Download, Film, Loader2, RotateCcw, X } from "luc
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -16,6 +17,8 @@ import { useRenderGuard } from "@/lib/render/useRenderGuard";
 import { track } from "@/lib/analytics";
 import { captureError } from "@/lib/sentry";
 import { PRESETS } from "@/lib/studio-config";
+import { resolveEffectiveEngine } from "@/lib/engine-select";
+import { formatRenderCost, quoteMultiAspectRender } from "@/lib/billing/per-minute";
 import {
   completeRender,
   failRender,
@@ -23,7 +26,8 @@ import {
   startRender,
   updateRenderProgress,
 } from "@/lib/renders.functions";
-import { enqueueServerRender, getServerWorkerStatus } from "@/lib/server-renders.functions";
+import { enqueueServerRender, getServerWorkerStatus, ALL_ASPECTS } from "@/lib/server-renders.functions";
+import type { AspectRatio } from "@/lib/server-renders.functions";
 import { ServerRenderQueue } from "./ServerRenderQueue";
 import type {
   RenderProgress,
@@ -103,6 +107,9 @@ export function RenderPanel({
   const [confirmPartial, setConfirmPartial] = useState(false);
   const [engine, setEngine] = useState<"browser" | "server">("browser");
   const [serverEnqueuing, setServerEnqueuing] = useState(false);
+  // Multi-aspect selection: one project outputs up to three formats
+  // (16:9, 9:16, 1:1) — one server render row each. Default: all three.
+  const [aspects, setAspects] = useState<AspectRatio[]>([...ALL_ASPECTS]);
   const abortRef = useRef<AbortController | null>(null);
   const lastPushRef = useRef(0);
 
@@ -125,7 +132,9 @@ export function RenderPanel({
     staleTime: 30_000,
   });
   const workerAvailable = workerStatus?.available === true;
-  const effectiveEngine = engine === "server" && !workerAvailable ? "browser" : engine;
+  // Pure, unit-tested fallback rule: "server" with an offline worker runs
+  // on the browser engine instead.
+  const effectiveEngine = resolveEffectiveEngine(engine, workerAvailable);
 
   useEffect(() => () => {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -133,6 +142,23 @@ export function RenderPanel({
 
   const readyScenes = scenes.filter((s) => s.asset_url);
   const missing = scenes.length - readyScenes.length;
+
+  // Exact cost quote for the server engine: the same quoteMultiAspectRender
+  // the server uses to reserve credits — the number shown here is the
+  // number charged. Story mode with a standard voice is the only render
+  // configuration the product offers today, so it is the only honest quote.
+  const durationSeconds = readyScenes.reduce((sum, s) => sum + (Number(s.duration) || 0), 0);
+  const quote = quoteMultiAspectRender({
+    durationSeconds,
+    mode: "story",
+    aspectCount: aspects.length,
+  });
+
+  const toggleAspect = (aspect: AspectRatio) => {
+    setAspects((prev) =>
+      prev.includes(aspect) ? prev.filter((a) => a !== aspect) : [...prev, aspect],
+    );
+  };
 
   // The explicit partial-render confirmation only applies while scenes are
   // actually missing.
@@ -304,13 +330,17 @@ export function RenderPanel({
       toast.error("Generate the scene visuals before rendering.");
       return;
     }
+    if (aspects.length === 0) {
+      toast.error("Select at least one output format.");
+      return;
+    }
     setError(null);
     setServerEnqueuing(true);
     try {
       const timeline = buildTimeline();
       const settings = (project.settings ?? {}) as { music_url?: string | null };
       const voiceover = voiceovers.find((v) => v.scene_id === null)?.audio_url ?? null;
-      await enqueueFn({
+      const queued = await enqueueFn({
         data: {
           projectId: project.id,
           title: project.title ?? "Untitled video",
@@ -323,15 +353,21 @@ export function RenderPanel({
             duration: s.duration,
             cues: s.cues.map((c) => ({ word: c.text, start: c.start, end: c.end })),
           })),
-          aspect: (project.aspect_ratio === "9:16" || project.aspect_ratio === "1:1"
-            ? project.aspect_ratio
-            : "16:9") as "16:9" | "9:16" | "1:1",
+          aspects,
           burnCaptions,
           musicUrl: settings.music_url ?? null,
           voiceoverUrl: voiceover,
         },
       });
-      toast.success("Server render queued — you can close this tab.");
+      const count = queued.rows?.length ?? aspects.length;
+      track("server_render_queued", {
+        project_id: project.id,
+        aspects: count,
+        credits: quote.grandTotal,
+      });
+      toast.success(
+        `Server render queued (${count} format${count === 1 ? "" : "s"}, ${quote.grandTotal} credits) — you can close this tab.`,
+      );
     } catch (e) {
       const message = e instanceof Error ? e.message : "Could not queue the server render.";
       setError(message);
@@ -398,11 +434,18 @@ export function RenderPanel({
             <Button
               className="gap-2"
               onClick={runServer}
-              disabled={readyScenes.length === 0 || serverEnqueuing || (missing > 0 && !confirmPartial)}
+              disabled={
+                readyScenes.length === 0 ||
+                serverEnqueuing ||
+                aspects.length === 0 ||
+                (missing > 0 && !confirmPartial)
+              }
               title={
-                missing > 0 && !confirmPartial
-                  ? "Some scenes are missing visuals — confirm a partial draft below to render anyway"
-                  : "Queue a server render (native FFmpeg, tab can close)"
+                aspects.length === 0
+                  ? "Select at least one output format"
+                  : missing > 0 && !confirmPartial
+                    ? "Some scenes are missing visuals — confirm a partial draft below to render anyway"
+                    : `Queue a server render (${aspects.length} format${aspects.length === 1 ? "" : "s"}, ${quote.grandTotal} credits)`
               }
             >
               {serverEnqueuing ? (
@@ -440,6 +483,50 @@ export function RenderPanel({
           </Badge>
         )}
       </div>
+
+      {effectiveEngine === "server" && (
+        <div className="mt-4 rounded-xl border border-border bg-muted/30 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Output formats</p>
+              <p className="text-xs text-muted-foreground">
+                One server render per format — one project outputs up to three formats.
+              </p>
+            </div>
+            <div className="flex items-center gap-4" role="group" aria-label="Output formats">
+              {ALL_ASPECTS.map((a) => (
+                <label
+                  key={a}
+                  className="flex cursor-pointer items-center gap-2 text-sm text-foreground"
+                >
+                  <Checkbox
+                    checked={aspects.includes(a)}
+                    onCheckedChange={() => toggleAspect(a)}
+                    aria-label={`${a} format`}
+                    disabled={rendering || serverEnqueuing}
+                  />
+                  {a}
+                </label>
+              ))}
+            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
+            <p className="text-sm text-muted-foreground">
+              {aspects.length === 0
+                ? "Select at least one format to see the cost."
+                : `${formatRenderCost({ durationSeconds, mode: "story" })} × ${aspects.length} format${aspects.length === 1 ? "" : "s"}`}
+            </p>
+            <p className="text-sm font-bold text-foreground">
+              Exact cost: {quote.grandTotal} credit{quote.grandTotal === 1 ? "" : "s"}
+            </p>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            This exact amount is reserved from your credits when you queue — no surprises later.
+            You can close the tab; the render continues on the server and progress updates live
+            here when you come back.
+          </p>
+        </div>
+      )}
 
       {missing > 0 && !rendering && (
         <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">

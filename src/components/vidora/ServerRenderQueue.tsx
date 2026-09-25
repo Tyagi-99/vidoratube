@@ -79,6 +79,8 @@ export function ServerRenderQueue({ projectId }: { projectId: string }) {
 
   if (rows.length === 0) return null;
 
+  const active = rows.filter((r) => r.status === "queued" || r.status === "running");
+
   const onCancel = async (id: string) => {
     setCancelling(id);
     try {
@@ -91,6 +93,16 @@ export function ServerRenderQueue({ projectId }: { projectId: string }) {
   return (
     <div className="space-y-3" aria-label="Server render queue">
       <h3 className="text-sm font-medium">Server renders</h3>
+      {active.length > 0 && (
+        <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
+          <p className="text-sm text-foreground">
+            <span className="font-semibold">You can close this tab.</span>{" "}
+            {active.length} render{active.length === 1 ? " is" : "s are"} running on the server —
+            progress updates live below, and you&apos;ll find the finished MP4
+            {active.length === 1 ? "" : "s"} here when you come back.
+          </p>
+        </div>
+      )}
       {rows.map((r) => (
         <div key={r.id} className="rounded-lg border p-3 space-y-2">
           <div className="flex items-center justify-between gap-2">
