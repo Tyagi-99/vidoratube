@@ -337,4 +337,32 @@ export const rewriteFlaggedSpan = createServerFn({ method: "POST" })
     return { rewritten, start: data.start, end: data.end };
   });
 
+const updateScriptSchema = z.object({
+  project_id: z.string().uuid(),
+  script: z.string().trim().min(1).max(60000),
+});
+
+/** Owner-only script update (used to apply AI safety rewrites). */
+export const updateProjectScript = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => updateScriptSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { enforcePostgresRateLimit } = await import("./rate-limit");
+    await enforcePostgresRateLimit(
+      supabaseAdmin,
+      `safety:script-update:${userId}`,
+      { max: 30, windowSeconds: 3600 },
+      "You're updating the script too fast. Please wait a bit."
+    );
+    const { error } = await supabase
+      .from("projects")
+      .update({ script: data.script })
+      .eq("id", data.project_id)
+      .eq("user_id", userId);
+    if (error) throw new Error("Couldn't save the script.");
+    return { ok: true };
+  });
+
 export type { SafetyIssue };

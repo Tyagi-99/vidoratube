@@ -28,6 +28,8 @@ import {
 } from "@/lib/publish.functions";
 import { getYouTubeConnection, requestUploadScope } from "@/lib/youtube.functions";
 import { listMyJobs } from "@/lib/jobs.functions";
+import { getSafetyScore } from "@/lib/safety.functions";
+import { BAND_LABEL, SAFETY_DISCLAIMER } from "@/lib/safety";
 import { track } from "@/lib/analytics";
 
 type Privacy = "private" | "unlisted" | "public";
@@ -67,6 +69,19 @@ export function PublishPipeline({
   const [madeForKids, setMadeForKids] = useState<boolean | null>(null);
   const [scheduledFor, setScheduledFor] = useState("");
   const [videoJobId, setVideoJobId] = useState<string | null>(null);
+  // P6 safety gate: explicit user acknowledgment when score < 50.
+  const [safetyOverride, setSafetyOverride] = useState(false);
+  const safetyFn = useServerFn(getSafetyScore);
+
+  const safety = useQuery({
+    queryKey: ["safety", projectId],
+    queryFn: () => safetyFn({ data: { project_id: projectId } }),
+  });
+  const latestSafety = safety.data?.latest as
+    | { score: number; band: keyof typeof BAND_LABEL }
+    | null
+    | undefined;
+  const safetyBlocked = latestSafety != null && latestSafety.score < 50 && !safetyOverride;
 
   const connection = useQuery({
     queryKey: ["youtube"],
@@ -116,6 +131,7 @@ export function PublishPipeline({
           privacy,
           madeForKids: madeForKids ?? false,
           scheduled_for: scheduledFor ? new Date(scheduledFor).toISOString() : undefined,
+          safety_override: safetyOverride,
         },
       }),
     onSuccess: (res) => {
@@ -321,11 +337,45 @@ export function PublishPipeline({
                   Please answer the “made for kids” question in the Schedule step.
                 </p>
               )}
+              {/* P6 safety gate: score shown at review; <50 blocks without override */}
+              {latestSafety != null && (
+                <div
+                  className={`rounded-lg border p-3 text-sm ${
+                    latestSafety.score < 50
+                      ? "border-red-300 bg-red-50/60 dark:border-red-900 dark:bg-red-950/20"
+                      : "border-green-300 bg-green-50/60 dark:border-green-900 dark:bg-green-950/20"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold">
+                      {t("safety_badge_ok")}: {latestSafety.score}/100
+                    </span>
+                    <Badge variant="outline">{BAND_LABEL[latestSafety.band]}</Badge>
+                  </div>
+                  <p className="mt-1 text-xs italic text-muted-foreground">{SAFETY_DISCLAIMER}</p>
+                  {latestSafety.score < 50 && (
+                    <div className="mt-2 space-y-2">
+                      <p className="text-xs font-medium text-red-700 dark:text-red-300">
+                        {t("safety_gate_blocked")}
+                      </p>
+                      <label className="flex cursor-pointer items-start gap-2 text-xs">
+                        <input
+                          type="checkbox"
+                          checked={safetyOverride}
+                          onChange={(e) => setSafetyOverride(e.target.checked)}
+                          className="mt-0.5"
+                        />
+                        <span>{t("safety_override_label")}</span>
+                      </label>
+                    </div>
+                  )}
+                </div>
+              )}
               {/* THE human approval gate — no other path publishes. */}
               <Button
                 className="w-full gap-2"
                 size="lg"
-                disabled={!reviewReady || approve.isPending || execute.isPending || !!activeJob}
+                disabled={!reviewReady || approve.isPending || execute.isPending || !!activeJob || safetyBlocked}
                 onClick={async () => {
                   if (!videoJobId) {
                     toast.error("Choose a video to publish first.");

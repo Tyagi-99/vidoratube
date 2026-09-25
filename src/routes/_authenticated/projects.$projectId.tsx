@@ -34,6 +34,7 @@ import {
 import { ArrowLeft, Download, ImageIcon, Loader2, Play, RefreshCw, Trash2, Wand2, User, Mic } from "lucide-react";
 import { RenderPanel } from "@/components/vidora/RenderPanel";
 import { PublishPipeline } from "@/components/vidora/PublishPipeline";
+import { SafetyPanel } from "@/components/vidora/SafetyPanel";
 import { StudioV2Panel } from "@/components/vidora/StudioV2Panel";
 import { VoicePicker } from "@/components/vidora/VoicePicker";
 import { ProvenanceDrawer } from "@/components/vidora/ProvenanceDrawer";
@@ -392,6 +393,16 @@ function ProjectEditor() {
           voiceovers={voiceovers}
           captions={captions}
         />
+
+        {/* P6: Monetization safety — score before publishing */}
+        <div className="mt-10">
+          <h2 className="text-xl font-bold tracking-tight text-foreground">
+            {t("safety_title")}
+          </h2>
+          <div className="mt-4">
+            <SafetyPanel projectId={projectId} script={project.script ?? ""} />
+          </div>
+        </div>
 
         {/* P5: Publish pipeline — thumbnail → SEO → schedule → review → approve */}
         <div className="mt-10">

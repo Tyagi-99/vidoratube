@@ -104,6 +104,25 @@ const en = {
   review_publish: "Review before publishing",
   publish_history: "Publish history",
   made_for_kids_q: "Is this video made for kids?",
+  // P6: Monetization Safety Score
+  safety_title: "Monetization Safety",
+  safety_subtitle: "Pre-publish demonetization risk check. 1 credit per check.",
+  safety_run: "Run safety check",
+  safety_recheck: "Re-check",
+  safety_check_done: "Safety check complete",
+  safety_empty: "No safety check yet. Run one before publishing to catch demonetization risks early.",
+  safety_checked_at: "Checked",
+  safety_issues: "Issues found",
+  safety_fix_with_ai: "Fix with AI",
+  safety_fix_applied: "Rewrite applied — re-run the safety check",
+  safety_deep_review: "AI deep review (1 credit)",
+  safety_deep_done: "AI deep review complete",
+  safety_ai_review_title: "AI deep review",
+  safety_history: "Score history",
+  safety_gate_blocked: "Safety score is high-risk. Fix the issues above or acknowledge the risk to publish.",
+  safety_override_label: "I understand this video has a high demonetization risk and I publish at my own risk.",
+  safety_badge_ok: "Safety",
+  loading: "Loading…",
 } as const;
 
 const hi: Record<keyof typeof en, string> = {
@@ -187,6 +206,25 @@ const hi: Record<keyof typeof en, string> = {
   review_publish: "पब्लिश से पहले जांचें",
   publish_history: "पब्लिश इतिहास",
   made_for_kids_q: "क्या यह वीडियो बच्चों के लिए है?",
+  // P6: मोनेटाइज़ेशन सेफ्टी स्कोर
+  safety_title: "मोनेटाइज़ेशन सेफ्टी",
+  safety_subtitle: "पब्लिश से पहले डिमोनेटाइज़ेशन जोखिम जांच। प्रति जांच 1 क्रेडिट।",
+  safety_run: "सेफ्टी जांच चलाएं",
+  safety_recheck: "फिर से जांचें",
+  safety_check_done: "सेफ्टी जांच पूरी हुई",
+  safety_empty: "अभी कोई सेफ्टी जांच नहीं हुई। पब्लिश से पहले एक जांच चलाएं।",
+  safety_checked_at: "जांच समय",
+  safety_issues: "मिली समस्याएं",
+  safety_fix_with_ai: "AI से ठीक करें",
+  safety_fix_applied: "सुधार लागू हुआ — सेफ्टी जांच फिर से चलाएं",
+  safety_deep_review: "AI गहन समीक्षा (1 क्रेडिट)",
+  safety_deep_done: "AI गहन समीक्षा पूरी हुई",
+  safety_ai_review_title: "AI गहन समीक्षा",
+  safety_history: "स्कोर इतिहास",
+  safety_gate_blocked: "सेफ्टी स्कोर उच्च जोखिम वाला है। ऊपर की समस्याएं ठीक करें या जोखिम स्वीकार करके पब्लिश करें।",
+  safety_override_label: "मैं समझता हूं कि इस वीडियो में डिमोनेटाइज़ेशन का उच्च जोखिम है और मैं अपने जोखिम पर पब्लिश कर रहा हूं।",
+  safety_badge_ok: "सेफ्टी",
+  loading: "लोड हो रहा है…",
 };
 
 export type I18nKey = keyof typeof en;
