@@ -45,6 +45,22 @@ describe("verifyDodoWebhookSignature", () => {
     ).not.toThrow();
   });
 
+  it("accepts a base64-encoded secret (whsec_ prefix, decoded bytes)", () => {
+    const raw = Buffer.from("test_secret_123").toString("base64");
+    vi.stubEnv("DODO_WEBHOOK_SECRET", `whsec_${raw}`);
+    const body = JSON.stringify({ type: "payment.succeeded", data: {} });
+    const ts = String(Math.floor(Date.now() / 1000));
+    const sig = createHmac("sha256", Buffer.from(raw, "base64"))
+      .update(`wh_123.${ts}.${body}`, "utf8")
+      .digest("base64");
+    expect(() =>
+      verifyDodoWebhookSignature(
+        body,
+        { id: "wh_123", signature: `v1,${sig}`, timestamp: ts },
+      ),
+    ).not.toThrow();
+  });
+
   it("rejects a bad signature", () => {
     vi.stubEnv("DODO_WEBHOOK_SECRET", SECRET);
     const body = JSON.stringify({ type: "payment.succeeded", data: {} });

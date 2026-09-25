@@ -107,12 +107,28 @@ export function verifyDodoWebhookSignature(
   }
 
   const signed = `${headers.id}.${headers.timestamp}.${rawBody}`;
-  const expected = createHmac("sha256", secret).update(signed, "utf8").digest("base64");
+  // Dodo issues Standard-Webhooks secrets. Those are base64-encoded (sometimes
+  // with a `whsec_` prefix) and the HMAC key is the *decoded* bytes — but some
+  // setups paste the raw string. Accept either interpretation of the same
+  // secret; both derive deterministically from it, so this does not weaken
+  // verification.
+  const keys: Buffer[] = [Buffer.from(secret, "utf8")];
+  const b64 = secret.replace(/^whsec_/, "");
+  if (/^[A-Za-z0-9+/=]+$/.test(b64)) {
+    try {
+      keys.push(Buffer.from(b64, "base64"));
+    } catch {
+      /* keep the raw-string key only */
+    }
+  }
   const candidates = headers.signature.split(/[,\s]+/).map((s) => s.replace(/^v1,/, ""));
-  const ok = candidates.some((sig) => {
-    const a = Buffer.from(sig, "utf8");
+  const ok = keys.some((key) => {
+    const expected = createHmac("sha256", key).update(signed, "utf8").digest("base64");
     const b = Buffer.from(expected, "utf8");
-    return a.length === b.length && timingSafeEqual(a, b);
+    return candidates.some((sig) => {
+      const a = Buffer.from(sig, "utf8");
+      return a.length === b.length && timingSafeEqual(a, b);
+    });
   });
   if (!ok) throw new Error("Invalid Dodo webhook signature.");
 }
