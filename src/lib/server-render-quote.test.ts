@@ -120,3 +120,66 @@ describe("multiplier math matches the pricing module", () => {
     expect(c.totalCredits).toBe(2);
   });
 });
+
+describe("parallax + storyMode quote wiring", () => {
+  const U = "22222222-2222-4222-8222-222222222222";
+  const G = "33333333-3333-4333-8333-333333333333";
+
+  it("parallax adds ceil(minutes * 0.25) per aspect (600s = 10 min -> +3)", () => {
+    const rows = buildServerRenderRows({
+      userId: U,
+      groupId: G,
+      input: makeInput({ parallax25d: true }),
+    });
+    const quote = quoteMultiAspectRender({
+      durationSeconds: 600,
+      mode: "story",
+      aspectCount: 2,
+      parallax25d: true,
+    });
+    // 10 finished minutes: base 10 + parallax 2.5 -> ceil(12.5) = 13 per aspect.
+    expect(quote.perAspect.parallaxCredits).toBe(2.5);
+    expect(quote.perAspect.totalCredits).toBe(13);
+    expect(quote.grandTotal).toBe(26);
+    for (const row of rows) {
+      const meta = row.meta as Record<string, unknown>;
+      expect(meta["expected_credits"]).toBe(13);
+      expect(meta["parallax25d"]).toBe(true);
+    }
+  });
+
+  it("parallax off keeps the exact previous quote", () => {
+    const quote = quoteMultiAspectRender({
+      durationSeconds: 600,
+      mode: "story",
+      aspectCount: 2,
+      parallax25d: false,
+    });
+    expect(quote.perAspect.parallaxCredits).toBe(0);
+    expect(quote.perAspect.totalCredits).toBe(10);
+    expect(quote.grandTotal).toBe(20);
+  });
+
+  it("storyMode maps to the worker creationMode; parallax passes through", () => {
+    const story = buildServerRenderRows({
+      userId: U,
+      groupId: G,
+      input: makeInput({ storyMode: true, parallax25d: true }),
+    });
+    expect((story[0]!.meta as Record<string, unknown>)["creationMode"]).toBe("story");
+    expect((story[0]!.meta as Record<string, unknown>)["parallax25d"]).toBe(true);
+
+    const standard = buildServerRenderRows({
+      userId: U,
+      groupId: G,
+      input: makeInput({ storyMode: false, parallax25d: false }),
+    });
+    expect((standard[0]!.meta as Record<string, unknown>)["creationMode"]).toBe("script");
+    expect((standard[0]!.meta as Record<string, unknown>)["parallax25d"]).toBe(false);
+  });
+
+  it("storyMode does not change the price (1.0 multiplier)", () => {
+    const on = quoteMultiAspectRender({ durationSeconds: 600, mode: "story", aspectCount: 1 });
+    expect(on.perAspect.totalCredits).toBe(10);
+  });
+});
