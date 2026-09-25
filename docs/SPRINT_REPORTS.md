@@ -581,3 +581,166 @@ no-network-without-keys test (key-gated behavior is covered); "Shipping next
 shared-working-tree incident (sibling `git add -A` + stash/reset wiping
 uncommitted work across lanes) cost recovery time — recorded as D60 with the
 process fix (commit early; per-lane worktrees next time).
+
+---
+
+## Sprints 7–8 — 2026-09-26: thumbnails/SEO/scheduling, YouTube+Meta adapters, safety approvals, analytics/admin, agency tier
+
+**Published URL:** https://vidoratube.lovable.app/ (publish pending — parent to
+run the Lovable publish after this handoff; the five new migrations must be
+applied first via the Lovable SQL editor. All verification below is local
+unless noted.)
+
+**Commits (all on `main`, forward-only, pushed to `origin/main` at `a9d806c`):**
+
+| Hash | Subject |
+|------|---------|
+| `bf454a1` | Sprint 7-8 workstream B: 4 thumbnail variants + provenance, SEO pack copy UI, scheduling calendar |
+| `8c61401` | Workstream B fixup: drop workstream-C hunks accidentally staged into publish.functions.ts and types.ts |
+| `64a7050` | Sprint 7-8 workstream A: YouTube + Meta publishing adapters (test-channel gated, quota recording) |
+| `5aab937` | Sprint 7-8 workstream C: versioned safety rules + server-enforced publish approvals |
+| `55f4989` | Sprint 7-8 workstream D: video analytics, retention curves, admin metrics, NPS |
+| `3fbac89` | Sprint 7-8 workstream E: agency tier (workspaces, brand kits, approvals, white-label) |
+| `a9d806c` | Sprint 7-8 integration: shared files (types, RLS audit, approvals, i18n, route tree) |
+
+**Shipped:**
+
+1. **Thumbnails** — 4 AI variants per video through the existing image pipeline,
+   with provenance recorded on every upsert: `is_ai_generated`, model name,
+   SHA-256 of the exact prompt (`prompt_hash`), creation time. Four-column
+   picker UI (`ThumbnailStudio`).
+2. **SEO studio** — title variants with scores, selected title, description,
+   tags, hashtags, YouTube chapter timestamps, in the existing `seo_metadata`
+   table; `SeoStudio` view/regenerate/copy UI + `formatSEOPack`.
+3. **Scheduling calendar** — `ScheduleCalendar` with scheduled/approved
+   statuses. Scheduling **never auto-publishes**: a scheduled job leaves
+   `scheduled` only via the human-invoked `executePublishJob`; "Publish now"
+   is the explicit human action (D82). The old "will publish automatically"
+   error text was corrected.
+4. **YouTube publishing adapter** — resumable upload gated by exact
+   `YOUTUBE_TEST_CHANNEL_ID` **before** token refresh, network call, or quota
+   use. Quota follows the September 2026 three-bucket model (100
+   videos.insert/day, 100 search.list/day, 10,000 units/day for the rest),
+   recorded in the existing `api_usage` table with
+   `cost_basis="youtube-quota-units-not-usd"`. Adapter-level approval recheck.
+   Scopes: upload + force-SSL.
+5. **Meta publishing adapter** — Graph API v26.0: Facebook Page video flow and
+   Instagram container → poll → publish flow. Exact test Page/IG account gates
+   before any network call. Signed OAuth state; AES-256-GCM token envelope
+   (`META_TOKEN_ENCRYPTION_KEY`). New `/api/public/meta-callback` route.
+   Updated `/guides/youtube-api-app-review` and `/guides/meta-app-review`.
+6. **Safety rules + approvals** — versioned `safety_rules` table (active
+   version + review dates visible at `/admin/safety`); `approvals` table as the
+   server-enforced publish gate; `publish_warnings`; `safety_scores.rule_version`.
+   Score < 50 **hard-blocks** public publishing; private/unlisted may proceed
+   with a recorded warning. The existing client override is ignored
+   server-side (D61–D64). Security proof tests: missing approval rejects
+   publish, uploader invoked zero times; correct approval invokes once; wrong
+   scope rejects.
+7. **Analytics** — `platform_video_stats` snapshots with real 24h/7d
+   view-delta logic (only from a real baseline within 6h; honest "No data yet"
+   states); chapter-aligned retention curves from real paragraph audio
+   durations; deterministic "Next 5 videos" recommendations (no LLM call);
+   `/analytics` page with per-video insights + weakest-chapter callouts.
+8. **Admin metrics** — `/admin` now reads real tables: signups, 24h
+   activation, D7/D30 retention, free→paid conversion, MRR (active/trialing
+   monthly only), render success vs 98% target, p95 render time per output
+   minute, cost per finished minute, publishing/localization/Shorts output.
+   Honest empty states everywhere.
+9. **NPS** — `nps_responses` table; prompt only after a completed render, at
+   most every 90 days, as a dismissible floating card; admin aggregation.
+10. **Agency tier** — `workspaces` + `workspace_members` (owner/editor/viewer)
+    + `client_channels` + `brand_kits` + `workspace_approvals`; private
+    `brand-logos` bucket. Strict workspace isolation proven against real
+    PostgreSQL 16 (`supabase/tests/rls_workspace_isolation.sql` — all checks
+    passed; an infinite-recursion crash in the first policy draft was found and
+    fixed). `workspace_approvals` is **client sign-off only**; it can never
+    satisfy the server upload gate (D78). `/agency` UI: workspace list/create,
+    channels, brand-kit editor with logo upload + preview, bulk scheduler
+    (rows always `draft`; approval-insert failure rolls back created drafts),
+    client approval queue, member manager with viewer read-only states.
+11. **White-label exports** — render watermark defaults ON; only a verified
+    paid workspace plan disables it (`resolveExportMeta` at enqueue, fail
+    closed). Worker composites brand logo bottom-left + Vidora bug
+    bottom-right, faststarts output.
+
+**New migrations (apply in this order via Lovable SQL editor, one at a time):**
+
+1. `supabase/migrations/20260926002000_thumbnail_variants_provenance.sql`
+   (`thumbnails` provenance columns + variant CHECK 1..4)
+2. `supabase/migrations/20260926010000_agency_workspaces.sql` (workspaces,
+   members, client channels, brand kits, workspace approvals, `brand-logos`
+   bucket, publish_jobs agency FKs)
+3. `supabase/migrations/20260926020000_safety_rules_approvals.sql`
+   (`safety_rules`, `approvals`, `publish_warnings`, `safety_scores.rule_version`)
+4. `supabase/migrations/20260926030000_meta_connections.sql`
+   (`meta_connections` with encrypted token envelope)
+5. `supabase/migrations/20260926040000_s78_analytics_admin.sql`
+   (`platform_video_stats`, `retention_curves`, `nps_responses`)
+
+**Claims-table diff (vs Sprints 5–6):**
+
+- "AI thumbnails with provenance": NOT SHIPPED → LIVE (code; 4 variants,
+  model + prompt hash recorded)
+- "SEO pack": NOT SHIPPED → LIVE (code; titles, description, tags, chapters)
+- "Scheduling": NOT SHIPPED → LIVE (code; calendar + human "Publish now", no
+  auto-publish by design)
+- "YouTube publishing": NOT SHIPPED → PARTIAL (adapter + test-channel gate +
+  quota recording in code; needs founder's TEST channel ID + Google OAuth
+  verification)
+- "Meta publishing (FB/IG)": NOT SHIPPED → PARTIAL (adapter in code; needs
+  Meta app credentials, test Page/IG account, app review)
+- "Safety rules versioning": NOT SHIPPED → LIVE (code; active version +
+  review dates at /admin/safety)
+- "Server-enforced publish approvals": NOT SHIPPED → LIVE (code; client
+  override ignored server-side; missing approval = uploader never called)
+- "Video performance analytics": NOT SHIPPED → PARTIAL (code; 24h/7d deltas
+  need a connected channel + snapshot history)
+- "Retention curves": NOT SHIPPED → LIVE (code; real chapter timings, honest
+  no-data states)
+- "Admin growth metrics": NOT SHIPPED → LIVE (code; real tables, honest
+  empty states)
+- "NPS": NOT SHIPPED → LIVE (code)
+- "Agency workspaces": NOT SHIPPED → LIVE (code; RLS isolation proven on real
+  Postgres)
+- "White-label exports": NOT SHIPPED → PARTIAL (code; watermark defaults on;
+  paid-tier gate; needs a paid workspace plan to exercise the off path)
+
+**Stranger checklist:** still BLOCKED on this VM (Chromium cannot reach the
+public internet — environmental; unchanged from Sprints 5–6). Needs a
+network-capable runner after the Lovable publish. New-code stranger surface:
+`/agency`, `/analytics`, `/admin/safety`, scheduling calendar, SEO studio.
+
+**Proof:**
+
+- `npx vitest run`: **92 files / 825 tests passed** (includes 83 safety area
+  tests, 44 mocked-network adapter tests, 47 analytics/admin tests, 92 agency
+  tests, static RLS audit with agency assertions).
+- `npx tsc --noEmit` (app): clean.
+- Worker: `npx tsx --test src/*.test.ts` **76/76 passed** (incl. 10 watermark
+  tests); `npx tsc --noEmit -p tsconfig.json`: clean.
+- `npm run build`: passed.
+- RLS isolation proof: fresh PostgreSQL 16 + agency migration →
+  `NOTICE: RLS workspace isolation: all checks passed`, exit 0.
+- Secrets scan: no values in repo/client bundle (only `process.env[...]`
+  references).
+- `grep -c "safetyBlocked" src/components/vidora/PublishPipeline.tsx` → 3
+  (approval gate wired into the publish UI).
+- `git log origin/main --oneline -7` → all seven commits above, pushed,
+  forward-only.
+
+**Process note:** the five workstreams shared one working tree and collided
+on branch pointers mid-sprint (the D60 lesson from Sprints 5–6 repeated at
+larger scale). Contained via a coordinator git freeze; integration done by
+the coordinator with per-workstream file ownership lists and a final
+integration commit. Durable rule added to `~/AGENTS.md`: parallel agents on
+one repo must use separate `git worktree`s, or all git operations stay with
+the coordinator. Decision numbering collisions (B's D46–D49 vs existing
+D46–D60; E's D76–D77 vs D's D76–D77) were renumbered to D80–D83 and D78–D79;
+all 83 decisions now unique.
+
+**Blockers only the founder can resolve:** see `docs/FOUNDER_TODO.md` #17
+(five new migrations), #7 (YouTube TEST channel + `YOUTUBE_TEST_CHANNEL_ID`
+secret), #15 (Google OAuth verification), #16 (Meta app + credentials +
+`META_*` secrets + test Page/IG account). No live charges; no real-channel
+publishing until approvals are verified.

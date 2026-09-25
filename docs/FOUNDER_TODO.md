@@ -261,3 +261,40 @@ schema-cache error was resolved:
   review days–2 weeks.
 - **Unblocks:** Real Instagram/Facebook publishing (founder-gated to TEST
   channels; human-approval gate stays enforced).
+
+## 17. Apply the five Sprints 7–8 Supabase migrations
+
+- **What:** Apply in filename order via Lovable dashboard → Cloud/Database SQL
+  editor (paste each file's contents inline, one file at a time — the repo is
+  private to browser sessions). All are non-destructive (new tables, ADD
+  COLUMN IF NOT EXISTS, new RLS policies). Verify after each:
+  `select table_name from information_schema.tables where table_name in
+  ('thumbnails','workspaces','workspace_members','client_channels','brand_kits',
+  'workspace_approvals','safety_rules','approvals','publish_warnings',
+  'meta_connections','platform_video_stats','retention_curves','nps_responses');`
+- **Files:**
+  - `supabase/migrations/20260926002000_thumbnail_variants_provenance.sql`
+  - `supabase/migrations/20260926010000_agency_workspaces.sql`
+  - `supabase/migrations/20260926020000_safety_rules_approvals.sql`
+  - `supabase/migrations/20260926030000_meta_connections.sql`
+  - `supabase/migrations/20260926040000_s78_analytics_admin.sql`
+- **Time:** 15–20 min.
+- **Unblocks:** Thumbnails provenance, agency tier, safety approvals, Meta
+  connections, analytics/admin metrics. Publish the site after applying.
+
+## 18. Set the Sprints 7–8 server secrets (YouTube test channel + Meta)
+
+- **What:** In Lovable Cloud Secrets (never in the repo), set:
+  - `YOUTUBE_TEST_CHANNEL_ID` — the exact channel ID of your throwaway TEST
+    channel (#7). Uploads are hard-gated on this value: any other channel is
+    rejected before token refresh, network call, or quota use.
+  - `META_APP_ID`, `META_APP_SECRET` — from your Meta app (#16).
+  - `META_TOKEN_ENCRYPTION_KEY` — generate a fresh 32-byte base64 key
+    (same method as the YouTube key in Sprint 0); used for the AES-256-GCM
+    token envelope. Value must never be recorded anywhere.
+  - `META_TEST_PAGE_ID`, `META_TEST_IG_USER_ID` — your designated TEST Page
+    and TEST Instagram Business/Creator account. Publishing is hard-gated on
+    these exact IDs.
+- **Time:** 15 min once the accounts/apps exist.
+- **Unblocks:** End-to-end publish testing through the real YouTube and Meta
+  APIs (still founder-gated to TEST channels; human-approval gate enforced).

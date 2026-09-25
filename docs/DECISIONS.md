@@ -720,7 +720,7 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
 - **Reason:** Scoping reads to "the caller's rows" is meaningless for shared catalogs; the scanner's own guidance allows keeping a permissive policy "only if the data is meant to be shared across all users" — it is. Writes on all four remain service-role-only (no INSERT/UPDATE/DELETE policies for anon/authenticated), so the warning concerns reads of public data only.
 - **Reverse:** If any of these tables ever stores user data, add owner-scoped policies and re-run the scan.
 
-### D46. Four AI thumbnail variants per video (was three)
+### D80. Four AI thumbnail variants per video (was three)
 - **Decision:** `THUMBNAIL_VARIANTS` is now 4; `generateThumbnails` loops
   `1..THUMBNAIL_VARIANTS` and the `thumbnails.variant` CHECK is widened to
   `BETWEEN 1 AND 4` (non-destructive migration
@@ -732,7 +732,7 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
 - **Reverse:** Set the constant back to 3; the CHECK still permits 1..4 so no
   migration is needed to go back.
 
-### D47. Reuse `seo_metadata` as the SEO pack table; no `seo_packs` table
+### D81. Reuse `seo_metadata` as the SEO pack table; no `seo_packs` table
 - **Decision:** The SEO pack (title variants + scores, selected title,
   description, tags, hashtags, YouTube chapter timestamps) is stored in the
   existing `seo_metadata` table (one row per project) rather than a new
@@ -744,7 +744,7 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
 - **Reverse:** If packs ever need versioning or per-video (not per-project)
   granularity, introduce `seo_packs` then and migrate rows over.
 
-### D48. Scheduling never auto-publishes; "Publish now" is the human action
+### D82. Scheduling never auto-publishes; "Publish now" is the human action
 - **Decision:** There is no background worker, cron, or queue consumer that
   executes due scheduled jobs. A scheduled job leaves `scheduled` only via
   the human-invoked `executePublishJob` (or `cancelPublishJob`), and it could
@@ -760,7 +760,7 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
   decision, an explicit user opt-in per job, and an audit trail — not a
   silent change to this rule.
 
-### D49. Explicit provenance columns on `thumbnails`
+### D83. Explicit provenance columns on `thumbnails`
 - **Decision:** Added `prompt_hash TEXT` (SHA-256 of the exact prompt sent to
   the image model) and `is_ai_generated BOOLEAN NOT NULL DEFAULT true` to
   `public.thumbnails`, written by `generateThumbnails` on every upsert.
