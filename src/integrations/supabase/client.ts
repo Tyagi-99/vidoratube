@@ -53,7 +53,15 @@ function createSupabaseClient() {
   // else it means this deployment was built without its own Supabase project.
   if (typeof window !== "undefined" && SUPABASE_URL === "https://paowbdzcrncsiyogwnys.supabase.co") {
     const host = window.location.hostname;
-    const isLovableHost = host === "vidoratube.lovable.app" || host.endsWith(".lovable.app");
+    // Lovable serves the production site on *.lovable.app and the editor
+    // preview on *.lovableproject.com (plus lovable.dev for the editor shell).
+    // An earlier version of this guard only allowed *.lovable.app, which broke
+    // the Lovable preview itself.
+    const isLovableHost =
+      host === "vidoratube.lovable.app" ||
+      host.endsWith(".lovable.app") ||
+      host.endsWith(".lovableproject.com") ||
+      host.endsWith(".lovable.dev");
     if (!isLovableHost) {
       const message =
         "This build is wired to the VidoraTube production Supabase project but is not running " +
