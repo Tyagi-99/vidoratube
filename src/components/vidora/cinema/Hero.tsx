@@ -16,14 +16,20 @@ const TOTAL = STAGES.reduce((s, x) => s + x.duration, 0); // 12s loop
 const SCENES = [
   {
     caption: "The city never slept. It just changed shifts.",
+    img: "/styles/hero-scene-city.jpg",
+    alt: "Night city with glowing windows and night-shift workers crossing a bridge",
     grade: "from-amber-950 via-[#2a1c0e] to-black",
   },
   {
     caption: "Every rupee has a story. This one starts in 1947.",
+    img: "/styles/hero-scene-rupee.jpg",
+    alt: "A weathered 1947 one-rupee coin on old newspaper in warm lamplight",
     grade: "from-stone-900 via-[#1c1712] to-black",
   },
   {
     caption: "Three seconds. That's all a hook gets.",
+    img: "/styles/hero-scene-hook.jpg",
+    alt: "A film clapperboard snapping shut in front of a glowing cinema screen",
     grade: "from-[#241408] via-[#170f08] to-black",
   },
 ];
@@ -65,6 +71,18 @@ function RenderMonitor() {
       <div className="overflow-hidden rounded-xl border border-white/10 bg-black shadow-[0_40px_80px_-30px_rgba(0,0,0,0.8)]">
         {/* Screen */}
         <div className={`relative aspect-video bg-gradient-to-br ${scene.grade}`}>
+          {/* Scene stills — a real render preview, crossfading per scene */}
+          {SCENES.map((sc, i) => (
+            <img
+              key={sc.img}
+              src={sc.img}
+              alt={sc.alt}
+              loading={i === 0 ? "eager" : "lazy"}
+              className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-1000 ${
+                i === sceneIdx ? "opacity-100" : "opacity-0"
+              }`}
+            />
+          ))}
           {/* Scene suggestion — abstract light */}
           <div
             className="absolute inset-0 opacity-60"

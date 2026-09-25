@@ -1,12 +1,13 @@
 const STYLES = [
-  { name: "Cinematic", desc: "Anamorphic light, film grain", grade: "from-amber-900/60 via-[#1a1208] to-black" },
-  { name: "Documentary", desc: "Natural light, honest", grade: "from-stone-700/50 via-[#141210] to-black" },
-  { name: "Anime", desc: "Cel-shaded, bold lines", grade: "from-orange-800/50 via-[#160f08] to-black" },
-  { name: "Noir", desc: "Hard shadows, fog", grade: "from-zinc-700/40 via-[#0e0e10] to-black" },
-  { name: "Watercolor", desc: "Soft washes, paper", grade: "from-yellow-800/40 via-[#16120a] to-black" },
-  { name: "Pixel", desc: "16-bit, crisp", grade: "from-emerald-900/40 via-[#0c1410] to-black" },
+  { name: "Cinematic", desc: "Anamorphic light, film grain", img: "/styles/style-cinematic.jpg", grade: "from-amber-900/60 via-[#1a1208] to-black" },
+  { name: "Documentary", desc: "Natural light, honest", img: "/styles/style-documentary.jpg", grade: "from-stone-700/50 via-[#141210] to-black" },
+  { name: "Anime", desc: "Cel-shaded, bold lines", img: "/styles/style-anime.jpg", grade: "from-orange-800/50 via-[#160f08] to-black" },
+  { name: "Noir", desc: "Hard shadows, fog", img: "/styles/style-noir.jpg", grade: "from-zinc-700/40 via-[#0e0e10] to-black" },
+  { name: "Watercolor", desc: "Soft washes, paper", img: "/styles/style-watercolor.jpg", grade: "from-yellow-800/40 via-[#16120a] to-black" },
+  { name: "Pixel", desc: "16-bit, crisp", img: "/styles/style-pixel.jpg", grade: "from-emerald-900/40 via-[#0c1410] to-black" },
 ];
 
+/** One script, six films: the same projector, rendered in each visual style. */
 export function StyleGallery() {
   return (
     <section className="relative border-t border-border">
@@ -30,9 +31,15 @@ export function StyleGallery() {
               key={s.name}
               className="group relative overflow-hidden rounded-lg border border-border"
             >
-              <div className={`aspect-[4/3] bg-gradient-to-br ${s.grade} transition-transform duration-500 group-hover:scale-[1.03]`}>
+              <div className={`relative aspect-[4/3] overflow-hidden bg-gradient-to-br ${s.grade}`}>
+                <img
+                  src={s.img}
+                  alt={`A film projector rendered in the ${s.name} visual style`}
+                  loading="lazy"
+                  className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                />
                 <div
-                  className="absolute inset-0 opacity-50"
+                  className="pointer-events-none absolute inset-0 opacity-50"
                   style={{
                     background:
                       "radial-gradient(50% 60% at 60% 30%, oklch(0.82 0.145 78 / 0.18), transparent 70%)",
@@ -47,7 +54,8 @@ export function StyleGallery() {
           ))}
         </div>
         <p className="mt-6 font-mono text-xs text-muted-foreground">
-          + 4 more in the studio — including a custom style trained on your references.
+          Stills above generated from a single prompt — one script, six films.
+          + 4 more in the studio, including a custom style trained on your references.
         </p>
       </div>
     </section>
