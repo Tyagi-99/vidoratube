@@ -1,8 +1,9 @@
 const outcomes = [
-  { title: "History explainers", detail: "Documentary voice + stills" },
-  { title: "Sleep / long-form", detail: "Calm tone, slower scenes" },
-  { title: "Finance recaps", detail: "Listicle or finance format" },
-  { title: "True-crime style", detail: "Your script, our cut" },
+  { title: "History & documentary", detail: "Documentary voice + stills" },
+  { title: "Stories & kids (Hindi)", detail: "Bedtime stories, moral tales" },
+  { title: "Explainers & education", detail: "Concepts made visual" },
+  { title: "Travel & culture", detail: "Places, food, traditions" },
+  { title: "Shorts & reels", detail: "30–60s vertical cuts" },
 ];
 
 export function ResultsSection() {

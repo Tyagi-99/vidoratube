@@ -34,7 +34,7 @@ const faqs = [
   {
     question: "Which languages are supported?",
     answer:
-      "Quick generate currently offers English, Spanish, and French voices. More voices land as we wire them in.",
+      "Hindi and English voices are live today — 4 Hindi and 6 English built-in voices, plus more from the connected voice library. Spanish, French and 8 more languages are on the roadmap; anything not listed here is not shipped yet.",
   },
 ];
 
