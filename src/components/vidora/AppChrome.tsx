@@ -11,6 +11,7 @@ import { getMyAccount } from "@/lib/jobs.functions";
 const links = [
   { label: "Studio", to: "/studio" as const },
   { label: "Projects", to: "/projects" as const },
+  { label: "Research", to: "/research" as const },
 ];
 
 export function AppChrome() {
