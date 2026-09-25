@@ -53,13 +53,14 @@ takes, and what it unblocks.
 - **Unblocks:** Real customer/billing email; custom domain for the marketing site.
 
 ## 6. Render worker deploy (Oracle Cloud VM)
-- **What:** Run ONE command on the VM (see `worker/README.md`):
-  `bash scripts/deploy-worker.sh`
-  It installs Docker, builds the worker image, and starts Postgres + the render
-  worker with `docker compose`. Needs a VM with ≥4 vCPU / 16 GB RAM and the
-  secrets from `worker/.env.example` filled in.
-- **Where:** Oracle Cloud free/paid VM (Ubuntu 24.04). Copy the repo (or just
-  `worker/` + `scripts/`) to the VM first.
+- **What:** From your laptop, repo root, with `.env` filled in (copy from root
+  `.env.example`):
+  `WORKER_HOST=ubuntu@<oracle-ip> ./scripts/deploy-worker.sh`
+  It builds the worker image, ships it to the host, and starts it with
+  `docker compose`. Needs a VM with ≥4 vCPU / 16 GB RAM.
+- **Where:** Oracle Cloud free/paid VM (Ubuntu 22.04+). One-time host setup:
+  install Docker Engine + compose plugin, add your SSH user to the docker group
+  (see `worker/README.md`).
 - **Time:** ~30 min (mostly Docker install + image build).
 - **Unblocks:** Server-side rendering (close-the-tab renders, multi-aspect output,
   realtime progress). Until deployed, the app automatically falls back to the
@@ -72,3 +73,23 @@ takes, and what it unblocks.
 - **Where:** YouTube → new channel; Google Cloud Console OAuth client (docs/GOOGLE_VERIFICATION.md).
 - **Time:** 30 min (+ Google OAuth verification is a separate multi-week track).
 - **Unblocks:** End-to-end publish testing through the real YouTube API.
+
+## 8. Email users about the credit → minute migration
+- **What:** After the `20260925194000_per_minute_credits` migration is applied,
+  email every user who had a positive balance: "Your N credits are now N finished
+  minutes (1:1). Nothing was taken; failed renders now refund automatically."
+- **Where:** Your email tool (or the app's future notification system). The affected
+  user list: `select user_id from credit_ledger where reason like 'migration_per_minute%'`.
+- **Time:** 20 min to send (pre-launch this is likely a handful of test accounts).
+- **Unblocks:** Trust — users should hear about unit changes from you, not discover
+  them on the pricing page.
+
+## 9. Apply the two new Supabase migrations
+- **What:** Apply `supabase/migrations/20260925194000_per_minute_credits.sql`
+  (minute-based debit/refund RPCs + append-only conversion entries) and
+  `supabase/migrations/20260925195000_pricing_inr.sql` (`pricing_plans.price_monthly_inr`).
+- **Where:** Supabase SQL editor or `supabase db push`. Both are non-destructive
+  (new functions, one new nullable column, insert-only ledger rows).
+- **Time:** 10 min. Verify: `select * from credit_ledger where reason like
+  'migration_per_minute%' limit 5;` and the pricing page toggle.
+- **Unblocks:** Per-minute charging and INR pricing in production.
