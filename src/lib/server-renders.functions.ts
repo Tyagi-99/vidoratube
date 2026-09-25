@@ -71,9 +71,23 @@ export const enqueueServerRender = createServerFn({ method: "POST" })
       throw new Error(`${missing.length} scene(s) are missing visuals. Generate images first.`);
     }
 
+    // P7: reserve per-minute render credits BEFORE creating the job, so a
+    // failed reserve never leaves an orphan queued render. Idempotent per
+    // render id; settled to actual cost by finalize_render_billing.
+    const { randomUUID } = await import("node:crypto");
+    const renderId = randomUUID();
+    const { reserveRenderBilling } = await import("./billing.functions");
+    await reserveRenderBilling(
+      supabaseAdmin,
+      userId,
+      renderId,
+      10, // DEFAULT_RENDER_RESERVE_MINUTES
+    );
+
     const { data: row, error } = await supabase
       .from("renders")
       .insert({
+        id: renderId,
         user_id: userId,
         project_id: data.projectId,
         type: "full",
@@ -85,6 +99,7 @@ export const enqueueServerRender = createServerFn({ method: "POST" })
         aspect_ratio: data.aspect,
         resolution:
           data.aspect === "16:9" ? "1920x1080" : data.aspect === "9:16" ? "1080x1920" : "1080x1080",
+        reserved_minutes: 10,
         meta: {
           scenes: data.scenes,
           title: data.title,

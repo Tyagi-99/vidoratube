@@ -139,4 +139,11 @@ export const stripeProvider: BillingProvider = {
       cancelAtPeriodEnd: sub.cancel_at_period_end,
     };
   },
+
+  async getCustomerIdForSubscription(externalSubscriptionId: string): Promise<string> {
+    const sub = (await stripeFetch(`/subscriptions/${externalSubscriptionId}`)) as {
+      customer: string | { id: string };
+    };
+    return typeof sub.customer === "string" ? sub.customer : sub.customer.id;
+  },
 };

@@ -933,6 +933,9 @@ export type Database = {
           render_completed_at: string | null
           render_started_at: string | null
           resolution: string | null
+          reserved_minutes: number
+          billed_minutes: number | null
+          credits_charged: number
           stage: string
           status: string
           type: string
@@ -962,6 +965,9 @@ export type Database = {
           render_completed_at?: string | null
           render_started_at?: string | null
           resolution?: string | null
+          reserved_minutes?: number
+          billed_minutes?: number | null
+          credits_charged?: number
           stage?: string
           status?: string
           type?: string
@@ -991,6 +997,9 @@ export type Database = {
           render_completed_at?: string | null
           render_started_at?: string | null
           resolution?: string | null
+          reserved_minutes?: number
+          billed_minutes?: number | null
+          credits_charged?: number
           stage?: string
           status?: string
           type?: string
@@ -1899,6 +1908,123 @@ export type Database = {
         }
         Relationships: []
       }
+      plans: {
+        Row: {
+          id: string
+          slug: string
+          name: string
+          kind: string
+          credits_granted: number
+          interval: string
+          price_usd_cents: number | null
+          price_inr_paise: number | null
+          stripe_price_id: string | null
+          razorpay_plan_id: string | null
+          active: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          slug: string
+          name: string
+          kind: string
+          credits_granted: number
+          interval?: string
+          price_usd_cents?: number | null
+          price_inr_paise?: number | null
+          stripe_price_id?: string | null
+          razorpay_plan_id?: string | null
+          active?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          slug?: string
+          name?: string
+          kind?: string
+          credits_granted?: number
+          interval?: string
+          price_usd_cents?: number | null
+          price_inr_paise?: number | null
+          stripe_price_id?: string | null
+          razorpay_plan_id?: string | null
+          active?: boolean
+          created_at?: string
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          id: string
+          user_id: string
+          provider: string
+          external_id: string
+          plan_slug: string
+          status: string
+          current_period_start: string | null
+          current_period_end: string | null
+          cancel_at_period_end: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          provider: string
+          external_id: string
+          plan_slug: string
+          status?: string
+          current_period_start?: string | null
+          current_period_end?: string | null
+          cancel_at_period_end?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          provider?: string
+          external_id?: string
+          plan_slug?: string
+          status?: string
+          current_period_start?: string | null
+          current_period_end?: string | null
+          cancel_at_period_end?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      billing_events: {
+        Row: {
+          id: string
+          provider: string
+          event_id: string
+          type: string
+          payload: Json
+          processed_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          provider: string
+          event_id: string
+          type: string
+          payload?: Json
+          processed_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          provider?: string
+          event_id?: string
+          type?: string
+          payload?: Json
+          processed_at?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       publish_jobs: {
         Row: {
           id: string
@@ -1987,6 +2113,18 @@ export type Database = {
       debit_credits_for_job_once: {
         Args: { p_user_id: string; p_reason: string; p_job_id?: string | null }
         Returns: number
+      }
+      grant_credits_once: {
+        Args: { p_user_id: string; p_amount: number; p_reason: string; p_ref_id?: string | null }
+        Returns: number
+      }
+      debit_credits_amount_once: {
+        Args: { p_user_id: string; p_amount: number; p_reason: string; p_ref_id?: string | null }
+        Returns: number
+      }
+      finalize_render_billing: {
+        Args: { p_render_id: string }
+        Returns: Json
       }
       content_rights_approved: {
         Args: { _content_id: string }

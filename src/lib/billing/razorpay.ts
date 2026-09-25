@@ -127,6 +127,7 @@ export const razorpayProvider: BillingProvider = {
       current_start: number | null;
       current_end: number | null;
       cancel_at_cycle_end?: boolean;
+      customer_id?: string;
     };
     return {
       externalId: sub.id,
@@ -135,5 +136,13 @@ export const razorpayProvider: BillingProvider = {
       currentPeriodEnd: sub.current_end ? new Date(sub.current_end * 1000).toISOString() : null,
       cancelAtPeriodEnd: Boolean(sub.cancel_at_cycle_end),
     };
+  },
+
+  async getCustomerIdForSubscription(externalSubscriptionId: string): Promise<string> {
+    const sub = (await razorpayFetch(`/subscriptions/${externalSubscriptionId}`)) as {
+      customer_id?: string;
+    };
+    if (!sub.customer_id) throw new Error("Razorpay subscription has no customer id.");
+    return sub.customer_id;
   },
 };

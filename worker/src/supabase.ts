@@ -67,6 +67,18 @@ export async function finishJob(
     })
     .eq("id", jobId);
   if (error) throw new Error(`finishJob failed: ${error.message}`);
+
+  // P7: settle per-minute billing. finalize_render_billing is idempotent;
+  // failures here are logged but don't fail the render itself — a later
+  // pass can retry (billed_minutes stays NULL).
+  if (patch.status === "completed") {
+    const { error: billError } = await supabase.rpc("finalize_render_billing", {
+      p_render_id: jobId,
+    });
+    if (billError) {
+      console.error(`[worker] finalize_render_billing failed for ${jobId}: ${billError.message}`);
+    }
+  }
 }
 
 export async function shouldCancel(

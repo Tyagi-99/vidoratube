@@ -48,4 +48,6 @@ export interface BillingProvider {
   createCustomerPortalUrl(externalCustomerId: string, returnUrl: string): Promise<string>;
   cancelSubscription(externalSubscriptionId: string): Promise<void>;
   getSubscription(externalSubscriptionId: string): Promise<ProviderSubscription>;
+  /** Resolve the provider's customer id for a subscription (portal support). */
+  getCustomerIdForSubscription(externalSubscriptionId: string): Promise<string>;
 }
