@@ -55,21 +55,38 @@ function policiesFor(sql: string, table: string): string[] {
 /** Tables whose rows belong to a single user and must never be cross-readable. */
 const OWNER_SCOPED_TABLES = [
   "profiles",
+  "projects",
+  "scenes",
+  "renders",
   "video_jobs",
+  "voiceovers",
+  "captions",
+  "content_assets",
   "youtube_connections",
   "credit_ledger",
+  "api_usage",
   "content_items",
+  "rights_decisions",
   "research_projects",
   "outlier_videos",
   "video_ideas",
   "youtube_api_cache",
   "characters",
   "asset_provenance",
+  "thumbnails",
+  "seo_metadata",
+  "publish_jobs",
   "safety_scores",
+  "subscriptions",
   "video_analytics",
   "channel_stats",
   "learning_insights",
   "referrals",
+  "workflow_jobs",
+  "workflow_job_events",
+  "creators",
+  "creator_accounts",
+  "content_duplicate_flags",
 ];
 
 /** Tables intentionally readable/writable without auth (documented exceptions). */
@@ -79,12 +96,27 @@ const PUBLIC_BY_DESIGN: Record<string, string> = {
   // Marketing content served to logged-out visitors.
   site_content: "public read",
   pricing_plans: "public read",
+  plans: "public read (active = true only)",
   categories: "public read",
   niches: "public read",
   // Static blocklist checked at signup; no sensitive data, read-only.
   disposable_email_domains: "public read",
   // Royalty-free music catalog; no user data, read-only for authenticated.
   music_tracks: "authenticated read",
+};
+
+/**
+ * Tables locked to service_role (and narrow admin reads) by design.
+ * RLS is enabled; no policy grants anon/authenticated access, so the
+ * default-deny applies. Documented here so a future open policy is a
+ * deliberate, reviewed change.
+ */
+const SERVICE_ROLE_ONLY: Record<string, string> = {
+  billing_events: "raw webhook events; service_role writes, no user reads",
+  rate_limit_buckets: "rate limiter internals; service_role only, no policies by design",
+  abuse_signals: "fraud signals; service_role writes, admin SELECT only",
+  integrations: "provider integrations; admin only",
+  user_roles: "role assignments; own-row SELECT, admin writes",
 };
 
 describe("RLS static audit", () => {
@@ -139,5 +171,33 @@ describe("RLS static audit", () => {
         ).toBeTruthy();
       }
     }
+  });
+
+  it("keeps service-role-only tables locked to non-user roles", () => {
+    // These tables must have RLS enabled and no policy that grants
+    // ungated writes to anon/authenticated (admin-gated policies are fine).
+    for (const table of Object.keys(SERVICE_ROLE_ONLY)) {
+      expect(rlsEnabled(sql, table), `${table}: RLS not enabled`).toBe(true);
+      const policies = policiesFor(sql, table);
+      const ungatedUserWrite = policies.some(
+        (p) =>
+          /TO\s+(anon|authenticated|public)/i.test(p) &&
+          /FOR\s+(ALL|INSERT|UPDATE|DELETE)/i.test(p) &&
+          !/auth\.uid\(\)/i.test(p) &&
+          !/has_role/i.test(p),
+      );
+      expect(ungatedUserWrite, `${table}: ungated user-role write policy found`).toBe(false);
+    }
+  });
+
+  it("classifies every table in the migrations", () => {
+    // A new table must be deliberately placed in one of the three lists.
+    const known = new Set([
+      ...OWNER_SCOPED_TABLES,
+      ...Object.keys(PUBLIC_BY_DESIGN),
+      ...Object.keys(SERVICE_ROLE_ONLY),
+    ]);
+    const unclassified = tables.filter((t) => !known.has(t));
+    expect(unclassified, `unclassified tables: ${unclassified.join(", ")}`).toEqual([]);
   });
 });

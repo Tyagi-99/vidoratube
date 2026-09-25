@@ -123,8 +123,8 @@ function Index() {
               Your first cut is a script and an account. Ten free credits, no card.
             </p>
             <p className="mt-2 text-sm text-muted-foreground">
-              Checkout is not live yet. Create a free account for 10 render credits — no card
-              needed.
+              Paid plans with secure checkout are on the way. Create a free account for 10 render
+              credits — no card needed.
             </p>
             <Link
               to="/studio"
