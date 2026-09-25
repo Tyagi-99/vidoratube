@@ -3,6 +3,70 @@
 Non-obvious decisions made under autopilot (Investor Reply #3: "Decide, don't
 ask"). Each entry: decision, reason, how to reverse. Newest first.
 
+## 2026-09-25 — Sprint 1–2 (app/UI)
+
+### D7. Worker panel lives on the admin Overview, not the Renders page
+- **Decision:** The worker heartbeat / queue-depth panel went into
+  `admin.index.tsx` (Overview), next to Diagnostics — not `admin.jobs.tsx`.
+- **Reason:** Heartbeat + queue depth is infrastructure health, not a render
+  row. The founder checks one dashboard; the Renders page stays a pure job table.
+- **Reverse:** Move the `<WorkerPanel />` component into `admin.jobs.tsx`.
+
+### D8. Exact render settlement replaces wall-clock settlement (non-destructive)
+- **Decision:** `finalize_render_billing` was replaced via
+  `20260925220000_exact_render_settle.sql`: rows enqueued with
+  `meta.expected_credits` settle deterministically at exactly the quoted
+  credits (no debit, no refund). Rows enqueued before exact quoting keep the
+  legacy worker-wall-clock settle path. Function-body replacement only —
+  no tables/rows touched.
+- **Reason:** The reserve is now the exact deterministic quote (finished
+  minutes × multipliers). Settling it against worker wall-clock minutes
+  would wrongly refund/overcharge whenever multipliers apply or the worker
+  runs faster/slower than realtime — making the "exact cost before render"
+  promise a lie.
+- **Reverse:** Re-apply the pre-20260925220000 function body from
+  `20260925120000_schema_reconciliation.sql`.
+
+### D9. Server-render quote is story/standard only — no premium toggles yet
+- **Decision:** `quoteMultiAspectRender` is called with `mode: "story"` and
+  all add-ons off; the RenderPanel shows no premium-voice / cinema-stock /
+  2.5D / dubbing toggles.
+- **Reason:** Those purchase options don't exist in the product today (no
+  premium voice tier, no cinema mode in the studio), so toggles would be
+  dishonest UI. The same pricing function already prices every multiplier,
+  so they flow through the quote with zero math changes when they ship.
+- **Reverse:** Add the toggles to the RenderPanel cost box and pass the
+  options through to the quote + enqueue.
+
+### D10. Stale queue thresholds: queued > 60 min, running > 120 min
+- **Decision:** `STALE_QUEUED_MS` / `STALE_RUNNING_MS` in
+  `src/lib/worker-health.ts`; the admin worker panel counts stale jobs and
+  warns above zero.
+- **Reason:** Needed a concrete definition of "stuck" for the queue-depth
+  display. One hour queued means the worker isn't picking work up; two
+  hours running exceeds any plausible single render.
+- **Reverse:** Change the constants in `src/lib/worker-health.ts`.
+
+### D11. Unit economics uses measured data only, with an honest empty state
+- **Decision:** `adminUnitEconomics` divides recorded `api_usage` costs by
+  finished minutes from completed `renders`; cost-per-credit comes from
+  render-attributed ledger debits; margins use USD plan prices. With no
+  real data it returns `hasData: false` and the UI shows "No measured data
+  yet — costs are recorded from <date>" — never zeros as measurements.
+- **Reason:** Copy honesty: unit economics must not present guesses.
+  estimated_cost rows are in USD, so USD plan prices are the consistent
+  comparison.
+- **Reverse:** Change the aggregation in `admin.functions.ts`.
+
+### D12. One renders row per aspect, one reserve per row
+- **Decision:** A multi-aspect enqueue creates one `renders` row per aspect
+  (shared `meta.group_id`), and each row reserves its own exact per-aspect
+  quote via `reserveRenderBilling` (idempotent per render id).
+- **Reason:** Rows render independently on the worker and settle
+  independently; a single shared reserve couldn't be settled per row and
+  would leak on partial failure.
+- **Reverse:** Single-row enqueue per call (drop `aspects` from the schema).
+
 ## 2026-09-25 — Sprint 0 remainder
 
 ### D1. Dodo Payments for USD, Razorpay for INR; Stripe kept in types only
@@ -132,3 +196,57 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
 - **Reason:** The task spec named root `.env.example`; one env file avoids the
   founder maintaining two files with the same Supabase secrets in both.
 - **Reverse:** Split into `worker/.env.example` and point compose `env_file` there.
+
+### D15. `renders.claimed_at` doubles as the worker heartbeat — no new column
+- **Decision:** `requeue_stale_renders` (migration `20260925210000_requeue_stale_renders.sql`)
+  treats `renders.claimed_at` as the liveness heartbeat. No new heartbeat column was added.
+- **Reason:** `heartbeat_render_job` already refreshes `claimed_at = now()` on every
+  worker heartbeat, and `claim_render_job` already treats `claimed_at` as the lease
+  timestamp. A separate column would duplicate the same signal and require touching
+  both existing RPCs plus the worker loop. Rows with NULL `claimed_at` are treated as
+  stale (a `running` row with no claim timestamp is pathological).
+- **Reverse:** Add `last_heartbeat_at timestamptz`, update both RPCs and the worker to
+  write it, and repoint the requeue predicate.
+
+### D16. Worker crash recovery moved into the `requeue_stale_renders` RPC
+- **Decision:** The worker's `requeueStaleJobs` now calls
+  `supabase.rpc("requeue_stale_renders", { p_lease_seconds })` instead of issuing its
+  own direct UPDATE. The RPC is the single server-side authority: attempts remaining
+  → `queued` with `attempts + 1` and claim cleared; attempts exhausted → `failed` with
+  error `'Worker died; retries exhausted'`. Service_role-only execution, matching the
+  claim/heartbeat RPCs.
+- **Reason:** The old worker-side UPDATE never enforced the retry cap — a job whose
+  worker died at `attempts >= max_attempts` was requeued forever. Centralizing the
+  predicate in SQL also stops the N-worker / N-implementation drift.
+- **Reverse:** Revert `worker/src/supabase.ts` to the direct UPDATE (loses the retry cap).
+
+### D17. Multi-aspect enqueue: `aspects` default all three, legacy `aspect` kept
+- **Decision:** `enqueueServerRender` accepts `aspects: ("16:9"|"9:16"|"1:1")[]`
+  (default all three) and creates one `renders` row per aspect for the same project,
+  linked by a shared `meta.group_id` uuid; each row carries its own `meta.aspect`,
+  `aspect_ratio`, and `resolution` (1920×1080 / 1080×1920 / 1080×1080). The old
+  singular `aspect` input is still honored as an explicit single-aspect choice so the
+  current RenderPanel call is behavior-identical (one row, the chosen aspect).
+  Precedence: `aspects` > `aspect` > all three. (Billing side evolved in parallel:
+  each row now reserves the EXACT per-aspect quote from `quoteMultiAspectRender`,
+  stored as `meta.expected_credits` / `expected_minutes` / `mode` — see the
+  billing sprint's D8/D9/D12. The row builder stays pure and unit-tested.)
+- **Reason:** The row builder (`buildServerRenderRows`) is pure and unit-tested; the
+  worker already renders per-aspect dimensions from `meta.aspect`, so no worker
+  change was needed. Per-row reservation keeps the ledger honest instead of
+  under-reserving a 3× render.
+- **Reverse:** Make RenderPanel pass `aspects` explicitly (it currently passes `aspect`,
+  so one day a multi-select UI should send the user's chosen set).
+
+### D18. Queue depth via service-role counts, wired into admin jobs
+- **Decision:** `getRenderQueueDepth()` (service-role, logged-in users only) returns
+  `{queued, running, stale}` for `engine='server_ffmpeg'` rows, where `stale` uses the
+  same predicate as the requeue RPC (claimed_at older than the 300s lease). Surfaced
+  as three stat cards on the admin jobs page with a 15s refresh. The public /status
+  page was deliberately left untouched — queue depth is an ops signal, not a
+  visitor-facing service check.
+- **Reason:** The requeue RPC and the depth helper must agree on "stale" or the admin
+  UI would show numbers the requeue pass never acts on; sharing the lease constant
+  and predicate keeps them consistent.
+- **Reverse:** Add a queue-depth check to `getSystemStatus` if it ever belongs on the
+  public status page.

@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { adminListJobs, adminDeleteJob } from "@/lib/admin.functions";
+import { getRenderQueueDepth } from "@/lib/server-renders.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/jobs")({
   component: AdminJobsPage,
@@ -15,8 +16,14 @@ function AdminJobsPage() {
   const queryClient = useQueryClient();
   const listFn = useServerFn(adminListJobs);
   const deleteFn = useServerFn(adminDeleteJob);
+  const depthFn = useServerFn(getRenderQueueDepth);
 
   const jobs = useQuery({ queryKey: ["admin", "jobs"], queryFn: () => listFn({}) });
+  const depth = useQuery({
+    queryKey: ["admin", "render-queue-depth"],
+    queryFn: () => depthFn({}),
+    refetchInterval: 15_000,
+  });
 
   const remove = useMutation({
     mutationFn: (id: string) => deleteFn({ data: { id } }),
@@ -31,6 +38,25 @@ function AdminJobsPage() {
     <div>
       <h1 className="text-2xl font-bold tracking-tight text-foreground">Renders</h1>
       <p className="mt-1 text-sm text-muted-foreground">Every video generated on the platform.</p>
+
+      {/* Server-worker queue depth (service-role read via getRenderQueueDepth). */}
+      <div className="mt-4 flex flex-wrap gap-3" aria-live="polite">
+        {[
+          { label: "Queued", value: depth.data?.queued },
+          { label: "Running", value: depth.data?.running },
+          { label: "Stale (worker died)", value: depth.data?.stale },
+        ].map((s) => (
+          <div
+            key={s.label}
+            className="rounded-xl border border-border bg-muted/40 px-4 py-2.5"
+          >
+            <div className="text-xl font-bold tabular-nums text-foreground">
+              {s.value ?? "—"}
+            </div>
+            <div className="text-xs text-muted-foreground">{s.label}</div>
+          </div>
+        ))}
+      </div>
 
       {jobs.isLoading ? (
         <Skeleton className="mt-6 h-64 w-full rounded-2xl" />

@@ -10,7 +10,7 @@ import { shouldCancel } from "./supabase.js";
 import type { RenderJob, RenderJobMeta, SceneInput, StageId } from "./types.js";
 
 /** Duplicate of src/lib/render/shared.ts to keep the worker dependency-free. */
-const ASPECTS: Record<string, { width: number; height: number }> = {
+export const ASPECTS: Record<string, { width: number; height: number }> = {
   "16:9": { width: 1920, height: 1080 },
   "9:16": { width: 1080, height: 1920 },
   "1:1": { width: 1080, height: 1080 },
