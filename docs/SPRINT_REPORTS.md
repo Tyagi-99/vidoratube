@@ -288,3 +288,60 @@ with cross-references D22/D17/D20 fixed; new D31–D35 for verification calls).
 (legal entity, grievance officer, Dodo/Razorpay keys, vidora.ai, Oracle deploy,
 YouTube test channel, migration email, apply migrations) + #10 Resend key for
 completion email.
+
+---
+
+## Sprints 3–4 (in progress) — item 6: 20-minute Story Mode render benchmark
+
+**Target:** a 20-minute Story Mode video completes in under 15 minutes on one
+worker. **Method:** `worker/scripts/benchmark-20min.ts` (run: `cd worker &&
+npm run benchmark`) drove the REAL chapter implementation
+(`worker/src/chapters.ts` `renderChapter` + `stitchChapters`) on 2 chapters x
+150 s = 300 s of media, with SYNTHETIC paragraph narration (locally generated
+sine-noise WAVs served over a local HTTP loopback server — zero spend, no API
+calls). Per chapter the real code downloads the paragraph clips, concatenates
+them to one AAC 160k track, builds word-cue ASS with the real
+`spreadWordCues`, and does a SINGLE x264 pass (solid-color background from the
+continuity brief + subtitles burn-in, preset medium CRF 20, +faststart); stitch
+is the real `stitchChapters` (concat copy + faststart, no re-encode). Then
+projected 8 chapters x 150 s = 1200 s with the unit-tested model in
+`worker/src/benchmark-model.ts`: `total = ceil(8/C) x median(chapter wall) +
+stitch`, loudnorm extrapolated linearly from the measured single-pass rate.
+Both measured and projected numbers are reported; nothing is hidden. Full
+methodology in the script header and `worker/benchmark-results.md`.
+
+**Honest exclusions:** TTS/LLM/image-generation wall time is NOT measured and
+NOT in the totals (separate pre-stage in the real system; the harness
+substitutes zero-cost synthetic assets). Asset download/upload not measured
+(loopback instead of Supabase; generation time labelled synthetic). The −14
+LUFS loudness pass is PROPOSED, not in `chapters.ts`; its cost is measured
+separately (14.0x realtime) and shown both with and without.
+
+**Measured (2 x 150 s chapters, real FFmpeg, this VM — 2 x AMD EPYC, 8 GB):**
+chapter 0: 59.3 s (prep 0.9 s synthetic, single pass 58.3 s); chapter 1: 61.6 s
+(prep 0.9 s synthetic, single pass 60.7 s) — i.e. ~2.5x realtime, because the
+shipped chapter design encodes a static solid background rather than
+per-scene stills. Stitch: concat+faststart 0.5 s (real), proposed loudnorm
+21.4 s over 300 s media. Full per-stage table in `worker/benchmark-results.md`.
+
+**Projected 20-minute totals (target ≤ 15m 00s):** C=1 (sequential): **9m 31s
+with proposed loudnorm / 8m 06s without — HIT**. C=2 (`WORKER_CHAPTER_CONCURRENCY`
+default): **5m 29s / 4m 04s — HIT**. C=4 hypothetical: 3m 28s / 2m 03s — HIT
+(unmeasured, needs >2 vCPU). Bottleneck is the single-pass x264 chapter
+encode; stitch is a cheap copy pass. Run: `npx tsx scripts/benchmark-20min.ts`,
+2026-09-25 16:24 UTC, load 1.12 at start, commit `b03dc6b`.
+
+**Adapter seam:** the harness renders through a `ChapterPipeline` interface and
+auto-detects `worker/src/chapters.ts#renderChapter`/`stitchChapters` when
+present (used here); otherwise it falls back to `BaselineChapterPipeline`,
+which mirrors the legacy scene pipeline's ffmpeg args. No changes were made to
+`chapters.ts`, `pipeline.ts`, or any chapter code.
+
+**Bug found (not fixed — routed to pipeline owner):** `pipeline.ts`'s music
+ducking filtergraph feeds the voice bus into BOTH `sidechaincompress` (as
+sidechain) and `amix` without `asplit`; ffmpeg 8 rejects a doubly-consumed
+filter pad (`Stream specifier 'v1' ... matches no streams`), so ANY render with
+`musicUrl` + `musicDucking` fails at the audio-mix stage. Fix: insert
+`asplit=2` on the voice bus. The fallback baseline measures the corrected
+graph (one extra `asplit`, negligible cost); production `pipeline.ts` still
+needs the fix.

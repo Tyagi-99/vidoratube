@@ -102,6 +102,39 @@ Scale horizontally: run more units/hosts — claiming is atomic so jobs never
 double-process. One worker ≈ one concurrent render; raise per-host
 concurrency only with enough RAM/CPU.
 
+## Benchmarking (20-minute Story Mode)
+
+`scripts/benchmark-20min.ts` measures end-to-end render time for a 20-minute
+Story Mode video on one worker, against the < 15 minute investor target. It
+spends no money: all TTS/LLM/image inputs are synthetic (generated locally),
+while every FFmpeg stage is real. The harness auto-detects the chapter
+implementation: it drives the REAL `src/chapters.ts` `renderChapter` +
+`stitchChapters` (single x264 pass per chapter: solid-color background +
+subtitles burn-in, preset medium CRF 20; stitch = concat copy + faststart),
+falling back to a `src/pipeline.ts`-mirroring baseline (per-scene still
+encodes, AAC 160k audio mix with sidechain ducking, ASS burn-in) only if
+`src/chapters.ts` is absent.
+
+```bash
+cd worker
+npx tsx scripts/benchmark-20min.ts --smoke   # 1 chapter x 10 s, ~2 min, no results file
+npx tsx scripts/benchmark-20min.ts            # full: 2 x 150 s chapters, writes benchmark-results.md + .json
+```
+
+Methodology (full version in the script header): render 2 chapters (300 s of
+media) through the real pipeline, then project 8 chapters x 150 s = 1200 s
+with the unit-tested model in `src/benchmark-model.ts`
+(`total = ceil(8/C) x median(chapter wall) + stitch`, loudnorm extrapolated
+linearly). Both measured and projected numbers are reported; TTS/LLM/image-gen
+time is excluded by design (separate pre-stage) and stated in every report.
+The `-concurrency` flag controls the projected chapter parallelism
+(`1` = current sequential code, `2` = `WORKER_CHAPTER_CONCURRENCY` default,
+`4` = hypothetical bigger VPS). Run on a quiet machine - the results file
+records load average alongside the numbers.
+
+Latest results: `worker/benchmark-results.md` (regenerate after pipeline
+encode changes).
+
 ## Security notes
 
 - The service-role key lives **only** in the worker environment. It bypasses
