@@ -18,7 +18,14 @@ export function DemoUI({ onGenerate }: { onGenerate: () => void }) {
         </div>
 
         <div className="grid lg:grid-cols-[1.4fr_0.9fr]">
-          <div className="relative min-h-[260px] bg-[radial-gradient(80%_70%_at_30%_20%,#2a3338,#121417_62%)] sm:min-h-[320px]">
+          <div className="relative min-h-[260px] overflow-hidden sm:min-h-[320px]">
+            <img
+              src="/styles/demo-preview-warship.jpg"
+              alt="Preview still: a warship steaming up a misty river at dawn"
+              className="absolute inset-0 h-full w-full object-cover"
+              loading="lazy"
+            />
+            <div className="absolute inset-0 bg-black/30" aria-hidden="true" />
             <div className="absolute inset-x-0 top-[18%] bottom-[42%] grid place-items-center text-center text-foreground">
               <div>
                 <div className="mx-auto mb-2 grid size-12 place-items-center rounded-full border border-white/15 bg-black/40">
