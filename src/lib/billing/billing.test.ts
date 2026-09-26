@@ -42,6 +42,10 @@ describe("billing-math", () => {
     expect(a).toBe(b);
     expect(a).not.toBe(c);
     expect(a).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    // Pinned: the hash algorithm must never change — existing idempotency
+    // refs in the DB were computed with SHA-1. This value was verified
+    // byte-identical against node:crypto createHash("sha1").
+    expect(a).toBe("eac6801a-25ab-5460-8e55-aa0026f084e7");
   });
 
   it("startedMinutes rounds up with a 1-minute floor", () => {

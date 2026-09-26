@@ -4,9 +4,14 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { requireAppUser } from "./server-auth";
 import { getPlan, type Currency } from "./billing/plans";
-import { isDodoConfigured } from "./billing/dodo";
-import { isRazorpayConfigured } from "./billing/razorpay";
 import { DEFAULT_RENDER_RESERVE_MINUTES } from "./billing/billing-math";
+
+// NOTE: ./billing/dodo and ./billing/razorpay import node:crypto (HMAC
+// webhook verification). They must stay out of this module's top-level
+// imports: this file is bundled for the client (PricingSection imports
+// getBillingConfig), and a top-level node:crypto import crashes client
+// module evaluation ("externalized for browser compatibility"). They are
+// dynamically imported inside the server functions that need them.
 
 /**
  * P7: Billing server functions.
@@ -38,10 +43,14 @@ async function enforceBillingRateLimit(userId: string) {
 }
 
 /** Public: which payment providers are configured. */
-export const getBillingConfig = createServerFn({ method: "GET" }).handler(async () => ({
-  dodo: isDodoConfigured(),
-  razorpay: isRazorpayConfigured(),
-}));
+export const getBillingConfig = createServerFn({ method: "GET" }).handler(async () => {
+  const { isDodoConfigured } = await import("./billing/dodo");
+  const { isRazorpayConfigured } = await import("./billing/razorpay");
+  return {
+    dodo: isDodoConfigured(),
+    razorpay: isRazorpayConfigured(),
+  };
+});
 
 /** Authenticated billing overview. */
 export const getBillingState = createServerFn({ method: "GET" })

@@ -810,3 +810,33 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
 - **Reverse:** Revert `src/routes/__root.tsx` to the supabase-js call (will
   silently record nothing); remove the `errorBootstrap` script from
   `RootShell`; delete `src/lib/error-bootstrap.ts`.
+
+### D86. Homepage crash root cause: `node:crypto` in client-bundled billing modules — removed permanently
+- **Decision:** (1) New `src/lib/sha1.ts`: pure-JS SHA-1, byte-identical to
+  node:crypto (verified against node:crypto, openssl, sha1sum, Python
+  hashlib). (2) `src/lib/billing/billing-math.ts` now uses it — the
+  `import { createHash } from "node:crypto"` that crashed the homepage is
+  gone, and `eventRefUuid` output is unchanged (pinned in tests) so existing
+  idempotency refs in the DB still match. (3) `src/lib/billing.functions.ts`
+  no longer top-level imports `./billing/dodo` / `./billing/razorpay`
+  (node:crypto HMAC webhook verification) — they are dynamically imported
+  inside the `getBillingConfig` server handler, matching the existing
+  `client.server`/`stripe` pattern. (4) `chapters.functions.ts` and
+  `server-renders.functions.ts` use universal `crypto.randomUUID()` instead
+  of `node:crypto`. (5) New `src/lib/client-bundle-safety.test.ts` fails the
+  build if any client-reachable module ever imports `node:*` again, or if a
+  server-only provider becomes a top-level import.
+- **Reason:** The 2026-09-26 05:53 UTC `client_errors` row gave the exact
+  stack: `Module "node:crypto" has been externalized for browser
+  compatibility` at `billing-math.ts:1`, reached via homepage →
+  PricingSection → billing.functions.ts (createServerFn modules are bundled
+  for the client; their top-level imports are evaluated in the browser, where
+  Vite replaces node:crypto with a throwing shim). The crash was intermittent
+  because production Rollup usually tree-shakes the unused server imports out
+  of the client chunk, but dev/preview bundling (and chunking
+  nondeterminism) evaluates them — hence ~40% failure. Removing node:* from
+  the client module graph kills the failure class regardless of bundler
+  behavior.
+- **Reverse:** Reintroduce `node:crypto` imports in the guarded files (the
+  new test will fail loudly first); restore top-level dodo/razorpay imports
+  in billing.functions.ts.

@@ -1,5 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
-import { randomUUID } from "node:crypto";
+// NOTE: no node:crypto import — this module is client-bundled. Use the
+// universal Web Crypto API instead (browsers, Node 19+, workers).
+const randomUUID = () => crypto.randomUUID();
 import { z } from "zod";
 import { requireAppUser } from "./server-auth";
 import type { Database } from "@/integrations/supabase/types";

@@ -1,7 +1,12 @@
-import { createHash } from "node:crypto";
+import { sha1Hex } from "../sha1";
 
 /**
  * P7: Normalized billing events + server-render cost math (pure, tested).
+ *
+ * NOTE: this module is imported by client-bundled code (via
+ * billing.functions.ts -> PricingSection), so it must never import node:*
+ * modules. SHA-1 comes from ../sha1 (pure JS, byte-identical to
+ * node:crypto) and every other helper here is already dependency-free.
  *
  * Both providers' webhooks are reduced to a small set of domain events so
  * the handlers share one code path:
@@ -18,7 +23,7 @@ export type DomainBillingEvent =
 /** Deterministic UUID (v5-style) for a provider event id — used as the
  *  idempotency ref for credit grants so webhook replays are no-ops. */
 export function eventRefUuid(namespace: string, eventId: string): string {
-  const hash = createHash("sha1").update(`${namespace}:${eventId}`, "utf8").digest("hex");
+  const hash = sha1Hex(`${namespace}:${eventId}`);
   // Format as a UUID with version nibble 5.
   return (
     `${hash.slice(0, 8)}-${hash.slice(8, 12)}-5${hash.slice(13, 16)}` +
