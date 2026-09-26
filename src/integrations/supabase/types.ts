@@ -438,6 +438,33 @@ export type Database = {
           },
         ]
       }
+      client_errors: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          route: string | null
+          stack: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          route?: string | null
+          stack?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          route?: string | null
+          stack?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       contact_messages: {
         Row: {
           created_at: string

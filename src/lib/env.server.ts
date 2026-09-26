@@ -26,14 +26,17 @@ let validated = false;
 
 export function assertServerEnv(): void {
   if (validated) return;
-  validated = true;
   const missing = REQUIRED_SERVER_ENV.filter((key) => !process.env[key]);
   if (missing.length > 0) {
-    throw new Error(
+    // Never block page rendering: env can be injected late (dev restarts,
+    // cold starts). Warn and re-check on the next request instead.
+    console.warn(
       `[vidora] Missing required server environment variable(s): ${missing.join(", ")}. ` +
         `If deploying to Cloudflare Workers, ensure compatibility_flags includes "nodejs_compat".`,
     );
+    return;
   }
+  validated = true;
   const unsetOptional = OPTIONAL_SERVER_ENV.filter((key) => !process.env[key]);
   if (unsetOptional.length > 0) {
     console.warn(`[vidora] Optional server env not set: ${unsetOptional.join(", ")}`);
