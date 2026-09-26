@@ -840,3 +840,29 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
 - **Reverse:** Reintroduce `node:crypto` imports in the guarded files (the
   new test will fail loudly first); restore top-level dodo/razorpay imports
   in billing.functions.ts.
+
+### D87. Homepage "reading 'grade'" crash root cause: rAF timestamp predating performance.now() — clamped
+- **Decision:** (1) New exported `loopElapsed(nowMs, startMs)` in
+  `src/components/vidora/cinema/Hero.tsx` clamps the animation clock at 0:
+  `Math.max(0, (now - start) / 1000) % TOTAL`. (2) New exported
+  `sceneIndexForTime(t)` always returns a valid SCENES index, even for
+  negative/NaN/Infinity inputs. (3) Render uses `SCENES[sceneIdx] ??
+  SCENES[0]!` as a last-resort fallback so the monitor can never unmount the
+  homepage over an animation index. (4) New `Hero.test.ts` (8 tests) pins the
+  first-frame race and the index math.
+- **Reason:** The 2026-09-26 06:12–06:15 UTC `client_errors` rows gave exact
+  stacks: `TypeError: Cannot read properties of undefined (reading 'grade')`
+  at the minified routes chunk 1:2843 — verified by downloading the served
+  bundle to be RenderMonitor's `o.grade` read (`o = b[a]`,
+  `a = Math.floor(e / (y / b.length)) % b.length`). The only way `b[a]` is
+  undefined is `e` (state t) being negative/NaN: on the first animation frame,
+  the rAF timestamp can predate the `performance.now()` captured when the
+  effect ran (observed in Firefox — one stack was Firefox-formatted), making
+  `(now - start)` a tiny negative; JS `%` preserves the sign, so t went
+  negative, `Math.floor(negative / 4) % 3` produced -1, and `SCENES[-1].grade`
+  threw during render. Intermittent because it is a first-frame race — most
+  loads never hit it. The clamp fixes the actual negative-clock bug; the
+  index helper + fallback make the render path unconditionally safe.
+- **Reverse:** Revert Hero.tsx to the inline `((now - start) / 1000) % TOTAL`
+  and `SCENES[Math.floor(t / (TOTAL / SCENES.length)) % SCENES.length]!`
+  (the new tests will fail loudly first).

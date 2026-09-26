@@ -35,6 +35,27 @@ const SCENES = [
 ];
 
 /** The monitor: a 16:9 frame showing a render in progress. */
+export function loopElapsed(nowMs: number, startMs: number): number {
+  // rAF timestamps can predate the performance.now() captured when the effect
+  // ran (observed in Firefox). Without the clamp, the first tick sets t to a
+  // tiny negative, Math.floor(negative / 3) % 4 yields -1, SCENES[-1] is
+  // undefined, and `scene.grade` throws during render — unmounting the whole
+  // homepage. That was the "Cannot read properties of undefined (reading
+  // 'grade')" crash in client_errors on 2026-09-26. The clock never runs
+  // backwards.
+  return Math.max(0, (nowMs - startMs) / 1000) % TOTAL;
+}
+
+/**
+ * Scene index for a loop time t (seconds). Always a valid SCENES index, even
+ * for hostile inputs — the monitor must never take the homepage down over an
+ * animation index.
+ */
+export function sceneIndexForTime(t: number): number {
+  const safe = Number.isFinite(t) ? Math.max(0, t) : 0;
+  return Math.floor(safe / (TOTAL / SCENES.length)) % SCENES.length;
+}
+
 function RenderMonitor() {
   const [t, setT] = useState(0);
 
@@ -42,7 +63,7 @@ function RenderMonitor() {
     let raf = 0;
     const start = performance.now();
     const tick = (now: number) => {
-      setT(((now - start) / 1000) % TOTAL);
+      setT(loopElapsed(now, start));
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -62,8 +83,8 @@ function RenderMonitor() {
     activeIdx = i;
   }
   const progress = t / TOTAL;
-  const sceneIdx = Math.floor(t / (TOTAL / SCENES.length)) % SCENES.length;
-  const scene = SCENES[sceneIdx]!;
+  const sceneIdx = sceneIndexForTime(t);
+  const scene = SCENES[sceneIdx] ?? SCENES[0]!;
 
   return (
     <div className="relative">
