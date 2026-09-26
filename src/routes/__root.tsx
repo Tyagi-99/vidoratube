@@ -19,7 +19,22 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageToggle } from "@/components/vidora/LanguageToggle";
 import { Toaster } from "@/components/ui/sonner";
 import { useSession } from "@/hooks/useSession";
-import { supabase } from "@/integrations/supabase/client";
+import { errorBootstrapScript } from "../lib/error-bootstrap";
+
+// Same env resolution as the Supabase client: build-time VITE_ vars with a
+// server-side fallback. Used only for the dependency-free error reporter
+// below, so the error path never depends on supabase-js or any app module.
+const serverEnv = typeof process !== "undefined" ? process.env : undefined;
+const ERROR_REPORT_URL =
+  import.meta.env["VITE_SUPABASE_URL"] || serverEnv?.["SUPABASE_URL"] || "";
+const ERROR_REPORT_KEY =
+  import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"] ||
+  serverEnv?.["SUPABASE_PUBLISHABLE_KEY"] ||
+  "";
+const errorBootstrap =
+  ERROR_REPORT_URL && ERROR_REPORT_KEY
+    ? errorBootstrapScript(ERROR_REPORT_URL, ERROR_REPORT_KEY)
+    : "";
 
 /** True when the error looks like a failed JS chunk / module load (flaky CDN). */
 function isChunkLoadError(error: unknown): boolean {
@@ -37,10 +52,13 @@ function isChunkLoadError(error: unknown): boolean {
 /**
  * Fire-and-forget crash telemetry into public.client_errors (insert-only RLS).
  * This is how we learn the real message behind intermittent production
- * crashes that can't be reproduced with devtools. Never throws.
+ * crashes that can't be reproduced with devtools. Direct fetch, not the
+ * supabase-js client: the error path must not depend on any app module that
+ * might itself be broken. Never throws.
  */
 function reportClientError(error: unknown) {
   try {
+    if (!ERROR_REPORT_URL || !ERROR_REPORT_KEY) return;
     const message =
       error instanceof Response
         ? `Response ${error.status}${error.url ? ` at ${error.url}` : ""}`
@@ -48,25 +66,21 @@ function reportClientError(error: unknown) {
           ? error.message
           : String(error);
     const stack = error instanceof Error ? error.stack?.slice(0, 4000) : undefined;
-    // Untyped insert: the generated Database types only learn about new
-    // tables after Lovable applies the migration and regenerates types.ts.
-    // The cast can be dropped once client_errors appears in the types.
-    const untyped = supabase.from as (
-      relation: string,
-    ) => {
-      insert: (row: Record<string, string | null>) => PromiseLike<unknown>;
-    };
-    void untyped("client_errors")
-      .insert({
+    void fetch(`${ERROR_REPORT_URL.replace(/\/+$/, "")}/rest/v1/client_errors`, {
+      method: "POST",
+      headers: {
+        apikey: ERROR_REPORT_KEY,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({
         message: message.slice(0, 1000),
         stack: stack ?? null,
         route: window.location.pathname.slice(0, 200),
         user_agent: window.navigator.userAgent.slice(0, 300),
-      })
-      .then(
-        () => undefined,
-        () => undefined,
-      );
+      }),
+      keepalive: true,
+    }).catch(() => undefined);
   } catch {
     /* telemetry must never break the page */
   }
@@ -99,8 +113,16 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   const router = useRouter();
   useEffect(() => {
     reportClientError(error);
-    reportLovableError(error, { boundary: "tanstack_root_error_component" });
-    captureError(error, { extra: { boundary: "tanstack_root_error_component" } });
+    try {
+      reportLovableError(error, { boundary: "tanstack_root_error_component" });
+    } catch {
+      /* error reporting must never break the error page */
+    }
+    try {
+      captureError(error, { extra: { boundary: "tanstack_root_error_component" } });
+    } catch {
+      /* error reporting must never break the error page */
+    }
     // Flaky chunk loads (CDN/VPN hiccups) are the most common intermittent
     // cause of this page: retry once automatically instead of making the
     // user tap. Guarded so a genuinely broken chunk can never loop.
@@ -210,6 +232,11 @@ function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Bundle-independent error reporter: runs before any app code so
+            crashes during chunk loading or before React boots are captured. */}
+        {errorBootstrap ? (
+          <script dangerouslySetInnerHTML={{ __html: errorBootstrap }} />
+        ) : null}
         <HeadContent />
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
