@@ -788,3 +788,25 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
 - **Reverse:** Drop the table/policies; remove `reportClientError` and the
   `isChunkLoadError` auto-reload from `src/routes/__root.tsx`. The manual
   "Try again" button remains.
+
+### D85. Crash telemetry was silently broken: unbound `supabase.from` + bundle-independent reporter
+- **Decision:** (1) Replaced the supabase-js insert in `reportClientError`
+  with a direct `fetch` + `keepalive` POST to PostgREST — the error path no
+  longer depends on any app module. (2) Added `src/lib/error-bootstrap.ts`,
+  a tiny inline `<script>` emitted as the first script in `<head>` that
+  installs `window` `error`/`unhandledrejection` listeners before any app
+  bundle loads and reports to `client_errors` (max 5 per page load). (3)
+  Wrapped `reportLovableError`/`captureError` in try/catch so reporting can
+  never break the error page.
+- **Reason:** Root cause of the empty `client_errors` table: the shipped code
+  did `const untyped = supabase.from; untyped("client_errors").insert(...)`.
+  `SupabaseClient.from` is a prototype method — called unbound it throws
+  `TypeError: Cannot read properties of undefined (reading 'rest')`, which
+  the surrounding try/catch swallowed. Verified with node against the real
+  supabase-js: unbound `from()` throws. So D84's telemetry never recorded a
+  single crash. The inline bootstrap reporter closes the remaining blind
+  spot: crashes during chunk loading or before React boots, which in-bundle
+  telemetry can never see.
+- **Reverse:** Revert `src/routes/__root.tsx` to the supabase-js call (will
+  silently record nothing); remove the `errorBootstrap` script from
+  `RootShell`; delete `src/lib/error-bootstrap.ts`.
