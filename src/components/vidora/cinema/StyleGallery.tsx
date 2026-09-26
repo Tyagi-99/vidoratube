@@ -7,7 +7,7 @@ const STYLES = [
   { name: "Pixel", desc: "16-bit, crisp", img: "/styles/style-pixel.jpg", grade: "from-emerald-900/40 via-[#0c1410] to-black" },
 ];
 
-/** One script, six films: the same projector, rendered in each visual style. */
+/** Six signature looks, each with its own scene. */
 export function StyleGallery() {
   return (
     <section className="relative border-t border-border">
@@ -34,7 +34,7 @@ export function StyleGallery() {
               <div className={`relative aspect-[4/3] overflow-hidden bg-gradient-to-br ${s.grade}`}>
                 <img
                   src={s.img}
-                  alt={`A film projector rendered in the ${s.name} visual style`}
+                  alt={`Film still in the ${s.name} visual style`}
                   loading="lazy"
                   className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                 />
@@ -54,7 +54,7 @@ export function StyleGallery() {
           ))}
         </div>
         <p className="mt-6 font-mono text-xs text-muted-foreground">
-          Stills above generated from a single prompt — one script, six films.
+          Six signature looks from the Vidora style library.
           + 4 more in the studio, including a custom style trained on your references.
         </p>
       </div>
