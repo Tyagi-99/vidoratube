@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireAppUser } from "@/lib/server-auth";
 
 /**
  * Sprint 7–8 (workstream A): Meta (Facebook/Instagram) server functions.
@@ -18,7 +18,7 @@ function origin(): string {
 }
 
 export const getMetaConnection = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAppUser])
   .handler(async ({ context }) => {
     const { metaConfigured } = await import("./meta-publish.server");
     const { data } = await context.supabase
@@ -38,7 +38,7 @@ export const getMetaConnection = createServerFn({ method: "GET" })
  * against the founder-designated test accounts before storing anything.
  */
 export const startMetaConnect = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAppUser])
   .handler(async ({ context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { enforcePostgresRateLimit } = await import("./rate-limit");
@@ -58,7 +58,7 @@ export const startMetaConnect = createServerFn({ method: "POST" })
   });
 
 export const disconnectMeta = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAppUser])
   .handler(async ({ context }) => {
     // Meta has no single revoke endpoint for Page tokens; deleting the row
     // removes Vidora's copy. The founder can also remove the app at
@@ -86,7 +86,7 @@ const publishToMetaSchema = z.object({
  * test-account match; adapter publish; result columns recorded.
  */
 export const publishJobToMeta = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAppUser])
   .inputValidator((input: unknown) => publishToMetaSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;

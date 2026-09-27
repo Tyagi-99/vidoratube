@@ -20,7 +20,8 @@
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "benchmark": "tsx scripts/benchmark-20min.ts",
-    "benchmark:smoke": "tsx scripts/benchmark-20min.ts --smoke"
+    "benchmark:smoke": "tsx scripts/benchmark-20min.ts --smoke",
+    "test": "tsx --test src/*.test.ts"
   },
   "type": "module",
   "version": "0.1.0"

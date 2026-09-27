@@ -3,6 +3,13 @@
 Non-obvious decisions made under autopilot (Investor Reply #3: "Decide, don't
 ask"). Each entry: decision, reason, how to reverse. Newest first.
 
+## 2026-09-27 — Phase 0 ($500M Vidora OS program)
+
+### D88. Preserve the stack; extend, don't migrate
+- **Decision:** keep TanStack Start + React 19 + Vite + Supabase/Postgres (Nitro server functions, no Edge Functions) + Lovable AI gateway + ElevenLabs + browser-render fallback. The $500M OS is built as extensions (new tables, routes, provider interfaces) on this foundation — no framework migration, no DB platform change.
+- **Reason:** Phase 0a audit measured 850/850 unit tests green, clean strict typecheck, passing production build, zero FAKE/BROKEN features, sound RLS/security posture. A migration would trade a verified foundation for months of re-verification with no product gain. pgvector (new) and a deployed render worker close the real gaps.
+- **Reverse:** only with measured evidence that the stack blocks a committed target (e.g. sustained inability to meet render throughput) — decided with the founder, never unilaterally.
+
 ## 2026-09-26 — Sprint 7–8 workstream E (agency tier)
 
 ### D78. `workspace_approvals` is client sign-off; the server `approvals` record (D61) stays the publish gate

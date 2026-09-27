@@ -1,23 +1,22 @@
 import { createFileRoute } from "@tanstack/react-router";
+import {
+  buildSitemapXml,
+  SITEMAP_CONTENT_TYPE,
+} from "../lib/sitemap.server";
 
-const BASE = "https://vidoratube.lovable.app";
-
-/** Public, indexable pages. App pages stay out of the sitemap by design. */
-const PATHS = ["/", "/features", "/pricing", "/guides", "/contact"];
-
+/**
+ * Legacy path — the canonical sitemap now lives at /sitemap.xml
+ * (served from src/server.ts, since dots in route filenames become
+ * path separators in TanStack file routing). This route is kept so
+ * old links don't break.
+ */
 export const Route = createFileRoute("/sitemap/xml")({
   server: {
     handlers: {
-      GET: async () => {
-        const urls = PATHS.map(
-          (p) =>
-            `  <url><loc>${BASE}${p}</loc><changefreq>${p === "/" ? "weekly" : "monthly"}</changefreq></url>`,
-        ).join("\n");
-        const body = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>`;
-        return new Response(body, {
-          headers: { "Content-Type": "application/xml; charset=utf-8" },
-        });
-      },
+      GET: async () =>
+        new Response(buildSitemapXml(), {
+          headers: { "Content-Type": SITEMAP_CONTENT_TYPE },
+        }),
     },
   },
 });

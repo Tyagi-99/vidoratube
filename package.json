@@ -17,7 +17,8 @@
     "prebuild:dev": "node scripts/vendor-ffmpeg-core.mjs --build",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "i18n:check": "node scripts/i18n-check.mjs"
+    "i18n:check": "node scripts/i18n-check.mjs",
+    "test:worker": "npm run --prefix worker test"
   },
   "dependencies": {
     "@ffmpeg/core": "0.12.10",

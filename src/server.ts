@@ -53,6 +53,19 @@ export default {
       // missing (e.g. Workers without the nodejs_compat flag, where every
       // process.env read silently returns undefined).
       assertServerEnv();
+      // Canonical /sitemap.xml: TanStack file routing turns dots in route
+      // filenames into path separators, so no route file can own this path.
+      // (robots.txt advertises it; the legacy /sitemap/xml route still works.)
+      if (new URL(request.url).pathname === "/sitemap.xml") {
+        const { buildSitemapXml, SITEMAP_CONTENT_TYPE } = await import(
+          "./lib/sitemap.server"
+        );
+        return withSecurityHeaders(
+          new Response(buildSitemapXml(), {
+            headers: { "Content-Type": SITEMAP_CONTENT_TYPE },
+          }),
+        );
+      }
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       return withSecurityHeaders(await normalizeCatastrophicSsrResponse(response));
