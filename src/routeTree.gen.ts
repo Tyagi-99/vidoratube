@@ -46,7 +46,10 @@ import { Route as AuthenticatedCreateCampaignsRouteImport } from './routes/_auth
 import { Route as AuthenticatedCreateQuickCreateRouteImport } from './routes/_authenticated/create/quick-create'
 import { Route as AuthenticatedCreateSeoStudioRouteImport } from './routes/_authenticated/create/seo-studio'
 import { Route as AuthenticatedCreateTitlesRouteImport } from './routes/_authenticated/create/titles'
+import { Route as AuthenticatedExperimentsIndexRouteImport } from './routes/_authenticated/experiments.index'
+import { Route as AuthenticatedExperimentsExperimentIdRouteImport } from './routes/_authenticated/experiments.$experimentId'
 import { Route as AuthenticatedIntelligenceIndexRouteImport } from './routes/_authenticated/intelligence/index'
+import { Route as AuthenticatedLearningsIndexRouteImport } from './routes/_authenticated/learnings.index'
 import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authenticated/projects.index'
 import { Route as AuthenticatedProjectsProjectIdRouteImport } from './routes/_authenticated/projects.$projectId'
 import { Route as AuthenticatedResearchIndexRouteImport } from './routes/_authenticated/research.index'
@@ -268,10 +271,28 @@ const AuthenticatedCreateTitlesRoute =
     path: '/create/titles',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedExperimentsIndexRoute =
+  AuthenticatedExperimentsIndexRouteImport.update({
+    id: '/experiments/',
+    path: '/experiments/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedExperimentsExperimentIdRoute =
+  AuthenticatedExperimentsExperimentIdRouteImport.update({
+    id: '/experiments/$experimentId',
+    path: '/experiments/$experimentId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedIntelligenceIndexRoute =
   AuthenticatedIntelligenceIndexRouteImport.update({
     id: '/intelligence/',
     path: '/intelligence/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedLearningsIndexRoute =
+  AuthenticatedLearningsIndexRouteImport.update({
+    id: '/learnings/',
+    path: '/learnings/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedProjectsIndexRoute =
@@ -421,6 +442,7 @@ export interface FileRoutesByFullPath {
   '/create/quick-create': typeof AuthenticatedCreateQuickCreateRoute
   '/create/seo-studio': typeof AuthenticatedCreateSeoStudioRoute
   '/create/titles': typeof AuthenticatedCreateTitlesRoute
+  '/experiments/$experimentId': typeof AuthenticatedExperimentsExperimentIdRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/research/$projectId': typeof AuthenticatedResearchProjectIdRoute
   '/studio/$projectId': typeof AuthenticatedStudioProjectIdRoute
@@ -436,7 +458,9 @@ export interface FileRoutesByFullPath {
   '/characters/': typeof AuthenticatedCharactersIndexRoute
   '/comments/': typeof AuthenticatedCommentsIndexRoute
   '/create/': typeof AuthenticatedCreateIndexRoute
+  '/experiments/': typeof AuthenticatedExperimentsIndexRoute
   '/intelligence/': typeof AuthenticatedIntelligenceIndexRoute
+  '/learnings/': typeof AuthenticatedLearningsIndexRoute
   '/projects/': typeof AuthenticatedProjectsIndexRoute
   '/research/': typeof AuthenticatedResearchIndexRoute
   '/thumbnails/': typeof AuthenticatedThumbnailsIndexRoute
@@ -479,6 +503,7 @@ export interface FileRoutesByTo {
   '/create/quick-create': typeof AuthenticatedCreateQuickCreateRoute
   '/create/seo-studio': typeof AuthenticatedCreateSeoStudioRoute
   '/create/titles': typeof AuthenticatedCreateTitlesRoute
+  '/experiments/$experimentId': typeof AuthenticatedExperimentsExperimentIdRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/research/$projectId': typeof AuthenticatedResearchProjectIdRoute
   '/studio/$projectId': typeof AuthenticatedStudioProjectIdRoute
@@ -494,7 +519,9 @@ export interface FileRoutesByTo {
   '/characters': typeof AuthenticatedCharactersIndexRoute
   '/comments': typeof AuthenticatedCommentsIndexRoute
   '/create': typeof AuthenticatedCreateIndexRoute
+  '/experiments': typeof AuthenticatedExperimentsIndexRoute
   '/intelligence': typeof AuthenticatedIntelligenceIndexRoute
+  '/learnings': typeof AuthenticatedLearningsIndexRoute
   '/projects': typeof AuthenticatedProjectsIndexRoute
   '/research': typeof AuthenticatedResearchIndexRoute
   '/thumbnails': typeof AuthenticatedThumbnailsIndexRoute
@@ -540,6 +567,7 @@ export interface FileRoutesById {
   '/_authenticated/create/quick-create': typeof AuthenticatedCreateQuickCreateRoute
   '/_authenticated/create/seo-studio': typeof AuthenticatedCreateSeoStudioRoute
   '/_authenticated/create/titles': typeof AuthenticatedCreateTitlesRoute
+  '/_authenticated/experiments/$experimentId': typeof AuthenticatedExperimentsExperimentIdRoute
   '/_authenticated/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/_authenticated/research/$projectId': typeof AuthenticatedResearchProjectIdRoute
   '/_authenticated/studio/$projectId': typeof AuthenticatedStudioProjectIdRoute
@@ -555,7 +583,9 @@ export interface FileRoutesById {
   '/_authenticated/characters/': typeof AuthenticatedCharactersIndexRoute
   '/_authenticated/comments/': typeof AuthenticatedCommentsIndexRoute
   '/_authenticated/create/': typeof AuthenticatedCreateIndexRoute
+  '/_authenticated/experiments/': typeof AuthenticatedExperimentsIndexRoute
   '/_authenticated/intelligence/': typeof AuthenticatedIntelligenceIndexRoute
+  '/_authenticated/learnings/': typeof AuthenticatedLearningsIndexRoute
   '/_authenticated/projects/': typeof AuthenticatedProjectsIndexRoute
   '/_authenticated/research/': typeof AuthenticatedResearchIndexRoute
   '/_authenticated/thumbnails/': typeof AuthenticatedThumbnailsIndexRoute
@@ -601,6 +631,7 @@ export interface FileRouteTypes {
     | '/create/quick-create'
     | '/create/seo-studio'
     | '/create/titles'
+    | '/experiments/$experimentId'
     | '/projects/$projectId'
     | '/research/$projectId'
     | '/studio/$projectId'
@@ -616,7 +647,9 @@ export interface FileRouteTypes {
     | '/characters/'
     | '/comments/'
     | '/create/'
+    | '/experiments/'
     | '/intelligence/'
+    | '/learnings/'
     | '/projects/'
     | '/research/'
     | '/thumbnails/'
@@ -659,6 +692,7 @@ export interface FileRouteTypes {
     | '/create/quick-create'
     | '/create/seo-studio'
     | '/create/titles'
+    | '/experiments/$experimentId'
     | '/projects/$projectId'
     | '/research/$projectId'
     | '/studio/$projectId'
@@ -674,7 +708,9 @@ export interface FileRouteTypes {
     | '/characters'
     | '/comments'
     | '/create'
+    | '/experiments'
     | '/intelligence'
+    | '/learnings'
     | '/projects'
     | '/research'
     | '/thumbnails'
@@ -719,6 +755,7 @@ export interface FileRouteTypes {
     | '/_authenticated/create/quick-create'
     | '/_authenticated/create/seo-studio'
     | '/_authenticated/create/titles'
+    | '/_authenticated/experiments/$experimentId'
     | '/_authenticated/projects/$projectId'
     | '/_authenticated/research/$projectId'
     | '/_authenticated/studio/$projectId'
@@ -734,7 +771,9 @@ export interface FileRouteTypes {
     | '/_authenticated/characters/'
     | '/_authenticated/comments/'
     | '/_authenticated/create/'
+    | '/_authenticated/experiments/'
     | '/_authenticated/intelligence/'
+    | '/_authenticated/learnings/'
     | '/_authenticated/projects/'
     | '/_authenticated/research/'
     | '/_authenticated/thumbnails/'
@@ -1033,11 +1072,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCreateTitlesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/experiments/': {
+      id: '/_authenticated/experiments/'
+      path: '/experiments'
+      fullPath: '/experiments/'
+      preLoaderRoute: typeof AuthenticatedExperimentsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/experiments/$experimentId': {
+      id: '/_authenticated/experiments/$experimentId'
+      path: '/experiments/$experimentId'
+      fullPath: '/experiments/$experimentId'
+      preLoaderRoute: typeof AuthenticatedExperimentsExperimentIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/intelligence/': {
       id: '/_authenticated/intelligence/'
       path: '/intelligence'
       fullPath: '/intelligence/'
       preLoaderRoute: typeof AuthenticatedIntelligenceIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/learnings/': {
+      id: '/_authenticated/learnings/'
+      path: '/learnings'
+      fullPath: '/learnings/'
+      preLoaderRoute: typeof AuthenticatedLearningsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/projects/': {
@@ -1228,6 +1288,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCreateQuickCreateRoute: typeof AuthenticatedCreateQuickCreateRoute
   AuthenticatedCreateSeoStudioRoute: typeof AuthenticatedCreateSeoStudioRoute
   AuthenticatedCreateTitlesRoute: typeof AuthenticatedCreateTitlesRoute
+  AuthenticatedExperimentsExperimentIdRoute: typeof AuthenticatedExperimentsExperimentIdRoute
   AuthenticatedProjectsProjectIdRoute: typeof AuthenticatedProjectsProjectIdRoute
   AuthenticatedResearchProjectIdRoute: typeof AuthenticatedResearchProjectIdRoute
   AuthenticatedAgencyIndexRoute: typeof AuthenticatedAgencyIndexRoute
@@ -1236,7 +1297,9 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCharactersIndexRoute: typeof AuthenticatedCharactersIndexRoute
   AuthenticatedCommentsIndexRoute: typeof AuthenticatedCommentsIndexRoute
   AuthenticatedCreateIndexRoute: typeof AuthenticatedCreateIndexRoute
+  AuthenticatedExperimentsIndexRoute: typeof AuthenticatedExperimentsIndexRoute
   AuthenticatedIntelligenceIndexRoute: typeof AuthenticatedIntelligenceIndexRoute
+  AuthenticatedLearningsIndexRoute: typeof AuthenticatedLearningsIndexRoute
   AuthenticatedProjectsIndexRoute: typeof AuthenticatedProjectsIndexRoute
   AuthenticatedResearchIndexRoute: typeof AuthenticatedResearchIndexRoute
   AuthenticatedThumbnailsIndexRoute: typeof AuthenticatedThumbnailsIndexRoute
@@ -1260,6 +1323,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCreateQuickCreateRoute: AuthenticatedCreateQuickCreateRoute,
   AuthenticatedCreateSeoStudioRoute: AuthenticatedCreateSeoStudioRoute,
   AuthenticatedCreateTitlesRoute: AuthenticatedCreateTitlesRoute,
+  AuthenticatedExperimentsExperimentIdRoute:
+    AuthenticatedExperimentsExperimentIdRoute,
   AuthenticatedProjectsProjectIdRoute: AuthenticatedProjectsProjectIdRoute,
   AuthenticatedResearchProjectIdRoute: AuthenticatedResearchProjectIdRoute,
   AuthenticatedAgencyIndexRoute: AuthenticatedAgencyIndexRoute,
@@ -1268,7 +1333,9 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCharactersIndexRoute: AuthenticatedCharactersIndexRoute,
   AuthenticatedCommentsIndexRoute: AuthenticatedCommentsIndexRoute,
   AuthenticatedCreateIndexRoute: AuthenticatedCreateIndexRoute,
+  AuthenticatedExperimentsIndexRoute: AuthenticatedExperimentsIndexRoute,
   AuthenticatedIntelligenceIndexRoute: AuthenticatedIntelligenceIndexRoute,
+  AuthenticatedLearningsIndexRoute: AuthenticatedLearningsIndexRoute,
   AuthenticatedProjectsIndexRoute: AuthenticatedProjectsIndexRoute,
   AuthenticatedResearchIndexRoute: AuthenticatedResearchIndexRoute,
   AuthenticatedThumbnailsIndexRoute: AuthenticatedThumbnailsIndexRoute,
