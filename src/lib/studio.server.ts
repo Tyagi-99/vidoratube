@@ -7,7 +7,6 @@ import { activeImageProvider } from "./providers/image.server";
 import { mp3Duration, synthesize, DEFAULT_VOICE_ID, DEFAULT_VOICE_MODEL } from "./providers/voice.server";
 import {
   ELEVENLABS_TTS_USD_PER_CHAR,
-  GATEWAY_IMAGE_USD_PER_IMAGE,
   estimateTokens,
   extractUsage,
   gatewayChatUnitCostUsd,
@@ -315,11 +314,27 @@ export async function resolveSceneVisual(
         .join(". ");
 
   const provider = activeImageProvider();
-  const bytes = await provider.generate({
-    prompt,
-    negativePrompt: args.negativePrompt ?? "text, watermark, logo, distorted faces",
-    aspectRatio: args.aspectRatio,
-  });
+  // Telemetry path: the ProviderResult envelope carries model / latency and
+  // records the measured cost to api_usage on success (replaces the manual
+  // recordApiCost below — one row per image, no double counting).
+  const { generateImageWithTelemetry } = await import("./providers/image.server");
+  const imageResult = await generateImageWithTelemetry(
+    {
+      prompt,
+      negativePrompt: args.negativePrompt ?? "text, watermark, logo, distorted faces",
+      aspectRatio: args.aspectRatio,
+    },
+    {
+      costCtx: { admin, userId: args.userId, projectId: args.projectId },
+      meta: {
+        model: provider.id === "gemini" ? "google/gemini-2.5-flash-image" : provider.id,
+      },
+    },
+  );
+  if (!imageResult.ok || !imageResult.output) {
+    throw new Error(imageResult.error?.message ?? "Image generation failed.");
+  }
+  const bytes = imageResult.output;
   const url = await uploadAsset(
     admin,
     `${args.userId}/${args.projectId}/scene-${args.sceneNumber}.png`,
@@ -337,19 +352,6 @@ export async function resolveSceneVisual(
     model: provider.id === "gemini" ? "google/gemini-2.5-flash-image" : undefined,
     prompt: base,
     assetUrl: url,
-  });
-  await recordApiCost(admin, {
-    userId: args.userId,
-    projectId: args.projectId,
-    provider: provider.id,
-    operation: "image_generation",
-    units: 1,
-    // Gateway bundles its own credits; $0.03/image is an estimate (see api-cost.ts).
-    unitCostUsd: GATEWAY_IMAGE_USD_PER_IMAGE,
-    meta: {
-      model: provider.id === "gemini" ? "google/gemini-2.5-flash-image" : provider.id,
-      cost_basis: "gateway-passthrough-estimate",
-    },
   });
   return {
     url,

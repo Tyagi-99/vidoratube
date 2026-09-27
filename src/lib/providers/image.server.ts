@@ -1,4 +1,8 @@
 import { providerFetch } from "./http.server";
+import { withProviderTelemetry } from "./telemetry.server";
+import type { ProviderResult } from "./contracts";
+import type { CostCtx } from "../api-cost";
+import { GATEWAY_IMAGE_USD_PER_IMAGE } from "../api-cost";
 
 export type ImageRequest = {
   prompt: string;
@@ -59,4 +63,34 @@ export const IMAGE_PROVIDERS: ImageProvider[] = [geminiImage];
 
 export function activeImageProvider(): ImageProvider {
   return IMAGE_PROVIDERS.find((p) => p.configured()) ?? geminiImage;
+}
+
+export type ImageTelemetryOptions = {
+  /** When set and the call succeeds, one row is recorded to api_usage. */
+  costCtx?: CostCtx | null | undefined;
+  /** Extra fields merged into the api_usage row's meta. */
+  meta?: Record<string, unknown> | undefined;
+};
+
+/**
+ * Telemetry-wrapped image generation: same output as the active provider's
+ * `generate`, but the result flows through the standard
+ * {@link ProviderResult} envelope and the measured cost (model / latency) is
+ * recorded to api_usage. Existing callers of `generate` are untouched.
+ */
+export async function generateImageWithTelemetry(
+  req: ImageRequest,
+  opts: ImageTelemetryOptions = {},
+): Promise<ProviderResult<Uint8Array>> {
+  const provider = activeImageProvider();
+  return withProviderTelemetry(() => provider.generate(req), {
+    provider: provider.id,
+    operation: "image_generation",
+    model: "google/gemini-2.5-flash-image",
+    configured: provider.configured(),
+    estimate: { units: 1, unitCostUsd: GATEWAY_IMAGE_USD_PER_IMAGE },
+    usage: { images: 1 },
+    meta: { cost_basis: "gateway-passthrough-estimate", ...(opts.meta ?? {}) },
+    costCtx: opts.costCtx ?? null,
+  });
 }

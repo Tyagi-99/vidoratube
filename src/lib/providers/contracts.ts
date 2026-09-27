@@ -2,12 +2,51 @@
  * Provider abstractions for Vidora's rights-aware workflow.
  * Existing adapters (stock / image / voice / youtube) should implement or wrap these.
  * VideoSourceProvider must NEVER download YouTube in v1 — only uploads + approved stock.
+ *
+ * Telemetry: every provider call returns a {@link ProviderResult} envelope
+ * (built by `withProviderTelemetry` in telemetry.server.ts). The envelope
+ * carries model/task id/latency/cost facts next to the output so callers and
+ * the api_usage ledger always see the same numbers.
  */
+import type { CostCtx } from "../api-cost";
 
 export type ProviderHealth = {
   id: string;
   label: string;
   configured: boolean;
+};
+
+/** Terminal state of a provider call. */
+export type ProviderStatus = "ok" | "error" | "unconfigured";
+
+export type ProviderErrorInfo = {
+  code: string;
+  message: string;
+};
+
+/**
+ * Standard envelope EVERY provider call returns.
+ *
+ * - `ok` false + `status: "unconfigured"` means the provider has no key — the
+ *   caller must degrade gracefully, never invent the output.
+ * - `estimatedCost`/`actualCost` are in USD-equivalent reference units unless
+ *   a provider documents otherwise; both are null when the price is unknown
+ *   (never fabricate a price). `costCurrency` is fixed to "credits" because
+ *   all provider spend is debited from the user's credit ledger.
+ * - `usage` holds measured billable facts (characters, tokens, images, ...).
+ */
+export type ProviderResult<T> = {
+  ok: boolean;
+  output: T | null;
+  model: string | null;
+  taskId: string | null;
+  latencyMs: number;
+  estimatedCost: number | null;
+  actualCost: number | null;
+  costCurrency: "credits";
+  status: ProviderStatus;
+  error: ProviderErrorInfo | null;
+  usage: Record<string, number | string>;
 };
 
 export type ContentMetadata = {
@@ -47,7 +86,10 @@ export interface SearchProvider {
   id: string;
   label: string;
   configured(): boolean;
-  search(query: string, options?: { maxResults?: number }): Promise<ContentMetadata[]>;
+  search(
+    query: string,
+    options?: { maxResults?: number | undefined; costCtx?: CostCtx | null | undefined },
+  ): Promise<ProviderResult<ContentMetadata[]>>;
 }
 
 export type AcquiredAsset = {
@@ -88,12 +130,23 @@ export interface VoiceProvider {
   synthesize(text: string, voiceId: string, model?: string): Promise<ArrayBuffer>;
 }
 
+export type TranscriptWord = { start: number; end: number; text: string };
+
+export type TranscriptResult = {
+  text: string;
+  words: TranscriptWord[];
+};
+
 export interface TranscriptionProvider {
   id: string;
   label: string;
   configured(): boolean;
-  /** Stub until a real transcription backend is wired */
-  transcribe(_audioUrl: string): Promise<{ words: { start: number; end: number; text: string }[] }>;
+  /**
+   * Transcribe audio reachable at `audioUrl` (a short-lived signed URL works).
+   * Always returns the {@link ProviderResult} envelope: `status: "unconfigured"`
+   * when no key is set — never a fabricated transcript.
+   */
+  transcribe(audioUrl: string): Promise<ProviderResult<TranscriptResult>>;
 }
 
 export interface StorageProvider {

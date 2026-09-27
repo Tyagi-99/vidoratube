@@ -1,7 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import {
-  ELEVENLABS_TTS_USD_PER_CHAR,
   GATEWAY_IMAGE_USD_PER_IMAGE,
   GATEWAY_TTS_USD_PER_CHAR,
   SHOTSTACK_USD_PER_RENDER_MINUTE,
@@ -135,32 +134,32 @@ export async function generateVoiceover(
   const text = narration.slice(0, 4000);
   let audio: ArrayBuffer | null = null;
   let estimatedSeconds: number | null = null;
-  // Sprint 1: measured provider cost for this TTS call.
-  let ttsProvider = "elevenlabs";
-  let ttsUnitCostUsd = ELEVENLABS_TTS_USD_PER_CHAR;
 
-  try {
-    const {
-      elevenLabsConfigured,
-      synthesize,
-      mp3Duration,
-      DEFAULT_VOICE_ID,
-      DEFAULT_VOICE_MODEL,
-    } = await import("./providers/voice.server");
-    if (elevenLabsConfigured()) {
-      const voiceId = ELEVENLABS_VOICE_MAP[voice.toLowerCase()] ?? DEFAULT_VOICE_ID;
-      audio = await synthesize(text, {
-        voiceId,
-        model: DEFAULT_VOICE_MODEL,
-      });
-      estimatedSeconds = Math.max(8, Math.round(mp3Duration(audio, text)));
-    }
-  } catch (error) {
-    console.warn(
-      `[vidora] ElevenLabs voiceover failed for job ${jobId}; falling back to gateway TTS:`,
-      error instanceof Error ? error.message : error,
+  const {
+    elevenLabsConfigured,
+    synthesizeWithTelemetry,
+    mp3Duration,
+    DEFAULT_VOICE_ID,
+    DEFAULT_VOICE_MODEL,
+  } = await import("./providers/voice.server");
+  if (elevenLabsConfigured()) {
+    // Telemetry path: the ProviderResult envelope carries model / latency /
+    // characters and records the measured cost to api_usage on success.
+    const voiceId = ELEVENLABS_VOICE_MAP[voice.toLowerCase()] ?? DEFAULT_VOICE_ID;
+    const result = await synthesizeWithTelemetry(
+      text,
+      { voiceId, model: DEFAULT_VOICE_MODEL },
+      { costCtx: { admin, userId }, meta: { job_id: jobId, mode: "story" } },
     );
-    audio = null;
+    if (result.ok && result.output) {
+      audio = result.output;
+      estimatedSeconds = Math.max(8, Math.round(mp3Duration(audio, text)));
+    } else {
+      console.warn(
+        `[vidora] ElevenLabs voiceover failed for job ${jobId}; falling back to gateway TTS:`,
+        result.error?.message,
+      );
+    }
   }
 
   if (!audio) {
@@ -168,25 +167,20 @@ export async function generateVoiceover(
     const words = narration.trim().split(/\s+/).length;
     estimatedSeconds = Math.max(8, Math.round((words / 150) * 60));
     // Gateway TTS (gpt-4o-mini-tts) fallback — passthrough estimate.
-    ttsProvider = "lovable-ai";
-    ttsUnitCostUsd = GATEWAY_TTS_USD_PER_CHAR;
+    await recordApiCost(admin, {
+      userId,
+      provider: "lovable-ai",
+      operation: "tts",
+      units: text.length,
+      unitCostUsd: GATEWAY_TTS_USD_PER_CHAR,
+      meta: {
+        job_id: jobId,
+        mode: "story",
+        model: "gpt-4o-mini-tts",
+        cost_basis: "gateway-passthrough-estimate",
+      },
+    });
   }
-
-  // ElevenLabs published API rate, Flash tier: $0.05 / 1k chars (see api-cost.ts).
-  await recordApiCost(admin, {
-    userId,
-    provider: ttsProvider,
-    operation: "tts",
-    units: text.length,
-    unitCostUsd: ttsUnitCostUsd,
-    meta: {
-      job_id: jobId,
-      mode: "story",
-      ...(ttsProvider === "lovable-ai"
-        ? { model: "gpt-4o-mini-tts", cost_basis: "gateway-passthrough-estimate" }
-        : { model: "eleven_flash_v2_5" }),
-    },
-  });
 
   const url = await upload(admin, `${userId}/${jobId}/narration.mp3`, audio, "audio/mpeg");
   return { url, estimatedSeconds: estimatedSeconds ?? 8 };

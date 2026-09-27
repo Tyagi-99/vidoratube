@@ -14,6 +14,9 @@ import {
   synthesize,
 } from "./voice.server";
 import { falProvider, videoModeAvailable } from "./video.server";
+import { elevenLabsTranscription } from "./transcription-elevenlabs.server";
+import { youtubeSearch } from "./search-youtube.server";
+import { webSearch } from "./search-web.server";
 import type {
   MetadataProvider,
   PublishingProvider,
@@ -61,23 +64,11 @@ export const youtubeMetadataStub: MetadataProvider = {
   },
 };
 
-export const youtubeSearchStub: SearchProvider = {
-  id: "youtube-search",
-  label: "YouTube search (official API)",
-  configured: () => false,
-  async search() {
-    return [];
-  },
-};
-
-export const transcriptionStub: TranscriptionProvider = {
-  id: "transcription-stub",
-  label: "Transcription (not configured)",
-  configured: () => false,
-  async transcribe() {
-    throw new Error("TranscriptionProvider is not configured in v1 foundation.");
-  },
-};
+/** Real adapters, wired behind the P0 contracts. */
+export const transcriptionAdapter: TranscriptionProvider = elevenLabsTranscription;
+export const youtubeSearchAdapter: SearchProvider = youtubeSearch;
+/** Honest shell until a search API key exists (founder). */
+export const webSearchAdapter: SearchProvider = webSearch;
 
 export const storageStub: StorageProvider = {
   id: "supabase-storage",
@@ -108,9 +99,19 @@ export function providerHealthSnapshot(): ProviderHealth[] {
     },
     { id: youtubePublishing.id, label: youtubePublishing.label, configured: youtubePublishing.configured() },
     {
-      id: transcriptionStub.id,
-      label: transcriptionStub.label,
-      configured: transcriptionStub.configured(),
+      id: transcriptionAdapter.id,
+      label: transcriptionAdapter.label,
+      configured: transcriptionAdapter.configured(),
+    },
+    {
+      id: youtubeSearchAdapter.id,
+      label: youtubeSearchAdapter.label,
+      configured: youtubeSearchAdapter.configured(),
+    },
+    {
+      id: webSearchAdapter.id,
+      label: webSearchAdapter.label,
+      configured: webSearchAdapter.configured(),
     },
     { id: storageStub.id, label: storageStub.label, configured: storageStub.configured() },
     {
@@ -127,3 +128,4 @@ export {
   listVoices,
   videoModeAvailable,
 };
+export { generateVideoWithFallback, resolveVideoChain } from "./video.server";
