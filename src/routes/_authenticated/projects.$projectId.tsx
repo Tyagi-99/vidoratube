@@ -31,11 +31,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Download, ImageIcon, Loader2, Play, RefreshCw, Trash2, Wand2, User, Mic } from "lucide-react";
+import { ArrowLeft, Download, ImageIcon, Loader2, Play, RefreshCw, Trash2, Wand2, User, Mic, ShieldAlert } from "lucide-react";
 import { RenderPanel } from "@/components/vidora/RenderPanel";
 import { PublishPipeline } from "@/components/vidora/PublishPipeline";
 import { SafetyPanel } from "@/components/vidora/SafetyPanel";
 import { StudioV2Panel } from "@/components/vidora/StudioV2Panel";
+import { ResearchCanvas } from "@/components/vidora/ResearchCanvas";
+import { ScriptStudio } from "@/components/vidora/ScriptStudio";
+import { EvidenceDesk } from "@/components/vidora/EvidenceDesk";
+import { getProjectGateState } from "@/lib/creation/claims/evidence.functions";
 import { VoicePicker } from "@/components/vidora/VoicePicker";
 import { ProvenanceDrawer } from "@/components/vidora/ProvenanceDrawer";
 import { useI18n } from "@/lib/i18n";
@@ -77,6 +81,7 @@ function ProjectEditor() {
   const queryClient = useQueryClient();
   const getFn = useServerFn(getProject);
   const advanceFn = useServerFn(advanceProject);
+  const gateFn = useServerFn(getProjectGateState);
   const { t } = useI18n();
 
   const data = useQuery({
@@ -84,6 +89,20 @@ function ProjectEditor() {
     queryFn: () => getFn({ data: { id: projectId } }),
   });
 
+  // Strict-review gate (P3 Stream B): blocks package export while any claim
+  // still needs human confirmation. Publish approval/execution is enforced
+  // server-side separately; this is the client-enforced package gate.
+  // Fail-closed: while the gate is loading or errored the export button is
+  // disabled and the pre-packaging re-check toasts instead of packaging.
+  const gate = useQuery({
+    queryKey: ["project-gate", projectId],
+    queryFn: () => gateFn({ data: { projectId } }),
+  });
+  const gateBlocked = gate.data?.blocked === true;
+  const gateUnknown = gate.isPending || gate.isError;
+  // Shared script selection (P3 Stream B): ScriptStudio owns the picker;
+  // EvidenceDesk extracts claims from the same selected script.
+  const [scriptId, setScriptId] = useState<string | null>(null);
   const project = data.data?.project;
   const scenes = data.data?.scenes ?? [];
   const captions = data.data?.captions ?? [];
@@ -328,7 +347,24 @@ function ProjectEditor() {
             <Button
               variant="outline"
               className="gap-2"
-              onClick={() =>
+              onClick={async () => {
+                // Re-check the gate immediately before packaging: the banner
+                // state can be stale if the user just confirmed claims.
+                // Fail-closed: a failed re-check toasts and never packages.
+                let latest;
+                try {
+                  latest = await queryClient.fetchQuery({
+                    queryKey: ["project-gate", projectId],
+                    queryFn: () => gateFn({ data: { projectId } }),
+                  });
+                } catch {
+                  toast.error(t("route_export_gate_unknown"));
+                  return;
+                }
+                if (latest.blocked) {
+                  toast.error(t("route_export_blocked"));
+                  return;
+                }
                 toast.promise(exportPackage(), {
                   loading: "Packaging assets…",
                   success: (missingCount: number) =>
@@ -338,15 +374,41 @@ function ProjectEditor() {
                         ? "Package downloaded"
                         : "Export already running",
                   error: "Export failed",
-                })
+                });
+              }}
+              disabled={scenes.length === 0 || exporting || gateBlocked || gateUnknown}
+              title={
+                gateBlocked
+                  ? t("route_export_blocked")
+                  : gateUnknown
+                    ? t("route_export_gate_unknown")
+                    : undefined
               }
-              disabled={scenes.length === 0 || exporting}
             >
               {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
               Export package
             </Button>
           </div>
         </div>
+
+        {/* P3 Stream B: strict-review gate banner (client-enforced package gate) */}
+        {gateBlocked && (
+          <div className="mt-6 flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm">
+            <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+            <div>
+              <p className="font-medium text-destructive">{t("route_export_blocked")}</p>
+              <p className="mt-1 text-muted-foreground">{gate.data?.message}</p>
+            </div>
+          </div>
+        )}
+        {gate.isError && (
+          <div className="mt-6 flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 text-sm">
+            <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+            <div>
+              <p className="font-medium text-amber-700">{t("route_export_gate_unknown")}</p>
+            </div>
+          </div>
+        )}
 
         {(running || project.status === "running" || project.status === "failed") && (
           <div className="surface-card mt-6 p-5">
@@ -402,6 +464,13 @@ function ProjectEditor() {
           <div className="mt-4">
             <SafetyPanel projectId={projectId} script={project.script ?? ""} />
           </div>
+        </div>
+
+        {/* P3 Stream B: research → script layer */}
+        <div className="mt-10 space-y-6">
+          <ResearchCanvas projectId={projectId} />
+          <ScriptStudio projectId={projectId} scriptId={scriptId} onScriptIdChange={setScriptId} />
+          <EvidenceDesk projectId={projectId} scriptId={scriptId} />
         </div>
 
         {/* P5: Publish pipeline — thumbnail → SEO → schedule → review → approve */}

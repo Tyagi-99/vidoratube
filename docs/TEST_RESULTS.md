@@ -1,8 +1,22 @@
 # Vidora OS — Test Results
 
-Exact counts from runs on `phase2/intelligence`. Updated 2026-09-27.
+Exact counts from runs on `phase2/intelligence` + Phase 3 Stream B (`phase3/stream-b`). Updated 2026-09-28.
 
-## Current (post Phase 2 streams A–D merge + integration + E2E alignment)
+## Current — Phase 3 Stream B (2026-09-28, final gate)
+
+| Suite | Result |
+|---|---|
+| `npx tsc --noEmit` (strict + noUnusedLocals + noUncheckedIndexedAccess + exactOptionalPropertyTypes) | **clean, 0 errors** on `phase3/stream-b` |
+| `npx eslint` on Stream-B-touched files | **0 errors, 0 warnings** on all new files (`src/lib/creation/**`, 3 new components, `src/lib/publish-strict-gate.test.ts`); `src/lib/publish-gate.test.ts` and `src/routes/_authenticated/projects.$projectId.tsx` and `src/lib/i18n.ts` have zero *new* errors vs base (legacy pre-existing errors untouched; i18n long-line wraps fixed) |
+| `npx vitest run src/lib/creation` (unit) | **88/88 pass, 6 files** — research-canvas 20, scripts 33, claims 18, evidence 7, strict-gate 6, creation-modes 4 |
+| `npx vitest run src/lib/publish-strict-gate.test.ts` (unit) | **7/7 pass** — shared `assertPublishStrictGate` (4) + `runExecutePublishJob` gate-before-uploader (3) |
+| `npx vitest run src/lib/publish-gate.test.ts` (legacy, regression) | **11/11 pass** — the new server gate required a `projects` fixture row in the legacy fake (strict-off); no production-code relaxation |
+| `npx vitest run` (unit, full) | **1196/1196 pass, 122 files** on `phase3/stream-b` |
+| `npm run test:worker` | **76/76 pass** |
+| `npm run build` (production) | **PASS** (Nitro build completes, deploy output generated) |
+| Dev-server route walkthrough | project page route SSR-compiles (HTTP 200 on `/projects/<uuid>`, 0 server exceptions in dev log across two runs); authenticated UI walkthrough is a founder step (no test credentials in this environment) |
+
+## Previous — Phase 2 streams A–D merge + integration + E2E alignment (2026-09-27)
 
 | Suite | Result |
 |---|---|

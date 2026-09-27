@@ -66,6 +66,23 @@ Not applied to production (Lovable requires manual apply — KNOWN_ISSUES).
 - Dev-server route walkthrough — 9/9 routes 200, zero server exceptions
 - Playwright E2E — see TEST_RESULTS.md
 
+## Phase 3 — Creation, Stream B: research → script layer (F9/F11/F12) — 2026-09-28
+
+Branch `phase3/stream-b` (base `cab2f1e`, coordinator-owned creation contracts — `src/lib/creation/contracts.ts` NOT edited). One migration, forward-only, `IF NOT EXISTS`:
+`supabase/migrations/20260928041100_p3_stream_b.sql` — `research_sources.position`, `research_claims.review_state` (`unreviewed`|`confirmed`|`waived`) + `reviewed_by`/`reviewed_at`/`review_note`, `projects.research_strict_mode`. **Not applied to production** — Lovable requires manual apply in the SQL editor (KNOWN_ISSUES).
+
+**F9 Visual Research** — `ResearchCanvas.tsx` + `src/lib/creation/research-canvas/`: per-project source list/add/edit/delete/exact-set reorder, type badges, Trend Radar citations, >6-month stale flags, claim counts. Explicit up/down controls (no fake drag-and-drop).
+
+**F11 Deep Research hardening** — `EvidenceDesk.tsx` + `src/lib/creation/claims/`: deterministic sentence-level claim extraction (read-only — nothing saved/approved by extraction), keyword-overlap source linking, explicit confirm/waive, strict-mode toggle. Reusable `getProjectStrictGate` (`src/lib/creation/claims/strict-gate.ts`).
+
+**F12 Script Studio** — `ScriptStudio.tsx` + `src/lib/creation/scripts/`: section editor, append-only versions, diff/restore, 150wpm ESTIMATE timing, brand-voice binding (vocabulary/tone/persona/do/don't serialized into the AI prompt), draft→in_review→approved→locked (server-enforced), preflight-gated AI draft (1 credit, debit-before-persist per D100, `ProviderResult` envelope, `actualCost: 1`).
+
+**Enforcement (D105/D107/D108):** strict mode = every claim needs human CONFIRM (waived still blocks). Server-enforced: script approval, publish approval, publish execution (execution re-checks before the uploader runs — one shared `assertPublishStrictGate`). Client-enforced: package ZIP export button (disabled + re-check before packaging; publish upload stays server-gated).
+
+**Project route** (`projects.$projectId.tsx`): ResearchCanvas + ScriptStudio + EvidenceDesk stacked after SafetyPanel; strict-gate banner; export disabled while blocked. The route owns the selected script ID and shares it between ScriptStudio (controlled picker) and EvidenceDesk (claim extractor reads the same script). Existing scenes/StudioV2/render/publish flows untouched.
+
+**Tests (2026-09-28):** `src/lib/creation` **88/88** (canvas 20, scripts 33, claims 18, evidence 7, strict-gate 6, creation-modes 4) + `publish-strict-gate.test.ts` **7/7**. Full suite / build / ESLint / dev-server walkthrough still to run before merge.
+
 ## What's next
 
 Phase 2 owner-only dependencies: `YOUTUBE_API_KEY` (no live configured-path verification possible without it), manual migration apply (2 new files, in order), `TEST_USER_EMAIL`/`TEST_USER_PASSWORD` for authenticated Playwright, then merge `phase2/intelligence` → `main`.
@@ -100,3 +117,4 @@ Branch `phase3/stream-a` in worktree `~/workspace/vidoratube-s3a` (not pushed; n
 ## What's next
 
 Stream A owner-only dependency: apply `20260928041000_p3_stream_a.sql` via Lovable dashboard SQL editor (idempotent). Stream F integration entrypoints: `scoreIdea`/`scoreIdeaFn` (F8), `resolveBrandProfileForUser` (F13), `generateTitleVariants`/`scoreTitle`/`generateAndSaveTitleVariants` (F14), `buildCampaignPlan`/`createCampaignFromIdea`/`linkCampaignItem` (F25). No paid provider calls in Stream A — no credit preflight needed.
+Phase 3 Stream B remaining gates: full `vitest` suite, scoped ESLint, `npm run build`, dev-server/curl walkthrough, then merge `phase3/stream-b`. Owner-only dependencies carry over: manual migration apply (now 3 new files incl. `20260928041100_p3_stream_b.sql`, in filename order), `LOVABLE_API_KEY` for the AI draft configured path (unconfigured envelope is unit-verified, zero network calls).

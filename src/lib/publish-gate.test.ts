@@ -28,8 +28,15 @@ interface FakeDb {
 
 /** In-memory Supabase stand-in supporting the query chains we use. */
 function makeDb(initial: Record<string, any[]>): FakeDb {
+  // P3 Stream B: the server-enforced strict evidence gate (D99) reads the
+  // project row, so every fixture gets a strict-off project unless the
+  // caller supplies its own `projects` table.
+  const seeded: Record<string, Record<string, unknown>[]> = {
+    projects: [{ id: "proj-1", user_id: USER, research_strict_mode: false }],
+    ...initial,
+  };
   const tables: Record<string, any[]> = {};
-  for (const [k, v] of Object.entries(initial)) {
+  for (const [k, v] of Object.entries(seeded)) {
     tables[k] = v.map((r) => ({ ...r }));
   }
   const writes: FakeDb["writes"] = [];
