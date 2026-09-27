@@ -1208,3 +1208,97 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
 - **Reason:** A rerunnable contract that the free path stays honest end to
   end; any future "helpful" shortcut that fakes a stage breaks this test.
 - **Reverse:** None — extend, don't replace.
+
+### D136. Comment sentiment is rule-based at ingest; AI is deferred and labeled
+
+- **Decision:** F36 sentiment/question classification ships as deterministic
+  rule-based classifiers (`src/lib/comments/sentiment.ts`) run at ingest time.
+  If an LLM classifier is added later (e.g. Lovable AI gateway), its outputs
+  MUST be labeled "AI analysis" per the pinned contracts.
+- **Reason:** Deterministic, offline, testable, zero cost. A rule-based
+  baseline can't hallucinate confidence; AI sentiment without provenance
+  labels would violate the honesty rules.
+- **Reverse:** Swap in AI classification behind the same
+  `classifySentiment` signature once gateway keys exist, with results tagged.
+
+### D137. Notification type vocab moves to dotted names; legacy rows still render
+
+- **Decision:** New notifications use the pinned dotted types
+  (`render.completed`, `publish.published`, …). The Sprint 1-2
+  `render_complete` type is kept in the `NotificationType` union and the bell
+  label map so legacy rows render.
+- **Reason:** Matches the pinned Phase 4 contract; keeps history readable.
+- **Reverse:** None — additive only.
+
+### D138. Consume-only triggers + dedup_key for exactly-once notifications
+
+- **Decision:** `src/lib/notifications/triggers.server.ts` READS other
+  streams' tables (generation_jobs, publish_jobs, experiments,
+  workspace_budgets, channel_connections) and writes ONLY notification rows
+  (asserted by `expectConsumeOnly` in tests). Every emission carries a
+  `dedup_key` backed by a partial UNIQUE(user_id, dedup_key) index
+  (migration 2026092804d000) plus a 23505 race fallback.
+- **Reason:** Cross-stream coordination without write coupling; re-running a
+  trigger (or two workers racing) cannot double-notify.
+- **Reverse:** If streams grow their own emitters, keep dedup_key as the
+  single exactly-once mechanism.
+
+### D139. Comment-derived ideas file under an auto-created "Audience requests" research project
+
+- **Decision:** The one-click idea handoff writes to the canonical
+  `video_ideas` table under a per-user research project titled
+  "Audience requests", created lazily on first handoff. No schema change.
+  Second click on the same insight is a no-op (stamped `idea_id`).
+- **Reason:** video_ideas requires a project_id; a dedicated project keeps
+  audience-sourced ideas separate from research projects without a parallel
+  table (pinned contracts forbid parallel tables).
+- **Reverse:** Allow the user to pick a target project in the UI later.
+
+### D140. Draft replies: pinned metadata shape, server-enforced approve-before-post
+
+- **Decision:** Drafts live at `comments.metadata.draft_reply =
+  { text, status: 'draft'|'approved'|'posted', approved_by, posted_at }`.
+  `postApprovedReply` reads the stored row and throws unless status is
+  exactly `'approved'`; the approver is stamped from the session user.
+  Creating a draft never touches the network.
+- **Reason:** Makes "drafts never auto-send" a server invariant, not a UI
+  convention. A compromised/misbehaving client cannot bypass approval.
+- **Reverse:** None.
+
+### D141. Comment ingestion scope: top-level + one reply level via commentThreads.list
+
+- **Decision:** Ingestion uses `commentThreads.list?part=snippet,replies`,
+  storing top-level comments and their direct replies (each reply linked via
+  `metadata.parent_external_comment_id`). Paginates up to 5 pages (500
+  threads) per video per run.
+- **Reason:** `part=replies` returns both levels in one quota-cheap call
+  (1 unit/thread page). Deeper nesting adds little for request mining.
+- **Reverse:** Raise maxPages or add `comments.list` per thread if deep
+  threads prove valuable.
+
+### D142. No YouTube grant → honest "unavailable", never fixture comments
+
+- **Decision:** Ingestion without a stored grant (or with a revoked one)
+  returns `{ status: "unavailable", reason }` and makes zero network calls.
+  There is no fixture/sample fallback in the ingestion path.
+- **Reason:** Fabricated comments would poison sentiment, mining, and idea
+  handoffs. Honest unavailability is the only safe default.
+- **Reverse:** None.
+
+### D143. Bell keeps "mark read on open" (existing behavior)
+
+- **Decision:** The notification bell marks all as read when the panel opens
+  (existing Sprint 1-2 behavior); new types only add a category label chip.
+- **Reason:** No reason to change a working interaction; the Stream D work
+  is the new event sources, not the bell mechanics.
+- **Reverse:** Per-row read toggles if users ask.
+
+### D144. No platform comment-delete code path, enforced by test
+
+- **Decision:** `drafts.test.ts` greps the comments module sources
+  (comments stripped) for delete-shaped calls
+  (`commentThreads.delete`, `.delete(`, `method: "DELETE"`) and fails the
+  suite if any appear. Verified clean 2026-09-28.
+- **Reason:** The pinned contract ("comments are NEVER auto-deleted") must
+  survive future edits; a test is stronger than a comment.
+- **Reverse:** None — deletion stays out of scope permanently.

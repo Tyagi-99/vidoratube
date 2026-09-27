@@ -15,6 +15,27 @@ interface NotificationRow {
 }
 
 /**
+ * Phase 4 Stream D: friendly category labels for the pinned dotted
+ * notification types (plus the legacy Sprint 1-2 `render_complete`).
+ */
+const TYPE_LABELS: Record<string, string> = {
+  "render.completed": "Render",
+  render_complete: "Render",
+  "render.failed": "Render",
+  "publish.approved": "Publish",
+  "publish.published": "Publish",
+  "publish.failed": "Publish",
+  "approval.requested": "Approval",
+  "budget.alert": "Budget",
+  "quota.warning": "Quota",
+  "experiment.concluded": "Experiment",
+};
+
+function typeLabel(type: string): string {
+  return TYPE_LABELS[type] ?? "Update";
+}
+
+/**
  * Studio header bell: shows unread count, lists recent notifications,
  * marks them read when the panel opens. Render-completion rows land here
  * even when no email provider is configured.
@@ -59,7 +80,7 @@ export function NotificationsBell() {
       document.removeEventListener("pointerdown", onDown);
       document.removeEventListener("keydown", onKey);
     };
-  }, [open ]);
+  }, [open]);
 
   const toggle = async () => {
     const next = !open;
@@ -101,7 +122,9 @@ export function NotificationsBell() {
           aria-label="Notifications"
           className="absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-xl border border-border bg-card shadow-xl"
         >
-          <div className="border-b border-border px-4 py-3 text-sm font-semibold">Notifications</div>
+          <div className="border-b border-border px-4 py-3 text-sm font-semibold">
+            Notifications
+          </div>
           <div className="max-h-80 overflow-y-auto">
             {!loaded && <div className="px-4 py-6 text-sm text-muted-foreground">Loading…</div>}
             {loaded && rows.length === 0 && (
@@ -114,7 +137,12 @@ export function NotificationsBell() {
                 key={n.id}
                 className={`border-b border-border/50 px-4 py-3 last:border-0 ${n.read_at ? "" : "bg-accent/5"}`}
               >
-                <div className="text-sm font-medium">{n.title}</div>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-sm font-medium">{n.title}</div>
+                  <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                    {typeLabel(n.type)}
+                  </span>
+                </div>
                 {n.body && <div className="mt-0.5 text-xs text-muted-foreground">{n.body}</div>}
                 {n.link && (
                   <Link

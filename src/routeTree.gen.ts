@@ -39,6 +39,7 @@ import { Route as AuthenticatedAgencyWorkspaceIdRouteImport } from './routes/_au
 import { Route as AuthenticatedAnalyticsIndexRouteImport } from './routes/_authenticated/analytics.index'
 import { Route as AuthenticatedBillingIndexRouteImport } from './routes/_authenticated/billing.index'
 import { Route as AuthenticatedCharactersIndexRouteImport } from './routes/_authenticated/characters.index'
+import { Route as AuthenticatedCommentsIndexRouteImport } from './routes/_authenticated/comments.index'
 import { Route as AuthenticatedCreateIndexRouteImport } from './routes/_authenticated/create/index'
 import { Route as AuthenticatedCreateBrandVoicesRouteImport } from './routes/_authenticated/create/brand-voices'
 import { Route as AuthenticatedCreateCampaignsRouteImport } from './routes/_authenticated/create/campaigns'
@@ -223,6 +224,12 @@ const AuthenticatedCharactersIndexRoute =
   AuthenticatedCharactersIndexRouteImport.update({
     id: '/characters/',
     path: '/characters/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedCommentsIndexRoute =
+  AuthenticatedCommentsIndexRouteImport.update({
+    id: '/comments/',
+    path: '/comments/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedCreateIndexRoute =
@@ -427,6 +434,7 @@ export interface FileRoutesByFullPath {
   '/analytics/': typeof AuthenticatedAnalyticsIndexRoute
   '/billing/': typeof AuthenticatedBillingIndexRoute
   '/characters/': typeof AuthenticatedCharactersIndexRoute
+  '/comments/': typeof AuthenticatedCommentsIndexRoute
   '/create/': typeof AuthenticatedCreateIndexRoute
   '/intelligence/': typeof AuthenticatedIntelligenceIndexRoute
   '/projects/': typeof AuthenticatedProjectsIndexRoute
@@ -484,6 +492,7 @@ export interface FileRoutesByTo {
   '/analytics': typeof AuthenticatedAnalyticsIndexRoute
   '/billing': typeof AuthenticatedBillingIndexRoute
   '/characters': typeof AuthenticatedCharactersIndexRoute
+  '/comments': typeof AuthenticatedCommentsIndexRoute
   '/create': typeof AuthenticatedCreateIndexRoute
   '/intelligence': typeof AuthenticatedIntelligenceIndexRoute
   '/projects': typeof AuthenticatedProjectsIndexRoute
@@ -544,6 +553,7 @@ export interface FileRoutesById {
   '/_authenticated/analytics/': typeof AuthenticatedAnalyticsIndexRoute
   '/_authenticated/billing/': typeof AuthenticatedBillingIndexRoute
   '/_authenticated/characters/': typeof AuthenticatedCharactersIndexRoute
+  '/_authenticated/comments/': typeof AuthenticatedCommentsIndexRoute
   '/_authenticated/create/': typeof AuthenticatedCreateIndexRoute
   '/_authenticated/intelligence/': typeof AuthenticatedIntelligenceIndexRoute
   '/_authenticated/projects/': typeof AuthenticatedProjectsIndexRoute
@@ -604,6 +614,7 @@ export interface FileRouteTypes {
     | '/analytics/'
     | '/billing/'
     | '/characters/'
+    | '/comments/'
     | '/create/'
     | '/intelligence/'
     | '/projects/'
@@ -661,6 +672,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/billing'
     | '/characters'
+    | '/comments'
     | '/create'
     | '/intelligence'
     | '/projects'
@@ -720,6 +732,7 @@ export interface FileRouteTypes {
     | '/_authenticated/analytics/'
     | '/_authenticated/billing/'
     | '/_authenticated/characters/'
+    | '/_authenticated/comments/'
     | '/_authenticated/create/'
     | '/_authenticated/intelligence/'
     | '/_authenticated/projects/'
@@ -971,6 +984,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCharactersIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/comments/': {
+      id: '/_authenticated/comments/'
+      path: '/comments'
+      fullPath: '/comments/'
+      preLoaderRoute: typeof AuthenticatedCommentsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/create/': {
       id: '/_authenticated/create/'
       path: '/create'
@@ -1214,6 +1234,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAnalyticsIndexRoute: typeof AuthenticatedAnalyticsIndexRoute
   AuthenticatedBillingIndexRoute: typeof AuthenticatedBillingIndexRoute
   AuthenticatedCharactersIndexRoute: typeof AuthenticatedCharactersIndexRoute
+  AuthenticatedCommentsIndexRoute: typeof AuthenticatedCommentsIndexRoute
   AuthenticatedCreateIndexRoute: typeof AuthenticatedCreateIndexRoute
   AuthenticatedIntelligenceIndexRoute: typeof AuthenticatedIntelligenceIndexRoute
   AuthenticatedProjectsIndexRoute: typeof AuthenticatedProjectsIndexRoute
@@ -1245,6 +1266,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAnalyticsIndexRoute: AuthenticatedAnalyticsIndexRoute,
   AuthenticatedBillingIndexRoute: AuthenticatedBillingIndexRoute,
   AuthenticatedCharactersIndexRoute: AuthenticatedCharactersIndexRoute,
+  AuthenticatedCommentsIndexRoute: AuthenticatedCommentsIndexRoute,
   AuthenticatedCreateIndexRoute: AuthenticatedCreateIndexRoute,
   AuthenticatedIntelligenceIndexRoute: AuthenticatedIntelligenceIndexRoute,
   AuthenticatedProjectsIndexRoute: AuthenticatedProjectsIndexRoute,
