@@ -14,7 +14,7 @@ Exact counts from runs on `phase2/intelligence` + Phase 3 Stream B (`phase3/stre
 | `npx vitest run` (unit, full) | **1196/1196 pass, 122 files** on `phase3/stream-b` |
 | `npm run test:worker` | **76/76 pass** |
 | `npm run build` (production) | **PASS** (Nitro build completes, deploy output generated) |
-| Dev-server route walkthrough | project page route compiles; authenticated curl walkthrough is a founder step (no test credentials in this environment) |
+| Dev-server route walkthrough | project page route SSR-compiles (HTTP 200 on `/projects/<uuid>`, 0 server exceptions in dev log across two runs); authenticated UI walkthrough is a founder step (no test credentials in this environment) |
 
 ## Previous — Phase 2 streams A–D merge + integration + E2E alignment (2026-09-27)
 

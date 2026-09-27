@@ -79,7 +79,7 @@ Branch `phase3/stream-b` (base `cab2f1e`, coordinator-owned creation contracts â
 
 **Enforcement (D99/D101/D102):** strict mode = every claim needs human CONFIRM (waived still blocks). Server-enforced: script approval, publish approval, publish execution (execution re-checks before the uploader runs â€” one shared `assertPublishStrictGate`). Client-enforced: package ZIP export button (disabled + re-check before packaging; publish upload stays server-gated).
 
-**Project route** (`projects.$projectId.tsx`): ResearchCanvas + ScriptStudio + EvidenceDesk stacked after SafetyPanel; strict-gate banner; export disabled while blocked. Existing scenes/StudioV2/render/publish flows untouched.
+**Project route** (`projects.$projectId.tsx`): ResearchCanvas + ScriptStudio + EvidenceDesk stacked after SafetyPanel; strict-gate banner; export disabled while blocked. The route owns the selected script ID and shares it between ScriptStudio (controlled picker) and EvidenceDesk (claim extractor reads the same script). Existing scenes/StudioV2/render/publish flows untouched.
 
 **Tests (2026-09-28):** `src/lib/creation` **88/88** (canvas 20, scripts 33, claims 18, evidence 7, strict-gate 6, creation-modes 4) + `publish-strict-gate.test.ts` **7/7**. Full suite / build / ESLint / dev-server walkthrough still to run before merge.
 
