@@ -1,18 +1,19 @@
 # Vidora OS — Known Issues & Founder Blockers
 
-Updated 2026-09-27. Only verified items; nothing speculative.
+Updated 2026-09-28. Only verified items; nothing speculative.
 
 ## Founder-only blockers (need the project owner)
 
 | # | Blocker | Why only the founder | Status |
 |---|---|---|---|
 | 1 | **Render worker not deployed** — no heartbeat in production; server-engine renders sit `queued` | Needs a deploy target + secrets | Open since Phase 0 |
-| 2 | **Migrations not applied** — 9 new files `20260928020000`–`20260928020600` (Phase 1) + `20260928030000_p2_channel_niche` + `20260928030100_p2_blueprint` (Phase 2) exist in-repo only | Lovable does not auto-apply; apply via dashboard SQL editor in filename order, then verify: `select * from pg_extension where extname in ('vector','pg_cron')`, `select * from cron.job`, spot-check new tables/columns in `information_schema` | Open |
+| 2 | **Migrations not applied** — 9 new files `20260928020000`–`20260928020600` (Phase 1) + `20260928030000_p2_channel_niche` + `20260928030100_p2_blueprint` (Phase 2) + `20260928041100_p3_stream_b` (Phase 3 Stream B) exist in-repo only | Lovable does not auto-apply; apply via dashboard SQL editor in filename order, then verify: `select * from pg_extension where extname in ('vector','pg_cron')`, `select * from cron.job`, spot-check new tables/columns in `information_schema` | Open |
 | 3 | **pg_cron / pgvector availability unverified** — no local Postgres on this VM | Confirm extensions exist on the target before/after applying `20260928020500_p1_vector_cron.sql`; the migration is defensive (schedule block fails without touching data; requeue stays server/worker-invoked) | Open |
 | 4 | **Provider keys missing** — Pexels/Pixabay, second video-gen provider, web-search API | Keys live with the founder; code degrades honestly without them | Open |
 | 5 | **YouTube Data API** — no `YOUTUBE_API_KEY`; quota needed for Phase 2 ingestion + E2E configured branch | Founder's Google Cloud project; without the key all intelligence surfaces return the honest `unconfigured` envelope (unit-verified: zero network calls, zero quota inserts) | Open |
 | 6 | **Live payments / OAuth verification / Meta app review** | Founder accounts | Open since Phase 0 |
 | 7 | **No authenticated E2E credentials** — `TEST_USER_EMAIL`/`TEST_USER_PASSWORD` unset; `e2e/niche-finder.spec.ts` configured branch (and all authenticated specs) cannot run | Founder seeds a test account; spec self-skips without creds (recorded as pending, not passed) | Open |
+| 8 | **`LOVABLE_API_KEY` not set in this environment** — AI script draft (F12) returns the honest `unconfigured` envelope; the configured path (real LLM call + 1-credit debit) is unit-verified only against mocks | Key lives with the founder; generation is preflight-gated and never spends blind | Open |
 
 ## Code-level known issues
 
@@ -23,6 +24,8 @@ Updated 2026-09-27. Only verified items; nothing speculative.
 - `worker/src` tests live outside the vitest glob; `npm run test:worker` is the gate (fixed Phase 0).
 - **Phase 2 Smart Folder rule scan limit:** `matchFolderRules` scans at most 500 rows per table per folder — folders over very large asset sets may miss older rows; documented in code (Stream D). Revisit if asset counts grow past this.
 - **Phase 2 E2E configured branch unrun:** `e2e/niche-finder.spec.ts` selector alignment fixed 2026-09-27 (New niche dialog flow, `data-testid` row hooks); the configured branch still needs a real `YOUTUBE_API_KEY` + test account and burns real quota — must be run deliberately by the founder.
+- **Phase 3 Stream B package export gate is client-enforced:** the ZIP is generated client-side in `projects.$projectId.tsx`, so the strict gate there is a disabled button + pre-packaging re-check, not a server check. The money path (YouTube upload via `runExecutePublishJob`) is fully server-gated. Reversal path: move the gate into a server-side package endpoint when one exists (D102).
+- **Phase 3 Stream B migration is forward-only additive** (`20260928041100_p3_stream_b.sql`): adds `research_sources.position`, `research_claims.review_state` + review columns, `projects.research_strict_mode`. Safe to apply; existing owner-scoped RLS untouched. Not yet applied to production (see blocker #2).
 
 ## Deliberately not built (by design)
 

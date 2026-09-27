@@ -20,6 +20,7 @@ import {
   publishBlockedMessage,
   type PublishPrivacy,
 } from "./safety";
+import { getProjectStrictGate } from "./creation/claims/strict-gate";
 
 /**
  * P5: Thumbnail studio + SEO studio + publish pipeline server functions.
@@ -339,6 +340,24 @@ const approvePublishJobSchema = z.object({
 });
 
 /**
+ * Shared strict-gate assertion for every publish path (P3 Stream B / D99).
+ * Both approval AND execution call this, so the "confirmed-only" rule lives
+ * in exactly one place. Fail-closed: the gate throws on query errors, and
+ * strict mode defaults to OFF so existing projects are unaffected unless
+ * the owner opts in.
+ */
+export async function assertPublishStrictGate(
+  supabase: any,
+  userId: string,
+  projectId: string,
+): Promise<void> {
+  const strictGate = await getProjectStrictGate(supabase, userId, projectId);
+  if (strictGate.blocked) {
+    throw new Error(strictGate.message);
+  }
+}
+
+/**
  * HUMAN APPROVAL GATE. The only transition from draft -> approved.
  * This is the deliberate user action that authorizes a YouTube publish.
  * There is no code path that publishes without this.
@@ -403,6 +422,10 @@ export async function runApprovePublishJob({
   if (gate.blocked) {
     throw new Error(publishBlockedMessage(gate.score as number));
   }
+
+  // STRICT EVIDENCE GATE (server-enforced, P3 Stream B / D99): shared
+  // assertion — see assertPublishStrictGate below.
+  await assertPublishStrictGate(supabase, userId, job.project_id);
 
   if (input.thumbnail_id) {
     const { data: thumb } = await supabase
@@ -473,6 +496,10 @@ const executePublishJobSchema = z.object({
  *      additionally re-checks approved_by/approved_at on the job row.)
  *   2. The CURRENT latest safety score is re-checked: < 50 BLOCKS public;
  *      private/unlisted proceed with a recorded warning.
+ * P3 Stream B adds a third:
+ *   3. The strict evidence gate is re-checked: with
+ *      projects.research_strict_mode ON, ANY claim lacking a human CONFIRM
+ *      blocks execution (fail-closed, D99).
  */
 export const executePublishJob = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -584,6 +611,11 @@ export async function runExecutePublishJob({
         message: execWarning,
       });
     }
+
+    // HARD REQUIREMENT 3 (P3 Stream B / D99): re-check the strict evidence
+    // gate at execution time — claims confirmed after approval keep it
+    // green; a strict-mode project with unconfirmed claims cannot upload.
+    await assertPublishStrictGate(supabase, userId, job.project_id);
 
     // Reuse the existing resumable uploader (handles scope, tokens, retries).
     const up: PublishUploader =

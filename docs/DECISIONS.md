@@ -922,3 +922,23 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
 - **Decision:** `e2e/niche-finder.spec.ts` is dual-mode: without `YOUTUBE_API_KEY` each scenario asserts the honest "YouTube Data API not connected" panel and zero fabricated rows, then returns early. The configured branch (real key, real quota burn) is opt-in by the founder.
 - **Reason:** No row is ever faked to satisfy an assertion; the unconfigured path is itself a product guarantee worth testing. The E2E spec was rewritten 2026-09-27 to the real UI flow (New niche dialog, `data-testid` row hooks, draft-script handoff toast) after the Stream-D-authored selectors drifted from the merged UI.
 - **Reverse:** If a seeded demo dataset is ever wanted for E2E, it must be labeled `DEMO DATA` in both the UI and the spec — never silently stand in for real rows.
+
+### D99. Strict review semantics: only human CONFIRM counts (2026-09-27)
+- **Decision:** Strict mode (`projects.research_strict_mode`) means *every* claim must have a human **CONFIRM**. Both `unreviewed` AND `waived` claims block script approval, package export, publish approval, and publish execution. A waiver stays useful and visible in non-strict workflows, but it means the claim was deliberately *not* verified, so it cannot satisfy "confirmed source" strict mode. A waived claim can later be confirmed to unblock.
+- **Reason:** "Strict" is a promise to the audience that every factual claim was verified. Letting waivers pass would silently redefine the promise. No code path auto-confirms claims — confirmation is always an explicit human action (`setClaimReview` only admits `confirmed` | `waived`).
+- **Reverse:** If a third state is ever needed (e.g. "confirmed-by-AI"), it must be a new explicit review state that still does not satisfy strict mode unless a human confirms.
+
+### D100. AI script draft: debit BEFORE persist (2026-09-28)
+- **Decision:** `generateScriptDraft` debits the 1 credit *before* persisting the script/version, matching the existing publish thumbnail/SEO debit-first convention. If the debit fails, nothing is saved — no unpaid output can remain. All billing/provider failures return `ProviderResult` envelopes (including `DEBIT_FAILED`); the function never throws for provider or billing states. `actualCost: 1` on success. One idempotency key (`generationRef`) per attempt: a retry spends another credit (new output), a double-submit within the attempt does not.
+- **Reason:** The alternative (persist-then-debit with rollback) leaves a window where unpaid output exists and needs compensating deletes; debit-first has a single failure mode (charged but unsaved) that matches how the rest of the codebase already behaves. Fail-open `recordApiCost` by existing convention.
+- **Reverse:** If exact-once billing semantics are required later, move to a reservation model (reserve → generate → commit/release) rather than reordering back.
+
+### D101. One shared publish strict-gate assertion (2026-09-28)
+- **Decision:** The strict evidence check for publish lives in exactly one exported function, `assertPublishStrictGate` (`src/lib/publish.functions.ts`), called by both `approvePublishJob` and `runExecutePublishJob` (execution re-checks immediately before the uploader runs — a claim confirmed after approval keeps it green; an unconfirmed one blocks the upload). Stream F must import the underlying `getProjectStrictGate` from `src/lib/creation/claims/strict-gate.ts` and must NOT duplicate strict-mode logic; any package/quick-create action stops when `blocked === true`.
+- **Reason:** Two call sites with copied gate logic would drift (the execution re-check was added precisely because approval-time checks go stale). One function, one rule.
+- **Reverse:** None — only extend the single assertion if the rule changes.
+
+### D102. Package export gate is client-enforced; publish is server-enforced (2026-09-28)
+- **Decision:** The ZIP package is generated client-side in `projects.$projectId.tsx`, so its strict gate is client-enforced: the Export button disables when `getProjectGateState` reports `blocked === true` and the handler re-fetches the gate immediately before packaging. Publish approval and execution are enforced on the server and cannot be bypassed by UI state. This limitation is documented, not hidden.
+- **Reason:** A server-generated package endpoint is the correct long-term fix, but inventing one inside Stream B's scope would duplicate the export pipeline. The client gate is honest defense-in-depth; the money path (YouTube upload) is fully server-gated.
+- **Reverse:** When a server-side package endpoint exists, move the gate check there and keep the client button as a UX affordance only.
