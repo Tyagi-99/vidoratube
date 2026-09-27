@@ -11,7 +11,7 @@ Living document, updated from verified state only. Branch: `phase1/foundation`
 | 2. Database | **SHIPPED** (code; apply pending) | 7 migration files `20260928020000`–`20260928020600`: 32 new tables, pgvector + `vector(768)` embeddings, pg_cron schedule for `requeue_stale_renders`, RLS on all new tables, `rls-policies.test.ts` extended. NOT applied to production (manual step — KNOWN_ISSUES). |
 | 3. Jobs durability | IN PROGRESS | Worker active on branch `wjobs`. |
 | 4. Credits | **SHIPPED** (code) | `src/lib/credits/`: `estimates.server.ts` (ESTIMATE-labeled, pinned Studio-plan $0.245/credit reference, unknown prices → null not invented), `balance.server.ts`, `budgets.server.ts` (caps enforced against `generation_jobs.cost_actual_credits` month-to-date; null = uncapped), `usage.server.ts` (read-model over `credit_ledger`), `preflight.server.ts` (estimate→balance→budget). TTS voiceover stage gated: INSUFFICIENT_CREDITS/BUDGET_EXCEEDED instead of provider call. 46 new tests. |
-| 5. Providers | IN PROGRESS | Worker active on branch `wproviders`. |
+| 5. Providers | **SHIPPED** (code) | `ProviderResult` envelope (model/taskId/latency/cost/status/error/usage, never throws), `withProviderTelemetry` wired into TTS + image paths → `api_usage`. Real: ElevenLabs Scribe transcription, YouTube Data API search. Honestly-unconfigured: web search shell (needs key), video gen without `FAL_API_KEY`. `generateVideoWithFallback`: ordered chain, one attempt per provider, no blind paid retries (fakes only in tests). 20 new tests. |
 
 ## Reconciliation decisions (DB)
 

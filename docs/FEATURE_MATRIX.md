@@ -25,7 +25,7 @@ checklist. `pass` = measured green · `missing` = not yet written ·
 | Database | REAL — 32 new tables migrated (Phase 1), RLS everywhere | + new entities below, pgvector, workspace budgets, cron owner for `requeue_stale_renders` | — | migrations | 32 new tables | — | pass (RLS test 9/9) | missing | n/a | done | COMPLETE* |
 | Jobs | PARTIAL — enqueue real (SKIP LOCKED, heartbeats); **worker not deployed** | Deploy worker, checkpoint/resume, scene-level repair, provider task IDs, idempotency | extend | worker deploy | `generation_jobs`, `provider_tasks` | fal.ai | pass | missing | missing | pending | IN PROGRESS |
 | Credits | REAL — estimates + budgets + pre-flight gate shipped (Phase 1) | + cost estimates, balance checks, workspace/project budgets | done | done | `credit_ledger` + `workspace_budgets` + `project_budgets` | — | pass (46 new) | missing | missing | done | COMPLETE |
-| Providers | PARTIAL — ElevenLabs TTS, Lovable gateway (Gemini/OpenAI), fal.ai (sole video, no fallback); transcription/search contract-only | Formal `Text/Image/Video/TTS/Research/Storage` interfaces, fallbacks, usage+latency+cost tracing | — | extend | `provider_tasks` | ElevenLabs, fal.ai, Pexels/Pixabay | pass | missing | missing | pending | IN PROGRESS |
+| Providers | PARTIAL→REAL — telemetry envelope + real transcription/search, video fallback chain (Phase 1) | Formal interfaces, fallbacks, usage+latency+cost tracing | done (telemetry wrappers) | done (registry) | `provider_tasks` | ElevenLabs, fal.ai, YouTube | pass (20 new) | missing | missing | done | IN PROGRESS |
 
 ## Intelligence (DISCOVER → VALIDATE)
 
