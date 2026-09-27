@@ -4,16 +4,17 @@ import { test, expect, type Page } from "@playwright/test";
  * E2E_NICHE_FINDER — permanent Phase 2 intelligence scenario (Stream D).
  * Contract: docs/PHASE2_CONTRACTS.md "E2E_NICHE_FINDER".
  *
- * Scenario: query "faceless history mysteries" with filters —
- * language English, format long-form, subs 1K–500K, active only,
- * recent activity required.
+ * Scenario: create a niche through the real "New niche" dialog
+ * (name "Faceless history mysteries", keywords, language English, format
+ * long-form, subs 1K–500K, active channels only), then score it, expand its
+ * factors, generate its blueprint, and exercise channel detail, video intel,
+ * outliers (+ draft-script handoff), trend radar, and smart folders.
  *
  * DUAL MODE:
  * - WITH YOUTUBE_API_KEY (niches page shows real data): full assertions —
- *   real channels only, freshness labels, expandable score factors,
- *   sorting changes order, filters narrow results, folder save works,
- *   similar channels render, outlier tab lists scored videos, blueprint
- *   generates, draft-script handoff creates an idea.
+ *   niche card with score/freshness/factors, filter bar narrows results,
+ *   similar channels render, outlier multiples show, draft-script handoff
+ *   creates a real idea, blueprint generates, folder rule matching works.
  * - WITHOUT key (unconfigured panel): asserts every intelligence surface
  *   shows the honest unconfigured state and zero fabricated rows.
  *
@@ -31,7 +32,6 @@ import { test, expect, type Page } from "@playwright/test";
 const EMAIL = process.env.TEST_USER_EMAIL;
 const PASSWORD = process.env.TEST_USER_PASSWORD;
 
-const QUERY = "faceless history mysteries";
 /** Fabricated-row canary: these words must never appear as data rows. */
 const FABRICATED = /\b(demo|placeholder|mock)\b/i;
 /** The honest "not connected" panel per the envelope convention. */
@@ -79,15 +79,15 @@ test.describe("E2E_NICHE_FINDER", () => {
       "Trend Radar",
       "Folders",
     ]) {
-      await expect(
-        page.getByRole("link", { name: new RegExp(name, "i") }).first(),
-      ).toBeVisible({ timeout: 10_000 });
+      await expect(page.getByRole("link", { name: new RegExp(name, "i") }).first()).toBeVisible({
+        timeout: 10_000,
+      });
     }
     await assertNoFabricatedRows(page);
     expect(errors).toEqual([]);
   });
 
-  test("niches: search with filters (dual mode)", async ({ page }) => {
+  test("niches: create + score with filters (dual mode)", async ({ page }) => {
     await signIn(page);
     const mode = await detectMode(page);
 
@@ -103,106 +103,58 @@ test.describe("E2E_NICHE_FINDER", () => {
       return;
     }
 
-    // ---- configured: full scenario ----
-    const queryInput = page
-      .getByLabel(/niche|search|query/i)
-      .or(page.getByPlaceholder(/search|niche/i))
-      .first();
-    await queryInput.fill(QUERY);
+    // ---- configured: create a niche through the real dialog flow ----
+    // NOTE: scoring burns real YouTube Data API quota — run deliberately.
+    await page.goto("/intelligence/niches");
+    const nicheName = `Faceless history mysteries ${Date.now()}`;
+    await page.getByRole("button", { name: /new niche/i }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByLabel(/niche name/i).fill(nicheName);
+    await dialog.getByLabel(/keywords/i).fill("faceless, history, mysteries");
+    await dialog.getByLabel(/^language$/i).fill("en");
+    await dialog.getByLabel(/min.*sub/i).fill("1000");
+    await dialog.getByLabel(/max.*sub/i).fill("500000");
+    await dialog.getByLabel(/format/i).click();
+    await page.getByRole("option", { name: /long-form/i }).click();
+    const activeOnly = dialog.getByLabel(/active channels only/i);
+    if (!(await activeOnly.isChecked())) await activeOnly.check();
+    await dialog.getByRole("button", { name: /create niche/i }).click();
 
-    // Filters: language English, format long-form, subs 1K–500K,
-    // active only, recent activity.
-    const language = page.getByLabel(/language/i).first();
-    if (await language.isVisible().catch(() => false)) {
-      await language.click();
-      await page.getByRole("option", { name: /english/i }).click();
-    }
-    const format = page.getByLabel(/format/i).first();
-    if (await format.isVisible().catch(() => false)) {
-      await format.click();
-      await page.getByRole("option", { name: /long-?form/i }).click();
-    }
-    const minSubs = page.getByLabel(/min.*sub|sub.*min/i).first();
-    if (await minSubs.isVisible().catch(() => false))
-      await minSubs.fill("1000");
-    const maxSubs = page.getByLabel(/max.*sub|sub.*max/i).first();
-    if (await maxSubs.isVisible().catch(() => false))
-      await maxSubs.fill("500000");
-    const activeOnly = page.getByLabel(/active/i).first();
-    if (await activeOnly.isVisible().catch(() => false)) {
-      if (!(await activeOnly.isChecked().catch(() => true)))
-        await activeOnly.check();
-    }
-    const recent = page.getByLabel(/recent/i).first();
-    if (await recent.isVisible().catch(() => false)) {
-      if (!(await recent.isChecked().catch(() => true)))
-        await recent.check().catch(() => recent.click());
-    }
-
-    await page
-      .getByRole("button", { name: /search|find|score|analyze/i })
-      .first()
-      .click();
-
-    // Real channels only — no demo/placeholder/mock rows.
+    // Scored niche card appears with freshness + confidence — real data only.
+    const cardLink = page.getByRole("link", { name: new RegExp(nicheName, "i") }).first();
+    await expect(cardLink).toBeVisible({ timeout: 30_000 });
     await assertNoFabricatedRows(page);
-    const channelRows = page.locator("tbody tr, [data-testid='channel-row']");
-    await expect(channelRows.first()).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/fresh|stale/i).first()).toBeVisible({
+      timeout: 10_000,
+    });
 
-    // Freshness labels visible.
-    await expect(
-      page.getByText(/ago|captured|updated|fresh|stale/i).first(),
-    ).toBeVisible({ timeout: 10_000 });
-
-    // Score factors expandable.
-    const expand = page
-      .getByRole("button", { name: /factor|score|detail|expand/i })
-      .first();
-    if (await expand.isVisible().catch(() => false)) {
-      await expand.click();
-      await expect(
-        page.getByText(/demand|competition|velocity|freshness/i).first(),
-      ).toBeVisible({ timeout: 10_000 });
+    // Score factors expandable (demand / competition / velocity / freshness).
+    const factors = page.getByRole("button", { name: /factors/i }).first();
+    if (await factors.isVisible().catch(() => false)) {
+      await factors.click();
+      await expect(page.getByText(/demand|competition|velocity/i).first()).toBeVisible({
+        timeout: 10_000,
+      });
     }
 
-    // Sorting changes order (guard: need ≥2 rows for a meaningful check).
-    const rowCount = await channelRows.count();
-    if (rowCount >= 2) {
-      const titlesBefore = await channelRows
-        .locator("td, [data-testid='channel-title']")
-        .first()
-        .allTextContents();
-      const sort = page.getByLabel(/sort/i).first();
-      if (await sort.isVisible().catch(() => false)) {
-        await sort.click();
-        const current = (await sort.inputValue().catch(() => "")) || "";
-        const alt = page.getByRole("option").filter({ hasNotText: current });
-        if ((await alt.count()) > 0) {
-          await alt.first().click();
-          await page.waitForTimeout(1000);
-          const titlesAfter = await channelRows
-            .locator("td, [data-testid='channel-title']")
-            .first()
-            .allTextContents();
-          expect(titlesAfter).not.toEqual(titlesBefore);
-        }
-      }
-    }
-
-    // Filters narrow results: enabling active-only must not grow the list.
-    const countBefore = await channelRows.count();
-    if (await activeOnly.isVisible().catch(() => false)) {
-      await activeOnly.uncheck().catch(() => {});
-      await page.waitForTimeout(800);
-      const countAfter = await channelRows.count();
-      expect(countAfter).toBeGreaterThanOrEqual(countBefore);
-      await activeOnly.check().catch(() => {});
-    }
+    // Filter bar narrows the list: an impossible min-subs hides every card
+    // behind the honest insufficient-data panel; clearing restores the card.
+    await page
+      .getByLabel(/min.*sub/i)
+      .last()
+      .fill("999999999");
+    await expect(page.getByText(/no niches match these filters/i).first()).toBeVisible({
+      timeout: 10_000,
+    });
+    await page
+      .getByLabel(/min.*sub/i)
+      .last()
+      .fill("");
+    await expect(cardLink).toBeVisible({ timeout: 10_000 });
+    await assertNoFabricatedRows(page);
   });
 
-  test("channels: detail, similar channels, video intel (dual mode)", async ({
-    page,
-  }) => {
+  test("channels: detail, similar channels, video intel (dual mode)", async ({ page }) => {
     await signIn(page);
     const mode = await detectMode(page);
     await page.goto("/intelligence/channels");
@@ -210,35 +162,22 @@ test.describe("E2E_NICHE_FINDER", () => {
       await assertNoFabricatedRows(page);
       return;
     }
-    const firstChannel = page
-      .locator("tbody tr a, [data-testid='channel-row'] a")
-      .first();
+    const firstChannel = page.getByTestId("channel-row").first();
     await expect(firstChannel).toBeVisible({ timeout: 30_000 });
     await firstChannel.click();
     // Similar channels (ESTIMATE heuristic) render.
-    await expect(page.getByText(/similar/i).first()).toBeVisible({
+    await expect(page.getByText(/similar channels/i).first()).toBeVisible({
       timeout: 15_000,
     });
     await assertNoFabricatedRows(page);
-    // Drill into a video → video intel surface.
-    const firstVideo = page
-      .locator("tbody tr a, [data-testid='video-row'] a")
-      .first();
+    // Drill into a video → video intel surface (descriptive facts only).
+    const firstVideo = page.getByTestId("video-row").first();
     if (await firstVideo.isVisible().catch(() => false)) {
       await firstVideo.click();
-      await expect(
-        page.getByText(/packaging|performance|analysis/i).first(),
-      ).toBeVisible({ timeout: 15_000 });
-      // Draft-script handoff creates an idea.
-      const draft = page
-        .getByRole("button", { name: /draft.*idea|create.*idea|idea.*draft/i })
-        .first();
-      if (await draft.isVisible().catch(() => false)) {
-        await draft.click();
-        await expect(
-          page.getByText(/idea created|draft created|idea saved/i).first(),
-        ).toBeVisible({ timeout: 15_000 });
-      }
+      await expect(page.getByText(/packaging|performance/i).first()).toBeVisible({
+        timeout: 15_000,
+      });
+      await assertNoFabricatedRows(page);
     }
   });
 
@@ -250,11 +189,19 @@ test.describe("E2E_NICHE_FINDER", () => {
       await assertNoFabricatedRows(page);
       return;
     }
-    const rows = page.locator("tbody tr, [data-testid='outlier-row']");
+    const rows = page.getByTestId("outlier-row");
     await expect(rows.first()).toBeVisible({ timeout: 30_000 });
-    // Scored videos show an outlier multiple (e.g. 3.2×).
-    await expect(page.getByText(/\d+(\.\d+)?\s?[×x]/).first()).toBeVisible({
+    // Scored videos show an outlier multiple (e.g. "3.2× median").
+    await expect(page.getByText(/\d+(\.\d+)?\s?×/).first()).toBeVisible({
       timeout: 10_000,
+    });
+    await assertNoFabricatedRows(page);
+
+    // Draft-script handoff: creates a real video_ideas row via draftIdeaFromVideo.
+    const draft = rows.first().getByRole("button", { name: /draft script/i });
+    await draft.click();
+    await expect(page.getByText(/draft idea created from outlier/i).first()).toBeVisible({
+      timeout: 15_000,
     });
     await assertNoFabricatedRows(page);
   });
@@ -267,7 +214,7 @@ test.describe("E2E_NICHE_FINDER", () => {
       await assertNoFabricatedRows(page);
       return;
     }
-    const trendRows = page.locator("tbody tr, [data-testid='trend-row']");
+    const trendRows = page.getByTestId("trend-row");
     await expect(trendRows.first()).toBeVisible({ timeout: 30_000 });
     // Citations mandatory: each trend links ≥1 source.
     await expect(page.locator("a[href^='http']").first()).toBeVisible({
@@ -281,20 +228,16 @@ test.describe("E2E_NICHE_FINDER", () => {
     const mode = await detectMode(page);
     if (mode === "unconfigured") return;
     await page.goto("/intelligence/niches");
-    const firstNiche = page
-      .locator("tbody tr a, [data-testid='niche-row'] a")
-      .first();
+    const firstNiche = page.locator('a[href*="/intelligence/niches/"]').first();
     await expect(firstNiche).toBeVisible({ timeout: 30_000 });
     await firstNiche.click();
-    const blueprint = page
-      .getByRole("button", { name: /blueprint/i })
-      .first();
+    const blueprint = page.getByRole("button", { name: /blueprint/i }).first();
     await expect(blueprint).toBeVisible({ timeout: 15_000 });
     await blueprint.click();
     // Deterministic blueprint content renders (no LLM in Phase 2).
-    await expect(
-      page.getByText(/blueprint|content pillars|format/i).first(),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/blueprint|content pillars|format/i).first()).toBeVisible({
+      timeout: 15_000,
+    });
     await assertNoFabricatedRows(page);
   });
 
@@ -315,16 +258,12 @@ test.describe("E2E_NICHE_FINDER", () => {
 
     // Add a rule: videos.outlier_score gte 2.
     await page.getByLabel(/rule field/i).click();
-    await page
-      .getByRole("option", { name: /outlier score/i })
-      .click();
+    await page.getByRole("option", { name: /outlier score/i }).click();
     await page.getByLabel(/rule operator/i).click();
     await page.getByRole("option", { name: /^gte$/i }).click();
     await page.getByLabel(/rule value/i).fill("2");
     await page.getByRole("button", { name: /add rule/i }).click();
-    await expect(
-      page.getByText(/outlier score/i).first(),
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/outlier score/i).first()).toBeVisible({ timeout: 10_000 });
 
     // Rule-matched section renders (empty is fine — honest, no fake rows).
     await expect(page.getByText(/rule-matched/i).first()).toBeVisible();
@@ -332,9 +271,7 @@ test.describe("E2E_NICHE_FINDER", () => {
     expect(errors).toEqual([]);
   });
 
-  test("unconfigured mode: every surface shows honest state", async ({
-    page,
-  }) => {
+  test("unconfigured mode: every surface shows honest state", async ({ page }) => {
     await signIn(page);
     const mode = await detectMode(page);
     test.skip(
@@ -354,15 +291,15 @@ test.describe("E2E_NICHE_FINDER", () => {
       await assertNoFabricatedRows(page);
       if (path === "/intelligence") {
         // Hub is API-independent: six section cards must render.
-        await expect(
-          page.getByRole("link", { name: /folders/i }).first(),
-        ).toBeVisible({ timeout: 10_000 });
+        await expect(page.getByRole("link", { name: /folders/i }).first()).toBeVisible({
+          timeout: 10_000,
+        });
       }
       if (path === "/intelligence/folders") {
         // Folders don't need the YouTube API: honest empty state.
-        await expect(
-          page.getByText(/no folders yet|smart folders/i).first(),
-        ).toBeVisible({ timeout: 10_000 });
+        await expect(page.getByText(/no folders yet|smart folders/i).first()).toBeVisible({
+          timeout: 10_000,
+        });
       }
     }
   });

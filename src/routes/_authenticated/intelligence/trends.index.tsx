@@ -100,7 +100,7 @@ function TrendsIndex() {
           </p>
           <div className="grid gap-4 md:grid-cols-2">
             {radar.trends.map((tr) => (
-              <Card key={tr.id}>
+              <Card key={tr.id} data-testid="trend-row">
                 <CardHeader>
                   <div className="flex items-start justify-between gap-3">
                     <CardTitle className="text-base leading-snug">{tr.topic}</CardTitle>

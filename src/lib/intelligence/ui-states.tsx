@@ -12,22 +12,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Confidence, ScoreFactor } from "./types";
+import { timeAgo } from "./format";
 
 /* ------------------------------------------------------------------ */
-
-export function timeAgo(iso: string | null): string | null {
-  if (!iso) return null;
-  const ms = new Date(iso).getTime();
-  if (Number.isNaN(ms)) return null;
-  const mins = Math.max(0, Math.round((Date.now() - ms) / 60_000));
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.round(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.round(hours / 24);
-  if (days < 30) return `${days}d ago`;
-  return `${Math.round(days / 30)}mo ago`;
-}
 
 export function PageSkeleton({ rows = 6 }: { rows?: number }) {
   return (
@@ -123,7 +110,11 @@ const confidenceStyles: Record<Confidence, string> = {
 
 export function ConfidenceBadge({ confidence }: { confidence: Confidence }) {
   return (
-    <Badge variant="outline" className={confidenceStyles[confidence]} title="Confidence in this score, based on how much snapshot evidence backs it">
+    <Badge
+      variant="outline"
+      className={confidenceStyles[confidence]}
+      title="Confidence in this score, based on how much snapshot evidence backs it"
+    >
       {confidence} confidence
     </Badge>
   );
@@ -174,8 +165,7 @@ export function FreshnessLabel({
   const ago = timeAgo(capturedAt);
   if (!ago) return <span className="text-xs text-muted-foreground">No data captured yet</span>;
   const stale =
-    capturedAt != null &&
-    Date.now() - new Date(capturedAt).getTime() > staleAfterHours * 3_600_000;
+    capturedAt != null && Date.now() - new Date(capturedAt).getTime() > staleAfterHours * 3_600_000;
   return (
     <span className={`text-xs ${stale ? "font-medium text-amber-600" : "text-muted-foreground"}`}>
       {stale ? `STALE — updated ${ago}` : `Updated ${ago}`}
@@ -218,9 +208,4 @@ export function Stat({ label, value }: { label: string; value: React.ReactNode }
       <p className="text-lg font-semibold">{value}</p>
     </div>
   );
-}
-
-export function formatNumber(v: number | null): string {
-  if (v == null) return "—";
-  return new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(v);
 }

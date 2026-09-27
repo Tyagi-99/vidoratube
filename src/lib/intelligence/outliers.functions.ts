@@ -19,12 +19,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireAppUser } from "../server-auth";
 import type { Json } from "@/integrations/supabase/types";
-import {
-  confidenceFor,
-  type Confidence,
-  type OutlierScore,
-  type ScoreFactor,
-} from "./types";
+import type { AdminDb } from "./youtube-api.server";
+import { confidenceFor, type Confidence, type OutlierScore, type ScoreFactor } from "./types";
 
 /* ------------------------------------------------------------------ */
 /* Local row shapes (intelligence tables are absent from the generated  */
@@ -79,9 +75,9 @@ export interface CompetitorChannelRow {
   niche_id: string | null;
 }
 
-/** Untyped accessor for tables missing from the generated Database type. */
-export function intelDb(admin: unknown): { from(table: string): any } {
-  return admin as { from(table: string): any };
+/** Narrowed accessor for tables missing from the generated Database type. */
+export function intelDb(admin: unknown): AdminDb {
+  return admin as AdminDb;
 }
 
 /* ------------------------------------------------------------------ */
@@ -142,8 +138,9 @@ export function growth7dPct(
     .find((s) => new Date(s.capturedAt).getTime() <= cutoff && s.subscriberCount != null);
   if (!baseline || baseline.subscriberCount == null || baseline.subscriberCount === 0) return null;
   return (
-    Math.round(((latest.subscriberCount - baseline.subscriberCount) / baseline.subscriberCount) * 1000) /
-    10
+    Math.round(
+      ((latest.subscriberCount - baseline.subscriberCount) / baseline.subscriberCount) * 1000,
+    ) / 10
   );
 }
 
@@ -243,10 +240,7 @@ export function computeOutlierScore(input: OutlierInputs): OutlierScore | null {
     },
   ];
 
-  const confidence = applyWeakEvidencePenalty(
-    confidenceFor(siblingCount, snapshotsUsed),
-    factors,
-  );
+  const confidence = applyWeakEvidencePenalty(confidenceFor(siblingCount, snapshotsUsed), factors);
   return {
     score: Math.round(score * 100) / 100,
     velocityPerDay,
@@ -267,9 +261,9 @@ const DEFAULT_MIN_SCORE = 2;
  * way to ingest data, so report `unconfigured` (with the founder action);
  * otherwise report honest `insufficient_data`.
  */
-function noDataStatus(reason: string):
-  | { status: "unconfigured"; reason: string }
-  | { status: "insufficient_data"; reason: string } {
+function noDataStatus(
+  reason: string,
+): { status: "unconfigured"; reason: string } | { status: "insufficient_data"; reason: string } {
   if (!process.env["YOUTUBE_API_KEY"]) {
     return {
       status: "unconfigured",
@@ -331,7 +325,11 @@ export const listOutliers = createServerFn({ method: "GET" })
       );
       eligible = eligible.filter((v) => {
         const ch = v.channels;
-        return ch?.platform && ch.external_channel_id && inNiche.has(`${ch.platform}:${ch.external_channel_id}`);
+        return (
+          ch?.platform &&
+          ch.external_channel_id &&
+          inNiche.has(`${ch.platform}:${ch.external_channel_id}`)
+        );
       });
     }
     if (eligible.length === 0) {
@@ -347,7 +345,7 @@ export const listOutliers = createServerFn({ method: "GET" })
       .order("captured_at", { ascending: true });
     if (snapError) throw new Error(snapError.message);
     const byVideo = new Map<string, SnapshotPoint[]>();
-    for (const s of ((snapRows ?? []) as VideoSnapshotRow[])) {
+    for (const s of (snapRows ?? []) as VideoSnapshotRow[]) {
       const list = byVideo.get(s.video_id) ?? [];
       list.push({ capturedAt: s.captured_at, viewCount: s.view_count });
       byVideo.set(s.video_id, list);
@@ -384,10 +382,8 @@ export const listOutliers = createServerFn({ method: "GET" })
         snapshots: byVideo.get(v.id) ?? [],
       });
       if (!outlier || outlier.score < minScore) continue;
-      const duration =
-        v.duration_seconds == null ? null : Number(v.duration_seconds);
-      const durationSeconds =
-        duration != null && Number.isFinite(duration) ? duration : null;
+      const duration = v.duration_seconds == null ? null : Number(v.duration_seconds);
+      const durationSeconds = duration != null && Number.isFinite(duration) ? duration : null;
       outliers.push({
         id: v.id,
         externalVideoId: v.external_video_id,
@@ -502,10 +498,9 @@ export const getSimilarChannels = createServerFn({ method: "GET" })
         (r) => `${r.platform}:${r.external_channel_id}`,
       ),
     );
-    const candidates = ((allChannels ?? []) as (ChannelRow & { tracked?: boolean | null })[]).filter(
-      (c) =>
-        c.tracked !== false && nicheKeys.has(`${c.platform}:${c.external_channel_id}`),
-    );
+    const candidates = (
+      (allChannels ?? []) as (ChannelRow & { tracked?: boolean | null })[]
+    ).filter((c) => c.tracked !== false && nicheKeys.has(`${c.platform}:${c.external_channel_id}`));
 
     // One batched snapshot read for the reference channel + all candidates.
     const { data: allSnaps } = await db
@@ -515,7 +510,7 @@ export const getSimilarChannels = createServerFn({ method: "GET" })
       .in("channel_id", [channel.id, ...candidates.map((c) => c.id)])
       .order("captured_at", { ascending: true });
     const snapsByChannel = new Map<string, ChannelSnapshotRow[]>();
-    for (const s of ((allSnaps ?? []) as ChannelSnapshotRow[])) {
+    for (const s of (allSnaps ?? []) as ChannelSnapshotRow[]) {
       const list = snapsByChannel.get(s.channel_id) ?? [];
       list.push(s);
       snapsByChannel.set(s.channel_id, list);

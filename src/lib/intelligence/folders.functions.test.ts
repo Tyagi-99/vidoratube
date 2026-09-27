@@ -28,10 +28,7 @@ describe("medianOf", () => {
 describe("outlierScoreFor (contract: latest views / channel median)", () => {
   it("returns the multiple of the channel median", () => {
     // Median of [1000, 2000, 3000, 8000] (even count) = 2500 → 3.2x.
-    expect(outlierScoreFor(8000, [1000, 2000, 3000, 8000])).toBeCloseTo(
-      8000 / 2500,
-      6,
-    );
+    expect(outlierScoreFor(8000, [1000, 2000, 3000, 8000])).toBeCloseTo(8000 / 2500, 6);
   });
   it("returns null when latest views are unknown", () => {
     expect(outlierScoreFor(null, [1000, 2000])).toBeNull();
@@ -89,51 +86,24 @@ describe("evaluateRuleValue operators", () => {
 
 describe("evaluateRule date semantics (videos.published_at)", () => {
   it("eq/neq compare calendar day", () => {
-    expect(
-      evaluateRule(
-        "videos.published_at",
-        "eq",
-        "2026-09-01",
-        "2026-09-01T10:00:00Z",
-      ),
-    ).toBe(true);
-    expect(
-      evaluateRule(
-        "videos.published_at",
-        "neq",
-        "2026-09-01",
-        "2026-09-02T10:00:00Z",
-      ),
-    ).toBe(true);
-    expect(
-      evaluateRule(
-        "videos.published_at",
-        "eq",
-        "2026-09-01",
-        "2026-09-02T10:00:00Z",
-      ),
-    ).toBe(false);
+    expect(evaluateRule("videos.published_at", "eq", "2026-09-01", "2026-09-01T10:00:00Z")).toBe(
+      true,
+    );
+    expect(evaluateRule("videos.published_at", "neq", "2026-09-01", "2026-09-02T10:00:00Z")).toBe(
+      true,
+    );
+    expect(evaluateRule("videos.published_at", "eq", "2026-09-01", "2026-09-02T10:00:00Z")).toBe(
+      false,
+    );
   });
   it("gt/lt compare timestamps", () => {
-    expect(
-      evaluateRule(
-        "videos.published_at",
-        "gt",
-        "2026-08-01",
-        "2026-09-01T00:00:00Z",
-      ),
-    ).toBe(true);
-    expect(
-      evaluateRule(
-        "videos.published_at",
-        "lt",
-        "2026-08-01",
-        "2026-09-01T00:00:00Z",
-      ),
-    ).toBe(false);
-    expect(
-      evaluateRule("videos.published_at", "gt", "2026-08-01", "not-a-date"),
-    ).toBe(false);
+    expect(evaluateRule("videos.published_at", "gt", "2026-08-01", "2026-09-01T00:00:00Z")).toBe(
+      true,
+    );
+    expect(evaluateRule("videos.published_at", "lt", "2026-08-01", "2026-09-01T00:00:00Z")).toBe(
+      false,
+    );
+    expect(evaluateRule("videos.published_at", "gt", "2026-08-01", "not-a-date")).toBe(false);
   });
 });
 
@@ -145,8 +115,7 @@ describe("addRuleSchema (contract: field + operator enum)", () => {
         : field === "video_ideas.status" || field === "research_sources.source_type"
           ? "string"
           : "number";
-    const isComparison = (op: string) =>
-      ["gt", "gte", "lt", "lte"].includes(op);
+    const isComparison = (op: string) => ["gt", "gte", "lt", "lte"].includes(op);
     for (const field of RULE_FIELDS) {
       for (const operator of RULE_OPERATORS) {
         const kind = kindOf(field);
@@ -189,9 +158,7 @@ describe("addRuleSchema (contract: field + operator enum)", () => {
       value: "new",
     };
     expect(() => addRuleSchema.parse(base)).toThrow();
-    expect(() =>
-      addRuleSchema.parse({ ...base, value: ["new", "draft"] }),
-    ).not.toThrow();
+    expect(() => addRuleSchema.parse({ ...base, value: ["new", "draft"] })).not.toThrow();
   });
   it("numeric comparisons require numeric values", () => {
     const base = {
@@ -210,8 +177,6 @@ describe("addRuleSchema (contract: field + operator enum)", () => {
       operator: "gt",
     };
     expect(() => addRuleSchema.parse({ ...base, value: "yesterday" })).toThrow();
-    expect(() =>
-      addRuleSchema.parse({ ...base, value: "2026-08-01" }),
-    ).not.toThrow();
+    expect(() => addRuleSchema.parse({ ...base, value: "2026-08-01" })).not.toThrow();
   });
 });

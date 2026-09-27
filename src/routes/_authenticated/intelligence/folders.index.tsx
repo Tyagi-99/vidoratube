@@ -63,11 +63,7 @@ function formatRuleValue(value: unknown): string {
   return String(value);
 }
 
-function parseRuleValue(
-  field: RuleField,
-  operator: RuleOperator,
-  raw: string,
-): unknown {
+function parseRuleValue(field: RuleField, operator: RuleOperator, raw: string): unknown {
   const t = raw.trim();
   if (operator === "in") {
     return t
@@ -110,9 +106,7 @@ function ItemList({
           className="flex items-center justify-between gap-3 rounded-lg border border-border p-3"
         >
           <div className="min-w-0">
-            <div className="truncate text-sm font-medium text-foreground">
-              {item.title}
-            </div>
+            <div className="truncate text-sm font-medium text-foreground">{item.title}</div>
             <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <Badge variant="outline">{item.itemType}</Badge>
               {item.detail && <span className="truncate">{item.detail}</span>}
@@ -149,13 +143,9 @@ function RuleList({
           className="flex items-center justify-between gap-3 rounded-lg border border-border p-3"
         >
           <div className="text-sm">
-            <span className="font-medium text-foreground">
-              {FIELD_LABELS[r.field]}
-            </span>{" "}
+            <span className="font-medium text-foreground">{FIELD_LABELS[r.field]}</span>{" "}
             <Badge variant="secondary">{r.operator}</Badge>{" "}
-            <span className="text-muted-foreground">
-              {formatRuleValue(r.value)}
-            </span>
+            <span className="text-muted-foreground">{formatRuleValue(r.value)}</span>
           </div>
           <Button
             variant="ghost"
@@ -202,8 +192,7 @@ function FoldersPage() {
     queryKey: ["folders"],
     queryFn: () => listFoldersFn({ data: {} }),
   });
-  const folders =
-    foldersQuery.data?.status === "ok" ? foldersQuery.data.folders : [];
+  const folders = foldersQuery.data?.status === "ok" ? foldersQuery.data.folders : [];
   const selected = folders.find((f) => f.id === selectedId) ?? null;
 
   const contentsQuery = useQuery({
@@ -211,8 +200,7 @@ function FoldersPage() {
     queryFn: () => getContentsFn({ data: { folderId: selectedId! } }),
     enabled: !!selectedId,
   });
-  const contents =
-    contentsQuery.data?.status === "ok" ? contentsQuery.data : null;
+  const contents = contentsQuery.data?.status === "ok" ? contentsQuery.data : null;
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["folders"] });
@@ -223,15 +211,14 @@ function FoldersPage() {
     toast.error(e instanceof Error ? e.message : label);
 
   const createMut = useMutation({
-    mutationFn: (d: { name: string; description: string }) =>
-      createFolderFn({ data: d }),
+    mutationFn: (d: { name: string; description: string }) => createFolderFn({ data: d }),
     onSuccess: (r) => {
       if (r.status === "ok") {
         toast.success("Folder created");
         setDialog(null);
         setName("");
         setDescription("");
-        setSelectedId(r.folder.id as string);
+        setSelectedId(r.folder?.id ?? null);
         invalidate();
       }
     },
@@ -330,12 +317,10 @@ function FoldersPage() {
     <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="font-display text-2xl font-semibold text-foreground">
-            Smart Folders
-          </h1>
+          <h1 className="font-display text-2xl font-semibold text-foreground">Smart Folders</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Pin items manually or let rules collect them automatically. Rules
-            are ANDed together; pinned items never appear twice.
+            Pin items manually or let rules collect them automatically. Rules are ANDed together;
+            pinned items never appear twice.
           </p>
         </div>
         <Button onClick={openCreate} className="gap-2">
@@ -388,9 +373,7 @@ function FoldersPage() {
                       : "border-border hover:border-accent/40"
                   }`}
                 >
-                  <div className="text-sm font-medium text-foreground">
-                    {f.name}
-                  </div>
+                  <div className="text-sm font-medium text-foreground">{f.name}</div>
                   <div className="mt-1 flex gap-2">
                     <Badge variant="secondary">{f.itemCount} pinned</Badge>
                     <Badge variant="secondary">{f.ruleCount} rules</Badge>
@@ -416,9 +399,7 @@ function FoldersPage() {
                     <div>
                       <CardTitle>{selected.name}</CardTitle>
                       {selected.description && (
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          {selected.description}
-                        </p>
+                        <p className="mt-1 text-sm text-muted-foreground">{selected.description}</p>
                       )}
                     </div>
                     <div className="flex gap-2">
@@ -448,16 +429,11 @@ function FoldersPage() {
                 {/* Rules */}
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-sm">
-                      Rules ({selected.ruleCount})
-                    </CardTitle>
+                    <CardTitle className="text-sm">Rules ({selected.ruleCount})</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="grid gap-2 sm:grid-cols-[1fr_140px_1fr_auto]">
-                      <Select
-                        value={ruleField}
-                        onValueChange={(v) => setRuleField(v as RuleField)}
-                      >
+                      <Select value={ruleField} onValueChange={(v) => setRuleField(v as RuleField)}>
                         <SelectTrigger aria-label="Rule field">
                           <SelectValue />
                         </SelectTrigger>
@@ -486,11 +462,7 @@ function FoldersPage() {
                       </Select>
                       <Input
                         aria-label="Rule value"
-                        placeholder={
-                          ruleOperator === "in"
-                            ? "comma-separated values"
-                            : "value"
-                        }
+                        placeholder={ruleOperator === "in" ? "comma-separated values" : "value"}
                         value={ruleValue}
                         onChange={(e) => setRuleValue(e.target.value)}
                       />
@@ -502,8 +474,8 @@ function FoldersPage() {
                       </Button>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Dates accept ISO format (e.g. 2026-08-01). Outlier score
-                      is latest views ÷ channel median views.
+                      Dates accept ISO format (e.g. 2026-08-01). Outlier score is latest views ÷
+                      channel median views.
                     </p>
                     {contentsQuery.isLoading ? (
                       <Skeleton className="h-10" />
@@ -541,8 +513,7 @@ function FoldersPage() {
                       <>
                         <section>
                           <h3 className="mb-2 flex items-center gap-2 text-sm font-medium">
-                            <Pin className="size-4 text-accent" /> Pinned (
-                            {contents.pinned.length})
+                            <Pin className="size-4 text-accent" /> Pinned ({contents.pinned.length})
                           </h3>
                           <ItemList
                             items={contents.pinned}
@@ -560,8 +531,8 @@ function FoldersPage() {
                         </section>
                         <section>
                           <h3 className="mb-2 flex items-center gap-2 text-sm font-medium">
-                            <Sparkles className="size-4 text-accent" />{" "}
-                            Rule-matched ({contents.ruleMatched.length})
+                            <Sparkles className="size-4 text-accent" /> Rule-matched (
+                            {contents.ruleMatched.length})
                           </h3>
                           <ItemList
                             items={contents.ruleMatched}
@@ -569,20 +540,13 @@ function FoldersPage() {
                           />
                         </section>
                         <section className="rounded-lg border border-border p-3">
-                          <h3 className="mb-2 text-sm font-medium">
-                            Pin an item by ID
-                          </h3>
+                          <h3 className="mb-2 text-sm font-medium">Pin an item by ID</h3>
                           <div className="flex flex-col gap-2 sm:flex-row">
                             <Select
                               value={pinType}
-                              onValueChange={(v) =>
-                                setPinType(v as FolderItemType)
-                              }
+                              onValueChange={(v) => setPinType(v as FolderItemType)}
                             >
-                              <SelectTrigger
-                                aria-label="Item type"
-                                className="sm:w-44"
-                              >
+                              <SelectTrigger aria-label="Item type" className="sm:w-44">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -608,8 +572,8 @@ function FoldersPage() {
                             </Button>
                           </div>
                           <p className="mt-2 text-xs text-muted-foreground">
-                            Copy an item ID from its detail page (video, idea,
-                            source, or channel) and pin it here.
+                            Copy an item ID from its detail page (video, idea, source, or channel)
+                            and pin it here.
                           </p>
                         </section>
                       </>
@@ -626,9 +590,7 @@ function FoldersPage() {
       <Dialog open={dialog !== null} onOpenChange={() => setDialog(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              {dialog === "create" ? "New folder" : "Edit folder"}
-            </DialogTitle>
+            <DialogTitle>{dialog === "create" ? "New folder" : "Edit folder"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -657,9 +619,7 @@ function FoldersPage() {
               Cancel
             </Button>
             <Button
-              disabled={
-                !name.trim() || createMut.isPending || updateMut.isPending
-              }
+              disabled={!name.trim() || createMut.isPending || updateMut.isPending}
               onClick={() => {
                 if (dialog === "create") {
                   createMut.mutate({ name: name.trim(), description });

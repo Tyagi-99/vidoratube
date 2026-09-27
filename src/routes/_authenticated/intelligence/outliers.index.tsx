@@ -30,8 +30,8 @@ import {
   PageSkeleton,
   ScoreBadge,
   UnconfiguredPanel,
-  formatNumber,
 } from "@/lib/intelligence/ui-states";
+import { formatNumber } from "@/lib/intelligence/format";
 
 export const Route = createFileRoute("/_authenticated/intelligence/outliers/")({
   component: OutliersIndex,
@@ -70,7 +70,7 @@ function OutlierCard({ entry }: { entry: OutlierEntry }) {
   };
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden" data-testid="outlier-row">
       {entry.thumbnailUrl ? (
         <img
           src={entry.thumbnailUrl}
@@ -198,7 +198,10 @@ function OutliersIndex() {
             <SelectItem value="recent">Most recent</SelectItem>
           </SelectContent>
         </Select>
-        <Button variant="outline" onClick={() => queryClient.invalidateQueries({ queryKey: ["intel-outliers"] })}>
+        <Button
+          variant="outline"
+          onClick={() => queryClient.invalidateQueries({ queryKey: ["intel-outliers"] })}
+        >
           Refresh
         </Button>
       </div>

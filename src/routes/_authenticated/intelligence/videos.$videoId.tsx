@@ -9,10 +9,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import {
-  analyzeVideo,
-  type VideoAnalysis,
-} from "@/lib/intelligence/video-analysis.functions";
+import { analyzeVideo, type VideoAnalysis } from "@/lib/intelligence/video-analysis.functions";
 import { compareVideos, listVideos } from "@/lib/intelligence/videos.functions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,8 +31,8 @@ import {
   PageSkeleton,
   ScoreBadge,
   Stat,
-  formatNumber,
 } from "@/lib/intelligence/ui-states";
+import { formatNumber } from "@/lib/intelligence/format";
 
 export const Route = createFileRoute("/_authenticated/intelligence/videos/$videoId")({
   component: VideoAnalysisPage,
@@ -77,9 +74,7 @@ function AnalysisSections({ analysis }: { analysis: VideoAnalysis }) {
           <FactRow
             label="Published"
             value={
-              publishing.publishedAt
-                ? new Date(publishing.publishedAt).toLocaleString()
-                : "Unknown"
+              publishing.publishedAt ? new Date(publishing.publishedAt).toLocaleString() : "Unknown"
             }
           />
           <FactRow label="Day of week (UTC)" value={publishing.dayOfWeek ?? "Unknown"} />
@@ -122,8 +117,7 @@ function AnalysisSections({ analysis }: { analysis: VideoAnalysis }) {
               <FactorDetails factors={outlier.factors} />
               <p className="text-xs text-muted-foreground">
                 Computed from {outlier.snapshotsUsed} snapshot
-                {outlier.snapshotsUsed === 1 ? "" : "s"} against sibling videos on the same
-                channel.
+                {outlier.snapshotsUsed === 1 ? "" : "s"} against sibling videos on the same channel.
               </p>
             </>
           ) : (
@@ -157,7 +151,9 @@ function ComparisonTable({ analyses }: { analyses: VideoAnalysis[] }) {
     {
       label: "Views / day",
       get: (a) =>
-        a.performance.viewsPerDay == null ? "—" : formatNumber(Math.round(a.performance.viewsPerDay)),
+        a.performance.viewsPerDay == null
+          ? "—"
+          : formatNumber(Math.round(a.performance.viewsPerDay)),
     },
     { label: "Likes", get: (a) => formatNumber(a.performance.likeCount) },
     {
@@ -248,8 +244,7 @@ function VideoAnalysisPage() {
     enabled: channelId != null,
   });
   const poolRes = channelVideosQuery.data;
-  const pool =
-    poolRes?.status === "ok" ? poolRes.videos.filter((v) => v.id !== videoId) : [];
+  const pool = poolRes?.status === "ok" ? poolRes.videos.filter((v) => v.id !== videoId) : [];
 
   const toggle = (id: string) => {
     setSelected((prev) =>
@@ -362,7 +357,9 @@ function VideoAnalysisPage() {
                     <label
                       key={v.id}
                       className={`flex cursor-pointer items-center gap-3 rounded-md border p-3 text-sm transition-colors ${
-                        selected.includes(v.id) ? "border-primary bg-primary/5" : "hover:border-muted-foreground"
+                        selected.includes(v.id)
+                          ? "border-primary bg-primary/5"
+                          : "hover:border-muted-foreground"
                       }`}
                     >
                       <Checkbox

@@ -25,6 +25,7 @@ import type {
   VideoSnapshotRow,
 } from "./snapshots.server";
 import type { AdminDb, DbListResult } from "./youtube-api.server";
+import type { Json } from "@/integrations/supabase/types";
 
 /* ------------------------------------------------------------------ */
 /* Contract shapes                                                     */
@@ -49,6 +50,8 @@ export interface VideoDetail extends VideoCard {
   likeCount: number | null;
   commentCount: number | null;
   freshness: Freshness;
+  /** Raw platform metrics payload (jsonb) — for analysis consumers. */
+  metrics: Json;
 }
 
 /**
@@ -86,10 +89,12 @@ function toVideoDetail(
     likeCount: latestSnapshot?.like_count ?? null,
     commentCount: latestSnapshot?.comment_count ?? null,
     freshness: { capturedAt: lastSnapshotAt, staleAfterHours: 6 },
+    metrics: video.metrics,
   };
 }
 
 type Unconfigured = { status: "unconfigured"; reason: string };
+type InsufficientData = { status: "insufficient_data"; reason: string };
 
 /* ------------------------------------------------------------------ */
 /* Input schemas                                                       */
@@ -158,58 +163,63 @@ async function channelTitles(
 export const listVideos = createServerFn({ method: "GET" })
   .middleware([requireAppUser])
   .inputValidator((i: unknown) => listVideosSchema.parse(i))
-  .handler(async ({ data, context }): Promise<{ status: "ok"; videos: VideoCard[] }> => {
-    const { userId } = context;
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { adminDb, dbList, dbOne } = await import("./youtube-api.server");
+  .handler(
+    async ({
+      data,
+      context,
+    }): Promise<{ status: "ok"; videos: VideoCard[] } | Unconfigured | InsufficientData> => {
+      const { userId } = context;
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { adminDb, dbList, dbOne } = await import("./youtube-api.server");
 
-    const db = adminDb(supabaseAdmin);
-    if (data.channelId !== undefined) {
-      const channel = await dbOne<{ id: string }>(
-        db
-          .from("channels")
-          .select("id")
-          .eq("id", data.channelId)
-          .eq("user_id", userId)
-          .maybeSingle(),
+      const db = adminDb(supabaseAdmin);
+      if (data.channelId !== undefined) {
+        const channel = await dbOne<{ id: string }>(
+          db
+            .from("channels")
+            .select("id")
+            .eq("id", data.channelId)
+            .eq("user_id", userId)
+            .maybeSingle(),
+        );
+        if (!channel) throw new Error("Channel not found.");
+      }
+
+      let query = db
+        .from("videos")
+        .select(VIDEO_COLUMNS)
+        .eq("user_id", userId)
+        .eq("platform", "youtube");
+      if (data.channelId !== undefined) query = query.eq("channel_id", data.channelId);
+
+      const rows = await dbList<VideoRow>(
+        query.order("published_at", { ascending: false, nullsFirst: false }).limit(data.max ?? 50),
       );
-      if (!channel) throw new Error("Channel not found.");
-    }
+      const titles = await channelTitles(
+        db,
+        rows.map((r) => r.channel_id),
+      );
 
-    let query = db
-      .from("videos")
-      .select(VIDEO_COLUMNS)
-      .eq("user_id", userId)
-      .eq("platform", "youtube");
-    if (data.channelId !== undefined) query = query.eq("channel_id", data.channelId);
+      const videos: VideoCard[] = [];
+      for (const row of rows) {
+        const latest = await latestVideoSnapshot(db, row.id);
+        videos.push(toVideoCard(row, latest, titles.get(row.channel_id ?? "") ?? null));
+      }
 
-    const rows = await dbList<VideoRow>(
-      query.order("published_at", { ascending: false, nullsFirst: false }).limit(data.max ?? 50),
-    );
-    const titles = await channelTitles(
-      db,
-      rows.map((r) => r.channel_id),
-    );
-
-    const videos: VideoCard[] = [];
-    for (const row of rows) {
-      const latest = await latestVideoSnapshot(db, row.id);
-      videos.push(toVideoCard(row, latest, titles.get(row.channel_id ?? "") ?? null));
-    }
-
-    const sort = data.sort ?? "recent";
-    if (sort === "views") {
-      videos.sort((a, b) => {
-        if (a.viewCount === null && b.viewCount === null) return 0;
-        if (a.viewCount === null) return 1;
-        if (b.viewCount === null) return -1;
-        return b.viewCount - a.viewCount;
-      });
-    }
-    // "outlier": Stream C owns scoring; all scores are null here, so the
-    // published_at order from the query is preserved (stable, honest).
-    return { status: "ok", videos };
-  });
+      const sort = data.sort ?? "recent";
+      if (sort === "views") {
+        videos.sort((a, b) => {
+          if (a.viewCount === null && b.viewCount === null) return 0;
+          if (a.viewCount === null) return 1;
+          if (b.viewCount === null) return -1;
+          return b.viewCount - a.viewCount;
+        });
+      }
+      // "outlier": Stream C owns scoring; all scores are null here, so the
+      // published_at order from the query is preserved (stable, honest).
+      return { status: "ok", videos };
+    },
+  );
 
 /* ------------------------------------------------------------------ */
 /* getVideoDetail                                                      */
@@ -222,12 +232,16 @@ export const getVideoDetail = createServerFn({ method: "GET" })
     async ({
       data,
       context,
-    }): Promise<{
-      status: "ok";
-      video: VideoDetail;
-      snapshots: VideoSnapshotRow[];
-      outlier: null;
-    }> => {
+    }): Promise<
+      | {
+          status: "ok";
+          video: VideoDetail;
+          snapshots: VideoSnapshotRow[];
+          outlier: null;
+        }
+      | Unconfigured
+      | InsufficientData
+    > => {
       const { userId } = context;
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { adminDb, dbList, dbOne } = await import("./youtube-api.server");
@@ -278,7 +292,9 @@ export const refreshVideo = createServerFn({ method: "POST" })
       data,
       context,
     }): Promise<
-      { status: "ok"; video: VideoDetail; snapshot: VideoSnapshotRow | null } | Unconfigured
+      | { status: "ok"; video: VideoDetail; snapshot: VideoSnapshotRow | null }
+      | Unconfigured
+      | InsufficientData
     > => {
       const { userId } = context;
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -357,38 +373,43 @@ export const refreshVideo = createServerFn({ method: "POST" })
 export const compareVideos = createServerFn({ method: "POST" })
   .middleware([requireAppUser])
   .inputValidator((i: unknown) => compareVideosSchema.parse(i))
-  .handler(async ({ data, context }): Promise<{ status: "ok"; videos: VideoDetail[] }> => {
-    const { userId } = context;
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { adminDb, dbList } = await import("./youtube-api.server");
+  .handler(
+    async ({
+      data,
+      context,
+    }): Promise<{ status: "ok"; videos: VideoDetail[] } | Unconfigured | InsufficientData> => {
+      const { userId } = context;
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { adminDb, dbList } = await import("./youtube-api.server");
 
-    const db = adminDb(supabaseAdmin);
-    const rows = await dbList<VideoRow>(
-      db
-        .from("videos")
-        .select(VIDEO_COLUMNS)
-        .eq("user_id", userId)
-        .in("id", [...data.videoIds]),
-    );
-    const byId = new Map(rows.map((r) => [r.id, r]));
-    const ordered: VideoRow[] = [];
-    for (const id of data.videoIds) {
-      const row = byId.get(id);
-      if (!row) throw new Error("One or more videos were not found.");
-      ordered.push(row);
-    }
-    const titles = await channelTitles(
-      db,
-      ordered.map((r) => r.channel_id),
-    );
+      const db = adminDb(supabaseAdmin);
+      const rows = await dbList<VideoRow>(
+        db
+          .from("videos")
+          .select(VIDEO_COLUMNS)
+          .eq("user_id", userId)
+          .in("id", [...data.videoIds]),
+      );
+      const byId = new Map(rows.map((r) => [r.id, r]));
+      const ordered: VideoRow[] = [];
+      for (const id of data.videoIds) {
+        const row = byId.get(id);
+        if (!row) throw new Error("One or more videos were not found.");
+        ordered.push(row);
+      }
+      const titles = await channelTitles(
+        db,
+        ordered.map((r) => r.channel_id),
+      );
 
-    const videos: VideoDetail[] = [];
-    for (const row of ordered) {
-      const latest = await latestVideoSnapshot(db, row.id);
-      videos.push(toVideoDetail(row, latest, titles.get(row.channel_id ?? "") ?? null));
-    }
-    return { status: "ok", videos };
-  });
+      const videos: VideoDetail[] = [];
+      for (const row of ordered) {
+        const latest = await latestVideoSnapshot(db, row.id);
+        videos.push(toVideoDetail(row, latest, titles.get(row.channel_id ?? "") ?? null));
+      }
+      return { status: "ok", videos };
+    },
+  );
 
 /* ------------------------------------------------------------------ */
 /* draftIdeaFromVideo — the F4 one-click handoff                        */
@@ -418,7 +439,9 @@ export const draftIdeaFromVideo = createServerFn({ method: "POST" })
     async ({
       data,
       context,
-    }): Promise<{ status: "ok"; ideaId: string; researchProjectId: string }> => {
+    }): Promise<
+      { status: "ok"; ideaId: string; researchProjectId: string } | Unconfigured | InsufficientData
+    > => {
       const { userId } = context;
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { adminDb, dbOne } = await import("./youtube-api.server");

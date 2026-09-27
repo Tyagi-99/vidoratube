@@ -82,20 +82,15 @@ function IntelligenceHub() {
     queryFn: () => listFoldersFn({ data: {} }),
   });
 
-  const folderCount =
-    foldersQuery.data?.status === "ok"
-      ? foldersQuery.data.folders.length
-      : null;
+  const folderCount = foldersQuery.data?.status === "ok" ? foldersQuery.data.folders.length : null;
 
   return (
     <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-8">
-        <h1 className="font-display text-2xl font-semibold text-foreground">
-          Intelligence
-        </h1>
+        <h1 className="font-display text-2xl font-semibold text-foreground">Intelligence</h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          Research the market before you create: score niches, track channels,
-          spot outliers, and organize everything into smart folders.
+          Research the market before you create: score niches, track channels, spot outliers, and
+          organize everything into smart folders.
         </p>
       </div>
 

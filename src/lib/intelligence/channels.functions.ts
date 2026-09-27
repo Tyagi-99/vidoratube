@@ -49,6 +49,10 @@ export interface ChannelDetail {
 }
 
 type Unconfigured = { status: "unconfigured"; reason: string };
+type InsufficientData = { status: "insufficient_data"; reason: string };
+
+/** Alias re-exported for route components (row type lives in snapshots.server). */
+export type ChannelSnapshot = ChannelSnapshotRow;
 
 /* ------------------------------------------------------------------ */
 /* Input schemas                                                       */
@@ -257,31 +261,36 @@ export const untrackChannel = createServerFn({ method: "POST" })
 export const listChannels = createServerFn({ method: "GET" })
   .middleware([requireAppUser])
   .inputValidator((i: unknown) => listChannelsSchema.parse(i))
-  .handler(async ({ data, context }): Promise<{ status: "ok"; channels: ChannelCard[] }> => {
-    const { userId } = context;
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { adminDb, dbList } = await import("./youtube-api.server");
-    const { computeSubscriberGrowthPct } = await import("./snapshots.server");
+  .handler(
+    async ({
+      data,
+      context,
+    }): Promise<{ status: "ok"; channels: ChannelCard[] } | Unconfigured | InsufficientData> => {
+      const { userId } = context;
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { adminDb, dbList } = await import("./youtube-api.server");
+      const { computeSubscriberGrowthPct } = await import("./snapshots.server");
 
-    const db = adminDb(supabaseAdmin);
-    let query = db
-      .from("channels")
-      .select(CHANNEL_COLUMNS)
-      .eq("user_id", userId)
-      .eq("platform", "youtube")
-      .eq("tracked", true);
-    if (data.nicheId !== undefined) query = query.eq("niche_id", data.nicheId);
+      const db = adminDb(supabaseAdmin);
+      let query = db
+        .from("channels")
+        .select(CHANNEL_COLUMNS)
+        .eq("user_id", userId)
+        .eq("platform", "youtube")
+        .eq("tracked", true);
+      if (data.nicheId !== undefined) query = query.eq("niche_id", data.nicheId);
 
-    const rows = await dbList<ChannelRow>(
-      query.order("created_at", { ascending: false }).limit(500),
-    );
-    const cards: ChannelCard[] = [];
-    for (const row of rows) {
-      cards.push(await toChannelCard(db, dbList, computeSubscriberGrowthPct, row));
-    }
-    const sorted = sortCards(cards, data.sort ?? "recent", data.order ?? "desc");
-    return { status: "ok", channels: sorted };
-  });
+      const rows = await dbList<ChannelRow>(
+        query.order("created_at", { ascending: false }).limit(500),
+      );
+      const cards: ChannelCard[] = [];
+      for (const row of rows) {
+        cards.push(await toChannelCard(db, dbList, computeSubscriberGrowthPct, row));
+      }
+      const sorted = sortCards(cards, data.sort ?? "recent", data.order ?? "desc");
+      return { status: "ok", channels: sorted };
+    },
+  );
 
 /* ------------------------------------------------------------------ */
 /* getChannelDetail                                                    */
@@ -290,67 +299,72 @@ export const listChannels = createServerFn({ method: "GET" })
 export const getChannelDetail = createServerFn({ method: "GET" })
   .middleware([requireAppUser])
   .inputValidator((i: unknown) => getChannelDetailSchema.parse(i))
-  .handler(async ({ data, context }): Promise<{ status: "ok" } & ChannelDetail> => {
-    const { userId } = context;
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { adminDb, dbList, dbOne } = await import("./youtube-api.server");
+  .handler(
+    async ({
+      data,
+      context,
+    }): Promise<({ status: "ok" } & ChannelDetail) | Unconfigured | InsufficientData> => {
+      const { userId } = context;
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { adminDb, dbList, dbOne } = await import("./youtube-api.server");
 
-    const db = adminDb(supabaseAdmin);
-    const channel = await dbOne<ChannelRow>(
-      db
-        .from("channels")
-        .select(CHANNEL_COLUMNS)
-        .eq("id", data.channelId)
-        .eq("user_id", userId)
-        .maybeSingle(),
-    );
-    if (!channel) throw new Error("Channel not found.");
-
-    const snapshots = await dbList<ChannelSnapshotRow>(
-      db
-        .from("channel_snapshots")
-        .select(CHANNEL_SNAPSHOT_COLUMNS)
-        .eq("channel_id", channel.id)
-        .order("captured_at", { ascending: false })
-        .limit(90),
-    );
-
-    const videoRows = await dbList<VideoRow>(
-      db
-        .from("videos")
-        .select(
-          "id, user_id, channel_id, platform, external_video_id, title, description, published_at, duration_seconds, thumbnail_url, is_own, metrics, created_at, updated_at",
-        )
-        .eq("user_id", userId)
-        .eq("channel_id", channel.id)
-        .order("published_at", { ascending: false, nullsFirst: false })
-        .limit(100),
-    );
-    const videos: VideoCard[] = [];
-    for (const video of videoRows) {
-      const latestSnap = await dbOne<VideoSnapshotRow>(
+      const db = adminDb(supabaseAdmin);
+      const channel = await dbOne<ChannelRow>(
         db
-          .from("video_snapshots")
-          .select(
-            "id, user_id, video_id, captured_at, view_count, like_count, comment_count, metrics",
-          )
-          .eq("video_id", video.id)
-          .order("captured_at", { ascending: false })
-          .limit(1)
+          .from("channels")
+          .select(CHANNEL_COLUMNS)
+          .eq("id", data.channelId)
+          .eq("user_id", userId)
           .maybeSingle(),
       );
-      videos.push(toVideoCard(video, latestSnap, channel.title));
-    }
+      if (!channel) throw new Error("Channel not found.");
 
-    const lastSnapshotAt = snapshots[0]?.captured_at ?? null;
-    return {
-      status: "ok",
-      channel,
-      snapshots,
-      videos,
-      freshness: { capturedAt: lastSnapshotAt, staleAfterHours: 24 },
-    };
-  });
+      const snapshots = await dbList<ChannelSnapshotRow>(
+        db
+          .from("channel_snapshots")
+          .select(CHANNEL_SNAPSHOT_COLUMNS)
+          .eq("channel_id", channel.id)
+          .order("captured_at", { ascending: false })
+          .limit(90),
+      );
+
+      const videoRows = await dbList<VideoRow>(
+        db
+          .from("videos")
+          .select(
+            "id, user_id, channel_id, platform, external_video_id, title, description, published_at, duration_seconds, thumbnail_url, is_own, metrics, created_at, updated_at",
+          )
+          .eq("user_id", userId)
+          .eq("channel_id", channel.id)
+          .order("published_at", { ascending: false, nullsFirst: false })
+          .limit(100),
+      );
+      const videos: VideoCard[] = [];
+      for (const video of videoRows) {
+        const latestSnap = await dbOne<VideoSnapshotRow>(
+          db
+            .from("video_snapshots")
+            .select(
+              "id, user_id, video_id, captured_at, view_count, like_count, comment_count, metrics",
+            )
+            .eq("video_id", video.id)
+            .order("captured_at", { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+        );
+        videos.push(toVideoCard(video, latestSnap, channel.title));
+      }
+
+      const lastSnapshotAt = snapshots[0]?.captured_at ?? null;
+      return {
+        status: "ok",
+        channel,
+        snapshots,
+        videos,
+        freshness: { capturedAt: lastSnapshotAt, staleAfterHours: 24 },
+      };
+    },
+  );
 
 /* ------------------------------------------------------------------ */
 /* refreshChannel — no-op when the API cache is still fresh             */
@@ -364,7 +378,9 @@ export const refreshChannel = createServerFn({ method: "POST" })
       data,
       context,
     }): Promise<
-      { status: "ok"; channel: ChannelRow; snapshot: ChannelSnapshotRow | null } | Unconfigured
+      | { status: "ok"; channel: ChannelRow; snapshot: ChannelSnapshotRow | null }
+      | Unconfigured
+      | InsufficientData
     > => {
       const { userId } = context;
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -450,7 +466,7 @@ export const searchChannels = createServerFn({ method: "GET" })
     async ({
       data,
       context,
-    }): Promise<{ status: "ok"; channels: ChannelCard[] } | Unconfigured> => {
+    }): Promise<{ status: "ok"; channels: ChannelCard[] } | Unconfigured | InsufficientData> => {
       const { userId } = context;
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { fetchChannels, searchChannelsByQuery } = await import("./youtube-api.server");

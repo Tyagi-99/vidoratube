@@ -20,9 +20,8 @@ import {
   ScoreBadge,
   Stat,
   UnconfiguredPanel,
-  formatNumber,
-  timeAgo,
 } from "@/lib/intelligence/ui-states";
+import { formatNumber, timeAgo } from "@/lib/intelligence/format";
 
 export const Route = createFileRoute("/_authenticated/intelligence/channels/$channelId")({
   component: ChannelDetail,
@@ -78,7 +77,7 @@ function Sparkline({ snapshots }: { snapshots: ChannelSnapshot[] }) {
 
 function VideoRow({ video }: { video: VideoCard }) {
   return (
-    <Link to="/intelligence/videos/$videoId" params={{ videoId: video.id }}>
+    <Link to="/intelligence/videos/$videoId" params={{ videoId: video.id }} data-testid="video-row">
       <Card className="transition-colors hover:border-primary">
         <CardContent className="flex gap-4 py-4">
           {video.thumbnailUrl ? (
@@ -148,7 +147,9 @@ function ChannelDetail() {
       <div className="mx-auto max-w-6xl px-4 py-8">
         <ErrorState
           message={
-            detailQuery.error instanceof Error ? detailQuery.error.message : "Failed to load channel"
+            detailQuery.error instanceof Error
+              ? detailQuery.error.message
+              : "Failed to load channel"
           }
           onRetry={() => detailQuery.refetch()}
         />
@@ -229,10 +230,7 @@ function ChannelDetail() {
       {videosQuery.isLoading ? (
         <PageSkeleton rows={3} />
       ) : videosQuery.isError ? (
-        <ErrorState
-          message="Failed to load videos"
-          onRetry={() => videosQuery.refetch()}
-        />
+        <ErrorState message="Failed to load videos" onRetry={() => videosQuery.refetch()} />
       ) : videosRes?.status === "unconfigured" ? (
         <UnconfiguredPanel reason={videosRes.reason} />
       ) : videos.length === 0 ? (
@@ -255,14 +253,16 @@ function ChannelDetail() {
           <EstimateBadge />
         </div>
         <p className="mb-4 text-sm text-muted-foreground">
-          Heuristic estimate: same niche watchlist + subscriber count within one order of
-          magnitude (0.1×–10×). Not a measured similarity — treat as a starting point for
-          research.
+          Heuristic estimate: same niche watchlist + subscriber count within one order of magnitude
+          (0.1×–10×). Not a measured similarity — treat as a starting point for research.
         </p>
         {similarQuery.isLoading ? (
           <PageSkeleton rows={3} />
         ) : similarQuery.isError ? (
-          <ErrorState message="Failed to load similar channels" onRetry={() => similarQuery.refetch()} />
+          <ErrorState
+            message="Failed to load similar channels"
+            onRetry={() => similarQuery.refetch()}
+          />
         ) : similarRes?.status === "unconfigured" ? (
           <UnconfiguredPanel reason={similarRes.reason} />
         ) : similarRes?.status === "insufficient_data" ? (
@@ -275,14 +275,12 @@ function ChannelDetail() {
         ) : (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {similarRes.channels.map((c) => (
-              <Link
-                key={c.id}
-                to="/intelligence/channels/$channelId"
-                params={{ channelId: c.id }}
-              >
+              <Link key={c.id} to="/intelligence/channels/$channelId" params={{ channelId: c.id }}>
                 <Card className="h-full transition-colors hover:border-primary">
                   <CardHeader>
-                    <CardTitle className="truncate text-base">{c.title ?? c.handle ?? "—"}</CardTitle>
+                    <CardTitle className="truncate text-base">
+                      {c.title ?? c.handle ?? "—"}
+                    </CardTitle>
                     <p className="truncate text-xs text-muted-foreground">{c.handle}</p>
                   </CardHeader>
                   <CardContent className="space-y-2 text-sm">

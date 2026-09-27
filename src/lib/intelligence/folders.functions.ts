@@ -14,18 +14,15 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireAppUser } from "../server-auth";
+import { adminDb, type AdminDb } from "./youtube-api.server";
+import type { Json } from "@/integrations/supabase/types";
 
 /* ------------------------------------------------------------------ */
 /* Pinned contract vocab                                               */
 /* ------------------------------------------------------------------ */
 
 /** Polymorphic item types that may be pinned into a folder (whitelist). */
-export const FOLDER_ITEM_TYPES = [
-  "videos",
-  "video_ideas",
-  "research_sources",
-  "channels",
-] as const;
+export const FOLDER_ITEM_TYPES = ["videos", "video_ideas", "research_sources", "channels"] as const;
 export type FolderItemType = (typeof FOLDER_ITEM_TYPES)[number];
 
 /** Rule fields pinned by the Phase 2 contract. */
@@ -39,16 +36,7 @@ export const RULE_FIELDS = [
 ] as const;
 export type RuleField = (typeof RULE_FIELDS)[number];
 
-export const RULE_OPERATORS = [
-  "eq",
-  "neq",
-  "gt",
-  "gte",
-  "lt",
-  "lte",
-  "contains",
-  "in",
-] as const;
+export const RULE_OPERATORS = ["eq", "neq", "gt", "gte", "lt", "lte", "contains", "in"] as const;
 export type RuleOperator = (typeof RULE_OPERATORS)[number];
 
 type FieldKind = "number" | "string" | "date";
@@ -150,13 +138,9 @@ export function evaluateRuleValue(
       return c <= r;
     }
     case "contains":
-      return String(candidate)
-        .toLowerCase()
-        .includes(String(ruleValue).toLowerCase());
+      return String(candidate).toLowerCase().includes(String(ruleValue).toLowerCase());
     case "in":
-      return (
-        Array.isArray(ruleValue) && ruleValue.some((v) => looseEq(candidate, v))
-      );
+      return Array.isArray(ruleValue) && ruleValue.some((v) => looseEq(candidate, v));
   }
 }
 
@@ -238,8 +222,7 @@ export const addRuleSchema = z
         });
       }
       if (kind === "date") {
-        const t =
-          typeof data.value === "string" ? Date.parse(data.value) : NaN;
+        const t = typeof data.value === "string" ? Date.parse(data.value) : NaN;
         if (Number.isNaN(t)) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
@@ -254,11 +237,103 @@ export const addRuleSchema = z
 /* Server-only helpers                                                 */
 /* ------------------------------------------------------------------ */
 
-type Admin = any;
+type Admin = AdminDb;
+
+/** Row shapes for intelligence tables missing from the generated Database type. */
+interface FolderListRow {
+  id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+interface FolderPinRow {
+  item_type: string;
+  item_id: string;
+  added_at: string;
+}
+interface VideoSnapshotLite {
+  video_id: string;
+  view_count: number | null;
+}
+interface ChannelSnapshotLite {
+  channel_id: string;
+  subscriber_count: number | null;
+}
+interface VideoRuleRow {
+  id: string;
+  title: string | null;
+  published_at: string | null;
+  channel_id: string | null;
+  channels: { title: string | null } | null;
+}
+interface IdeaRow {
+  id: string;
+  title: string | null;
+  status: string | null;
+}
+interface SourceRow {
+  id: string;
+  title: string | null;
+  url: string | null;
+  source_type: string | null;
+}
+interface ChannelRuleRow {
+  id: string;
+  title: string | null;
+  handle: string | null;
+}
+interface RuleOwnershipRow {
+  id: string;
+  folder_id: string;
+  folders: { user_id: string } | null;
+}
+interface FolderRuleRow {
+  id: string;
+  folder_id: string;
+  field: string;
+  operator: string;
+  value: Json;
+  position: number;
+  created_at: string;
+}
+
+/** Polymorphic row for the title/detail display helpers. */
+interface FolderDisplayRow {
+  id: string;
+  title?: string | null;
+  handle?: string | null;
+  status?: string | null;
+  source_type?: string | null;
+  url?: string | null;
+  published_at?: string | null;
+  channel_id?: string | null;
+  channels?: { title: string | null } | null;
+  latestViews?: number | null;
+  outlier?: number | null;
+  subscribers?: number | null;
+  channelTitle?: string | null;
+}
+
+/** postgrest-js head-count query: select(columns, { count: "exact", head: true }). */
+interface HeadCountQuery {
+  select(
+    columns: string,
+    options: { count: "exact"; head: boolean },
+  ): Promise<{ count: number | null; error: { message: string } | null }>;
+}
+
+async function countExact(admin: Admin, table: string, folderId: string): Promise<number> {
+  const res = await (
+    admin.from(table).eq("folder_id", folderId) as unknown as HeadCountQuery
+  ).select("id", { count: "exact", head: true });
+  if (res.error) throw new Error(res.error.message);
+  return res.count ?? 0;
+}
 
 async function getAdmin(): Promise<Admin> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  return supabaseAdmin;
+  return adminDb(supabaseAdmin);
 }
 
 async function ownFolder(
@@ -298,7 +373,7 @@ export const createFolder = createServerFn({ method: "POST" })
       .from("folders")
       .insert({ user_id: userId, name: data.name, description: data.description })
       .select("id, name, description, created_at, updated_at")
-      .single();
+      .single<FolderListRow>();
     if (error) throw new Error(error.message);
     return { status: "ok" as const, folder };
   });
@@ -320,16 +395,10 @@ export const listFolders = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     const out = [];
-    for (const f of (folders ?? []) as any[]) {
-      const [{ count: itemCount }, { count: ruleCount }] = await Promise.all([
-        admin
-          .from("folder_items")
-          .select("id", { count: "exact", head: true })
-          .eq("folder_id", f.id),
-        admin
-          .from("folder_rules")
-          .select("id", { count: "exact", head: true })
-          .eq("folder_id", f.id),
+    for (const f of (folders ?? []) as FolderListRow[]) {
+      const [itemCount, ruleCount] = await Promise.all([
+        countExact(admin, "folder_items", f.id),
+        countExact(admin, "folder_rules", f.id),
       ]);
       out.push({
         id: f.id,
@@ -371,7 +440,7 @@ export const updateFolder = createServerFn({ method: "POST" })
       .eq("id", data.folderId)
       .eq("user_id", userId)
       .select("id, name, description, created_at, updated_at")
-      .single();
+      .single<FolderListRow>();
     if (error) throw new Error(error.message);
     return { status: "ok" as const, folder };
   });
@@ -406,21 +475,18 @@ export const addRule = createServerFn({ method: "POST" })
     const admin = await getAdmin();
     const existing = await ownFolder(admin, userId, data.folderId);
     if (!existing) throw new Error("Folder not found");
-    const { count } = await admin
-      .from("folder_rules")
-      .select("id", { count: "exact", head: true })
-      .eq("folder_id", data.folderId);
+    const count = await countExact(admin, "folder_rules", data.folderId);
     const { data: rule, error } = await admin
       .from("folder_rules")
       .insert({
         folder_id: data.folderId,
         field: data.field,
         operator: data.operator,
-        value: (data.value ?? null) as any,
-        position: count ?? 0,
+        value: (data.value ?? null) as Json,
+        position: count,
       })
       .select("id, folder_id, field, operator, value, position, created_at")
-      .single();
+      .single<FolderRuleRow>();
     if (error) throw new Error(error.message);
     return { status: "ok" as const, rule };
   });
@@ -437,9 +503,9 @@ export const removeRule = createServerFn({ method: "POST" })
       .from("folder_rules")
       .select("id, folder_id, folders!inner(user_id)")
       .eq("id", data.ruleId)
-      .maybeSingle();
+      .maybeSingle<RuleOwnershipRow>();
     if (findError) throw new Error(findError.message);
-    if (!rule || (rule as any).folders?.user_id !== userId) {
+    if (!rule || rule.folders?.user_id !== userId) {
       throw new Error("Rule not found");
     }
     const { error } = await admin.from("folder_rules").delete().eq("id", data.ruleId);
@@ -509,12 +575,7 @@ export const unpinItem = createServerFn({ method: "POST" })
 /* ------------------------------------------------------------------ */
 
 /** JSON-serializable rule value (matches the folder_rules.value jsonb column). */
-export type RuleValue =
-  | string
-  | number
-  | boolean
-  | null
-  | Array<string | number | boolean>;
+export type RuleValue = string | number | boolean | null | Array<string | number | boolean>;
 
 /** A stored rule row, returned alongside contents so the UI can list/remove. */
 export interface FolderRule {
@@ -533,14 +594,12 @@ function fmtViews(n: number): string {
   return String(Math.round(n));
 }
 
-function itemDetailFor(type: FolderItemType, row: any): string | null {
+function itemDetailFor(type: FolderItemType, row: FolderDisplayRow): string | null {
   switch (type) {
     case "videos": {
       const bits: string[] = [];
-      if (typeof row.latestViews === "number")
-        bits.push(`${fmtViews(row.latestViews)} views`);
-      if (typeof row.outlier === "number")
-        bits.push(`${row.outlier.toFixed(1)}× outlier`);
+      if (typeof row.latestViews === "number") bits.push(`${fmtViews(row.latestViews)} views`);
+      if (typeof row.outlier === "number") bits.push(`${row.outlier.toFixed(1)}× outlier`);
       if (row.channelTitle) bits.push(row.channelTitle);
       return bits.length ? bits.join(" · ") : null;
     }
@@ -554,15 +613,14 @@ function itemDetailFor(type: FolderItemType, row: any): string | null {
     }
     case "channels": {
       const bits: string[] = [];
-      if (typeof row.subscribers === "number")
-        bits.push(`${fmtViews(row.subscribers)} subs`);
+      if (typeof row.subscribers === "number") bits.push(`${fmtViews(row.subscribers)} subs`);
       if (row.handle) bits.push(row.handle);
       return bits.length ? bits.join(" · ") : null;
     }
   }
 }
 
-function titleFor(type: FolderItemType, row: any): string {
+function titleFor(type: FolderItemType, row: FolderDisplayRow): string {
   switch (type) {
     case "videos":
       return row.title || "Untitled video";
@@ -576,10 +634,7 @@ function titleFor(type: FolderItemType, row: any): string {
 }
 
 /** Latest snapshot view count per video id. */
-async function latestVideoViews(
-  admin: Admin,
-  videoIds: string[],
-): Promise<Map<string, number>> {
+async function latestVideoViews(admin: Admin, videoIds: string[]): Promise<Map<string, number>> {
   const map = new Map<string, number>();
   if (videoIds.length === 0) return map;
   const { data, error } = await admin
@@ -588,7 +643,7 @@ async function latestVideoViews(
     .in("video_id", videoIds)
     .order("captured_at", { ascending: false });
   if (error) throw new Error(error.message);
-  for (const s of (data ?? []) as any[]) {
+  for (const s of (data ?? []) as VideoSnapshotLite[]) {
     if (!map.has(s.video_id) && typeof s.view_count === "number") {
       map.set(s.video_id, s.view_count);
     }
@@ -597,10 +652,7 @@ async function latestVideoViews(
 }
 
 /** Latest snapshot subscriber count per channel id. */
-async function latestChannelSubs(
-  admin: Admin,
-  channelIds: string[],
-): Promise<Map<string, number>> {
+async function latestChannelSubs(admin: Admin, channelIds: string[]): Promise<Map<string, number>> {
   const map = new Map<string, number>();
   if (channelIds.length === 0) return map;
   const { data, error } = await admin
@@ -609,7 +661,7 @@ async function latestChannelSubs(
     .in("channel_id", channelIds)
     .order("captured_at", { ascending: false });
   if (error) throw new Error(error.message);
-  for (const s of (data ?? []) as any[]) {
+  for (const s of (data ?? []) as ChannelSnapshotLite[]) {
     if (!map.has(s.channel_id) && typeof s.subscriber_count === "number") {
       map.set(s.channel_id, s.subscriber_count);
     }
@@ -619,7 +671,7 @@ async function latestChannelSubs(
 
 function videoCandidate(
   field: RuleField,
-  row: any,
+  row: FolderDisplayRow,
   latestViews: Map<string, number>,
   siblingViews: number[],
 ): unknown {
@@ -654,7 +706,7 @@ export const getFolderContents = createServerFn({ method: "GET" })
 
     const pinned: FolderItem[] = [];
     const byType = new Map<FolderItemType, string[]>();
-    for (const p of (pinRows ?? []) as any[]) {
+    for (const p of (pinRows ?? []) as FolderPinRow[]) {
       const t = p.item_type as FolderItemType;
       if (!(FOLDER_ITEM_TYPES as readonly string[]).includes(t)) continue;
       const arr = byType.get(t) ?? [];
@@ -676,13 +728,9 @@ export const getFolderContents = createServerFn({ method: "GET" })
         .in("id", ids)
         .eq("user_id", userId);
       if (error) throw new Error(error.message);
-      const views =
-        type === "videos" ? await latestVideoViews(admin, ids) : new Map();
-      const subs =
-        type === "channels"
-          ? await latestChannelSubs(admin, ids)
-          : new Map();
-      for (const row of (rows ?? []) as any[]) {
+      const views = type === "videos" ? await latestVideoViews(admin, ids) : new Map();
+      const subs = type === "channels" ? await latestChannelSubs(admin, ids) : new Map();
+      for (const row of (rows ?? []) as FolderDisplayRow[]) {
         const enriched = {
           ...row,
           latestViews: views.get(row.id),
@@ -706,9 +754,7 @@ export const getFolderContents = createServerFn({ method: "GET" })
       .order("position", { ascending: true });
     if (ruleError) throw new Error(ruleError.message);
     const rules = (ruleRows ?? []) as FolderRule[];
-    const pinnedKeys = new Set(
-      pinned.map((p) => `${p.itemType}:${p.itemId}`),
-    );
+    const pinnedKeys = new Set(pinned.map((p) => `${p.itemType}:${p.itemId}`));
     const ruleMatched: FolderItem[] = [];
     if (rules.length > 0) {
       const rulesByTable = new Map<string, typeof rules>();
@@ -737,7 +783,7 @@ export const getFolderContents = createServerFn({ method: "GET" })
           .order("published_at", { ascending: false })
           .limit(RULE_SCAN_LIMIT);
         if (error) throw new Error(error.message);
-        const list = (videos ?? []) as any[];
+        const list = (videos ?? []) as VideoRuleRow[];
         const views = await latestVideoViews(
           admin,
           list.map((v) => v.id as string),
@@ -762,11 +808,7 @@ export const getFolderContents = createServerFn({ method: "GET" })
             outlier,
             channelTitle: v.channels?.title ?? null,
           };
-          if (
-            matchAll("videos", v, (f) =>
-              videoCandidate(f, v, views, siblings),
-            )
-          ) {
+          if (matchAll("videos", v, (f) => videoCandidate(f, v, views, siblings))) {
             const key = `videos:${v.id}`;
             if (!pinnedKeys.has(key)) {
               ruleMatched.push({
@@ -789,7 +831,7 @@ export const getFolderContents = createServerFn({ method: "GET" })
           .order("created_at", { ascending: false })
           .limit(RULE_SCAN_LIMIT);
         if (error) throw new Error(error.message);
-        for (const row of (ideas ?? []) as any[]) {
+        for (const row of (ideas ?? []) as IdeaRow[]) {
           if (
             matchAll("video_ideas", row, (f) =>
               f === "video_ideas.status" ? (row.status ?? null) : null,
@@ -817,12 +859,10 @@ export const getFolderContents = createServerFn({ method: "GET" })
           .order("created_at", { ascending: false })
           .limit(RULE_SCAN_LIMIT);
         if (error) throw new Error(error.message);
-        for (const row of (sources ?? []) as any[]) {
+        for (const row of (sources ?? []) as SourceRow[]) {
           if (
             matchAll("research_sources", row, (f) =>
-              f === "research_sources.source_type"
-                ? (row.source_type ?? null)
-                : null,
+              f === "research_sources.source_type" ? (row.source_type ?? null) : null,
             )
           ) {
             const key = `research_sources:${row.id}`;
@@ -847,7 +887,7 @@ export const getFolderContents = createServerFn({ method: "GET" })
           .order("created_at", { ascending: false })
           .limit(RULE_SCAN_LIMIT);
         if (error) throw new Error(error.message);
-        const list = (channels ?? []) as any[];
+        const list = (channels ?? []) as ChannelRuleRow[];
         const subs = await latestChannelSubs(
           admin,
           list.map((c) => c.id as string),
@@ -856,9 +896,7 @@ export const getFolderContents = createServerFn({ method: "GET" })
           const enriched = { ...c, subscribers: subs.get(c.id) ?? null };
           if (
             matchAll("channels", c, (f) =>
-              f === "channels.subscriber_count"
-                ? (subs.get(c.id) ?? null)
-                : null,
+              f === "channels.subscriber_count" ? (subs.get(c.id) ?? null) : null,
             )
           ) {
             const key = `channels:${c.id}`;

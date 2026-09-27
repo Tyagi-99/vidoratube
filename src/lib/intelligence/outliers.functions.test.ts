@@ -149,9 +149,7 @@ describe("computeOutlierScore", () => {
     expect(computeOutlierScore({ ...base, siblingLatestViews: [] })).toBeNull();
   });
   it("returns null when the median is zero (no meaningful multiple)", () => {
-    expect(
-      computeOutlierScore({ ...base, siblingLatestViews: [0, 0, 0] }),
-    ).toBeNull();
+    expect(computeOutlierScore({ ...base, siblingLatestViews: [0, 0, 0] })).toBeNull();
   });
 });
 

@@ -32,8 +32,8 @@ import {
   InsufficientDataPanel,
   PageSkeleton,
   UnconfiguredPanel,
-  formatNumber,
 } from "@/lib/intelligence/ui-states";
+import { formatNumber } from "@/lib/intelligence/format";
 
 export const Route = createFileRoute("/_authenticated/intelligence/channels/")({
   component: ChannelsIndex,
@@ -54,17 +54,16 @@ function ChannelsIndex() {
   const [order, setOrder] = useState<"asc" | "desc">("desc");
   const [ytQuery, setYtQuery] = useState("");
   const [searchResults, setSearchResults] = useState<ChannelCard[] | null>(null);
-  const [searchStatus, setSearchStatus] = useState<
-    "idle" | "loading" | "unconfigured" | "error"
-  >("idle");
+  const [searchStatus, setSearchStatus] = useState<"idle" | "loading" | "unconfigured" | "error">(
+    "idle",
+  );
   const [searchReason, setSearchReason] = useState("");
 
   const nichesQuery = useQuery({
     queryKey: ["intel-niches"],
     queryFn: () => nichesFn({ data: {} }),
   });
-  const niches =
-    nichesQuery.data?.status === "ok" ? nichesQuery.data.niches : [];
+  const niches = nichesQuery.data?.status === "ok" ? nichesQuery.data.niches : [];
 
   const channelsQuery = useQuery({
     queryKey: ["intel-channels", nicheId, sort, order],
@@ -118,9 +117,7 @@ function ChannelsIndex() {
   const visible = channels.filter((c) => {
     const q = filter.trim().toLowerCase();
     if (!q) return true;
-    return (
-      (c.title ?? "").toLowerCase().includes(q) || (c.handle ?? "").toLowerCase().includes(q)
-    );
+    return (c.title ?? "").toLowerCase().includes(q) || (c.handle ?? "").toLowerCase().includes(q);
   });
 
   return (
@@ -201,6 +198,7 @@ function ChannelsIndex() {
               key={c.id}
               to="/intelligence/channels/$channelId"
               params={{ channelId: c.id }}
+              data-testid="channel-row"
             >
               <Card className="h-full transition-colors hover:border-primary">
                 <CardHeader>
@@ -271,10 +269,7 @@ function ChannelsIndex() {
           <ErrorState message={searchReason} onRetry={() => void doSearch()} />
         ) : searchResults != null ? (
           searchResults.length === 0 ? (
-            <EmptyState
-              title="No channels found"
-              description="Try a different search term."
-            />
+            <EmptyState title="No channels found" description="Try a different search term." />
           ) : (
             <div className="grid gap-3 md:grid-cols-2">
               {searchResults.map((c) => (

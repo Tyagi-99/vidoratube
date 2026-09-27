@@ -173,12 +173,13 @@ function NichesIndex() {
               </DialogHeader>
               <div className="space-y-3">
                 <div>
-                  <Label>{t("intel_niche_name")}</Label>
-                  <Input value={name} onChange={(e) => setName(e.target.value)} />
+                  <Label htmlFor="niche-name">{t("intel_niche_name")}</Label>
+                  <Input id="niche-name" value={name} onChange={(e) => setName(e.target.value)} />
                 </div>
                 <div>
-                  <Label>{t("intel_keywords")}</Label>
+                  <Label htmlFor="niche-keywords">{t("intel_keywords")}</Label>
                   <Input
+                    id="niche-keywords"
                     value={keywords}
                     onChange={(e) => setKeywords(e.target.value)}
                     placeholder="history, mysteries, unsolved"
@@ -186,17 +187,18 @@ function NichesIndex() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label>{t("intel_language")}</Label>
+                    <Label htmlFor="niche-language">{t("intel_language")}</Label>
                     <Input
+                      id="niche-language"
                       value={language}
                       onChange={(e) => setLanguage(e.target.value)}
                       maxLength={10}
                     />
                   </div>
                   <div>
-                    <Label>{t("intel_format")}</Label>
+                    <Label htmlFor="niche-format">{t("intel_format")}</Label>
                     <Select value={format} onValueChange={(v) => setFormat(v as typeof format)}>
-                      <SelectTrigger>
+                      <SelectTrigger id="niche-format">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -207,8 +209,9 @@ function NichesIndex() {
                     </Select>
                   </div>
                   <div>
-                    <Label>{t("intel_min_subs")}</Label>
+                    <Label htmlFor="niche-min-subs">{t("intel_min_subs")}</Label>
                     <Input
+                      id="niche-min-subs"
                       type="number"
                       min={0}
                       value={nMinSubs}
@@ -216,8 +219,9 @@ function NichesIndex() {
                     />
                   </div>
                   <div>
-                    <Label>{t("intel_max_subs")}</Label>
+                    <Label htmlFor="niche-max-subs">{t("intel_max_subs")}</Label>
                     <Input
+                      id="niche-max-subs"
                       type="number"
                       min={0}
                       value={nMaxSubs}
@@ -267,9 +271,11 @@ function NichesIndex() {
           <Card className="mb-4">
             <CardContent className="flex flex-wrap items-end gap-3 py-4">
               <div>
-                <Label className="text-xs">{t("intel_language")}</Label>
+                <Label htmlFor="filter-language" className="text-xs">
+                  {t("intel_language")}
+                </Label>
                 <Select value={langFilter} onValueChange={setLangFilter}>
-                  <SelectTrigger className="w-32">
+                  <SelectTrigger id="filter-language" className="w-32">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -283,12 +289,14 @@ function NichesIndex() {
                 </Select>
               </div>
               <div>
-                <Label className="text-xs">{t("intel_format")}</Label>
+                <Label htmlFor="filter-format" className="text-xs">
+                  {t("intel_format")}
+                </Label>
                 <Select
                   value={formatFilter}
                   onValueChange={(v) => setFormatFilter(v as FormatFilter)}
                 >
-                  <SelectTrigger className="w-36">
+                  <SelectTrigger id="filter-format" className="w-36">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -300,8 +308,11 @@ function NichesIndex() {
                 </Select>
               </div>
               <div>
-                <Label className="text-xs">{t("intel_min_subs")}</Label>
+                <Label htmlFor="filter-min-subs" className="text-xs">
+                  {t("intel_min_subs")}
+                </Label>
                 <Input
+                  id="filter-min-subs"
                   type="number"
                   min={0}
                   className="w-28"
@@ -310,8 +321,11 @@ function NichesIndex() {
                 />
               </div>
               <div>
-                <Label className="text-xs">{t("intel_max_subs")}</Label>
+                <Label htmlFor="filter-max-subs" className="text-xs">
+                  {t("intel_max_subs")}
+                </Label>
                 <Input
+                  id="filter-max-subs"
                   type="number"
                   min={0}
                   className="w-28"

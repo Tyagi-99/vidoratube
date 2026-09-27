@@ -3,11 +3,7 @@
  * Fixed fixtures, no network, fully deterministic.
  */
 import { describe, expect, it } from "vitest";
-import {
-  packagingFacts,
-  performanceFacts,
-  publishingFacts,
-} from "./video-analysis.functions";
+import { packagingFacts, performanceFacts, publishingFacts } from "./video-analysis.functions";
 
 describe("packagingFacts", () => {
   it("extracts descriptive packaging facts", () => {

@@ -170,16 +170,10 @@ export const analyzeVideo = createServerFn({ method: "GET" })
     const title = video.title ?? "";
     const packaging = packagingFacts(title, video.thumbnail_url);
     const publishing = publishingFacts(video.published_at);
-    const performance = performanceFacts(
-      snapshots,
-      latest?.like_count ?? null,
-      video.metrics,
-    );
+    const performance = performanceFacts(snapshots, latest?.like_count ?? null, video.metrics);
 
-    const duration =
-      video.duration_seconds == null ? null : Number(video.duration_seconds);
-    const durationSeconds =
-      duration != null && Number.isFinite(duration) ? duration : null;
+    const duration = video.duration_seconds == null ? null : Number(video.duration_seconds);
+    const durationSeconds = duration != null && Number.isFinite(duration) ? duration : null;
 
     // Outlier score: computed with Stream C's shared math against sibling
     // videos' latest snapshots. Null when not computable (no channel, no
@@ -202,7 +196,7 @@ export const analyzeVideo = createServerFn({ method: "GET" })
           .in("video_id", siblingIds)
           .order("captured_at", { ascending: true });
         const latestByVideo = new Map<string, number>();
-        for (const s of ((sibSnaps ?? []) as VideoSnapshotRow[])) {
+        for (const s of (sibSnaps ?? []) as VideoSnapshotRow[]) {
           if (s.view_count != null) latestByVideo.set(s.video_id, s.view_count);
         }
         siblingViews = [...latestByVideo.values()];
@@ -229,6 +223,12 @@ export const analyzeVideo = createServerFn({ method: "GET" })
       channelTitle: video.channels?.title ?? null,
       description: video.description ?? "",
       channelId: video.channel_id,
+      likeCount: performance.likeCount ?? null,
+      commentCount: null,
+      freshness: {
+        capturedAt: snapshots[0]?.capturedAt ?? null,
+        staleAfterHours: 6,
+      },
       metrics: video.metrics ?? {},
     };
 
