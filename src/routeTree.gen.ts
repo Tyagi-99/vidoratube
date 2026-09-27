@@ -38,11 +38,21 @@ import { Route as AuthenticatedAgencyIndexRouteImport } from './routes/_authenti
 import { Route as AuthenticatedAgencyWorkspaceIdRouteImport } from './routes/_authenticated/agency.$workspaceId'
 import { Route as AuthenticatedAnalyticsIndexRouteImport } from './routes/_authenticated/analytics.index'
 import { Route as AuthenticatedBillingIndexRouteImport } from './routes/_authenticated/billing.index'
+import { Route as AuthenticatedCharactersIndexRouteImport } from './routes/_authenticated/characters.index'
+import { Route as AuthenticatedCreateIndexRouteImport } from './routes/_authenticated/create/index'
+import { Route as AuthenticatedCreateBrandVoicesRouteImport } from './routes/_authenticated/create/brand-voices'
+import { Route as AuthenticatedCreateCampaignsRouteImport } from './routes/_authenticated/create/campaigns'
+import { Route as AuthenticatedCreateQuickCreateRouteImport } from './routes/_authenticated/create/quick-create'
+import { Route as AuthenticatedCreateSeoStudioRouteImport } from './routes/_authenticated/create/seo-studio'
+import { Route as AuthenticatedCreateTitlesRouteImport } from './routes/_authenticated/create/titles'
 import { Route as AuthenticatedIntelligenceIndexRouteImport } from './routes/_authenticated/intelligence/index'
 import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authenticated/projects.index'
 import { Route as AuthenticatedProjectsProjectIdRouteImport } from './routes/_authenticated/projects.$projectId'
 import { Route as AuthenticatedResearchIndexRouteImport } from './routes/_authenticated/research.index'
 import { Route as AuthenticatedResearchProjectIdRouteImport } from './routes/_authenticated/research.$projectId'
+import { Route as AuthenticatedStudioProjectIdRouteImport } from './routes/_authenticated/studio.$projectId'
+import { Route as AuthenticatedThumbnailsIndexRouteImport } from './routes/_authenticated/thumbnails.index'
+import { Route as AuthenticatedVoicesIndexRouteImport } from './routes/_authenticated/voices/index'
 import { Route as ApiPublicMetaCallbackRouteImport } from './routes/api/public/meta-callback'
 import { Route as ApiPublicYoutubeCallbackRouteImport } from './routes/api/public/youtube-callback'
 import { Route as ApiWebhooksDodoRouteImport } from './routes/api/webhooks/dodo'
@@ -209,6 +219,48 @@ const AuthenticatedBillingIndexRoute =
     path: '/billing/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedCharactersIndexRoute =
+  AuthenticatedCharactersIndexRouteImport.update({
+    id: '/characters/',
+    path: '/characters/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedCreateIndexRoute =
+  AuthenticatedCreateIndexRouteImport.update({
+    id: '/create/',
+    path: '/create/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedCreateBrandVoicesRoute =
+  AuthenticatedCreateBrandVoicesRouteImport.update({
+    id: '/create/brand-voices',
+    path: '/create/brand-voices',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedCreateCampaignsRoute =
+  AuthenticatedCreateCampaignsRouteImport.update({
+    id: '/create/campaigns',
+    path: '/create/campaigns',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedCreateQuickCreateRoute =
+  AuthenticatedCreateQuickCreateRouteImport.update({
+    id: '/create/quick-create',
+    path: '/create/quick-create',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedCreateSeoStudioRoute =
+  AuthenticatedCreateSeoStudioRouteImport.update({
+    id: '/create/seo-studio',
+    path: '/create/seo-studio',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedCreateTitlesRoute =
+  AuthenticatedCreateTitlesRouteImport.update({
+    id: '/create/titles',
+    path: '/create/titles',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedIntelligenceIndexRoute =
   AuthenticatedIntelligenceIndexRouteImport.update({
     id: '/intelligence/',
@@ -237,6 +289,24 @@ const AuthenticatedResearchProjectIdRoute =
   AuthenticatedResearchProjectIdRouteImport.update({
     id: '/research/$projectId',
     path: '/research/$projectId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedStudioProjectIdRoute =
+  AuthenticatedStudioProjectIdRouteImport.update({
+    id: '/$projectId',
+    path: '/$projectId',
+    getParentRoute: () => AuthenticatedStudioRoute,
+  } as any)
+const AuthenticatedThumbnailsIndexRoute =
+  AuthenticatedThumbnailsIndexRouteImport.update({
+    id: '/thumbnails/',
+    path: '/thumbnails/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedVoicesIndexRoute =
+  AuthenticatedVoicesIndexRouteImport.update({
+    id: '/voices/',
+    path: '/voices/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const ApiPublicMetaCallbackRoute = ApiPublicMetaCallbackRouteImport.update({
@@ -325,7 +395,7 @@ export interface FileRoutesByFullPath {
   '/status': typeof StatusRoute
   '/terms': typeof TermsRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
-  '/studio': typeof AuthenticatedStudioRoute
+  '/studio': typeof AuthenticatedStudioRouteWithChildren
   '/guides/$slug': typeof GuidesSlugRoute
   '/r/$code': typeof RCodeRoute
   '/robots/txt': typeof RobotsTxtRoute
@@ -339,8 +409,14 @@ export interface FileRoutesByFullPath {
   '/admin/safety': typeof AuthenticatedAdminSafetyRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/agency/$workspaceId': typeof AuthenticatedAgencyWorkspaceIdRoute
+  '/create/brand-voices': typeof AuthenticatedCreateBrandVoicesRoute
+  '/create/campaigns': typeof AuthenticatedCreateCampaignsRoute
+  '/create/quick-create': typeof AuthenticatedCreateQuickCreateRoute
+  '/create/seo-studio': typeof AuthenticatedCreateSeoStudioRoute
+  '/create/titles': typeof AuthenticatedCreateTitlesRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/research/$projectId': typeof AuthenticatedResearchProjectIdRoute
+  '/studio/$projectId': typeof AuthenticatedStudioProjectIdRoute
   '/api/public/meta-callback': typeof ApiPublicMetaCallbackRoute
   '/api/public/youtube-callback': typeof ApiPublicYoutubeCallbackRoute
   '/api/webhooks/dodo': typeof ApiWebhooksDodoRoute
@@ -350,9 +426,13 @@ export interface FileRoutesByFullPath {
   '/agency/': typeof AuthenticatedAgencyIndexRoute
   '/analytics/': typeof AuthenticatedAnalyticsIndexRoute
   '/billing/': typeof AuthenticatedBillingIndexRoute
+  '/characters/': typeof AuthenticatedCharactersIndexRoute
+  '/create/': typeof AuthenticatedCreateIndexRoute
   '/intelligence/': typeof AuthenticatedIntelligenceIndexRoute
   '/projects/': typeof AuthenticatedProjectsIndexRoute
   '/research/': typeof AuthenticatedResearchIndexRoute
+  '/thumbnails/': typeof AuthenticatedThumbnailsIndexRoute
+  '/voices/': typeof AuthenticatedVoicesIndexRoute
   '/intelligence/channels/$channelId': typeof AuthenticatedIntelligenceChannelsChannelIdRoute
   '/intelligence/niches/$nicheId': typeof AuthenticatedIntelligenceNichesNicheIdRoute
   '/intelligence/videos/$videoId': typeof AuthenticatedIntelligenceVideosVideoIdRoute
@@ -372,7 +452,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/status': typeof StatusRoute
   '/terms': typeof TermsRoute
-  '/studio': typeof AuthenticatedStudioRoute
+  '/studio': typeof AuthenticatedStudioRouteWithChildren
   '/guides/$slug': typeof GuidesSlugRoute
   '/r/$code': typeof RCodeRoute
   '/robots/txt': typeof RobotsTxtRoute
@@ -386,8 +466,14 @@ export interface FileRoutesByTo {
   '/admin/safety': typeof AuthenticatedAdminSafetyRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/agency/$workspaceId': typeof AuthenticatedAgencyWorkspaceIdRoute
+  '/create/brand-voices': typeof AuthenticatedCreateBrandVoicesRoute
+  '/create/campaigns': typeof AuthenticatedCreateCampaignsRoute
+  '/create/quick-create': typeof AuthenticatedCreateQuickCreateRoute
+  '/create/seo-studio': typeof AuthenticatedCreateSeoStudioRoute
+  '/create/titles': typeof AuthenticatedCreateTitlesRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/research/$projectId': typeof AuthenticatedResearchProjectIdRoute
+  '/studio/$projectId': typeof AuthenticatedStudioProjectIdRoute
   '/api/public/meta-callback': typeof ApiPublicMetaCallbackRoute
   '/api/public/youtube-callback': typeof ApiPublicYoutubeCallbackRoute
   '/api/webhooks/dodo': typeof ApiWebhooksDodoRoute
@@ -397,9 +483,13 @@ export interface FileRoutesByTo {
   '/agency': typeof AuthenticatedAgencyIndexRoute
   '/analytics': typeof AuthenticatedAnalyticsIndexRoute
   '/billing': typeof AuthenticatedBillingIndexRoute
+  '/characters': typeof AuthenticatedCharactersIndexRoute
+  '/create': typeof AuthenticatedCreateIndexRoute
   '/intelligence': typeof AuthenticatedIntelligenceIndexRoute
   '/projects': typeof AuthenticatedProjectsIndexRoute
   '/research': typeof AuthenticatedResearchIndexRoute
+  '/thumbnails': typeof AuthenticatedThumbnailsIndexRoute
+  '/voices': typeof AuthenticatedVoicesIndexRoute
   '/intelligence/channels/$channelId': typeof AuthenticatedIntelligenceChannelsChannelIdRoute
   '/intelligence/niches/$nicheId': typeof AuthenticatedIntelligenceNichesNicheIdRoute
   '/intelligence/videos/$videoId': typeof AuthenticatedIntelligenceVideosVideoIdRoute
@@ -422,7 +512,7 @@ export interface FileRoutesById {
   '/status': typeof StatusRoute
   '/terms': typeof TermsRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
-  '/_authenticated/studio': typeof AuthenticatedStudioRoute
+  '/_authenticated/studio': typeof AuthenticatedStudioRouteWithChildren
   '/guides/$slug': typeof GuidesSlugRoute
   '/r/$code': typeof RCodeRoute
   '/robots/txt': typeof RobotsTxtRoute
@@ -436,8 +526,14 @@ export interface FileRoutesById {
   '/_authenticated/admin/safety': typeof AuthenticatedAdminSafetyRoute
   '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
   '/_authenticated/agency/$workspaceId': typeof AuthenticatedAgencyWorkspaceIdRoute
+  '/_authenticated/create/brand-voices': typeof AuthenticatedCreateBrandVoicesRoute
+  '/_authenticated/create/campaigns': typeof AuthenticatedCreateCampaignsRoute
+  '/_authenticated/create/quick-create': typeof AuthenticatedCreateQuickCreateRoute
+  '/_authenticated/create/seo-studio': typeof AuthenticatedCreateSeoStudioRoute
+  '/_authenticated/create/titles': typeof AuthenticatedCreateTitlesRoute
   '/_authenticated/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/_authenticated/research/$projectId': typeof AuthenticatedResearchProjectIdRoute
+  '/_authenticated/studio/$projectId': typeof AuthenticatedStudioProjectIdRoute
   '/api/public/meta-callback': typeof ApiPublicMetaCallbackRoute
   '/api/public/youtube-callback': typeof ApiPublicYoutubeCallbackRoute
   '/api/webhooks/dodo': typeof ApiWebhooksDodoRoute
@@ -447,9 +543,13 @@ export interface FileRoutesById {
   '/_authenticated/agency/': typeof AuthenticatedAgencyIndexRoute
   '/_authenticated/analytics/': typeof AuthenticatedAnalyticsIndexRoute
   '/_authenticated/billing/': typeof AuthenticatedBillingIndexRoute
+  '/_authenticated/characters/': typeof AuthenticatedCharactersIndexRoute
+  '/_authenticated/create/': typeof AuthenticatedCreateIndexRoute
   '/_authenticated/intelligence/': typeof AuthenticatedIntelligenceIndexRoute
   '/_authenticated/projects/': typeof AuthenticatedProjectsIndexRoute
   '/_authenticated/research/': typeof AuthenticatedResearchIndexRoute
+  '/_authenticated/thumbnails/': typeof AuthenticatedThumbnailsIndexRoute
+  '/_authenticated/voices/': typeof AuthenticatedVoicesIndexRoute
   '/_authenticated/intelligence/channels/$channelId': typeof AuthenticatedIntelligenceChannelsChannelIdRoute
   '/_authenticated/intelligence/niches/$nicheId': typeof AuthenticatedIntelligenceNichesNicheIdRoute
   '/_authenticated/intelligence/videos/$videoId': typeof AuthenticatedIntelligenceVideosVideoIdRoute
@@ -486,8 +586,14 @@ export interface FileRouteTypes {
     | '/admin/safety'
     | '/admin/users'
     | '/agency/$workspaceId'
+    | '/create/brand-voices'
+    | '/create/campaigns'
+    | '/create/quick-create'
+    | '/create/seo-studio'
+    | '/create/titles'
     | '/projects/$projectId'
     | '/research/$projectId'
+    | '/studio/$projectId'
     | '/api/public/meta-callback'
     | '/api/public/youtube-callback'
     | '/api/webhooks/dodo'
@@ -497,9 +603,13 @@ export interface FileRouteTypes {
     | '/agency/'
     | '/analytics/'
     | '/billing/'
+    | '/characters/'
+    | '/create/'
     | '/intelligence/'
     | '/projects/'
     | '/research/'
+    | '/thumbnails/'
+    | '/voices/'
     | '/intelligence/channels/$channelId'
     | '/intelligence/niches/$nicheId'
     | '/intelligence/videos/$videoId'
@@ -533,8 +643,14 @@ export interface FileRouteTypes {
     | '/admin/safety'
     | '/admin/users'
     | '/agency/$workspaceId'
+    | '/create/brand-voices'
+    | '/create/campaigns'
+    | '/create/quick-create'
+    | '/create/seo-studio'
+    | '/create/titles'
     | '/projects/$projectId'
     | '/research/$projectId'
+    | '/studio/$projectId'
     | '/api/public/meta-callback'
     | '/api/public/youtube-callback'
     | '/api/webhooks/dodo'
@@ -544,9 +660,13 @@ export interface FileRouteTypes {
     | '/agency'
     | '/analytics'
     | '/billing'
+    | '/characters'
+    | '/create'
     | '/intelligence'
     | '/projects'
     | '/research'
+    | '/thumbnails'
+    | '/voices'
     | '/intelligence/channels/$channelId'
     | '/intelligence/niches/$nicheId'
     | '/intelligence/videos/$videoId'
@@ -582,8 +702,14 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/safety'
     | '/_authenticated/admin/users'
     | '/_authenticated/agency/$workspaceId'
+    | '/_authenticated/create/brand-voices'
+    | '/_authenticated/create/campaigns'
+    | '/_authenticated/create/quick-create'
+    | '/_authenticated/create/seo-studio'
+    | '/_authenticated/create/titles'
     | '/_authenticated/projects/$projectId'
     | '/_authenticated/research/$projectId'
+    | '/_authenticated/studio/$projectId'
     | '/api/public/meta-callback'
     | '/api/public/youtube-callback'
     | '/api/webhooks/dodo'
@@ -593,9 +719,13 @@ export interface FileRouteTypes {
     | '/_authenticated/agency/'
     | '/_authenticated/analytics/'
     | '/_authenticated/billing/'
+    | '/_authenticated/characters/'
+    | '/_authenticated/create/'
     | '/_authenticated/intelligence/'
     | '/_authenticated/projects/'
     | '/_authenticated/research/'
+    | '/_authenticated/thumbnails/'
+    | '/_authenticated/voices/'
     | '/_authenticated/intelligence/channels/$channelId'
     | '/_authenticated/intelligence/niches/$nicheId'
     | '/_authenticated/intelligence/videos/$videoId'
@@ -834,6 +964,55 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBillingIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/characters/': {
+      id: '/_authenticated/characters/'
+      path: '/characters'
+      fullPath: '/characters/'
+      preLoaderRoute: typeof AuthenticatedCharactersIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/create/': {
+      id: '/_authenticated/create/'
+      path: '/create'
+      fullPath: '/create/'
+      preLoaderRoute: typeof AuthenticatedCreateIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/create/brand-voices': {
+      id: '/_authenticated/create/brand-voices'
+      path: '/create/brand-voices'
+      fullPath: '/create/brand-voices'
+      preLoaderRoute: typeof AuthenticatedCreateBrandVoicesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/create/campaigns': {
+      id: '/_authenticated/create/campaigns'
+      path: '/create/campaigns'
+      fullPath: '/create/campaigns'
+      preLoaderRoute: typeof AuthenticatedCreateCampaignsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/create/quick-create': {
+      id: '/_authenticated/create/quick-create'
+      path: '/create/quick-create'
+      fullPath: '/create/quick-create'
+      preLoaderRoute: typeof AuthenticatedCreateQuickCreateRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/create/seo-studio': {
+      id: '/_authenticated/create/seo-studio'
+      path: '/create/seo-studio'
+      fullPath: '/create/seo-studio'
+      preLoaderRoute: typeof AuthenticatedCreateSeoStudioRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/create/titles': {
+      id: '/_authenticated/create/titles'
+      path: '/create/titles'
+      fullPath: '/create/titles'
+      preLoaderRoute: typeof AuthenticatedCreateTitlesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/intelligence/': {
       id: '/_authenticated/intelligence/'
       path: '/intelligence'
@@ -867,6 +1046,27 @@ declare module '@tanstack/react-router' {
       path: '/research/$projectId'
       fullPath: '/research/$projectId'
       preLoaderRoute: typeof AuthenticatedResearchProjectIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/studio/$projectId': {
+      id: '/_authenticated/studio/$projectId'
+      path: '/$projectId'
+      fullPath: '/studio/$projectId'
+      preLoaderRoute: typeof AuthenticatedStudioProjectIdRouteImport
+      parentRoute: typeof AuthenticatedStudioRoute
+    }
+    '/_authenticated/thumbnails/': {
+      id: '/_authenticated/thumbnails/'
+      path: '/thumbnails'
+      fullPath: '/thumbnails/'
+      preLoaderRoute: typeof AuthenticatedThumbnailsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/voices/': {
+      id: '/_authenticated/voices/'
+      path: '/voices'
+      fullPath: '/voices/'
+      preLoaderRoute: typeof AuthenticatedVoicesIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/api/public/meta-callback': {
@@ -988,18 +1188,38 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
 const AuthenticatedAdminRouteWithChildren =
   AuthenticatedAdminRoute._addFileChildren(AuthenticatedAdminRouteChildren)
 
+interface AuthenticatedStudioRouteChildren {
+  AuthenticatedStudioProjectIdRoute: typeof AuthenticatedStudioProjectIdRoute
+}
+
+const AuthenticatedStudioRouteChildren: AuthenticatedStudioRouteChildren = {
+  AuthenticatedStudioProjectIdRoute: AuthenticatedStudioProjectIdRoute,
+}
+
+const AuthenticatedStudioRouteWithChildren =
+  AuthenticatedStudioRoute._addFileChildren(AuthenticatedStudioRouteChildren)
+
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRouteWithChildren
-  AuthenticatedStudioRoute: typeof AuthenticatedStudioRoute
+  AuthenticatedStudioRoute: typeof AuthenticatedStudioRouteWithChildren
   AuthenticatedAgencyWorkspaceIdRoute: typeof AuthenticatedAgencyWorkspaceIdRoute
+  AuthenticatedCreateBrandVoicesRoute: typeof AuthenticatedCreateBrandVoicesRoute
+  AuthenticatedCreateCampaignsRoute: typeof AuthenticatedCreateCampaignsRoute
+  AuthenticatedCreateQuickCreateRoute: typeof AuthenticatedCreateQuickCreateRoute
+  AuthenticatedCreateSeoStudioRoute: typeof AuthenticatedCreateSeoStudioRoute
+  AuthenticatedCreateTitlesRoute: typeof AuthenticatedCreateTitlesRoute
   AuthenticatedProjectsProjectIdRoute: typeof AuthenticatedProjectsProjectIdRoute
   AuthenticatedResearchProjectIdRoute: typeof AuthenticatedResearchProjectIdRoute
   AuthenticatedAgencyIndexRoute: typeof AuthenticatedAgencyIndexRoute
   AuthenticatedAnalyticsIndexRoute: typeof AuthenticatedAnalyticsIndexRoute
   AuthenticatedBillingIndexRoute: typeof AuthenticatedBillingIndexRoute
+  AuthenticatedCharactersIndexRoute: typeof AuthenticatedCharactersIndexRoute
+  AuthenticatedCreateIndexRoute: typeof AuthenticatedCreateIndexRoute
   AuthenticatedIntelligenceIndexRoute: typeof AuthenticatedIntelligenceIndexRoute
   AuthenticatedProjectsIndexRoute: typeof AuthenticatedProjectsIndexRoute
   AuthenticatedResearchIndexRoute: typeof AuthenticatedResearchIndexRoute
+  AuthenticatedThumbnailsIndexRoute: typeof AuthenticatedThumbnailsIndexRoute
+  AuthenticatedVoicesIndexRoute: typeof AuthenticatedVoicesIndexRoute
   AuthenticatedIntelligenceChannelsChannelIdRoute: typeof AuthenticatedIntelligenceChannelsChannelIdRoute
   AuthenticatedIntelligenceNichesNicheIdRoute: typeof AuthenticatedIntelligenceNichesNicheIdRoute
   AuthenticatedIntelligenceVideosVideoIdRoute: typeof AuthenticatedIntelligenceVideosVideoIdRoute
@@ -1012,16 +1232,25 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRouteWithChildren,
-  AuthenticatedStudioRoute: AuthenticatedStudioRoute,
+  AuthenticatedStudioRoute: AuthenticatedStudioRouteWithChildren,
   AuthenticatedAgencyWorkspaceIdRoute: AuthenticatedAgencyWorkspaceIdRoute,
+  AuthenticatedCreateBrandVoicesRoute: AuthenticatedCreateBrandVoicesRoute,
+  AuthenticatedCreateCampaignsRoute: AuthenticatedCreateCampaignsRoute,
+  AuthenticatedCreateQuickCreateRoute: AuthenticatedCreateQuickCreateRoute,
+  AuthenticatedCreateSeoStudioRoute: AuthenticatedCreateSeoStudioRoute,
+  AuthenticatedCreateTitlesRoute: AuthenticatedCreateTitlesRoute,
   AuthenticatedProjectsProjectIdRoute: AuthenticatedProjectsProjectIdRoute,
   AuthenticatedResearchProjectIdRoute: AuthenticatedResearchProjectIdRoute,
   AuthenticatedAgencyIndexRoute: AuthenticatedAgencyIndexRoute,
   AuthenticatedAnalyticsIndexRoute: AuthenticatedAnalyticsIndexRoute,
   AuthenticatedBillingIndexRoute: AuthenticatedBillingIndexRoute,
+  AuthenticatedCharactersIndexRoute: AuthenticatedCharactersIndexRoute,
+  AuthenticatedCreateIndexRoute: AuthenticatedCreateIndexRoute,
   AuthenticatedIntelligenceIndexRoute: AuthenticatedIntelligenceIndexRoute,
   AuthenticatedProjectsIndexRoute: AuthenticatedProjectsIndexRoute,
   AuthenticatedResearchIndexRoute: AuthenticatedResearchIndexRoute,
+  AuthenticatedThumbnailsIndexRoute: AuthenticatedThumbnailsIndexRoute,
+  AuthenticatedVoicesIndexRoute: AuthenticatedVoicesIndexRoute,
   AuthenticatedIntelligenceChannelsChannelIdRoute:
     AuthenticatedIntelligenceChannelsChannelIdRoute,
   AuthenticatedIntelligenceNichesNicheIdRoute:

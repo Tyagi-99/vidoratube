@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  runApprovePublishJob,
-  runExecutePublishJob,
-} from "./publish.functions";
+import { runApprovePublishJob, runExecutePublishJob } from "./publish.functions";
 
 /**
  * Sprint 7-8 C — server-enforcement PROOF tests.
@@ -28,8 +25,15 @@ interface FakeDb {
 
 /** In-memory Supabase stand-in supporting the query chains we use. */
 function makeDb(initial: Record<string, any[]>): FakeDb {
+  // P3 Stream B: the server-enforced strict evidence gate (D99) reads the
+  // project row, so every fixture gets a strict-off project unless the
+  // caller supplies its own `projects` table.
+  const seeded: Record<string, Record<string, unknown>[]> = {
+    projects: [{ id: "proj-1", user_id: USER, research_strict_mode: false }],
+    ...initial,
+  };
   const tables: Record<string, any[]> = {};
-  for (const [k, v] of Object.entries(initial)) {
+  for (const [k, v] of Object.entries(seeded)) {
     tables[k] = v.map((r) => ({ ...r }));
   }
   const writes: FakeDb["writes"] = [];
@@ -54,13 +58,7 @@ function makeDb(initial: Record<string, any[]>): FakeDb {
       let r = rows.filter((row) => filters.every((f) => f(row)));
       if (orderCol) {
         r = [...r].sort((a, b) =>
-          orderAsc
-            ? a[orderCol!] < b[orderCol!]
-              ? -1
-              : 1
-            : a[orderCol!] > b[orderCol!]
-              ? -1
-              : 1,
+          orderAsc ? (a[orderCol!] < b[orderCol!] ? -1 : 1) : a[orderCol!] > b[orderCol!] ? -1 : 1,
         );
       }
       if (limitN !== null) r = r.slice(0, limitN);
@@ -102,9 +100,7 @@ function makeDb(initial: Record<string, any[]>): FakeDb {
       },
       single: async () => {
         const r = applyWrite(query());
-        return r[0]
-          ? { data: r[0], error: null }
-          : { data: null, error: { message: "no rows" } };
+        return r[0] ? { data: r[0], error: null } : { data: null, error: { message: "no rows" } };
       },
       // Terminal `await builder.eq(...)` support (e.g. the failed-status write).
       then: (resolve: (v: any) => void) => {
@@ -301,9 +297,7 @@ describe("runExecutePublishJob — approval enforcement (PROOF)", () => {
 
   it("REJECTS a public publish whose CURRENT score is < 50 (defense in depth)", async () => {
     const db = approvedJobDb();
-    db.tables["safety_scores"]! = [
-      { project_id: "proj-1", user_id: USER, score: 42 },
-    ];
+    db.tables["safety_scores"]! = [{ project_id: "proj-1", user_id: USER, score: 42 }];
     db.tables["approvals"]!.push({
       user_id: USER,
       publish_job_id: "job-1",
@@ -325,9 +319,7 @@ describe("runExecutePublishJob — approval enforcement (PROOF)", () => {
 
   it("private publish with score < 50 proceeds AND records a warning", async () => {
     const db = approvedJobDb({ privacy: "private" });
-    db.tables["safety_scores"]! = [
-      { project_id: "proj-1", user_id: USER, score: 42 },
-    ];
+    db.tables["safety_scores"]! = [{ project_id: "proj-1", user_id: USER, score: 42 }];
     db.tables["approvals"]!.push({
       user_id: USER,
       publish_job_id: "job-1",

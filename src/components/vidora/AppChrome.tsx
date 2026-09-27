@@ -14,8 +14,11 @@ const links = [
   { label: "Studio", to: "/studio" as const },
   { label: "Projects", to: "/projects" as const },
   { label: "Research", to: "/research" as const },
+  { label: "Create", to: "/create" as const },
   { label: "Intelligence", to: "/intelligence" as const },
   { label: "Analytics", to: "/analytics" as const },
+  { label: "Thumbnails", to: "/thumbnails" as const },
+  { label: "Characters", to: "/characters" as const },
   { label: "Agency", to: "/agency" as const },
   { label: "Billing", to: "/billing" as const },
 ];

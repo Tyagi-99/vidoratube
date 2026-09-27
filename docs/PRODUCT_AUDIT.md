@@ -21,6 +21,8 @@ Phase 0a audit, 2026-09-27. Every feature/route classified against the live
 | Browser render to real MP4 | `src/lib/render/browser-render.ts` — genuine H.264/AAC MP4 via FFmpeg.wasm, IndexedDB segment flushing, 24h resume TTL |
 | Thumbnail studio (4 variants) | `ThumbnailStudio.tsx:107-110` → `generateThumbnails`/`listThumbnails`/`selectThumbnail`; D80 |
 | SEO studio | `SeoStudio.tsx:48-50` → `generateSEOMetadata`/`getSEOMetadata`/`updateSEOMetadata`; D81 |
+| Quick Create `/create/quick-create` (F23) | 11-stage pipeline lib + route: F8 idea scoring, F11 claim→source linking, Stream E manifest/QC; paid stages never fake completion — `skipped_unconfigured` / `skipped_needs_spend_approval` with ESTIMATE; render only via human "Enqueue real render" → existing `enqueueServerRender`; never publishes; D131/D132 |
+| SEO & Metadata Studio `/create/seo-studio` (F26, creation) | Reuses Title Lab engine for ranked titles; deterministic description/hashtags; exactly 3 thumbnail *concepts* (no generated images, no CTR claims); export runs the real strict gate with a blocked envelope; D133 |
 | YouTube connect + publish pipeline | `YouTubePanel` (`getYouTubeConnection`/`startYouTubeConnect`/`requestUploadScope`/`disconnectYouTube`); `PublishPipeline`/`PublishDialog` (`publishJobToYouTube`); scopes `youtube.upload` + `youtube.force-ssl` (D66) |
 | Publish safety gate | `approvePublishJob` writes server-only `approvals` row; `executePublishJob` re-verifies; score<50 blocks public, no override (D61/D62); `src/lib/publish.functions.ts:351,477` |
 | Scheduling calendar | No auto-publish; "Publish now" disabled until due (`ScheduleCalendar.tsx:147`); D82 |

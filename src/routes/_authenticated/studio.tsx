@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -32,6 +32,7 @@ import { ResumeComposeButton, isStalledCompose } from "@/components/vidora/Resum
 
 import { getMyAccount, listMyJobs, deleteMyJob, reapStaleVideoJobs } from "@/lib/jobs.functions";
 import {
+  AudioLines,
   Coins,
   Film,
   LayoutDashboard,
@@ -172,6 +173,12 @@ function StudioPage() {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <Button variant="outline" asChild className="gap-2">
+                <Link to="/voices">
+                  <AudioLines className="h-4 w-4" />
+                  Voice Studio
+                </Link>
+              </Button>
               <Button onClick={() => setModeChooserOpen(true)} className="gap-2">
                 <Plus className="h-4 w-4" />
                 New video
@@ -191,7 +198,11 @@ function StudioPage() {
               icon={<Film className="h-4 w-4" />}
               label="Videos rendered"
               value={
-                account.isLoading ? null : account.isError ? "—" : String(account.data?.jobCount ?? 0)
+                account.isLoading
+                  ? null
+                  : account.isError
+                    ? "—"
+                    : String(account.data?.jobCount ?? 0)
               }
             />
             <StatCard
@@ -203,8 +214,9 @@ function StudioPage() {
           {account.isError && (
             <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3">
               <p className="text-sm text-muted-foreground">
-                Couldn&apos;t load your account ({(account.error as Error)?.message ?? "unknown error"}).
-                Your credits are shown as “—”, not 0.
+                Couldn&apos;t load your account (
+                {(account.error as Error)?.message ?? "unknown error"}). Your credits are shown as
+                “—”, not 0.
               </p>
               <Button size="sm" variant="outline" onClick={() => account.refetch()}>
                 Retry
@@ -377,9 +389,7 @@ function StudioPage() {
                             size="sm"
                             variant="secondary"
                             className="flex-1 gap-1"
-                            onClick={() =>
-                              setPublishTarget({ id: job.id, title: job.title ?? "" })
-                            }
+                            onClick={() => setPublishTarget({ id: job.id, title: job.title ?? "" })}
                           >
                             <Youtube className="h-4 w-4" />
                             Publish

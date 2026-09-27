@@ -922,3 +922,289 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
 - **Decision:** `e2e/niche-finder.spec.ts` is dual-mode: without `YOUTUBE_API_KEY` each scenario asserts the honest "YouTube Data API not connected" panel and zero fabricated rows, then returns early. The configured branch (real key, real quota burn) is opt-in by the founder.
 - **Reason:** No row is ever faked to satisfy an assertion; the unconfigured path is itself a product guarantee worth testing. The E2E spec was rewritten 2026-09-27 to the real UI flow (New niche dialog, `data-testid` row hooks, draft-script handoff toast) after the Stream-D-authored selectors drifted from the merged UI.
 - **Reverse:** If a seeded demo dataset is ever wanted for E2E, it must be labeled `DEMO DATA` in both the UI and the spec — never silently stand in for real rows.
+
+### D99. F8 idea score factor weights pinned (outlier_alignment 35 / hook_strength 25 / feasibility 20 / safety 20)
+- **Decision:** The four `IdeaScoreFactor`s carry pinned weights (35/25/20/20) in `src/lib/creation/ideas/scorer.ts`, chosen so outlier evidence dominates while feasibility/safety keep the score honest. Changing any weight is a code change, not a config tweak — the weights are part of the score's identity and are unit-pinned.
+- **Reason:** Deterministic, explainable scores (D94) require the weighting to be visible and stable; a hidden tunable weight would let the score drift without review.
+- **Reverse:** If a future stream needs tunable weights, add a workspace-level config table and include the active weight-set version in the score cache payload so old scores stay comparable.
+
+### D100. `outlier_videos.outlier_score` is the ideation evidence source (not `videos.outlier_score`)
+- **Decision:** F8's outlier_alignment factor reads `outlier_videos.outlier_score` (Phase 2: latest views ÷ sibling median). The canonical `videos` table has no `outlier_score` column — the plan's column name was wrong, and the implementation follows the real schema.
+- **Reason:** Evidence must come from the surface that actually exists and is documented (D96), not from a plan typo.
+- **Reverse:** None — if `videos` ever gains its own outlier column, Stream F must decide which source is canonical before the scorer switches.
+
+### D101. Title Lab is deterministic and template-based — no LLM spend
+- **Decision:** `generateTitleVariants` uses pinned templates over the topic/keywords (no LLM call, no paid provider spend); `scoreTitle` is a pure heuristic (length/keyword/curiosity/clarity). Variants are framed in UI copy as packaging heuristics, never CTR predictions.
+- **Reason:** Keeps Stream A credit-free (no preflight wiring needed) and deterministic; the experiment framework (`experiments`/`experiment_arms`) is the honest place to measure what actually works — Phase 4 reads it.
+- **Reverse:** If an LLM title path is added later, it must go through credit preflight + `ProviderResult` (D58/D60) and keep the deterministic path as the zero-cost default.
+
+### D102. Campaign package artifacts start `planned` with `ref: null` — no fabricated references
+- **Decision:** Every `CampaignItem` created by `buildCampaignPlan` starts with `status: "planned"` and `ref: null`; real artifact UUIDs are attached later via `linkCampaignItem` (validates target row + ownership before writing).
+- **Reason:** A campaign is a plan, not a lie — writing refs to rows that don't exist would fabricate progress. The UI shows "not created yet" for unlinked items.
+- **Reverse:** Never backfill refs from non-existent rows; if an artifact is deleted, its campaign item must return to `planned`/`ref: null`.
+
+### D103. Stream A idea→project reuses `useIdea` (no duplicate project creation)
+- **Decision:** F8 does not implement its own idea→project conversion; the `/create` hub calls the existing `useIdea` server fn (creates a real `projects` row, sets `video_ideas.project_ref` + status `used`). The hub list fn is named `listIdeasForHub` to avoid colliding with the existing `listIdeas`.
+- **Reason:** One conversion path, one invariant set (D61/D62-style real-rows-only). Duplicating it would risk two divergent "used" semantics.
+- **Reverse:** If `useIdea`'s contract changes, the Stream A hub inherits the change — no local fork to drift.
+
+### D104. TanStack Start serializability: `Json` type over `Record<string, unknown>` for jsonb fields
+- **Decision:** All jsonb-backed row fields exposed through server fns use the repo's `Json` type (from `@/integrations/supabase/types`) or a concrete interface (`CampaignMetadata`), never `Record<string, unknown>` — and server fns are invoked as `fn({ data: ... })`.
+- **Reason:** `Record<string, unknown>` fails the server-fn serializability validator (collapses the fn's type; 70+ cascading TS errors) and violates `noPropertyAccessFromIndexSignature`. The concrete types are both serializable and self-documenting.
+- **Reverse:** If a field genuinely needs an open map, keep `Json` (it is an open map) — do not regress to `Record<string, unknown>`.
+
+### D105. Strict review semantics: only human CONFIRM counts (2026-09-27)
+- **Decision:** Strict mode (`projects.research_strict_mode`) means *every* claim must have a human **CONFIRM**. Both `unreviewed` AND `waived` claims block script approval, package export, publish approval, and publish execution. A waiver stays useful and visible in non-strict workflows, but it means the claim was deliberately *not* verified, so it cannot satisfy "confirmed source" strict mode. A waived claim can later be confirmed to unblock.
+- **Reason:** "Strict" is a promise to the audience that every factual claim was verified. Letting waivers pass would silently redefine the promise. No code path auto-confirms claims — confirmation is always an explicit human action (`setClaimReview` only admits `confirmed` | `waived`).
+- **Reverse:** If a third state is ever needed (e.g. "confirmed-by-AI"), it must be a new explicit review state that still does not satisfy strict mode unless a human confirms.
+
+### D106. AI script draft: debit BEFORE persist (2026-09-28)
+- **Decision:** `generateScriptDraft` debits the 1 credit *before* persisting the script/version, matching the existing publish thumbnail/SEO debit-first convention. If the debit fails, nothing is saved — no unpaid output can remain. All billing/provider failures return `ProviderResult` envelopes (including `DEBIT_FAILED`); the function never throws for provider or billing states. `actualCost: 1` on success. One idempotency key (`generationRef`) per attempt: a retry spends another credit (new output), a double-submit within the attempt does not.
+- **Reason:** The alternative (persist-then-debit with rollback) leaves a window where unpaid output exists and needs compensating deletes; debit-first has a single failure mode (charged but unsaved) that matches how the rest of the codebase already behaves. Fail-open `recordApiCost` by existing convention.
+- **Reverse:** If exact-once billing semantics are required later, move to a reservation model (reserve → generate → commit/release) rather than reordering back.
+
+### D107. One shared publish strict-gate assertion (2026-09-28)
+- **Decision:** The strict evidence check for publish lives in exactly one exported function, `assertPublishStrictGate` (`src/lib/publish.functions.ts`), called by both `approvePublishJob` and `runExecutePublishJob` (execution re-checks immediately before the uploader runs — a claim confirmed after approval keeps it green; an unconfirmed one blocks the upload). Stream F must import the underlying `getProjectStrictGate` from `src/lib/creation/claims/strict-gate.ts` and must NOT duplicate strict-mode logic; any package/quick-create action stops when `blocked === true`.
+- **Reason:** Two call sites with copied gate logic would drift (the execution re-check was added precisely because approval-time checks go stale). One function, one rule.
+- **Reverse:** None — only extend the single assertion if the rule changes.
+
+### D108. Package export gate is client-enforced; publish is server-enforced (2026-09-28)
+- **Decision:** The ZIP package is generated client-side in `projects.$projectId.tsx`, so its strict gate is client-enforced: the Export button disables when `getProjectGateState` reports `blocked === true` and the handler re-fetches the gate immediately before packaging. Publish approval and execution are enforced on the server and cannot be bypassed by UI state. This limitation is documented, not hidden.
+- **Reason:** A server-generated package endpoint is the correct long-term fix, but inventing one inside Stream B's scope would duplicate the export pipeline. The client gate is honest defense-in-depth; the money path (YouTube upload) is fully server-gated.
+- **Reverse:** When a server-side package endpoint exists, move the gate check there and keep the client button as a UX affordance only.
+
+## 2026-09-28 — Phase 3 Stream C (Thumbnails & Characters)
+
+### D109. Normalized 0–1 canvas coordinates; design projects vs rendered variants stay separate
+- **Decision:** The layered canvas (`thumbnail_projects.canvas`) uses normalized 0–1 coordinates so one editing model serves 16:9 and 9:16. `thumbnail_projects` is the design surface; `public.thumbnails` remains the canonical rendered-variant/winner store.
+- **Reason:** Aspect-agnostic editing; variant renders are the things experiments and YouTube uploads consume, while the canvas is the thing users edit. Mixing them would corrupt the experiment arm contract.
+- **Reverse:** Store per-aspect canvases if normalization ever causes rounding artifacts.
+
+### D110. Provider availability checked before preflight; no fake images
+- **Decision:** `generateThumbnailVariants` checks the image-provider key first (`image_provider_unconfigured`), then ownership, then credit preflight. The UI disables generation and shows an honest panel when unconfigured.
+- **Reason:** Preflighting or debiting a call that cannot run would burn credits on nothing; fabricating a placeholder image would violate the no-fake-output rule. Unconfigured honesty is unit-tested (zero network calls).
+- **Reverse:** If a free fallback generator is ever added, gate it behind the same preflight and label outputs clearly.
+
+### D111. Scene binding via `scenes.metadata.character_id`, not legacy `scenes.character_id`
+- **Decision:** Character↔scene binding writes `character_id` into `scenes.metadata` JSONB (null to unbind, other keys preserved); the legacy `scenes.character_id` column is left untouched.
+- **Reason:** Per the Phase 3 assignment; metadata binding avoids a schema dependency on the legacy column and keeps unbind idempotent.
+- **Reverse:** If Stream F standardizes on the column, migrate bindings over and drop the metadata key.
+
+### D112. Reference images stored as private paths; UI gets signed URLs
+- **Decision:** `characters.reference_image_url` stores a storage path (`character-refs/<uid>/<cid>/ref.<ext>`), never a hotlinked URL; the UI receives 1-hour signed URLs. Upload validates JPEG/PNG/WebP and ≤5 MB before any storage write.
+- **Reason:** SECURITY_MODEL roadmap item 4 (malware-safe handling): server-validated MIME/size, private bucket, no user-controlled public URLs.
+- **Reverse:** None planned; magic-byte sniffing could strengthen validation later.
+
+### D113. Character binding is a reference attachment, never a consistency claim
+- **Decision:** Every reference surface shows “Reference attached — visual consistency across scenes is not yet verified. A 6-scene proof render is required before any consistency claim is made.” No consistency claim until a real six-scene proof render passes.
+- **Reason:** The brief's explicit rule; claiming consistency without the proof render would be a fabricated capability. Recorded in KNOWN_ISSUES as a founder/Phase-4 blocker.
+- **Reverse:** After the proof render passes, update the copy and FEATURE_MATRIX.
+
+### D114. No debit after variant generation — billing policy left to Stream F
+- **Decision:** `generateThumbnailVariants` preflights (affordability) but does not debit. The `debit_credits_for_job_once` RPC debits exactly 1 credit with no amount parameter (the legacy thumbnail flow's `p_amount` argument does not match the RPC signature), so inventing per-variant debit semantics here would be a money decision made without authority.
+- **Reason:** Debiting real user credits with wrong semantics is worse than not debiting; preflight satisfies the "credit preflight before paid ops" rule. Documented in KNOWN_ISSUES as a Stream F integration need.
+- **Reverse:** Once billing policy is decided (1/batch vs per-variant vs estimate-based), add the debit call in `generateThumbnailVariants` after successful persistence, with an idempotency key per generation run.
+
+### D115. `getOrCreateThumbnailProject` normalizes to one `LoadedProject` shape
+- **Decision:** The server function wraps the create path into `{ project, canvas, problems }` so the UI has a single contract whether the project was found or created.
+- **Reason:** Two shapes (`ThumbnailProjectRow` vs `LoadedProject`) leaked into the UI and caused type errors; the normalization is server-side and invisible to callers.
+- **Reverse:** None.
+
+### D116. TTS fallback chain: ElevenLabs → OpenAI → gateway, one attempt each
+- **Decision:** `synthesizeSpeechWithFallback` (Stream D) mirrors the Phase-1 `generateVideoWithFallback` pattern exactly: ordered providers, ONE attempt per provider, failed paid calls never retried blindly, `ProviderResult`-style envelopes that never throw, injectable fakes for tests (production resolves from env).
+- **Reason:** Voice is paid per character; a retry loop against a failing paid provider is a money leak. The explicit order also makes the UI's "ElevenLabs first, OpenAI fallback, gateway last resort" copy truthful.
+- **Reverse:** Reorder via `VOICE_TTS_FALLBACK` env (unknown ids are ignored, fail-closed); add providers by registering a new adapter in `resolveTtsChain`.
+
+### D117. `voices` D89 local aliases + `asVoicesClient` (follows `asJobsClient`)
+- **Decision:** Generated Supabase types predate the creation migrations (`voices` absent; `language_voices` carries pre-creation columns), so Stream D declares `VoiceRow`/`VoiceInsert`/`VoiceUpdate` from the Phase-1 migration SQL and narrows the client via `asVoicesClient` — the same contained-cast pattern as `asJobsClient` in `durable-jobs.server.ts`. `language_voices` is queried with its real columns (no `voice_type` — catalog entries are always builtins).
+- **Reason:** D89 forbids broad unsafe casts; the contained `as unknown as` in one function keeps every query builder fully typed while callers pass ordinary clients.
+- **Reverse:** Regenerate `src/integrations/supabase/types.ts` from the cloud DB and retire the local aliases.
+
+### D118. Voiceover job cost recorded exactly once (no double-count)
+- **Decision:** `recordProviderTask` records `costActual` (the estimate, the only measured figure for TTS); `completeGenerationJob` is called WITHOUT `costActualCredits` because it sums `provider_tasks.cost_actual` itself — passing both would double the job's `cost_actual_credits`.
+- **Reason:** Budget math reads `cost_actual_credits`; a 2× overstatement would falsely trip workspace/project budget caps.
+- **Reverse:** If TTS ever produces a metered actual (provider usage callback), record the real figure in the task and keep the completion param absent.
+
+### D119. TTS debits ride the minute-based ledger RPC
+- **Decision:** `runVoiceoverJob` debits via `debitMinutesForJob` (idempotent per job id, balance re-checked atomically, `failGenerationJob` refunds) — the only existing idempotent debit path for generation jobs. The TTS credit estimate is converted with `Math.ceil` (1 credit = 1 minute); the deprecated flat `debitOneCreditForProject` is not used.
+- **Reason:** A bespoke non-idempotent debit would risk double-charging on retries; the minute ledger already has the refund path wired into job failure.
+- **Reverse:** Add a dedicated credit-amount debit RPC when TTS estimates need sub-credit precision.
+
+### D120. Contended voiceover jobs return `JOB_IN_PROGRESS`, not a throw
+- **Decision:** When `claimGenerationJob` loses the race (another tab/worker owns the job), `runVoiceoverJob` returns `{ ok: false, code: "JOB_IN_PROGRESS" }` telling the caller to retry with the same idempotency key; a completed job reuses its stored `checkpoint.audio_url` with no paid work.
+- **Reason:** Throwing a 500 on a normal race is hostile; the durable job already stores everything needed for a poll-and-reuse flow.
+- **Reverse:** If a real async worker pool appears, replace the message with a job-status subscription.
+
+### D121. `NO_TTS_PROVIDER` is checked before credit preflight
+- **Decision:** The ordered-chain emptiness check runs before `preflightCreditsCheck`, so a user with no provider configured gets "connect a provider" instead of a misleading insufficient-credits error.
+- **Reason:** Error precedence should name the true blocker; balance checks are meaningless when no provider could be called.
+- **Reverse:** None — ordering is internal.
+
+### D122. Stock unconfigured = honest, zero-network; mocks are explicit opt-in
+- **Decision:** Without Pexels/Pixabay keys, `searchStockAssets` returns `{ configured: false }` without a single network call; the UI renders "stock provider not connected". Mock preview assets appear ONLY when the caller passes `includeMock: true`, keep `mock://` URLs and the D48 "MOCK — preview asset, not licensed for use" label, and are never written as licensed rows.
+- **Reason:** Silent mock substitution in a licensing-sensitive flow is the exact failure D48 was written to prevent; the zero-call guarantee also means no surprise quota/key usage.
+- **Reverse:** If a demo mode is ever wanted, it must be labeled `DEMO DATA` per D98.
+
+### D123. Voice Studio extends the voiceover mode; `/voices` is a real route
+- **Decision:** Stream D extends (not replaces) the existing voiceover mode: `/voices` route renders `VoiceStudio` (library + TTS tabs), linked from `/studio` header; `StockPicker` is a dialog component wired to `selectStockAsset` for Stream F's scene integration.
+- **Reason:** The voiceover dialog's job flow stays intact; the studio adds library management and multi-provider TTS around it rather than forking a competing mode.
+- **Reverse:** If the voiceover dialog is later merged into the studio, keep the `/voices` route as the canonical surface.
+
+### D124. StockPicker lives in the project scene editor, not as a standalone page
+- **Decision:** `StockPicker` is a controlled dialog hosted by `SceneCard` (`projects.$projectId.tsx`) — a "Stock" button beside "Visual" regenerate, pre-filled with the scene's `search_query`, selecting via `selectStockAsset` then invalidating the project query. The existing P4 `VoicePicker` catalog (`src/lib/voices.ts`) was deliberately NOT merged into the Stream-D voice library: unifying the two voice id schemes is a coordinator-level merge decision, and touching the P4 picker risks breaking flows other streams depend on.
+- **Reason:** Scene assets are pipeline-written; the only manual visual-swap surface is the project page's per-scene card, so that is where manual stock selection belongs.
+- **Reverse:** If Stream F's scene producer grows its own visual-repair UI, host a second StockPicker there — the component is scene-id-keyed and reusable.
+
+### D125. Explicit `asplit=2` on the voice bus (narration duplication finding)
+
+- **Decision:** `buildFinalAudioMix` (src/lib/audio.ts:117) builds the final
+  mix graph with an explicit `[voice]asplit=2[vkey][vmix]` — one copy feeds
+  sidechaincompress as the (inaudible) ducking key, the other feeds amix as the
+  audible track. The worker keeps a dependency-free mirror of the same graph
+  (worker/src/pipeline.ts:442-444).
+- **Reason:** The old graph consumed the voice bus twice and relied on
+  ffmpeg's implicit auto-split of multi-consumer pads. The double consumption
+  was CORRECT by design (sidechain key = control signal, not audible audio —
+  no narration duplication), but implicit: a future graph reorder could
+  silently change which copy drives the compressor. Explicit split is
+  unit-testable (`itFfmpeg` dry-run proves parse + run).
+- **Reverse:** Revert to the implicit graph if an ffmpeg build ever rejects
+  the explicit split — no known build does.
+
+### D126. Studio checkpoints live in `generation_jobs.checkpoint.studio`; worker segment state in `renders.checkpoint.segments`
+
+- **Decision:** App-side scene checkpoints (done/failed, first-incomplete,
+  invalidate-one-scene repair) are stored under `generation_jobs.checkpoint.studio`
+  via `saveCheckpoint` deep-merge (`src/lib/creation/checkpoints/checkpoints.ts`).
+  Worker-side per-segment completion is stored under `renders.checkpoint.segments`
+  (`worker/src/segment-checkpoints.ts`, `readRenderCheckpoint`/`markSegmentDone`).
+- **Reason:** `scenes` is the mutable live head; `scene_versions` is history;
+  generation-job checkpoints are the durable-jobs system's state. Two stores
+  stay intentionally separate: the app checkpoint answers "which scenes are
+  done for this job", the render checkpoint answers "which segments already
+  rendered for this render id". The Studio status panel reads the generation-job
+  checkpoint; the worker reads/writes the render checkpoint. They are NOT
+  auto-synced — claiming end-to-end sync without proof would be dishonest.
+- **Reverse:** Sync them (or surface render checkpoint state in the Studio UI)
+  once the worker path is proven in production.
+
+### D127. Repair invalidates one scene; only the paid regen steps cost credits
+
+- **Decision:** `repairScene` kinds (`narration`/`audio`/`visual`/`timing`)
+  invalidate exactly one scene's checkpoint entry and preserve siblings.
+  `timing` repair is free (metadata-only `recomputeSceneTimingCore`).
+  The repair function itself spends no credits; the paid regeneration steps
+  (`regenerateSceneAudio`/`regenerateSceneVisual`) remain inside the existing
+  preflighted credit-gated server functions.
+- **Reason:** Keeps "repair" (state management) honest vs "regenerate" (paid
+  provider call). A narration edit that also needs new audio routes through
+  the preflighted regen path so the credit gate can't be bypassed.
+- **Reverse:** Fold free timing repair into regen if UX demands one button.
+
+### D128. F24 shorts: project linkage via `project_id`; `parent_id` is the source RENDER, not the project
+
+- **Decision:** `renders.parent_id` is the self-FK to `renders(id)` documented
+  in `20260926001000_renders_parent_id.sql` ("a dub/short derives from a
+  finished render") — it takes a render id or NULL, never a project id. The
+  short's link to its scenes' project travels on the standard `project_id`
+  column. The Studio Shorts tab offers an optional "cut from finished render"
+  picker (completed renders via existing `listRenders`); default is NULL.
+  `meta.kind = "short"` distinguishes recuts; `meta.source` records the
+  scene source.
+- **Reason:** Passing the project UUID into `parent_id` would violate the
+  self-referential FK and fail the insert. The earlier "D54 source-project
+  pattern" assumption was wrong; the migration comment is authoritative.
+- **Reverse:** None — schema constraint, not a choice.
+
+### D129. Shorts plan is rule-based hook-first resequencing, labeled as such
+
+- **Decision:** `planShort` reorders selected scenes by a deterministic rule
+  (strongest hook candidates first, narration tightened, 9:16, duration cap)
+  and the UI labels it "rule-based (not AI analysis)". No LLM call, no fake
+  "AI analyzed your video" claims.
+- **Reverse:** Swap in an LLM rerank later behind the same plan shape —
+  keep the rule-based path as the honest fallback.
+
+### D130. Video Studio extends, never forks, the render pipeline
+
+- **Decision:** The Studio route (`/_authenticated/studio/$projectId`) enqueues
+  through the existing `enqueueServerRender` (durable jobs + credit gate
+  intact). `RenderPanel` gained optional passthrough props
+  (`renderKind`, `parentRenderId`) with defaults preserving full-render
+  behavior. The project page links to the Studio; no parallel render path
+  exists. Never auto-publishes: shorts enqueue only.
+- **Reason:** One enqueue path (D93) means one billing/preflight surface to
+  audit. The Studio is a scene-editing front end on `scenes` + existing
+  durable jobs, not a second renderer.
+- **Reverse:** None planned.
+
+### D131. Quick Create honesty model: skip envelopes, never fake paid stages
+
+- **Decision:** The F23 11-stage pipeline resolves every paid stage
+  (voiceover, visuals, render) through one honest resolver: no provider key →
+  `skipped_unconfigured`; key present but no explicit spend approval →
+  `skipped_needs_spend_approval` with the exact `ESTIMATE` cost of the real
+  call attached (never null for paid stages). A stage is marked `done` only
+  when its real work happened. The music stage has no music provider in the
+  codebase, so it requires a real attached track and skips `skipped_unconfigured`
+  otherwise — ducking config is recorded honestly when a track exists.
+- **Reason:** The honesty constraint is the feature: a user must never see
+  "render complete" for a render that never ran. Skips carry the estimate so
+  the approval decision is informed, not blind.
+- **Reverse:** When providers are wired, replace `skipped_*` with real
+  Phase 1 preflight → debit → provider call → refund-on-failure flows behind
+  the same stage states.
+
+### D132. Render stage never enqueues by itself — human button only
+
+- **Decision:** The render stage in Quick Create prepares a real enqueue
+  payload (scenes, 9:16, captions burned, ducking) but stays
+  `skipped_needs_spend_approval` / approval-ready until the user presses
+  "Enqueue real render" in the UI, which calls the existing
+  `enqueueServerRender` (D93/D130) with its own credit preflight. The pipeline
+  "stops at download" — no auto-publish anywhere.
+- **Reason:** Spend + publish are the two irreversible actions; both stay
+  behind explicit human approval. One enqueue path keeps billing auditable.
+- **Reverse:** None planned.
+
+### D133. SEO Studio reuses the Title Lab engine; no CTR claims
+
+- **Decision:** F26 generates title options through Stream A's
+  `generateTitleVariants` + `scoreTitle` (same deterministic engine as Title
+  Lab), descriptions/hashtags from fixed templates, and exactly 3 thumbnail
+  *concepts* (composition + ≤4-word overlay + rationale) — never generated
+  images, never CTR predictions. Export calls the project's real strict gate
+  (`getProjectStrictGate`) and returns a blocked envelope with the reason when
+  it fails.
+- **Reason:** Reuse keeps scoring consistent across surfaces; the studio must
+  not invent performance promises or bypass F12's CONFIRM-only gate.
+- **Reverse:** Add LLM-assisted variants later behind the same package shape,
+  still scored by the same engine.
+
+### D134. Quick-create research facts are the claim candidates
+
+- **Decision:** `runResearchStage` treats each caller-supplied, source-verified
+  fact as one F11 claim candidate and links it to the persisted
+  `research_sources` rows by keyword overlap, instead of running the
+  heuristic `extractClaimCandidates` (which finds zero candidates in
+  short declarative facts). Claims persist as `qualified`/`unreviewed` with
+  the matched source ids in evidence.
+- **Reason:** The fact text IS the claim; the extractor is tuned for
+  free-text scripts. This keeps "every claim linked to a source" true without
+  inventing claims the user didn't supply.
+- **Reverse:** Revisit if fact text becomes long-form prose where extraction
+  adds value.
+
+### D135. E2E_30_SECOND_CREATION is the free-path contract test
+
+- **Decision:** The permanent scenario (topic: "Why do airplane windows have
+  a tiny hole?", 3 real sources with exact URLs) runs the whole pipeline as
+  pure functions: F8 idea scoring, F11 claim linking, 25–35s script, 5–7
+  scenes → pinned SceneManifest, scene-level regeneration, Stream E QC
+  (fails honestly without visuals / passes with them), ESTIMATE-labeled
+  captions, honest paid-stage skips, SEO package. Research wording verified
+  2026-09-28 against Gizmodo/AFAR/Family Handyman/scienceblog URLs kept in
+  the test header.
+- **Reason:** A rerunnable contract that the free path stays honest end to
+  end; any future "helpful" shortcut that fakes a stage breaks this test.
+- **Reverse:** None — extend, don't replace.

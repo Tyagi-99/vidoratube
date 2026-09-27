@@ -23,6 +23,7 @@ import {
   createServiceClient,
   finishJob,
   heartbeat,
+  readRenderCheckpoint,
   reportWorkerHeartbeat,
   requeueStaleChapters,
   requeueStaleJobs,
@@ -69,18 +70,25 @@ async function uploadFinalAndFinish(
   const duration = await probeDuration(cfg.FFPROBE_PATH, finalMp4).catch(() => null);
   const dims = { "16:9": "1920x1080", "9:16": "1080x1920", "1:1": "1080x1080" } as const;
 
+  // F21: merge — finishJob replaces checkpoint, so preserve the per-scene
+  // segment map recorded during the render.
+  const existingCheckpoint = await readRenderCheckpoint(supabase, job.id);
   await finishJob(supabase, job.id, {
     status: "completed",
     file_url: signed?.signedUrl ?? null,
     file_size: size,
     duration,
     resolution: dims[meta.aspect as keyof typeof dims] ?? dims["16:9"],
-    checkpoint: { storagePath },
+    checkpoint: { ...existingCheckpoint, storagePath },
   });
   console.log(`[worker] job ${job.id} completed (${size} bytes)`);
 }
 
-async function processJob(cfg: WorkerConfig, supabase: SupabaseClient, job: RenderJob): Promise<void> {
+async function processJob(
+  cfg: WorkerConfig,
+  supabase: SupabaseClient,
+  job: RenderJob,
+): Promise<void> {
   const dir = jobDir(cfg.WORK_DIR, job.id);
   console.log(`[worker] processing job ${job.id} (attempt ${job.attempts}/${job.max_attempts})`);
 
@@ -111,7 +119,13 @@ async function processJob(cfg: WorkerConfig, supabase: SupabaseClient, job: Rend
       };
       const [lo, hi] = weights[stage] ?? [0, 100];
       const overall = lo + ((hi - lo) * Math.min(100, Math.max(0, progress))) / 100;
-      await heartbeat(supabase, job.id, cfg.WORKER_ID, detail ? `${stage}: ${detail}` : stage, overall);
+      await heartbeat(
+        supabase,
+        job.id,
+        cfg.WORKER_ID,
+        detail ? `${stage}: ${detail}` : stage,
+        overall,
+      );
     },
     isCancelled: async () => {
       if (shuttingDown || cancelled) return true;
@@ -148,7 +162,13 @@ async function processJob(cfg: WorkerConfig, supabase: SupabaseClient, job: Rend
       if (job.attempts < job.max_attempts) {
         await supabase
           .from("renders")
-          .update({ status: "queued", stage: "queued", claimed_at: null, claimed_by: null, error: message })
+          .update({
+            status: "queued",
+            stage: "queued",
+            claimed_at: null,
+            claimed_by: null,
+            error: message,
+          })
           .eq("id", job.id);
         console.log(`[worker] job ${job.id} requeued for retry`);
       } else {
@@ -172,7 +192,9 @@ async function main(): Promise<void> {
   const cfg = loadConfig();
   const supabase = createServiceClient(cfg);
   await mkdir(cfg.WORK_DIR, { recursive: true });
-  console.log(`[worker] ${cfg.WORKER_ID} started — bucket=${cfg.RENDER_BUCKET} ffmpeg=${cfg.FFMPEG_PATH}`);
+  console.log(
+    `[worker] ${cfg.WORKER_ID} started — bucket=${cfg.RENDER_BUCKET} ffmpeg=${cfg.FFMPEG_PATH}`,
+  );
 
   // Crash recovery on boot: jobs AND chapters (chapter-mode renders).
   const requeued = await requeueStaleJobs(supabase, LEASE_SECONDS).catch((e) => {

@@ -42,7 +42,11 @@ import {
   startRender,
   updateRenderProgress,
 } from "@/lib/renders.functions";
-import { enqueueServerRender, getServerWorkerStatus, ALL_ASPECTS } from "@/lib/server-renders.functions";
+import {
+  enqueueServerRender,
+  getServerWorkerStatus,
+  ALL_ASPECTS,
+} from "@/lib/server-renders.functions";
 import type { AspectRatio } from "@/lib/server-renders.functions";
 import { ServerRenderQueue } from "./ServerRenderQueue";
 import { DubShortsQuote } from "./DubShortsQuote";
@@ -100,11 +104,20 @@ export function RenderPanel({
   scenes,
   voiceovers,
   captions,
+  /**
+   * F20/F24 extension: render kind + optional parent render for lineage.
+   * Defaults preserve the existing full-render behavior; shorts flows pass
+   * kind="short" and the source render id (renders.parent_id self-FK).
+   */
+  renderKind,
+  parentRenderId,
 }: {
   project: Project;
   scenes: SceneRow[];
   voiceovers: { scene_id: string | null; audio_url: string | null }[];
   captions: { scene_id: string | null; cues: unknown }[];
+  renderKind?: "full" | "short";
+  parentRenderId?: string | null;
 }) {
   const { user } = useSession();
   const queryClient = useQueryClient();
@@ -179,9 +192,12 @@ export function RenderPanel({
   // on the browser engine instead.
   const effectiveEngine = resolveEffectiveEngine(engine, workerAvailable);
 
-  useEffect(() => () => {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-  }, [previewUrl]);
+  useEffect(
+    () => () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    },
+    [previewUrl],
+  );
 
   const readyScenes = scenes.filter((s) => s.asset_url);
   const missing = scenes.length - readyScenes.length;
@@ -198,7 +214,10 @@ export function RenderPanel({
         .filter((s) => s.visual_type === "AI_IMAGE")
         .reduce((sum, s) => sum + (Number(s.duration) || 0), 0)
     : 0;
-  const heroCap = applyHeroCap({ aiHeroSeconds: plannedHeroSeconds, totalSeconds: durationSeconds });
+  const heroCap = applyHeroCap({
+    aiHeroSeconds: plannedHeroSeconds,
+    totalSeconds: durationSeconds,
+  });
   const quoteInput = {
     durationSeconds,
     mode: (cinemaMode ? "cinema" : "story") as "cinema" | "story",
@@ -424,6 +443,9 @@ export function RenderPanel({
           aiHeroSeconds: cinemaMode ? heroCap.aiHeroSeconds : 0,
           storyMode,
           parallax25d,
+          // F20/F24: kind + lineage passthrough (defaults keep full-render behavior).
+          kind: renderKind ?? "full",
+          parentId: parentRenderId ?? null,
         },
       });
       const count = queued.rows?.length ?? aspects.length;
@@ -488,7 +510,12 @@ export function RenderPanel({
             </Button>
           </div>
           <div className="flex items-center gap-2">
-            <Switch id="burn" checked={burnCaptions} onCheckedChange={setBurnCaptions} disabled={rendering} />
+            <Switch
+              id="burn"
+              checked={burnCaptions}
+              onCheckedChange={setBurnCaptions}
+              disabled={rendering}
+            />
             <Label htmlFor="burn" className="text-sm text-muted-foreground">
               Burn captions
             </Label>
@@ -593,9 +620,8 @@ export function RenderPanel({
                 Story Mode
               </Label>
               <p className="text-xs text-muted-foreground">
-                Hook → setup → rising tension → payoff → loop. Pacing, caption
-                emphasis and music ducking follow the five beats. Same price as
-                a standard render.
+                Hook → setup → rising tension → payoff → loop. Pacing, caption emphasis and music
+                ducking follow the five beats. Same price as a standard render.
               </p>
             </div>
           </div>
@@ -611,8 +637,8 @@ export function RenderPanel({
                 2.5D parallax
               </Label>
               <p className="text-xs text-muted-foreground">
-                Subtle depth motion on stills. Server renders cost an extra
-                0.25 credits per minute; the browser preview is free.
+                Subtle depth motion on stills. Server renders cost an extra 0.25 credits per minute;
+                the browser preview is free.
               </p>
             </div>
           </div>
@@ -676,9 +702,9 @@ export function RenderPanel({
             </p>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            This exact amount is reserved from your credits when you queue — no surprises later.
-            You can close the tab; the render continues on the server and progress updates live
-            here when you come back.
+            This exact amount is reserved from your credits when you queue — no surprises later. You
+            can close the tab; the render continues on the server and progress updates live here
+            when you come back.
           </p>
         </div>
       )}
@@ -705,7 +731,9 @@ export function RenderPanel({
             <span className="text-muted-foreground">{progress?.progress ?? 0}%</span>
           </div>
           <Progress value={progress?.progress ?? 0} className="mt-3" />
-          {progress?.detail && <p className="mt-2 text-xs text-muted-foreground">{progress.detail}</p>}
+          {progress?.detail && (
+            <p className="mt-2 text-xs text-muted-foreground">{progress.detail}</p>
+          )}
 
           <ul className="mt-4 space-y-2">
             {STAGES.map((stage) => {
@@ -790,8 +818,8 @@ export function RenderPanel({
       )}
       {engine === "server" && !workerAvailable && (
         <p className="mt-4 rounded-lg border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
-          The high-quality server renderer isn't online right now, so this render
-          will use the fast browser engine instead — same MP4, no extra cost.
+          The high-quality server renderer isn't online right now, so this render will use the fast
+          browser engine instead — same MP4, no extra cost.
         </p>
       )}
     </section>

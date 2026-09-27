@@ -4,7 +4,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import JSZip from "jszip";
-import { advanceProject, deleteScene, getProject, regenerateScene, updateScene } from "@/lib/studio.functions";
+import {
+  advanceProject,
+  deleteScene,
+  getProject,
+  regenerateScene,
+  updateScene,
+} from "@/lib/studio.functions";
 import { VISUAL_TYPES } from "@/lib/studio-config";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,12 +37,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Download, ImageIcon, Loader2, Play, RefreshCw, Trash2, Wand2, User, Mic } from "lucide-react";
+import {
+  ArrowLeft,
+  Download,
+  ImageIcon,
+  Loader2,
+  Play,
+  RefreshCw,
+  Trash2,
+  Wand2,
+  User,
+  Mic,
+  ShieldAlert,
+} from "lucide-react";
 import { RenderPanel } from "@/components/vidora/RenderPanel";
 import { PublishPipeline } from "@/components/vidora/PublishPipeline";
 import { SafetyPanel } from "@/components/vidora/SafetyPanel";
 import { StudioV2Panel } from "@/components/vidora/StudioV2Panel";
+import { ResearchCanvas } from "@/components/vidora/ResearchCanvas";
+import { ScriptStudio } from "@/components/vidora/ScriptStudio";
+import { EvidenceDesk } from "@/components/vidora/EvidenceDesk";
+import { getProjectGateState } from "@/lib/creation/claims/evidence.functions";
 import { VoicePicker } from "@/components/vidora/VoicePicker";
+import { StockPicker } from "@/components/vidora/stock/StockPicker";
 import { ProvenanceDrawer } from "@/components/vidora/ProvenanceDrawer";
 import { useI18n } from "@/lib/i18n";
 import { VoiceoverEditorPanel } from "@/components/vidora/VoiceoverEditorPanel";
@@ -44,12 +67,15 @@ import { AutoEditEditorPanel } from "@/components/vidora/AutoEditEditorPanel";
 import { projectCreationMode } from "@/lib/mode2/settings";
 import { formatSrtTimecode } from "@/lib/srt";
 
-
 export const Route = createFileRoute("/_authenticated/projects/$projectId")({
   head: () => ({
     meta: [
       { title: "Project editor — Vidora AI" },
-      { name: "description", content: "Review scenes, swap visuals, regenerate voice and export your Vidora AI video package." },
+      {
+        name: "description",
+        content:
+          "Review scenes, swap visuals, regenerate voice and export your Vidora AI video package.",
+      },
       { property: "og:title", content: "Project editor — Vidora AI" },
       { property: "og:description", content: "Scene-by-scene control over your AI video." },
       { property: "og:type", content: "website" },
@@ -77,6 +103,7 @@ function ProjectEditor() {
   const queryClient = useQueryClient();
   const getFn = useServerFn(getProject);
   const advanceFn = useServerFn(advanceProject);
+  const gateFn = useServerFn(getProjectGateState);
   const { t } = useI18n();
 
   const data = useQuery({
@@ -84,6 +111,20 @@ function ProjectEditor() {
     queryFn: () => getFn({ data: { id: projectId } }),
   });
 
+  // Strict-review gate (P3 Stream B): blocks package export while any claim
+  // still needs human confirmation. Publish approval/execution is enforced
+  // server-side separately; this is the client-enforced package gate.
+  // Fail-closed: while the gate is loading or errored the export button is
+  // disabled and the pre-packaging re-check toasts instead of packaging.
+  const gate = useQuery({
+    queryKey: ["project-gate", projectId],
+    queryFn: () => gateFn({ data: { projectId } }),
+  });
+  const gateBlocked = gate.data?.blocked === true;
+  const gateUnknown = gate.isPending || gate.isError;
+  // Shared script selection (P3 Stream B): ScriptStudio owns the picker;
+  // EvidenceDesk extracts claims from the same selected script.
+  const [scriptId, setScriptId] = useState<string | null>(null);
   const project = data.data?.project;
   const scenes = data.data?.scenes ?? [];
   const captions = data.data?.captions ?? [];
@@ -91,6 +132,7 @@ function ProjectEditor() {
 
   const [running, setRunning] = useState(false);
   const busy = useRef(false);
+  const [exporting, setExporting] = useState(false);
 
   // Drives the pipeline one step at a time and refreshes the view after each step.
   useEffect(() => {
@@ -175,14 +217,18 @@ function ProjectEditor() {
     );
   }
 
-    const stageIndex = Math.max(0, STAGES.indexOf(project.stage as (typeof STAGES)[number]));
+  const stageIndex = Math.max(0, STAGES.indexOf(project.stage as (typeof STAGES)[number]));
   const readyScenes = scenes.filter((s) => s.asset_url).length;
   const progress =
     project.status === "completed"
       ? 100
-      : Math.min(95, Math.round(((stageIndex + (scenes.length ? readyScenes / scenes.length : 0)) / STAGES.length) * 100));
-
-  const [exporting, setExporting] = useState(false);
+      : Math.min(
+          95,
+          Math.round(
+            ((stageIndex + (scenes.length ? readyScenes / scenes.length : 0)) / STAGES.length) *
+              100,
+          ),
+        );
 
   const exportPackage = async (): Promise<number> => {
     // -1: already running (button is disabled, this is a belt-and-braces guard)
@@ -190,9 +236,16 @@ function ProjectEditor() {
     setExporting(true);
     try {
       const zip = new JSZip();
-      const safe = project.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase().slice(0, 60) || "vidora-project";
+      const safe =
+        project.title
+          .replace(/[^a-z0-9]+/gi, "-")
+          .toLowerCase()
+          .slice(0, 60) || "vidora-project";
 
-      zip.file("narration.txt", scenes.map((s, i) => `SCENE ${i + 1}\n${s.narration}`).join("\n\n"));
+      zip.file(
+        "narration.txt",
+        scenes.map((s, i) => `SCENE ${i + 1}\n${s.narration}`).join("\n\n"),
+      );
       zip.file(
         "shot-list.txt",
         scenes
@@ -321,14 +374,39 @@ function ProjectEditor() {
           <div className="flex flex-wrap gap-2">
             {project.status !== "completed" && (
               <Button onClick={() => setRunning(true)} disabled={running} className="gap-2">
-                {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-                {running ? STAGE_LABEL[project.stage] ?? "Working" : project.status === "failed" ? "Retry" : "Generate"}
+                {running ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Wand2 className="h-4 w-4" />
+                )}
+                {running
+                  ? (STAGE_LABEL[project.stage] ?? "Working")
+                  : project.status === "failed"
+                    ? "Retry"
+                    : "Generate"}
               </Button>
             )}
             <Button
               variant="outline"
               className="gap-2"
-              onClick={() =>
+              onClick={async () => {
+                // Re-check the gate immediately before packaging: the banner
+                // state can be stale if the user just confirmed claims.
+                // Fail-closed: a failed re-check toasts and never packages.
+                let latest;
+                try {
+                  latest = await queryClient.fetchQuery({
+                    queryKey: ["project-gate", projectId],
+                    queryFn: () => gateFn({ data: { projectId } }),
+                  });
+                } catch {
+                  toast.error(t("route_export_gate_unknown"));
+                  return;
+                }
+                if (latest.blocked) {
+                  toast.error(t("route_export_blocked"));
+                  return;
+                }
                 toast.promise(exportPackage(), {
                   loading: "Packaging assets…",
                   success: (missingCount: number) =>
@@ -338,21 +416,53 @@ function ProjectEditor() {
                         ? "Package downloaded"
                         : "Export already running",
                   error: "Export failed",
-                })
+                });
+              }}
+              disabled={scenes.length === 0 || exporting || gateBlocked || gateUnknown}
+              title={
+                gateBlocked
+                  ? t("route_export_blocked")
+                  : gateUnknown
+                    ? t("route_export_gate_unknown")
+                    : undefined
               }
-              disabled={scenes.length === 0 || exporting}
             >
-              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              {exporting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
               Export package
             </Button>
           </div>
         </div>
 
+        {/* P3 Stream B: strict-review gate banner (client-enforced package gate) */}
+        {gateBlocked && (
+          <div className="mt-6 flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm">
+            <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+            <div>
+              <p className="font-medium text-destructive">{t("route_export_blocked")}</p>
+              <p className="mt-1 text-muted-foreground">{gate.data?.message}</p>
+            </div>
+          </div>
+        )}
+        {gate.isError && (
+          <div className="mt-6 flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 text-sm">
+            <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+            <div>
+              <p className="font-medium text-amber-700">{t("route_export_gate_unknown")}</p>
+            </div>
+          </div>
+        )}
+
         {(running || project.status === "running" || project.status === "failed") && (
           <div className="surface-card mt-6 p-5">
             <div className="flex items-center justify-between text-sm">
               <span className="font-semibold text-foreground">
-                {project.status === "failed" ? "Generation stopped" : STAGE_LABEL[project.stage] ?? project.step}
+                {project.status === "failed"
+                  ? "Generation stopped"
+                  : (STAGE_LABEL[project.stage] ?? project.step)}
               </span>
               <span className="text-muted-foreground">{progress}%</span>
             </div>
@@ -362,7 +472,8 @@ function ProjectEditor() {
         )}
 
         <h2 className="mt-10 text-xl font-bold tracking-tight text-foreground">
-          Scenes {scenes.length > 0 && <span className="text-muted-foreground">({scenes.length})</span>}
+          Scenes{" "}
+          {scenes.length > 0 && <span className="text-muted-foreground">({scenes.length})</span>}
         </h2>
 
         {/* P4: Studio v2 creative controls */}
@@ -396,32 +507,44 @@ function ProjectEditor() {
 
         {/* P6: Monetization safety — score before publishing */}
         <div className="mt-10">
-          <h2 className="text-xl font-bold tracking-tight text-foreground">
-            {t("safety_title")}
-          </h2>
+          <h2 className="text-xl font-bold tracking-tight text-foreground">{t("safety_title")}</h2>
           <div className="mt-4">
             <SafetyPanel projectId={projectId} script={project.script ?? ""} />
           </div>
         </div>
 
+        {/* P3 Stream B: research → script layer */}
+        <div className="mt-10 space-y-6">
+          <ResearchCanvas projectId={projectId} />
+          <ScriptStudio projectId={projectId} scriptId={scriptId} onScriptIdChange={setScriptId} />
+          <EvidenceDesk projectId={projectId} scriptId={scriptId} />
+        </div>
+
         {/* P5: Publish pipeline — thumbnail → SEO → schedule → review → approve */}
         <div className="mt-10">
-          <h2 className="text-xl font-bold tracking-tight text-foreground">
-            {t("publish_tab")}
-          </h2>
+          <h2 className="text-xl font-bold tracking-tight text-foreground">{t("publish_tab")}</h2>
           <div className="mt-4">
             <PublishPipeline
               projectId={projectId}
               videoTitle={project.title}
               videoTopic={project.topic ?? project.title}
-              scriptSummary={scenes.map((s: { narration?: string }) => s.narration).filter(Boolean).join(" ").slice(0, 4000) || project.topic || project.title}
+              scriptSummary={
+                scenes
+                  .map((s: { narration?: string }) => s.narration)
+                  .filter(Boolean)
+                  .join(" ")
+                  .slice(0, 4000) ||
+                project.topic ||
+                project.title
+              }
               primaryKeyword={project.topic ?? project.title}
-              nicheKeywords={(project.topic ?? project.title).split(/\s+/).filter((w: string) => w.length > 3)}
+              nicheKeywords={(project.topic ?? project.title)
+                .split(/\s+/)
+                .filter((w: string) => w.length > 3)}
             />
           </div>
         </div>
       </div>
-
     </main>
   );
 }
@@ -463,6 +586,7 @@ function SceneCard({
   const [visualType, setVisualType] = useState(scene.visual_type);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [provenanceOpen, setProvenanceOpen] = useState(false);
+  const [stockOpen, setStockOpen] = useState(false);
   const [sceneVoice, setSceneVoice] = useState<string | null>(scene.voice_id);
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["project", projectId] });
 
@@ -580,7 +704,11 @@ function SceneCard({
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">Stock search terms</Label>
-            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="ancient ruins | desert" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="ancient ruins | desert"
+            />
           </div>
         </div>
 
@@ -622,6 +750,16 @@ function SceneCard({
               <RefreshCw className="h-3.5 w-3.5" />
             )}
             Visual
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1"
+            onClick={() => setStockOpen(true)}
+            aria-label={`Pick stock media for scene ${scene.scene_number}`}
+          >
+            <ImageIcon className="h-3.5 w-3.5" />
+            Stock
           </Button>
           <Button
             size="sm"
@@ -672,10 +810,16 @@ function SceneCard({
           </AlertDialog>
         </div>
       </div>
-      <ProvenanceDrawer
+      <ProvenanceDrawer sceneId={scene.id} open={provenanceOpen} onOpenChange={setProvenanceOpen} />
+      <StockPicker
+        open={stockOpen}
+        onOpenChange={setStockOpen}
         sceneId={scene.id}
-        open={provenanceOpen}
-        onOpenChange={setProvenanceOpen}
+        initialQuery={scene.search_query ?? undefined}
+        onSelected={() => {
+          setStockOpen(false);
+          invalidate();
+        }}
       />
     </div>
   );

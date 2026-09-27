@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { WorkerConfig } from "./config.js";
+import { withSegmentDone } from "./segment-checkpoints.js";
 import type { RenderJob } from "./types.js";
 
 /** Service-role client. Never expose to browsers — worker-only. */
@@ -49,11 +50,62 @@ export async function reportWorkerHeartbeat(
   supabase: SupabaseClient,
   workerId: string,
 ): Promise<void> {
-  const { error } = await supabase.from("worker_heartbeats").upsert(
-    { worker_id: workerId, last_seen_at: new Date().toISOString() },
-    { onConflict: "worker_id" },
-  );
+  const { error } = await supabase
+    .from("worker_heartbeats")
+    .upsert(
+      { worker_id: workerId, last_seen_at: new Date().toISOString() },
+      { onConflict: "worker_id" },
+    );
   if (error) throw new Error(`worker heartbeat failed: ${error.message}`);
+}
+
+/**
+ * F21: read the raw renders.checkpoint JSONB for a job. Returns {} when the
+ * row or checkpoint is missing. Never throws — a checkpoint read failure must
+ * not fail the render; worst case we re-render a finished segment.
+ */
+export async function readRenderCheckpoint(
+  supabase: SupabaseClient,
+  jobId: string,
+): Promise<Record<string, unknown>> {
+  try {
+    const { data, error } = await supabase
+      .from("renders")
+      .select("checkpoint")
+      .eq("id", jobId)
+      .maybeSingle();
+    if (error || !data) return {};
+    const cp = (data as { checkpoint?: unknown }).checkpoint;
+    return typeof cp === "object" && cp !== null && !Array.isArray(cp)
+      ? (cp as Record<string, unknown>)
+      : {};
+  } catch (e) {
+    console.error(`[worker] readRenderCheckpoint failed for ${jobId}: ${(e as Error).message}`);
+    return {};
+  }
+}
+
+/**
+ * F21: mark one scene segment done, merging into renders.checkpoint so other
+ * keys (storagePath, billing) survive. Read-modify-write is safe here because
+ * a claimed job is exclusively owned by this worker (claim lease).
+ * Never throws — a missed checkpoint only costs a re-render on resume.
+ */
+export async function markSegmentDone(
+  supabase: SupabaseClient,
+  jobId: string,
+  index: number,
+): Promise<void> {
+  try {
+    const current = await readRenderCheckpoint(supabase, jobId);
+    const next = withSegmentDone(current, index);
+    const { error } = await supabase.from("renders").update({ checkpoint: next }).eq("id", jobId);
+    if (error) throw new Error(error.message);
+  } catch (e) {
+    console.error(
+      `[worker] markSegmentDone failed for ${jobId} seg ${index}: ${(e as Error).message}`,
+    );
+  }
 }
 
 export async function finishJob(
@@ -122,10 +174,7 @@ export async function finishJob(
   }
 }
 
-export async function shouldCancel(
-  supabase: SupabaseClient,
-  jobId: string,
-): Promise<boolean> {
+export async function shouldCancel(supabase: SupabaseClient, jobId: string): Promise<boolean> {
   const { data, error } = await supabase
     .from("renders")
     .select("cancel_requested,status")

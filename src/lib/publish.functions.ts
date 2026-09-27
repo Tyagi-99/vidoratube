@@ -20,6 +20,7 @@ import {
   publishBlockedMessage,
   type PublishPrivacy,
 } from "./safety";
+import { getProjectStrictGate } from "./creation/claims/strict-gate";
 
 /**
  * P5: Thumbnail studio + SEO studio + publish pipeline server functions.
@@ -72,7 +73,8 @@ export const generateThumbnails = createServerFn({ method: "POST" })
 
     await debitOneCredit(supabaseAdmin, userId, `thumbnails:${data.project_id}`);
 
-    const { requestThumbnailImage, uploadThumbnail, hashThumbnailPrompt } = await import("./thumbnails.server");
+    const { requestThumbnailImage, uploadThumbnail, hashThumbnailPrompt } =
+      await import("./thumbnails.server");
     const aspects: ThumbnailAspect[] = ["16:9", "9:16"];
     const created: { variant: number; aspect: ThumbnailAspect; url: string }[] = [];
 
@@ -90,7 +92,14 @@ export const generateThumbnails = createServerFn({ method: "POST" })
           userId,
           projectId: data.project_id,
         });
-        const url = await uploadThumbnail(supabaseAdmin, userId, data.project_id, variant, aspect, bytes);
+        const url = await uploadThumbnail(
+          supabaseAdmin,
+          userId,
+          data.project_id,
+          variant,
+          aspect,
+          bytes,
+        );
         const { error } = await supabase.from("thumbnails").upsert(
           {
             user_id: userId,
@@ -190,7 +199,10 @@ const generateSEOSchema = z.object({
   script_summary: z.string().trim().min(1).max(5000),
   primary_keyword: z.string().trim().min(1).max(60),
   niche_keywords: z.array(z.string().trim().max(60)).max(20).default([]),
-  chapters: z.array(z.object({ time: z.string(), label: z.string() })).max(30).default([]),
+  chapters: z
+    .array(z.object({ time: z.string(), label: z.string() }))
+    .max(30)
+    .default([]),
 });
 
 /** LLM-generates titles, description, tags; ranks titles with deterministic scoring. */
@@ -339,6 +351,24 @@ const approvePublishJobSchema = z.object({
 });
 
 /**
+ * Shared strict-gate assertion for every publish path (P3 Stream B / D99).
+ * Both approval AND execution call this, so the "confirmed-only" rule lives
+ * in exactly one place. Fail-closed: the gate throws on query errors, and
+ * strict mode defaults to OFF so existing projects are unaffected unless
+ * the owner opts in.
+ */
+export async function assertPublishStrictGate(
+  supabase: any,
+  userId: string,
+  projectId: string,
+): Promise<void> {
+  const strictGate = await getProjectStrictGate(supabase, userId, projectId);
+  if (strictGate.blocked) {
+    throw new Error(strictGate.message);
+  }
+}
+
+/**
  * HUMAN APPROVAL GATE. The only transition from draft -> approved.
  * This is the deliberate user action that authorizes a YouTube publish.
  * There is no code path that publishes without this.
@@ -403,6 +433,10 @@ export async function runApprovePublishJob({
   if (gate.blocked) {
     throw new Error(publishBlockedMessage(gate.score as number));
   }
+
+  // STRICT EVIDENCE GATE (server-enforced, P3 Stream B / D99): shared
+  // assertion — see assertPublishStrictGate below.
+  await assertPublishStrictGate(supabase, userId, job.project_id);
 
   if (input.thumbnail_id) {
     const { data: thumb } = await supabase
@@ -473,6 +507,10 @@ const executePublishJobSchema = z.object({
  *      additionally re-checks approved_by/approved_at on the job row.)
  *   2. The CURRENT latest safety score is re-checked: < 50 BLOCKS public;
  *      private/unlisted proceed with a recorded warning.
+ * P3 Stream B adds a third:
+ *   3. The strict evidence gate is re-checked: with
+ *      projects.research_strict_mode ON, ANY claim lacking a human CONFIRM
+ *      blocks execution (fail-closed, D99).
  */
 export const executePublishJob = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -526,10 +564,16 @@ export async function runExecutePublishJob({
   if (!["approved", "scheduled"].includes(job.status)) {
     throw new Error(`Job is not ready to publish (current: ${job.status}).`);
   }
-  if (job.status === "scheduled" && job.scheduled_for && new Date(job.scheduled_for).getTime() > Date.now()) {
+  if (
+    job.status === "scheduled" &&
+    job.scheduled_for &&
+    new Date(job.scheduled_for).getTime() > Date.now()
+  ) {
     // No auto-publishing anywhere in the system: a scheduled job waits for
     // its time, then still requires this human-invoked execution.
-    throw new Error("This job is scheduled for a future time — it can only be published once that time arrives.");
+    throw new Error(
+      "This job is scheduled for a future time — it can only be published once that time arrives.",
+    );
   }
   if (job.made_for_kids === null || job.made_for_kids === undefined) {
     throw new Error("Please confirm whether this video is made for kids.");
@@ -565,16 +609,11 @@ export async function runExecutePublishJob({
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    const execGate = evaluatePublishGate(
-      latestScore?.score ?? null,
-      job.privacy as PublishPrivacy,
-    );
+    const execGate = evaluatePublishGate(latestScore?.score ?? null, job.privacy as PublishPrivacy);
     if (execGate.blocked) {
       throw new Error(publishBlockedMessage(execGate.score as number));
     }
-    const execWarning = execGate.warning
-      ? lowScoreWarningMessage(execGate.score as number)
-      : null;
+    const execWarning = execGate.warning ? lowScoreWarningMessage(execGate.score as number) : null;
     if (execWarning) {
       await recordPublishWarning(supabaseAdmin, {
         userId,
@@ -585,9 +624,13 @@ export async function runExecutePublishJob({
       });
     }
 
+    // HARD REQUIREMENT 3 (P3 Stream B / D99): re-check the strict evidence
+    // gate at execution time — claims confirmed after approval keep it
+    // green; a strict-mode project with unconfirmed claims cannot upload.
+    await assertPublishStrictGate(supabase, userId, job.project_id);
+
     // Reuse the existing resumable uploader (handles scope, tokens, retries).
-    const up: PublishUploader =
-      uploader ?? (await import("./youtube-publish.server"));
+    const up: PublishUploader = uploader ?? (await import("./youtube-publish.server"));
     const { videoId } = await up.publishVideoJob(supabaseAdmin, {
       userId,
       videoJobId: job.video_job_id,
@@ -614,7 +657,10 @@ export async function runExecutePublishJob({
         })
         .catch((e) => {
           // Thumbnail failure shouldn't fail the publish — log and continue.
-          console.warn(`[vidora] thumbnail set failed for ${videoId}:`, e instanceof Error ? e.message : e);
+          console.warn(
+            `[vidora] thumbnail set failed for ${videoId}:`,
+            e instanceof Error ? e.message : e,
+          );
         });
     }
 
@@ -675,7 +721,9 @@ export const listPublishJobs = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     const { data, error } = await supabase
       .from("publish_jobs")
-      .select("id, status, title, privacy, scheduled_for, youtube_video_id, youtube_url, error, approved_at, created_at, project_id")
+      .select(
+        "id, status, title, privacy, scheduled_for, youtube_video_id, youtube_url, error, approved_at, created_at, project_id",
+      )
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(50);
@@ -695,7 +743,9 @@ export const listThumbnails = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     const { data: thumbs, error } = await supabase
       .from("thumbnails")
-      .select("id, variant, aspect, url, final_url, text_overlay, selected, created_at, model, license, is_ai_generated")
+      .select(
+        "id, variant, aspect, url, final_url, text_overlay, selected, created_at, model, license, is_ai_generated",
+      )
       .eq("project_id", data.project_id)
       .eq("user_id", userId)
       .order("aspect")
@@ -743,14 +793,13 @@ const selectSEOTitleSchema = z.object({
 /** Updates the selected title / edited description / tags. */
 export const updateSEOMetadata = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
-    (input: unknown) =>
-      selectSEOTitleSchema
-        .extend({
-          description: z.string().trim().max(4900).optional(),
-          tags: z.array(z.string().trim().max(60)).max(30).optional(),
-        })
-        .parse(input),
+  .inputValidator((input: unknown) =>
+    selectSEOTitleSchema
+      .extend({
+        description: z.string().trim().max(4900).optional(),
+        tags: z.array(z.string().trim().max(60)).max(30).optional(),
+      })
+      .parse(input),
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
@@ -792,9 +841,7 @@ export const uploadFinalThumbnailImage = createServerFn({ method: "POST" })
       .maybeSingle();
     if (!thumb) throw new Error("Thumbnail not found");
 
-    const bytes = Uint8Array.from(
-      Buffer.from(data.image_data_url.split(",")[1]!, "base64"),
-    );
+    const bytes = Uint8Array.from(Buffer.from(data.image_data_url.split(",")[1]!, "base64"));
     const { uploadFinalThumbnail } = await import("./thumbnails.server");
     const path = await uploadFinalThumbnail(
       supabaseAdmin,
