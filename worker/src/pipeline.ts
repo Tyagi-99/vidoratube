@@ -1,5 +1,5 @@
 import { createWriteStream } from "node:fs";
-import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { pipeline } from "node:stream/promises";
@@ -16,7 +16,12 @@ import {
   storyParallaxMultiplier,
   type StoryBeatId,
 } from "./story.js";
-import { shouldCancel } from "./supabase.js";
+import { markSegmentDone, readRenderCheckpoint, shouldCancel } from "./supabase.js";
+import {
+  firstIncompleteSegment,
+  isSegmentDone,
+  parseSegmentCheckpoint,
+} from "./segment-checkpoints.js";
 import { buildWatermarkAss, planBrandFilters } from "./watermark.js";
 import type { RenderJob, RenderJobMeta, SceneInput, StageId } from "./types.js";
 
@@ -70,9 +75,7 @@ const GENERIC_FONT_FAMILIES = new Set([
 
 /** Primary family from a CSS font stack; generic stacks fall back to Inter. */
 export function primaryFontName(fontStack: string): string {
-  const first = (fontStack.split(",")[0] ?? "")
-    .trim()
-    .replace(/^["']|["']$/g, "");
+  const first = (fontStack.split(",")[0] ?? "").trim().replace(/^["']|["']$/g, "");
   if (!first || GENERIC_FONT_FAMILIES.has(first.toLowerCase())) return "Inter";
   return first;
 }
@@ -113,10 +116,7 @@ function groupCuesByChars(
     const wordLen = Math.max(1, [...cue.word].length);
     for (const part of splitChars(cue.word, maxChars)) {
       const partLen = [...part].length;
-      const cs = Math.max(
-        1,
-        Math.round(((cue.end - cue.start) * partLen * 100) / wordLen),
-      );
+      const cs = Math.max(1, Math.round(((cue.end - cue.start) * partLen * 100) / wordLen));
       if (chunks.length > 0 && lineLen + 1 + partLen > maxChars) flush();
       if (chunks.length === 0) lineStart = cue.start;
       lineEnd = cue.end;
@@ -133,8 +133,7 @@ export function buildWordAss(
   cues: { word: string; start: number; end: number; emphasis?: boolean }[],
   opts: number | { fontSize?: number; language?: CaptionLanguage } = {},
 ): string {
-  const { fontSize = 64, language } =
-    typeof opts === "number" ? { fontSize: opts } : opts;
+  const { fontSize = 64, language } = typeof opts === "number" ? { fontSize: opts } : opts;
   const fontName = language ? primaryFontName(language.fontStack) : "Inter";
   const directionComment = language?.rtl ? "; Direction: RTL\n" : "";
   const header = `[Script Info]
@@ -170,9 +169,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     }
   }
   const dialogue = lines.map((line) => {
-    const text = line.chunks
-      .map((c) => `{\\kf${c.cs}}${escapeAss(c.text)}`)
-      .join(" ");
+    const text = line.chunks.map((c) => `{\\kf${c.cs}}${escapeAss(c.text)}`).join(" ");
     const style = line.emphasis ? "VidoraHook" : "Vidora";
     return `Dialogue: 0,${assTimestamp(line.start)},${assTimestamp(line.end)},${style},,0,0,0,,${text}`;
   });
@@ -269,16 +266,14 @@ function extOf(ref: string): string {
 }
 
 /** Render one scene image into a silent video segment. */
-async function renderSegment(
-  ctx: Ctx,
-  scene: SceneInput,
-  index: number,
-): Promise<string> {
+async function renderSegment(ctx: Ctx, scene: SceneInput, index: number): Promise<string> {
   const { cfg, meta, dir, hooks } = ctx;
   const segPath = join(dir, `seg-${index}.mp4`);
   const dims = ASPECTS[meta.aspect] ?? ASPECTS["16:9"]!;
 
-  // Checkpoint: skip already-rendered segments on resume.
+  // Local fast path: skip when a finished segment file already exists.
+  // Server-authoritative resume is handled by the caller (runPipeline), which
+  // deletes stale local files for segments NOT recorded done server-side.
   try {
     const st = await stat(segPath);
     if (st.size > 1024) return segPath;
@@ -299,8 +294,7 @@ async function renderSegment(
         width: dims.width,
         height: dims.height,
         frames: Math.max(1, Math.round(scene.duration * meta.fps)),
-        intensity:
-          PARALLAX_DEFAULT_INTENSITY * (beat ? storyParallaxMultiplier(beat) : 1),
+        intensity: PARALLAX_DEFAULT_INTENSITY * (beat ? storyParallaxMultiplier(beat) : 1),
         direction: index % 2 === 0 ? "in" : "out",
       })},format=yuv420p`
     : `${coverFilter(meta.aspect)},format=yuv420p`;
@@ -356,7 +350,20 @@ async function assemble(ctx: Ctx, segments: string[], scenes: SceneInput[]): Pro
   const combined = join(dir, "combined.mp4");
   await runFFmpeg({
     ffmpegPath: cfg.FFMPEG_PATH,
-    args: ["-y", "-f", "concat", "-safe", "0", "-i", listPath, "-c", "copy", "-progress", "pipe:2", combined],
+    args: [
+      "-y",
+      "-f",
+      "concat",
+      "-safe",
+      "0",
+      "-i",
+      listPath,
+      "-c",
+      "copy",
+      "-progress",
+      "pipe:2",
+      combined,
+    ],
     isCancelled: () => hooks.isCancelled(),
   });
 
@@ -403,7 +410,9 @@ async function assemble(ctx: Ctx, segments: string[], scenes: SceneInput[]): Pro
     if (voiceLabels.length === 1) {
       voiceBus = voiceLabels[0]!;
     } else if (voiceLabels.length > 1) {
-      filterParts.push(`${voiceLabels.join("")}amix=inputs=${voiceLabels.length}:normalize=0[voice]`);
+      filterParts.push(
+        `${voiceLabels.join("")}amix=inputs=${voiceLabels.length}:normalize=0[voice]`,
+      );
       voiceBus = "[voice]";
     }
 
@@ -424,11 +433,17 @@ async function assemble(ctx: Ctx, segments: string[], scenes: SceneInput[]): Pro
       if (voiceBus && meta.musicDucking) {
         // P4: duck music under the voice bus via sidechain compression.
         // Story Mode uses the deeper/faster story duck profile.
+        // Stream E (D99): the voice bus feeds BOTH the sidechain key
+        // (inaudible control signal) and the audible amix input — split it
+        // EXPLICITLY with asplit=2 instead of relying on ffmpeg's implicit
+        // auto-split of multi-consumer pads. Mirrors buildFinalAudioMix in
+        // src/lib/audio.ts (the worker keeps a dependency-free copy).
         const duckParams = storyMode
           ? storyDuckParams()
           : "threshold=0.02:ratio=8:attack=200:release=800";
-        filterParts.push(`[music]${voiceBus}sidechaincompress=${duckParams}:makeup=1[ducked]`);
-        filterParts.push(`${voiceBus}[ducked]amix=inputs=2:normalize=0[aout]`);
+        filterParts.push(`${voiceBus}asplit=2[vkey][vmix]`);
+        filterParts.push(`[music][vkey]sidechaincompress=${duckParams}:makeup=1[ducked]`);
+        filterParts.push(`[vmix][ducked]amix=inputs=2:normalize=0[aout]`);
       } else if (voiceBus) {
         filterParts.push(`${voiceBus}[music]amix=inputs=2:normalize=0[aout]`);
       } else {
@@ -535,7 +550,11 @@ async function assemble(ctx: Ctx, segments: string[], scenes: SceneInput[]): Pro
         buildWatermarkAss(totalDur, { primaryColor: meta.brandOverlay?.primaryColor }),
       );
     }
-    const plan = planBrandFilters({ logoPath: logoFile, watermark: meta.watermark, assPath: assFile });
+    const plan = planBrandFilters({
+      logoPath: logoFile,
+      watermark: meta.watermark,
+      assPath: assFile,
+    });
     preFinal = join(dir, "branded.mp4");
     const brandInputs = ["-y", "-i", captioned];
     if (plan?.hasLogo && logoFile) brandInputs.push("-i", logoFile);
@@ -590,7 +609,10 @@ async function assemble(ctx: Ctx, segments: string[], scenes: SceneInput[]): Pro
   return final;
 }
 
-export function spreadFallback(narration: string, duration: number): { word: string; start: number; end: number }[] {
+export function spreadFallback(
+  narration: string,
+  duration: number,
+): { word: string; start: number; end: number }[] {
   const words = narration.split(/\s+/).filter(Boolean);
   if (!words.length || duration <= 0) return [];
   const per = duration / words.length;
@@ -599,19 +621,44 @@ export function spreadFallback(narration: string, duration: number): { word: str
 
 /** Full pipeline for one claimed job. Returns the final MP4 path. */
 export async function runPipeline(ctx: Ctx): Promise<string> {
-  const { hooks } = ctx;
+  const { hooks, supabase, job } = ctx;
   await mkdir(ctx.dir, { recursive: true });
 
   const scenes = await fetchSceneAssets(ctx);
+
+  // F21: server-side resume. The server checkpoint is authoritative: segments
+  // recorded done are skipped via renderSegment's local fast path, segments
+  // NOT recorded done are re-rendered from scratch (a stale local file from
+  // a crashed attempt is deleted first so it can't satisfy the fast path).
+  // A reclaimed/retried job therefore resumes from the first incomplete
+  // scene instead of redoing finished work.
+  const serverCheckpoint = await readRenderCheckpoint(supabase, job.id);
+  const resumeFrom = firstIncompleteSegment(
+    scenes.length,
+    parseSegmentCheckpoint(serverCheckpoint),
+  );
+  if (resumeFrom !== null && resumeFrom > 0) {
+    console.log(
+      `[worker] job ${job.id} resuming from scene segment ${resumeFrom + 1}/${scenes.length}`,
+    );
+  }
 
   const segments: string[] = [];
   for (let i = 0; i < scenes.length; i++) {
     if (await hooks.isCancelled()) throw new FFmpegCancelled();
     const pct = (i / scenes.length) * 100;
     await hooks.onStage("segments", pct, `Scene ${scenes[i]!.number}/${scenes.length}`);
+    if (!isSegmentDone(serverCheckpoint, i)) {
+      await rm(join(ctx.dir, `seg-${i}.mp4`), { force: true });
+    }
     segments.push(await renderSegment(ctx, scenes[i]!, i));
-    // Heartbeat checkpoint: record completed segments for resume
-    await hooks.onStage("segments", ((i + 1) / scenes.length) * 100, `Scene ${scenes[i]!.number} done`);
+    // F21: server-side checkpoint after every successfully rendered scene.
+    await markSegmentDone(supabase, job.id, i);
+    await hooks.onStage(
+      "segments",
+      ((i + 1) / scenes.length) * 100,
+      `Scene ${scenes[i]!.number} done`,
+    );
   }
 
   return assemble(ctx, segments, scenes);

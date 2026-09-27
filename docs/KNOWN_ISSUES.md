@@ -23,6 +23,9 @@ Updated 2026-09-27. Only verified items; nothing speculative.
 - `worker/src` tests live outside the vitest glob; `npm run test:worker` is the gate (fixed Phase 0).
 - **Phase 2 Smart Folder rule scan limit:** `matchFolderRules` scans at most 500 rows per table per folder — folders over very large asset sets may miss older rows; documented in code (Stream D). Revisit if asset counts grow past this.
 - **Phase 2 E2E configured branch unrun:** `e2e/niche-finder.spec.ts` selector alignment fixed 2026-09-27 (New niche dialog flow, `data-testid` row hooks); the configured branch still needs a real `YOUTUBE_API_KEY` + test account and burns real quota — must be run deliberately by the founder.
+- **Stream E (Phase 3): app checkpoint vs render checkpoint not auto-synced (D100).** The Studio status panel reads `generation_jobs.checkpoint.studio`; the worker reads/writes `renders.checkpoint.segments`. They are intentionally separate stores; no code claims end-to-end sync. Surface render-checkpoint state in the Studio UI (or merge the stores) once the worker path is proven in production.
+- **Stream E (Phase 3): scene reorder/add/delete use sequential updates, not a transactional RPC.** Worst case of a mid-write failure is non-contiguous `scene_number` values (repairable by reorder); no data loss. If this ever bites, add a `reorder_scenes(project_id, ordered_ids[])` SECURITY DEFINER RPC with owner checks (forward-only `IF NOT EXISTS` migration).
+- **Stream E (Phase 3): scene duration is an ESTIMATE until measured audio exists.** `estimateSceneDurationSec` (150 WPM + 0.5s pad) labels itself as such in the Studio UI; QC long-scene warnings are based on the estimate. Measured narration duration replaces it once TTS audio is generated.
 
 ## Deliberately not built (by design)
 

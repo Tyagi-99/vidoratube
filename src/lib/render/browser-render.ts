@@ -14,6 +14,7 @@
 import { segmentStore } from "./idb";
 import { measureMediaDuration, validatePlayback } from "./validate-playback";
 import { buildParallaxFilter, PARALLAX_DEFAULT_INTENSITY } from "./parallax";
+import { buildFinalAudioMix } from "../audio";
 import {
   assignStoryBeats,
   storyBeatMotion,
@@ -226,13 +227,15 @@ function captionLook(style: string | undefined, height: number): CaptionLook {
 }
 
 /** Draws a caption cue to a transparent PNG so we never depend on ffmpeg fonts. */
-async function captionPng(text: string, width: number, height: number, style?: string): Promise<Uint8Array> {
+async function captionPng(
+  text: string,
+  width: number,
+  height: number,
+  style?: string,
+): Promise<Uint8Array> {
   // Wait for webfonts so captions don't silently fall back to a system font.
   try {
-    await Promise.race([
-      document.fonts.ready,
-      new Promise((resolve) => setTimeout(resolve, 3000)),
-    ]);
+    await Promise.race([document.fonts.ready, new Promise((resolve) => setTimeout(resolve, 3000))]);
   } catch {
     /* fonts API unavailable — proceed with fallbacks */
   }
@@ -288,7 +291,10 @@ async function captionPng(text: string, width: number, height: number, style?: s
   });
 
   const blob: Blob = await new Promise((resolve, reject) =>
-    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Caption rendering failed"))), "image/png"),
+    canvas.toBlob(
+      (b) => (b ? resolve(b) : reject(new Error("Caption rendering failed"))),
+      "image/png",
+    ),
   );
   return new Uint8Array(await blob.arrayBuffer());
 }
@@ -409,7 +415,8 @@ export async function loadFfmpeg(onLog?: (line: string) => void): Promise<Ffmpeg
   const coreURL = new URL("/wasm/ffmpeg-core-esm.js", window.location.origin).href;
   const localWasmURL = new URL("/wasm/ffmpeg-core.wasm", window.location.origin).href;
   const remoteWasmURL = new URL(coreWasmAsset.url, window.location.origin).href;
-  const wasmCandidates = localWasmURL === remoteWasmURL ? [localWasmURL] : [localWasmURL, remoteWasmURL];
+  const wasmCandidates =
+    localWasmURL === remoteWasmURL ? [localWasmURL] : [localWasmURL, remoteWasmURL];
 
   const describe = (error: unknown) =>
     error instanceof Error && error.message
@@ -511,7 +518,8 @@ export async function renderScene(
   };
 
   try {
-    if (!scene.assetUrl) throw new SceneAssetError(scene.number, `Scene ${scene.number} has no visual asset.`);
+    if (!scene.assetUrl)
+      throw new SceneAssetError(scene.number, `Scene ${scene.number} has no visual asset.`);
 
     const isVideo = scene.visualType === "STOCK_VIDEO";
     let visualBytes: Uint8Array;
@@ -570,7 +578,16 @@ export async function renderScene(
     if (isVideo) {
       args.push("-stream_loop", "-1", "-t", duration.toFixed(3), "-i", visualName);
     } else {
-      args.push("-loop", "1", "-framerate", String(fps), "-t", duration.toFixed(3), "-i", visualName);
+      args.push(
+        "-loop",
+        "1",
+        "-framerate",
+        String(fps),
+        "-t",
+        duration.toFixed(3),
+        "-i",
+        visualName,
+      );
     }
     if (audioName) args.push("-i", audioName);
     for (const name of cueNames) args.push("-i", name);
@@ -739,14 +756,23 @@ async function writeSegmentManifest(runId: string, scenes: SegmentMeta[]): Promi
   await segmentStore.put(`${runId}/manifest`, blob);
 }
 
-export async function renderProject(scenes: RenderScene[], options: RenderOptions): Promise<RenderResult> {
+export async function renderProject(
+  scenes: RenderScene[],
+  options: RenderOptions,
+): Promise<RenderResult> {
   const { width, height, preset } = resolutionForRender(options);
   const signal = options.signal;
   const report = (stage: RenderStageId, progress: number, detail?: string) =>
-    options.onProgress?.({ stage, label: STAGE_LABELS[stage], progress: Math.round(progress), detail });
+    options.onProgress?.({
+      stage,
+      label: STAGE_LABELS[stage],
+      progress: Math.round(progress),
+      detail,
+    });
 
   const usable = scenes.filter((s) => s.assetUrl);
-  if (usable.length === 0) throw new Error("This project has no scene visuals yet — generate the assets first.");
+  if (usable.length === 0)
+    throw new Error("This project has no scene visuals yet — generate the assets first.");
 
   report("init", 2);
   const ffmpeg = await loadFfmpeg();
@@ -800,9 +826,7 @@ export async function renderProject(scenes: RenderScene[], options: RenderOption
             ...options,
             motion: cinemaSceneMotion(i),
             transition: CINEMA_TRANSITION,
-            ...(options.parallax25d
-              ? { parallaxIntensity: CINEMA_PARALLAX_INTENSITY }
-              : {}),
+            ...(options.parallax25d ? { parallaxIntensity: CINEMA_PARALLAX_INTENSITY } : {}),
           }
         : options;
     const fp = sceneFingerprint(scene, sceneOptions);
@@ -945,9 +969,21 @@ export async function renderProject(scenes: RenderScene[], options: RenderOption
         storyMode && storyMusicSegs
           ? `volume='${storyMusicVolumeExpr(storyMusicSegs, vol)}':eval=frame`
           : `volume=${vol}`;
-      const duckChain = storyMode
-        ? `sidechaincompress=${storyDuckParams()}[duck]`
-        : `sidechaincompress=threshold=0.03:ratio=8:attack=25:release=400[duck]`;
+      // Stream E (D99): the voice bus is consumed twice by design — once as
+      // the sidechain key (inaudible control signal) and once as the audible
+      // amix input — so it is split EXPLICITLY with asplit=2 instead of
+      // relying on ffmpeg's implicit auto-split of multi-consumer pads.
+      const duckParams = storyMode
+        ? storyDuckParams()
+        : "threshold=0.03:ratio=8:attack=25:release=400";
+      const finalMix = buildFinalAudioMix({
+        voiceLabel: "[0:a]",
+        musicLabel: "[bed]",
+        duckParams,
+        outLabel: "[mix]",
+        amixOptions: "duration=first:normalize=0",
+        limiter: true,
+      });
       await execFfmpeg(
         ffmpeg,
         [
@@ -958,7 +994,7 @@ export async function renderProject(scenes: RenderScene[], options: RenderOption
           "-i",
           musicName,
           "-filter_complex",
-          `[1:a]${bedVolume},afade=t=in:st=0:d=2[bed];[bed][0:a]${duckChain};[0:a][duck]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.95[mix]`,
+          `[1:a]${bedVolume},afade=t=in:st=0:d=2[bed];${finalMix}`,
           "-map",
           "0:v",
           "-map",
@@ -998,11 +1034,13 @@ export async function renderProject(scenes: RenderScene[], options: RenderOption
   await ffmpeg.deleteFile(listName).catch(() => undefined);
 
   report("validate", 97, "Checking the output plays");
-  if (!data || data.length < 1024) throw new Error("The renderer produced an unreadable file. Please retry.");
+  if (!data || data.length < 1024)
+    throw new Error("The renderer produced an unreadable file. Please retry.");
   // No .slice(): the Blob copies the bytes itself — one less full heap copy.
   const blob = blobFromBytes(data);
   const playable = await validatePlayback(blob, totalDuration);
-  if (!playable) throw new Error("The rendered file failed playback validation. Please retry the render.");
+  if (!playable)
+    throw new Error("The rendered file failed playback validation. Please retry the render.");
 
   // Report the real container duration — `-shortest` may have trimmed it.
   const actualDuration = await measureMediaDuration(blob);

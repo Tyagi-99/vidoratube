@@ -37,3 +37,18 @@ Exact counts from runs on `phase2/intelligence`. Updated 2026-09-27.
 - [ ] `npm run build`
 - [ ] Playwright E2E (permanent scenarios when their phases land)
 - [ ] `docs/FEATURE_MATRIX.md` statuses updated
+
+## Phase 3 Stream E results (2026-09-28)
+
+- `npx tsc --noEmit` — clean, 0 errors (after route-tree regeneration + unused-var fix)
+- `npx vitest run` (full app suite) — **1145/1145 pass, 121 files**
+- `npx vitest run src/lib/creation` — **39/39 pass, 6 files**
+- `npx vitest run src/lib/audio.test.ts` — **11/11 pass** (5 explicit-asplit topology tests)
+- `npm run test:worker` (`npx tsx --test src/*.test.ts`) — **87/87 pass, 28 suites** (10 segment-checkpoint tests + real-FFmpeg asplit dry-run)
+- `npm run build` — PASS (Nitro output)
+- eslint on Stream E touched files — 0 errors in new lines; RenderPanel.tsx legacy-line prettier violations pre-existing, left alone (D92); `contracts.ts` untouched
+- Dev-server curl `http://localhost:8080/studio/<uuid>` — HTTP 200 (route registered in regenerated route tree)
+
+Corrected test expectations (tests were wrong, code right): 30 words @150 WPM = 12.5s (12s + 0.5s pad); "done"/"rendering" not in pinned scene-status enum → degrade to "draft"; storage fake signed URL includes bucket; rule-based hook copy asserts "not AI" (the negated phrase is intentional copy).
+
+Not run: integration/E2E against live Supabase (no local Postgres; provider keys and authenticated E2E credentials unavailable — see KNOWN_ISSUES).

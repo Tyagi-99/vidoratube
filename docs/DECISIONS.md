@@ -922,3 +922,86 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
 - **Decision:** `e2e/niche-finder.spec.ts` is dual-mode: without `YOUTUBE_API_KEY` each scenario asserts the honest "YouTube Data API not connected" panel and zero fabricated rows, then returns early. The configured branch (real key, real quota burn) is opt-in by the founder.
 - **Reason:** No row is ever faked to satisfy an assertion; the unconfigured path is itself a product guarantee worth testing. The E2E spec was rewritten 2026-09-27 to the real UI flow (New niche dialog, `data-testid` row hooks, draft-script handoff toast) after the Stream-D-authored selectors drifted from the merged UI.
 - **Reverse:** If a seeded demo dataset is ever wanted for E2E, it must be labeled `DEMO DATA` in both the UI and the spec — never silently stand in for real rows.
+
+### D99. Explicit `asplit=2` on the voice bus (narration duplication finding)
+
+- **Decision:** `buildFinalAudioMix` (src/lib/audio.ts:117) builds the final
+  mix graph with an explicit `[voice]asplit=2[vkey][vmix]` — one copy feeds
+  sidechaincompress as the (inaudible) ducking key, the other feeds amix as the
+  audible track. The worker keeps a dependency-free mirror of the same graph
+  (worker/src/pipeline.ts:442-444).
+- **Reason:** The old graph consumed the voice bus twice and relied on
+  ffmpeg's implicit auto-split of multi-consumer pads. The double consumption
+  was CORRECT by design (sidechain key = control signal, not audible audio —
+  no narration duplication), but implicit: a future graph reorder could
+  silently change which copy drives the compressor. Explicit split is
+  unit-testable (`itFfmpeg` dry-run proves parse + run).
+- **Reverse:** Revert to the implicit graph if an ffmpeg build ever rejects
+  the explicit split — no known build does.
+
+### D100. Studio checkpoints live in `generation_jobs.checkpoint.studio`; worker segment state in `renders.checkpoint.segments`
+
+- **Decision:** App-side scene checkpoints (done/failed, first-incomplete,
+  invalidate-one-scene repair) are stored under `generation_jobs.checkpoint.studio`
+  via `saveCheckpoint` deep-merge (`src/lib/creation/checkpoints/checkpoints.ts`).
+  Worker-side per-segment completion is stored under `renders.checkpoint.segments`
+  (`worker/src/segment-checkpoints.ts`, `readRenderCheckpoint`/`markSegmentDone`).
+- **Reason:** `scenes` is the mutable live head; `scene_versions` is history;
+  generation-job checkpoints are the durable-jobs system's state. Two stores
+  stay intentionally separate: the app checkpoint answers "which scenes are
+  done for this job", the render checkpoint answers "which segments already
+  rendered for this render id". The Studio status panel reads the generation-job
+  checkpoint; the worker reads/writes the render checkpoint. They are NOT
+  auto-synced — claiming end-to-end sync without proof would be dishonest.
+- **Reverse:** Sync them (or surface render checkpoint state in the Studio UI)
+  once the worker path is proven in production.
+
+### D101. Repair invalidates one scene; only the paid regen steps cost credits
+
+- **Decision:** `repairScene` kinds (`narration`/`audio`/`visual`/`timing`)
+  invalidate exactly one scene's checkpoint entry and preserve siblings.
+  `timing` repair is free (metadata-only `recomputeSceneTimingCore`).
+  The repair function itself spends no credits; the paid regeneration steps
+  (`regenerateSceneAudio`/`regenerateSceneVisual`) remain inside the existing
+  preflighted credit-gated server functions.
+- **Reason:** Keeps "repair" (state management) honest vs "regenerate" (paid
+  provider call). A narration edit that also needs new audio routes through
+  the preflighted regen path so the credit gate can't be bypassed.
+- **Reverse:** Fold free timing repair into regen if UX demands one button.
+
+### D102. F24 shorts: project linkage via `project_id`; `parent_id` is the source RENDER, not the project
+
+- **Decision:** `renders.parent_id` is the self-FK to `renders(id)` documented
+  in `20260926001000_renders_parent_id.sql` ("a dub/short derives from a
+  finished render") — it takes a render id or NULL, never a project id. The
+  short's link to its scenes' project travels on the standard `project_id`
+  column. The Studio Shorts tab offers an optional "cut from finished render"
+  picker (completed renders via existing `listRenders`); default is NULL.
+  `meta.kind = "short"` distinguishes recuts; `meta.source` records the
+  scene source.
+- **Reason:** Passing the project UUID into `parent_id` would violate the
+  self-referential FK and fail the insert. The earlier "D54 source-project
+  pattern" assumption was wrong; the migration comment is authoritative.
+- **Reverse:** None — schema constraint, not a choice.
+
+### D103. Shorts plan is rule-based hook-first resequencing, labeled as such
+
+- **Decision:** `planShort` reorders selected scenes by a deterministic rule
+  (strongest hook candidates first, narration tightened, 9:16, duration cap)
+  and the UI labels it "rule-based (not AI analysis)". No LLM call, no fake
+  "AI analyzed your video" claims.
+- **Reverse:** Swap in an LLM rerank later behind the same plan shape —
+  keep the rule-based path as the honest fallback.
+
+### D104. Video Studio extends, never forks, the render pipeline
+
+- **Decision:** The Studio route (`/_authenticated/studio/$projectId`) enqueues
+  through the existing `enqueueServerRender` (durable jobs + credit gate
+  intact). `RenderPanel` gained optional passthrough props
+  (`renderKind`, `parentRenderId`) with defaults preserving full-render
+  behavior. The project page links to the Studio; no parallel render path
+  exists. Never auto-publishes: shorts enqueue only.
+- **Reason:** One enqueue path (D93) means one billing/preflight surface to
+  audit. The Studio is a scene-editing front end on `scenes` + existing
+  durable jobs, not a second renderer.
+- **Reverse:** None planned.
