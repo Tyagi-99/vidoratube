@@ -42,6 +42,8 @@ import { Route as AuthenticatedCharactersIndexRouteImport } from './routes/_auth
 import { Route as AuthenticatedCreateIndexRouteImport } from './routes/_authenticated/create/index'
 import { Route as AuthenticatedCreateBrandVoicesRouteImport } from './routes/_authenticated/create/brand-voices'
 import { Route as AuthenticatedCreateCampaignsRouteImport } from './routes/_authenticated/create/campaigns'
+import { Route as AuthenticatedCreateQuickCreateRouteImport } from './routes/_authenticated/create/quick-create'
+import { Route as AuthenticatedCreateSeoStudioRouteImport } from './routes/_authenticated/create/seo-studio'
 import { Route as AuthenticatedCreateTitlesRouteImport } from './routes/_authenticated/create/titles'
 import { Route as AuthenticatedIntelligenceIndexRouteImport } from './routes/_authenticated/intelligence/index'
 import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authenticated/projects.index'
@@ -241,6 +243,18 @@ const AuthenticatedCreateCampaignsRoute =
     path: '/create/campaigns',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedCreateQuickCreateRoute =
+  AuthenticatedCreateQuickCreateRouteImport.update({
+    id: '/create/quick-create',
+    path: '/create/quick-create',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedCreateSeoStudioRoute =
+  AuthenticatedCreateSeoStudioRouteImport.update({
+    id: '/create/seo-studio',
+    path: '/create/seo-studio',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedCreateTitlesRoute =
   AuthenticatedCreateTitlesRouteImport.update({
     id: '/create/titles',
@@ -397,6 +411,8 @@ export interface FileRoutesByFullPath {
   '/agency/$workspaceId': typeof AuthenticatedAgencyWorkspaceIdRoute
   '/create/brand-voices': typeof AuthenticatedCreateBrandVoicesRoute
   '/create/campaigns': typeof AuthenticatedCreateCampaignsRoute
+  '/create/quick-create': typeof AuthenticatedCreateQuickCreateRoute
+  '/create/seo-studio': typeof AuthenticatedCreateSeoStudioRoute
   '/create/titles': typeof AuthenticatedCreateTitlesRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/research/$projectId': typeof AuthenticatedResearchProjectIdRoute
@@ -452,6 +468,8 @@ export interface FileRoutesByTo {
   '/agency/$workspaceId': typeof AuthenticatedAgencyWorkspaceIdRoute
   '/create/brand-voices': typeof AuthenticatedCreateBrandVoicesRoute
   '/create/campaigns': typeof AuthenticatedCreateCampaignsRoute
+  '/create/quick-create': typeof AuthenticatedCreateQuickCreateRoute
+  '/create/seo-studio': typeof AuthenticatedCreateSeoStudioRoute
   '/create/titles': typeof AuthenticatedCreateTitlesRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/research/$projectId': typeof AuthenticatedResearchProjectIdRoute
@@ -510,6 +528,8 @@ export interface FileRoutesById {
   '/_authenticated/agency/$workspaceId': typeof AuthenticatedAgencyWorkspaceIdRoute
   '/_authenticated/create/brand-voices': typeof AuthenticatedCreateBrandVoicesRoute
   '/_authenticated/create/campaigns': typeof AuthenticatedCreateCampaignsRoute
+  '/_authenticated/create/quick-create': typeof AuthenticatedCreateQuickCreateRoute
+  '/_authenticated/create/seo-studio': typeof AuthenticatedCreateSeoStudioRoute
   '/_authenticated/create/titles': typeof AuthenticatedCreateTitlesRoute
   '/_authenticated/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/_authenticated/research/$projectId': typeof AuthenticatedResearchProjectIdRoute
@@ -568,6 +588,8 @@ export interface FileRouteTypes {
     | '/agency/$workspaceId'
     | '/create/brand-voices'
     | '/create/campaigns'
+    | '/create/quick-create'
+    | '/create/seo-studio'
     | '/create/titles'
     | '/projects/$projectId'
     | '/research/$projectId'
@@ -623,6 +645,8 @@ export interface FileRouteTypes {
     | '/agency/$workspaceId'
     | '/create/brand-voices'
     | '/create/campaigns'
+    | '/create/quick-create'
+    | '/create/seo-studio'
     | '/create/titles'
     | '/projects/$projectId'
     | '/research/$projectId'
@@ -680,6 +704,8 @@ export interface FileRouteTypes {
     | '/_authenticated/agency/$workspaceId'
     | '/_authenticated/create/brand-voices'
     | '/_authenticated/create/campaigns'
+    | '/_authenticated/create/quick-create'
+    | '/_authenticated/create/seo-studio'
     | '/_authenticated/create/titles'
     | '/_authenticated/projects/$projectId'
     | '/_authenticated/research/$projectId'
@@ -966,6 +992,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCreateCampaignsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/create/quick-create': {
+      id: '/_authenticated/create/quick-create'
+      path: '/create/quick-create'
+      fullPath: '/create/quick-create'
+      preLoaderRoute: typeof AuthenticatedCreateQuickCreateRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/create/seo-studio': {
+      id: '/_authenticated/create/seo-studio'
+      path: '/create/seo-studio'
+      fullPath: '/create/seo-studio'
+      preLoaderRoute: typeof AuthenticatedCreateSeoStudioRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/create/titles': {
       id: '/_authenticated/create/titles'
       path: '/create/titles'
@@ -1165,6 +1205,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAgencyWorkspaceIdRoute: typeof AuthenticatedAgencyWorkspaceIdRoute
   AuthenticatedCreateBrandVoicesRoute: typeof AuthenticatedCreateBrandVoicesRoute
   AuthenticatedCreateCampaignsRoute: typeof AuthenticatedCreateCampaignsRoute
+  AuthenticatedCreateQuickCreateRoute: typeof AuthenticatedCreateQuickCreateRoute
+  AuthenticatedCreateSeoStudioRoute: typeof AuthenticatedCreateSeoStudioRoute
   AuthenticatedCreateTitlesRoute: typeof AuthenticatedCreateTitlesRoute
   AuthenticatedProjectsProjectIdRoute: typeof AuthenticatedProjectsProjectIdRoute
   AuthenticatedResearchProjectIdRoute: typeof AuthenticatedResearchProjectIdRoute
@@ -1194,6 +1236,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAgencyWorkspaceIdRoute: AuthenticatedAgencyWorkspaceIdRoute,
   AuthenticatedCreateBrandVoicesRoute: AuthenticatedCreateBrandVoicesRoute,
   AuthenticatedCreateCampaignsRoute: AuthenticatedCreateCampaignsRoute,
+  AuthenticatedCreateQuickCreateRoute: AuthenticatedCreateQuickCreateRoute,
+  AuthenticatedCreateSeoStudioRoute: AuthenticatedCreateSeoStudioRoute,
   AuthenticatedCreateTitlesRoute: AuthenticatedCreateTitlesRoute,
   AuthenticatedProjectsProjectIdRoute: AuthenticatedProjectsProjectIdRoute,
   AuthenticatedResearchProjectIdRoute: AuthenticatedResearchProjectIdRoute,
