@@ -137,6 +137,9 @@ const OWNER_SCOPED_TABLES = [
   // Phase 3 Stream F — 30-second quick create + SEO studio (20260928041400).
   "quick_create_runs",
   "seo_packages",
+  // Phase 4 Stream B — analytics (2026092804b000). monetization_settings is
+  // keyed by user_id with an auth.uid() owner policy.
+  "monetization_settings",
 ];
 
 /**
