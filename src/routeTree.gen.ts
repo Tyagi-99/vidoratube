@@ -38,6 +38,10 @@ import { Route as AuthenticatedAgencyIndexRouteImport } from './routes/_authenti
 import { Route as AuthenticatedAgencyWorkspaceIdRouteImport } from './routes/_authenticated/agency.$workspaceId'
 import { Route as AuthenticatedAnalyticsIndexRouteImport } from './routes/_authenticated/analytics.index'
 import { Route as AuthenticatedBillingIndexRouteImport } from './routes/_authenticated/billing.index'
+import { Route as AuthenticatedCreateIndexRouteImport } from './routes/_authenticated/create/index'
+import { Route as AuthenticatedCreateBrandVoicesRouteImport } from './routes/_authenticated/create/brand-voices'
+import { Route as AuthenticatedCreateCampaignsRouteImport } from './routes/_authenticated/create/campaigns'
+import { Route as AuthenticatedCreateTitlesRouteImport } from './routes/_authenticated/create/titles'
 import { Route as AuthenticatedIntelligenceIndexRouteImport } from './routes/_authenticated/intelligence/index'
 import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authenticated/projects.index'
 import { Route as AuthenticatedProjectsProjectIdRouteImport } from './routes/_authenticated/projects.$projectId'
@@ -209,6 +213,30 @@ const AuthenticatedBillingIndexRoute =
     path: '/billing/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedCreateIndexRoute =
+  AuthenticatedCreateIndexRouteImport.update({
+    id: '/create/',
+    path: '/create/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedCreateBrandVoicesRoute =
+  AuthenticatedCreateBrandVoicesRouteImport.update({
+    id: '/create/brand-voices',
+    path: '/create/brand-voices',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedCreateCampaignsRoute =
+  AuthenticatedCreateCampaignsRouteImport.update({
+    id: '/create/campaigns',
+    path: '/create/campaigns',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedCreateTitlesRoute =
+  AuthenticatedCreateTitlesRouteImport.update({
+    id: '/create/titles',
+    path: '/create/titles',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedIntelligenceIndexRoute =
   AuthenticatedIntelligenceIndexRouteImport.update({
     id: '/intelligence/',
@@ -339,6 +367,9 @@ export interface FileRoutesByFullPath {
   '/admin/safety': typeof AuthenticatedAdminSafetyRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/agency/$workspaceId': typeof AuthenticatedAgencyWorkspaceIdRoute
+  '/create/brand-voices': typeof AuthenticatedCreateBrandVoicesRoute
+  '/create/campaigns': typeof AuthenticatedCreateCampaignsRoute
+  '/create/titles': typeof AuthenticatedCreateTitlesRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/research/$projectId': typeof AuthenticatedResearchProjectIdRoute
   '/api/public/meta-callback': typeof ApiPublicMetaCallbackRoute
@@ -350,6 +381,7 @@ export interface FileRoutesByFullPath {
   '/agency/': typeof AuthenticatedAgencyIndexRoute
   '/analytics/': typeof AuthenticatedAnalyticsIndexRoute
   '/billing/': typeof AuthenticatedBillingIndexRoute
+  '/create/': typeof AuthenticatedCreateIndexRoute
   '/intelligence/': typeof AuthenticatedIntelligenceIndexRoute
   '/projects/': typeof AuthenticatedProjectsIndexRoute
   '/research/': typeof AuthenticatedResearchIndexRoute
@@ -386,6 +418,9 @@ export interface FileRoutesByTo {
   '/admin/safety': typeof AuthenticatedAdminSafetyRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/agency/$workspaceId': typeof AuthenticatedAgencyWorkspaceIdRoute
+  '/create/brand-voices': typeof AuthenticatedCreateBrandVoicesRoute
+  '/create/campaigns': typeof AuthenticatedCreateCampaignsRoute
+  '/create/titles': typeof AuthenticatedCreateTitlesRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/research/$projectId': typeof AuthenticatedResearchProjectIdRoute
   '/api/public/meta-callback': typeof ApiPublicMetaCallbackRoute
@@ -397,6 +432,7 @@ export interface FileRoutesByTo {
   '/agency': typeof AuthenticatedAgencyIndexRoute
   '/analytics': typeof AuthenticatedAnalyticsIndexRoute
   '/billing': typeof AuthenticatedBillingIndexRoute
+  '/create': typeof AuthenticatedCreateIndexRoute
   '/intelligence': typeof AuthenticatedIntelligenceIndexRoute
   '/projects': typeof AuthenticatedProjectsIndexRoute
   '/research': typeof AuthenticatedResearchIndexRoute
@@ -436,6 +472,9 @@ export interface FileRoutesById {
   '/_authenticated/admin/safety': typeof AuthenticatedAdminSafetyRoute
   '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
   '/_authenticated/agency/$workspaceId': typeof AuthenticatedAgencyWorkspaceIdRoute
+  '/_authenticated/create/brand-voices': typeof AuthenticatedCreateBrandVoicesRoute
+  '/_authenticated/create/campaigns': typeof AuthenticatedCreateCampaignsRoute
+  '/_authenticated/create/titles': typeof AuthenticatedCreateTitlesRoute
   '/_authenticated/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/_authenticated/research/$projectId': typeof AuthenticatedResearchProjectIdRoute
   '/api/public/meta-callback': typeof ApiPublicMetaCallbackRoute
@@ -447,6 +486,7 @@ export interface FileRoutesById {
   '/_authenticated/agency/': typeof AuthenticatedAgencyIndexRoute
   '/_authenticated/analytics/': typeof AuthenticatedAnalyticsIndexRoute
   '/_authenticated/billing/': typeof AuthenticatedBillingIndexRoute
+  '/_authenticated/create/': typeof AuthenticatedCreateIndexRoute
   '/_authenticated/intelligence/': typeof AuthenticatedIntelligenceIndexRoute
   '/_authenticated/projects/': typeof AuthenticatedProjectsIndexRoute
   '/_authenticated/research/': typeof AuthenticatedResearchIndexRoute
@@ -486,6 +526,9 @@ export interface FileRouteTypes {
     | '/admin/safety'
     | '/admin/users'
     | '/agency/$workspaceId'
+    | '/create/brand-voices'
+    | '/create/campaigns'
+    | '/create/titles'
     | '/projects/$projectId'
     | '/research/$projectId'
     | '/api/public/meta-callback'
@@ -497,6 +540,7 @@ export interface FileRouteTypes {
     | '/agency/'
     | '/analytics/'
     | '/billing/'
+    | '/create/'
     | '/intelligence/'
     | '/projects/'
     | '/research/'
@@ -533,6 +577,9 @@ export interface FileRouteTypes {
     | '/admin/safety'
     | '/admin/users'
     | '/agency/$workspaceId'
+    | '/create/brand-voices'
+    | '/create/campaigns'
+    | '/create/titles'
     | '/projects/$projectId'
     | '/research/$projectId'
     | '/api/public/meta-callback'
@@ -544,6 +591,7 @@ export interface FileRouteTypes {
     | '/agency'
     | '/analytics'
     | '/billing'
+    | '/create'
     | '/intelligence'
     | '/projects'
     | '/research'
@@ -582,6 +630,9 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/safety'
     | '/_authenticated/admin/users'
     | '/_authenticated/agency/$workspaceId'
+    | '/_authenticated/create/brand-voices'
+    | '/_authenticated/create/campaigns'
+    | '/_authenticated/create/titles'
     | '/_authenticated/projects/$projectId'
     | '/_authenticated/research/$projectId'
     | '/api/public/meta-callback'
@@ -593,6 +644,7 @@ export interface FileRouteTypes {
     | '/_authenticated/agency/'
     | '/_authenticated/analytics/'
     | '/_authenticated/billing/'
+    | '/_authenticated/create/'
     | '/_authenticated/intelligence/'
     | '/_authenticated/projects/'
     | '/_authenticated/research/'
@@ -834,6 +886,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBillingIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/create/': {
+      id: '/_authenticated/create/'
+      path: '/create'
+      fullPath: '/create/'
+      preLoaderRoute: typeof AuthenticatedCreateIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/create/brand-voices': {
+      id: '/_authenticated/create/brand-voices'
+      path: '/create/brand-voices'
+      fullPath: '/create/brand-voices'
+      preLoaderRoute: typeof AuthenticatedCreateBrandVoicesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/create/campaigns': {
+      id: '/_authenticated/create/campaigns'
+      path: '/create/campaigns'
+      fullPath: '/create/campaigns'
+      preLoaderRoute: typeof AuthenticatedCreateCampaignsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/create/titles': {
+      id: '/_authenticated/create/titles'
+      path: '/create/titles'
+      fullPath: '/create/titles'
+      preLoaderRoute: typeof AuthenticatedCreateTitlesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/intelligence/': {
       id: '/_authenticated/intelligence/'
       path: '/intelligence'
@@ -992,11 +1072,15 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRouteWithChildren
   AuthenticatedStudioRoute: typeof AuthenticatedStudioRoute
   AuthenticatedAgencyWorkspaceIdRoute: typeof AuthenticatedAgencyWorkspaceIdRoute
+  AuthenticatedCreateBrandVoicesRoute: typeof AuthenticatedCreateBrandVoicesRoute
+  AuthenticatedCreateCampaignsRoute: typeof AuthenticatedCreateCampaignsRoute
+  AuthenticatedCreateTitlesRoute: typeof AuthenticatedCreateTitlesRoute
   AuthenticatedProjectsProjectIdRoute: typeof AuthenticatedProjectsProjectIdRoute
   AuthenticatedResearchProjectIdRoute: typeof AuthenticatedResearchProjectIdRoute
   AuthenticatedAgencyIndexRoute: typeof AuthenticatedAgencyIndexRoute
   AuthenticatedAnalyticsIndexRoute: typeof AuthenticatedAnalyticsIndexRoute
   AuthenticatedBillingIndexRoute: typeof AuthenticatedBillingIndexRoute
+  AuthenticatedCreateIndexRoute: typeof AuthenticatedCreateIndexRoute
   AuthenticatedIntelligenceIndexRoute: typeof AuthenticatedIntelligenceIndexRoute
   AuthenticatedProjectsIndexRoute: typeof AuthenticatedProjectsIndexRoute
   AuthenticatedResearchIndexRoute: typeof AuthenticatedResearchIndexRoute
@@ -1014,11 +1098,15 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRouteWithChildren,
   AuthenticatedStudioRoute: AuthenticatedStudioRoute,
   AuthenticatedAgencyWorkspaceIdRoute: AuthenticatedAgencyWorkspaceIdRoute,
+  AuthenticatedCreateBrandVoicesRoute: AuthenticatedCreateBrandVoicesRoute,
+  AuthenticatedCreateCampaignsRoute: AuthenticatedCreateCampaignsRoute,
+  AuthenticatedCreateTitlesRoute: AuthenticatedCreateTitlesRoute,
   AuthenticatedProjectsProjectIdRoute: AuthenticatedProjectsProjectIdRoute,
   AuthenticatedResearchProjectIdRoute: AuthenticatedResearchProjectIdRoute,
   AuthenticatedAgencyIndexRoute: AuthenticatedAgencyIndexRoute,
   AuthenticatedAnalyticsIndexRoute: AuthenticatedAnalyticsIndexRoute,
   AuthenticatedBillingIndexRoute: AuthenticatedBillingIndexRoute,
+  AuthenticatedCreateIndexRoute: AuthenticatedCreateIndexRoute,
   AuthenticatedIntelligenceIndexRoute: AuthenticatedIntelligenceIndexRoute,
   AuthenticatedProjectsIndexRoute: AuthenticatedProjectsIndexRoute,
   AuthenticatedResearchIndexRoute: AuthenticatedResearchIndexRoute,

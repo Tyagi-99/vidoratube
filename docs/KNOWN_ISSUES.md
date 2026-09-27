@@ -7,7 +7,7 @@ Updated 2026-09-27. Only verified items; nothing speculative.
 | # | Blocker | Why only the founder | Status |
 |---|---|---|---|
 | 1 | **Render worker not deployed** — no heartbeat in production; server-engine renders sit `queued` | Needs a deploy target + secrets | Open since Phase 0 |
-| 2 | **Migrations not applied** — 9 new files `20260928020000`–`20260928020600` (Phase 1) + `20260928030000_p2_channel_niche` + `20260928030100_p2_blueprint` (Phase 2) exist in-repo only | Lovable does not auto-apply; apply via dashboard SQL editor in filename order, then verify: `select * from pg_extension where extname in ('vector','pg_cron')`, `select * from cron.job`, spot-check new tables/columns in `information_schema` | Open |
+| 2 | **Migrations not applied** — 9 new files `20260928020000`–`20260928020600` (Phase 1) + `20260928030000_p2_channel_niche` + `20260928030100_p2_blueprint` (Phase 2) + `20260928041000_p3_stream_a` (Phase 3 Stream A: `video_ideas.score` jsonb) exist in-repo only | Lovable does not auto-apply; apply via dashboard SQL editor in filename order, then verify: `select * from pg_extension where extname in ('vector','pg_cron')`, `select * from cron.job`, spot-check new tables/columns in `information_schema` | Open |
 | 3 | **pg_cron / pgvector availability unverified** — no local Postgres on this VM | Confirm extensions exist on the target before/after applying `20260928020500_p1_vector_cron.sql`; the migration is defensive (schedule block fails without touching data; requeue stays server/worker-invoked) | Open |
 | 4 | **Provider keys missing** — Pexels/Pixabay, second video-gen provider, web-search API | Keys live with the founder; code degrades honestly without them | Open |
 | 5 | **YouTube Data API** — no `YOUTUBE_API_KEY`; quota needed for Phase 2 ingestion + E2E configured branch | Founder's Google Cloud project; without the key all intelligence surfaces return the honest `unconfigured` envelope (unit-verified: zero network calls, zero quota inserts) | Open |
@@ -23,6 +23,11 @@ Updated 2026-09-27. Only verified items; nothing speculative.
 - `worker/src` tests live outside the vitest glob; `npm run test:worker` is the gate (fixed Phase 0).
 - **Phase 2 Smart Folder rule scan limit:** `matchFolderRules` scans at most 500 rows per table per folder — folders over very large asset sets may miss older rows; documented in code (Stream D). Revisit if asset counts grow past this.
 - **Phase 2 E2E configured branch unrun:** `e2e/niche-finder.spec.ts` selector alignment fixed 2026-09-27 (New niche dialog flow, `data-testid` row hooks); the configured branch still needs a real `YOUTUBE_API_KEY` + test account and burns real quota — must be run deliberately by the founder.
+- **Phase 3 Stream A (verified 2026-09-27):**
+  - `video_ideas.score` migration `20260928041000_p3_stream_a.sql` is idempotent (`ADD COLUMN IF NOT EXISTS`) but unapplied — until applied, `scoreIdeaFn`'s cache write fails and the `/create` score button surfaces the error honestly; scoring itself (`scoreIdea`) is pure and unaffected.
+  - Stream A makes no paid provider calls (deterministic scorer, template-based titles) — credit preflight not wired; if a future stream adds paid generation to Title Lab/Campaign items, preflight must be added before the provider call (D58/D60).
+  - Authenticated E2E for `/create/*` routes not run (no live-browser access, no test account) — delegated to parent/root.
+  - VM rebooted mid-session; all Stream A gates were rerun after the reboot.
 
 ## Deliberately not built (by design)
 
