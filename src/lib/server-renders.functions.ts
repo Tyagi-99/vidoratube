@@ -71,7 +71,11 @@ const EnqueueSchema = z.object({
   /** Legacy single aspect; kept for back-compat. Prefer `aspects`. */
   aspect: z.enum(["16:9", "9:16", "1:1"]).optional(),
   /** Aspects to render, one `renders` row each. Defaults to all three. */
-  aspects: z.array(z.enum(["16:9", "9:16", "1:1"])).min(1).max(3).optional(),
+  aspects: z
+    .array(z.enum(["16:9", "9:16", "1:1"]))
+    .min(1)
+    .max(3)
+    .optional(),
   fps: z.number().int().min(24).max(60).default(30),
   burnCaptions: z.boolean().default(true),
   musicUrl: z.string().max(500).nullable().default(null),
@@ -140,7 +144,8 @@ export const enqueueServerRender = createServerFn({ method: "POST" })
     // (watermark gating + brand overlay) after verifying membership.
     let agencyMeta: ResolvedExportMeta | undefined;
     if (data.workspaceId) {
-      const { getWorkspaceRole, resolveWorkspaceExportMeta } = await import("./agency/agency.functions");
+      const { getWorkspaceRole, resolveWorkspaceExportMeta } =
+        await import("./agency/agency.functions");
       const role = await getWorkspaceRole(supabaseAdmin, data.workspaceId, userId);
       if (!role) throw new Error("Workspace not found");
       agencyMeta = await resolveWorkspaceExportMeta(supabaseAdmin, data.workspaceId);
@@ -162,10 +167,7 @@ export const enqueueServerRender = createServerFn({ method: "POST" })
       await reserveRenderBilling(supabaseAdmin, userId, row.id!, expected);
     }
 
-    const { data: inserted, error } = await supabase
-      .from("renders")
-      .insert(rows)
-      .select("*");
+    const { data: inserted, error } = await supabase.from("renders").insert(rows).select("*");
     if (error) throw new Error(error.message);
 
     // Phase 1 durable-jobs: ride-along tracking in generation_jobs /
@@ -225,8 +227,7 @@ export const enqueueServerRender = createServerFn({ method: "POST" })
     return { groupId, rows: inserted ?? [] };
   });
 
-export type ServerRenderInsert =
-  Database["public"]["Tables"]["renders"]["Insert"];
+export type ServerRenderInsert = Database["public"]["Tables"]["renders"]["Insert"];
 
 /**
  * Build one `renders` insert row per aspect for a single enqueue call.
@@ -395,7 +396,9 @@ export const listServerRenders = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const { data: rows, error } = await context.supabase
       .from("renders")
-      .select("id,status,stage,progress,aspect_ratio,resolution,file_url,error,created_at,render_started_at,render_completed_at")
+      .select(
+        "id,status,stage,progress,aspect_ratio,resolution,file_url,error,created_at,render_started_at,render_completed_at",
+      )
       .eq("project_id", data.projectId)
       .eq("user_id", context.userId)
       .eq("engine", "server_ffmpeg")
@@ -474,14 +477,9 @@ export const getRenderQueueDepth = createServerFn({ method: "GET" })
   .middleware([requireAppUser])
   .handler(async () => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const staleBefore = new Date(
-      Date.now() - RENDER_JOB_LEASE_SECONDS * 1000,
-    ).toISOString();
+    const staleBefore = new Date(Date.now() - RENDER_JOB_LEASE_SECONDS * 1000).toISOString();
 
-    const countJobs = async (
-      status: "queued" | "running",
-      onlyStale: boolean,
-    ): Promise<number> => {
+    const countJobs = async (status: "queued" | "running", onlyStale: boolean): Promise<number> => {
       let q = supabaseAdmin
         .from("renders")
         .select("id", { count: "exact", head: true })

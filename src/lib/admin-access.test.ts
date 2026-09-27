@@ -9,33 +9,33 @@ const read = (rel: string) => readFileSync(join(ROOT, rel), "utf8");
 
 describe("resolveAdminAccessState", () => {
   it("grants access only on an explicit isAdmin: true", () => {
-    expect(
-      resolveAdminAccessState({ isLoading: false, isError: false, isAdmin: true }),
-    ).toBe("allowed");
+    expect(resolveAdminAccessState({ isLoading: false, isError: false, isAdmin: true })).toBe(
+      "allowed",
+    );
   });
 
   it("renders the 403 state for non-admins", () => {
-    expect(
-      resolveAdminAccessState({ isLoading: false, isError: false, isAdmin: false }),
-    ).toBe("forbidden");
+    expect(resolveAdminAccessState({ isLoading: false, isError: false, isAdmin: false })).toBe(
+      "forbidden",
+    );
   });
 
   it("fails closed when the admin flag is missing", () => {
-    expect(
-      resolveAdminAccessState({ isLoading: false, isError: false, isAdmin: undefined }),
-    ).toBe("forbidden");
-    expect(
-      resolveAdminAccessState({ isLoading: false, isError: false, isAdmin: null }),
-    ).toBe("forbidden");
+    expect(resolveAdminAccessState({ isLoading: false, isError: false, isAdmin: undefined })).toBe(
+      "forbidden",
+    );
+    expect(resolveAdminAccessState({ isLoading: false, isError: false, isAdmin: null })).toBe(
+      "forbidden",
+    );
   });
 
   it("loading and error take precedence", () => {
-    expect(
-      resolveAdminAccessState({ isLoading: true, isError: false, isAdmin: false }),
-    ).toBe("loading");
-    expect(
-      resolveAdminAccessState({ isLoading: false, isError: true, isAdmin: true }),
-    ).toBe("error");
+    expect(resolveAdminAccessState({ isLoading: true, isError: false, isAdmin: false })).toBe(
+      "loading",
+    );
+    expect(resolveAdminAccessState({ isLoading: false, isError: true, isAdmin: true })).toBe(
+      "error",
+    );
   });
 });
 

@@ -54,7 +54,9 @@ function apiKey(): string {
 function sanitiseGatewayBody(body: string): string {
   try {
     const parsed = JSON.parse(body) as { error?: { message?: string; type?: string } };
-    return [parsed.error?.type, parsed.error?.message].filter(Boolean).join(": ") || body.slice(0, 200);
+    return (
+      [parsed.error?.type, parsed.error?.message].filter(Boolean).join(": ") || body.slice(0, 200)
+    );
   } catch {
     return body.slice(0, 200).replace(/\s+/g, " ").trim();
   }
@@ -75,11 +77,13 @@ function isContentBlocked(status: number, body: string): boolean {
 /** Removes the graphic wording that makes image safety filters refuse a historical scene. */
 function softenPrompt(text: string): string {
   return text
-    .replace(/\b(blood(?:ied|y)?|gore|gory|corpse[s]?|dead body|dead bodies|slaughter(?:ed)?|mutilat\w*|severed|killing|death of|dying|wounded|carnage)\b/gi, "")
+    .replace(
+      /\b(blood(?:ied|y)?|gore|gory|corpse[s]?|dead body|dead bodies|slaughter(?:ed)?|mutilat\w*|severed|killing|death of|dying|wounded|carnage)\b/gi,
+      "",
+    )
     .replace(/\s{2,}/g, " ")
     .trim();
 }
-
 
 async function upload(
   admin: SupabaseClient<Database>,
@@ -105,10 +109,7 @@ function base64ToBytes(b64: string): Uint8Array {
   return bytes;
 }
 
-async function generateVoiceoverViaGateway(
-  narration: string,
-  voice: string,
-): Promise<ArrayBuffer> {
+async function generateVoiceoverViaGateway(narration: string, voice: string): Promise<ArrayBuffer> {
   const res = await fetch("https://ai.gateway.lovable.dev/v1/audio/speech", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey()}`, "Content-Type": "application/json" },
@@ -277,7 +278,6 @@ export async function generateSceneImages(
   return urls;
 }
 
-
 /* ------------------------------------------------------------------ */
 /* Shotstack composition                                               */
 /* ------------------------------------------------------------------ */
@@ -415,9 +415,7 @@ export async function downloadStoredVideo(
   jobId: string,
   userId: string,
 ): Promise<Blob> {
-  const { data, error } = await admin.storage
-    .from(BUCKET)
-    .download(`${userId}/${jobId}/video.mp4`);
+  const { data, error } = await admin.storage.from(BUCKET).download(`${userId}/${jobId}/video.mp4`);
   if (error || !data) throw new Error("The rendered video file is not available yet.");
   return data;
 }

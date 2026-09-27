@@ -23,7 +23,10 @@ export const getMyAccount = createServerFn({ method: "GET" })
     const [{ data: profile }, { data: roles }, { count }] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
       supabase.from("user_roles").select("role").eq("user_id", userId),
-      supabase.from("video_jobs").select("id", { count: "exact", head: true }).eq("user_id", userId),
+      supabase
+        .from("video_jobs")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId),
     ]);
 
     return {
@@ -82,7 +85,9 @@ const IDEMPOTENCY_WINDOW_MS = 10 * 60 * 1000;
  * use it on failure paths where the original error must not be masked.
  */
 async function refundDebitedMinutes(
-  supabaseAdmin: import("@supabase/supabase-js").SupabaseClient<import("@/integrations/supabase/types").Database>,
+  supabaseAdmin: import("@supabase/supabase-js").SupabaseClient<
+    import("@/integrations/supabase/types").Database
+  >,
   userId: string,
   jobId: string,
 ): Promise<void> {
@@ -185,11 +190,17 @@ export const createVideoJob = createServerFn({ method: "POST" })
     const { finishedMinutes } = await import("./billing/per-minute");
     let reserveMinutes = 1;
     try {
-      const plan = await generateVideoPlan(data.script, data.format, data.voice, {
-        admin: supabaseAdmin,
-        userId,
-        jobId: job.id,
-      }, { storyMode: data.story_mode });
+      const plan = await generateVideoPlan(
+        data.script,
+        data.format,
+        data.voice,
+        {
+          admin: supabaseAdmin,
+          userId,
+          jobId: job.id,
+        },
+        { storyMode: data.story_mode },
+      );
       reserveMinutes = finishedMinutes(plan.durationSeconds);
       const { data: updated, error } = await supabase
         .from("video_jobs")
@@ -306,9 +317,8 @@ export const advanceVideoJob = createServerFn({ method: "POST" })
             // the user balance is gated on this path; workspace/project
             // budgets apply where a scope is known (generation_jobs flows).
             const { preflightCreditsCheck } = await import("./credits/preflight.server");
-            const { elevenLabsConfigured, DEFAULT_VOICE_MODEL } = await import(
-              "./providers/voice.server"
-            );
+            const { elevenLabsConfigured, DEFAULT_VOICE_MODEL } =
+              await import("./providers/voice.server");
             const narrationText = job.narration || job.script;
             const ttsConfigured = elevenLabsConfigured();
             const preflight = await preflightCreditsCheck(supabaseAdmin, {
@@ -541,9 +551,7 @@ export const finalizeVideoJob = createServerFn({ method: "POST" })
       .from(VIDEO_BUCKET)
       .download(data.path);
     if (dlError || !blob) {
-      throw new Error(
-        `Final video missing from storage: ${dlError?.message ?? "not found"}`,
-      );
+      throw new Error(`Final video missing from storage: ${dlError?.message ?? "not found"}`);
     }
     if (blob.size < 1024) {
       throw new Error("Uploaded video is empty or truncated.");

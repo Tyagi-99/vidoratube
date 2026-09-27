@@ -275,18 +275,22 @@ export type BudgetCheck = {
     | "workspace_near_cap"
     | "project_near_cap";
   detail: {
-    workspace?: {
-      cap: number | null;
-      spentMonthToDate: number;
-      projected: number;
-      alertThresholdPct: number;
-      alert: boolean;
-    } | undefined;
-    project?: {
-      cap: number | null;
-      spentMonthToDate: number;
-      projected: number;
-    } | undefined;
+    workspace?:
+      | {
+          cap: number | null;
+          spentMonthToDate: number;
+          projected: number;
+          alertThresholdPct: number;
+          alert: boolean;
+        }
+      | undefined;
+    project?:
+      | {
+          cap: number | null;
+          spentMonthToDate: number;
+          projected: number;
+        }
+      | undefined;
   };
 };
 
@@ -305,9 +309,7 @@ export async function checkBudgetForSpend(
   input: BudgetCheckInput,
 ): Promise<BudgetCheck> {
   const estimate =
-    Number.isFinite(input.estimateCredits) && input.estimateCredits > 0
-      ? input.estimateCredits
-      : 0;
+    Number.isFinite(input.estimateCredits) && input.estimateCredits > 0 ? input.estimateCredits : 0;
   const detail: BudgetCheck["detail"] = {};
   let reason: BudgetCheck["reason"] = "ok";
 

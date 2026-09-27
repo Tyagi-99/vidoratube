@@ -22,7 +22,10 @@ export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
     meta: [
       { title: "Admin — Vidora AI" },
-      { name: "description", content: "Manage users, credits, site content, pricing, integrations and renders." },
+      {
+        name: "description",
+        content: "Manage users, credits, site content, pricing, integrations and renders.",
+      },
       { property: "og:title", content: "Admin — Vidora AI" },
       { property: "og:description", content: "Vidora AI control panel." },
       { property: "og:type", content: "website" },

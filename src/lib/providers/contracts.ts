@@ -164,4 +164,8 @@ export interface PublishingProvider {
 }
 
 /** Mode 3 auto-edit planner — see src/lib/mode3/provider.ts for the active contract. */
-export type { AutomaticEditingProvider, AutoEditPlan, AutoEditPlanInput } from "@/lib/mode3/provider";
+export type {
+  AutomaticEditingProvider,
+  AutoEditPlan,
+  AutoEditPlanInput,
+} from "@/lib/mode3/provider";

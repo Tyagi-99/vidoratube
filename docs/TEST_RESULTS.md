@@ -7,7 +7,11 @@ Exact counts from runs on `phase1/foundation`. Updated 2026-09-27.
 | Suite | Result |
 |---|---|
 | `npx tsc --noEmit` (strict + noUnusedLocals + noUncheckedIndexedAccess + exactOptionalPropertyTypes) | **clean, 0 errors** |
-| `npx vitest run` (unit) | **952/952 pass, 101 files** on `phase1/foundation` (852 Phase 0 → +34 roles → +46 credits → +20 providers). |
+| `npm run lint` (app) | Pre-existing baseline on `origin/main`: **4459 errors / 13 warnings** (mostly `no-explicit-any` + prettier across legacy code). Phase 1 added 37 new prettier errors via workers — **all fixed**; every Phase-1-touched file (`git diff --name-only origin/main`) is eslint-clean. Repo not bulk-reformatted (see D92). |
+| `npx vitest run` (unit) | **976/976 pass, 108 files** on `phase1/foundation` (852 Phase 0 → +34 roles → +46 credits → +20 providers → +24 jobs). |
+| `npm run test:worker` | **76/76 pass** (unchanged). |
+| `npx tsc --noEmit` | **Clean.** |
+| `npm run build` (production) | **Passes** (Nitro build completes, preview/deployable). |
 | `npm run test:worker` (node:test, worker package) | **76/76 pass** (unchanged) |
 | Production build (`npm run build`) | **PASS** (last full run Phase 0; re-run at Phase 1 gate) |
 | Playwright E2E | specs exist, **not yet run** in Phase 1 |

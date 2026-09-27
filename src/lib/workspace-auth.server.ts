@@ -26,13 +26,7 @@ import { requireAppUser } from "./server-auth";
  * `getWorkspaceRole` accepts them as-is once they exist.
  */
 
-export type WorkspaceRole =
-  | "owner"
-  | "admin"
-  | "strategist"
-  | "creator"
-  | "viewer"
-  | "client";
+export type WorkspaceRole = "owner" | "admin" | "strategist" | "creator" | "viewer" | "client";
 
 const WORKSPACE_ROLES: readonly WorkspaceRole[] = [
   "owner",
@@ -44,10 +38,7 @@ const WORKSPACE_ROLES: readonly WorkspaceRole[] = [
 ];
 
 export function isWorkspaceRole(value: unknown): value is WorkspaceRole {
-  return (
-    typeof value === "string" &&
-    (WORKSPACE_ROLES as readonly string[]).includes(value)
-  );
+  return typeof value === "string" && (WORKSPACE_ROLES as readonly string[]).includes(value);
 }
 
 /** Legacy DB roles -> new vocabulary (see module doc). */
@@ -102,10 +93,7 @@ const ALL_ROLES: readonly WorkspaceRole[] = [...WORKSPACE_ROLES];
  * publish approval stays on the server-enforced `approvals` gate (D61/D62,
  * written only inside approvePublishJob); no workspace role grants it.
  */
-export const WORKSPACE_PERMISSIONS: Record<
-  WorkspaceAction,
-  readonly WorkspaceRole[]
-> = {
+export const WORKSPACE_PERMISSIONS: Record<WorkspaceAction, readonly WorkspaceRole[]> = {
   "member.invite": ["owner", "admin"],
   "member.remove": ["owner", "admin"],
   "member.changeRole": ["owner", "admin"],
@@ -119,15 +107,8 @@ export const WORKSPACE_PERMISSIONS: Record<
 };
 
 /** True when `role` may perform `action`. Fail-closed on null/unknown roles. */
-export function roleCan(
-  role: WorkspaceRole | null | undefined,
-  action: WorkspaceAction,
-): boolean {
-  return (
-    role != null &&
-    isWorkspaceRole(role) &&
-    WORKSPACE_PERMISSIONS[action].includes(role)
-  );
+export function roleCan(role: WorkspaceRole | null | undefined, action: WorkspaceAction): boolean {
+  return role != null && isWorkspaceRole(role) && WORKSPACE_PERMISSIONS[action].includes(role);
 }
 
 /**

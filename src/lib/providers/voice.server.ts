@@ -2,10 +2,7 @@ import { providerFetch } from "./http.server";
 import { withProviderTelemetry } from "./telemetry.server";
 import type { ProviderResult } from "./contracts";
 import type { CostCtx } from "../api-cost";
-import {
-  ELEVENLABS_TTS_MULTILINGUAL_USD_PER_CHAR,
-  ELEVENLABS_TTS_USD_PER_CHAR,
-} from "../api-cost";
+import { ELEVENLABS_TTS_MULTILINGUAL_USD_PER_CHAR, ELEVENLABS_TTS_USD_PER_CHAR } from "../api-cost";
 
 export type VoiceOption = { id: string; name: string; category?: string | undefined };
 
@@ -27,7 +24,8 @@ export function elevenLabsConfigured(): boolean {
 
 function key(): string {
   const k = process.env["ELEVENLABS_API_KEY"];
-  if (!k) throw new Error("ElevenLabs is not configured. Add your API key in Settings → Providers.");
+  if (!k)
+    throw new Error("ElevenLabs is not configured. Add your API key in Settings → Providers.");
   return k;
 }
 
@@ -35,7 +33,9 @@ export async function listVoices(): Promise<VoiceOption[]> {
   const res = await providerFetch("ElevenLabs", "https://api.elevenlabs.io/v1/voices", {
     headers: { "xi-api-key": key() },
   });
-  const json = (await res.json()) as { voices?: { voice_id: string; name: string; category?: string }[] };
+  const json = (await res.json()) as {
+    voices?: { voice_id: string; name: string; category?: string }[];
+  };
   return (json.voices ?? []).map((v) => ({ id: v.voice_id, name: v.name, category: v.category }));
 }
 

@@ -41,16 +41,20 @@ export const geminiImage: ImageProvider = {
       .filter(Boolean)
       .join(" ");
 
-    const res = await providerFetch("Lovable AI", "https://ai.gateway.lovable.dev/v1/images/generations", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash-image",
-        messages: [{ role: "user", content: full }],
-        modalities: ["image", "text"],
-      }),
-      timeoutMs: 180_000,
-    });
+    const res = await providerFetch(
+      "Lovable AI",
+      "https://ai.gateway.lovable.dev/v1/images/generations",
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash-image",
+          messages: [{ role: "user", content: full }],
+          modalities: ["image", "text"],
+        }),
+        timeoutMs: 180_000,
+      },
+    );
 
     const payload = (await res.json()) as { data?: { b64_json?: string }[] };
     const b64 = payload.data?.[0]?.b64_json;

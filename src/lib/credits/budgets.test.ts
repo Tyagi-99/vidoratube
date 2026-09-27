@@ -50,14 +50,18 @@ describe("getCreditBalance", () => {
   it("reads profiles.credits (the canonical balance, like getBillingState)", () => {
     const seen: string[] = [];
     const { admin } = mockAdmin({ profiles: noErr({ credits: 42 }) }, (t) => seen.push(t));
-    return expect(getCreditBalance(admin, "user-1")).resolves.toBe(42).then(() => {
-      expect(seen).toEqual(["profiles"]);
-    });
+    return expect(getCreditBalance(admin, "user-1"))
+      .resolves.toBe(42)
+      .then(() => {
+        expect(seen).toEqual(["profiles"]);
+      });
   });
 
   it("throws a clear error when the read fails", async () => {
     const { admin } = mockAdmin({ profiles: { data: null, error: { message: "boom" } } });
-    await expect(getCreditBalance(admin, "user-1")).rejects.toThrow("Could not read credit balance");
+    await expect(getCreditBalance(admin, "user-1")).rejects.toThrow(
+      "Could not read credit balance",
+    );
   });
 });
 
@@ -114,9 +118,9 @@ describe("workspace budgets", () => {
     await expect(
       setWorkspaceBudget(admin, "ws-1", { alertThresholdPct: 101 }, true),
     ).rejects.toThrow("alertThresholdPct");
-    await expect(
-      setWorkspaceBudget(admin, "ws-1", { monthlyCreditCap: -5 }, true),
-    ).rejects.toThrow("monthlyCreditCap");
+    await expect(setWorkspaceBudget(admin, "ws-1", { monthlyCreditCap: -5 }, true)).rejects.toThrow(
+      "monthlyCreditCap",
+    );
   });
 });
 

@@ -92,14 +92,16 @@ export async function getCreditUsageLog(
   if (jobIds.length > 0) {
     // generation_jobs is a Phase-1 table not yet in the generated DB types;
     // select only the columns we need via a loose cast.
-    const { data: jobs, error: jobsError } = await (
-      admin as unknown as SupabaseClient<Database>
-    )
+    const { data: jobs, error: jobsError } = await (admin as unknown as SupabaseClient<Database>)
       .from("generation_jobs" as never)
       .select("id, workspace_id, project_id")
       .in("id" as never, jobIds as never);
     if (jobsError) throw new Error(`Could not attribute usage to jobs: ${jobsError.message}`);
-    for (const j of (jobs ?? []) as { id: string; workspace_id: string | null; project_id: string | null }[]) {
+    for (const j of (jobs ?? []) as {
+      id: string;
+      workspace_id: string | null;
+      project_id: string | null;
+    }[]) {
       attribution.set(j.id, { workspaceId: j.workspace_id, projectId: j.project_id });
     }
   }

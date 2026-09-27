@@ -227,8 +227,6 @@ describe("enforceWorkspaceRole (middleware core logic)", () => {
     const mw = requireWorkspaceRole(null, ["owner", "admin"]);
     expect(mw).toBeDefined();
     // Fixed-workspace variant is also constructible.
-    expect(
-      requireWorkspaceRole("11111111-1111-4111-8111-111111111111", ["owner"]),
-    ).toBeDefined();
+    expect(requireWorkspaceRole("11111111-1111-4111-8111-111111111111", ["owner"])).toBeDefined();
   });
 });

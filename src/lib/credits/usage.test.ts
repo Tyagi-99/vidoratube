@@ -133,8 +133,8 @@ describe("logCreditUsage", () => {
 
   it("throws when no ledger entry exists (never synthesizes a row)", async () => {
     const { admin } = mockAdmin();
-    await expect(
-      logCreditUsage(admin, { userId: "user-1", jobId: "job-missing" }),
-    ).rejects.toThrow("No credit_ledger entry found");
+    await expect(logCreditUsage(admin, { userId: "user-1", jobId: "job-missing" })).rejects.toThrow(
+      "No credit_ledger entry found",
+    );
   });
 });

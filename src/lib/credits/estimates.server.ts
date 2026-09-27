@@ -164,8 +164,12 @@ function estimateRender(input: EstimateInput): CostEstimate {
     breakdown: {
       lines: [
         `ESTIMATE: ${breakdown.minutes} finished min x mode ${breakdown.modeMultiplier} x voice ${breakdown.voiceMultiplier} = ${breakdown.baseCredits} base credits`,
-        ...(breakdown.aiHeroCredits > 0 ? [`ESTIMATE: AI hero shots +${breakdown.aiHeroCredits}`] : []),
-        ...(breakdown.parallaxCredits > 0 ? [`ESTIMATE: 2.5D parallax +${breakdown.parallaxCredits}`] : []),
+        ...(breakdown.aiHeroCredits > 0
+          ? [`ESTIMATE: AI hero shots +${breakdown.aiHeroCredits}`]
+          : []),
+        ...(breakdown.parallaxCredits > 0
+          ? [`ESTIMATE: 2.5D parallax +${breakdown.parallaxCredits}`]
+          : []),
         ...(breakdown.dubbingCredits > 0 ? [`ESTIMATE: dubbing +${breakdown.dubbingCredits}`] : []),
         ...(breakdown.shortsCredits > 0 ? [`ESTIMATE: shorts +${breakdown.shortsCredits}`] : []),
       ],

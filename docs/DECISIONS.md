@@ -873,3 +873,27 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
 - **Reverse:** Revert Hero.tsx to the inline `((now - start) / 1000) % TOTAL`
   and `SCENES[Math.floor(t / (TOTAL / SCENES.length)) % SCENES.length]!`
   (the new tests will fail loudly first).
+
+### D89. Phase 1 supabase-js table types must be `type` aliases, not `interface`s
+- **Decision:** Local table-type declarations for Phase-1 tables (until generated `types.ts` catches up) are `type` aliases.
+- **Reason:** Interfaces lack implicit index signatures and fail supabase-js's `GenericSchema` check (`Row: Record<string, unknown>`), collapsing `Schema` to `never` — this caused all initial tsc errors in `durable-jobs.server.ts`.
+- **Reverse:** Once migrations are applied and types regenerated, delete the local aliases and import from generated types.
+
+### D90. generation_jobs claim recorded in `checkpoint.__claim` (no worker_id column)
+- **Decision:** The claiming worker is recorded inside the `checkpoint` JSONB as `__claim`; no migration was added for a `worker_id` column.
+- **Reason:** Migrations were forbidden mid-phase and the column would require a migration anyway; the claim is observable for lease/reap logic from JSONB. A proper `worker_id`/`lease_expires_at` column can be added in a later migration (requeue_stale_renders already handles stale claims by lease timeout).
+- **Reverse:** Add the column via migration and switch `claimGenerationJob` to write it.
+
+### D91. Budget spend measured from `generation_jobs.cost_actual_credits`, not the ledger
+- **Decision:** Month-to-date workspace/project spend is summed from `generation_jobs.cost_actual_credits` (has `workspace_id`/`project_id`), not `credit_ledger` (user_id only).
+- **Reason:** The ledger genuinely lacks workspace/project columns; attributing ledger rows to workspaces would be fabricated. Documented in code + KNOWN_ISSUES. If the ledger ever gains workspace refs, switch the budget source and note the cutover.
+- **Reverse:** Add workspace_id/project_id columns to credit_ledger via migration; repoint `checkBudgetForSpend`.
+
+### D92. Phase 1 lint policy: zero new errors, pre-existing baseline left alone
+- **Decision:** `npm run lint` on `origin/main` already reports 4459 errors / 13 warnings (mostly `no-explicit-any` + prettier across the legacy codebase). Phase 1 added 37 new prettier errors via workers; all were fixed with `eslint --fix` scoped to Phase-1-touched files only (`git diff --name-only origin/main`). The repo was NOT bulk-reformatted — fixing 4414 auto-fixable legacy issues would create a giant noise diff.
+- **Reverse:** A future "lint cleanup" PR can run `eslint --fix` repo-wide once, as its own reviewed commit.
+
+### D93. `enqueueServerRender` writes durable job AFTER `renders` insert, wrapped in try/catch
+- **Decision:** The `generation_jobs` row + per-aspect provider tasks are created only after the `renders` insert succeeds; the whole block is try/caught and can never break the enqueue response.
+- **Reason:** No orphan durable jobs on failed enqueues; render-path behavior stays byte-identical if the durable-jobs module throws. The `groupId`-derived idempotency key only dedupes true double-execution (client-supplied keys are a future step).
+- **Reverse:** Move job creation before the insert or let errors propagate — not recommended.

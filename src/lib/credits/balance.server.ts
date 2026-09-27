@@ -25,11 +25,7 @@ export async function getCreditBalance(
   admin: SupabaseClient<Database>,
   userId: string,
 ): Promise<number> {
-  const { data, error } = await admin
-    .from("profiles")
-    .select("credits")
-    .eq("id", userId)
-    .single();
+  const { data, error } = await admin.from("profiles").select("credits").eq("id", userId).single();
   if (error) throw new Error(`Could not read credit balance: ${error.message}`);
   return Number(data?.credits ?? 0);
 }

@@ -73,9 +73,12 @@ export const webSearchAdapter: SearchProvider = webSearch;
 export const storageStub: StorageProvider = {
   id: "supabase-storage",
   label: "Supabase Storage",
-  configured: () => Boolean(process.env["SUPABASE_URL"] && process.env["SUPABASE_SERVICE_ROLE_KEY"]),
+  configured: () =>
+    Boolean(process.env["SUPABASE_URL"] && process.env["SUPABASE_SERVICE_ROLE_KEY"]),
   async createSignedUrl() {
-    throw new Error("StorageProvider.createSignedUrl not wired in PR1 — use existing upload helpers.");
+    throw new Error(
+      "StorageProvider.createSignedUrl not wired in PR1 — use existing upload helpers.",
+    );
   },
 };
 
@@ -97,7 +100,11 @@ export function providerHealthSnapshot(): ProviderHealth[] {
       label: youtubeMetadataStub.label,
       configured: youtubeMetadataStub.configured(),
     },
-    { id: youtubePublishing.id, label: youtubePublishing.label, configured: youtubePublishing.configured() },
+    {
+      id: youtubePublishing.id,
+      label: youtubePublishing.label,
+      configured: youtubePublishing.configured(),
+    },
     {
       id: transcriptionAdapter.id,
       label: transcriptionAdapter.label,
@@ -122,10 +129,5 @@ export function providerHealthSnapshot(): ProviderHealth[] {
   ];
 }
 
-export {
-  findBestStockAsset,
-  activeImageProvider,
-  listVoices,
-  videoModeAvailable,
-};
+export { findBestStockAsset, activeImageProvider, listVoices, videoModeAvailable };
 export { generateVideoWithFallback, resolveVideoChain } from "./video.server";

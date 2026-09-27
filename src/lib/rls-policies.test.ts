@@ -28,9 +28,7 @@ function stripSqlComments(sql: string): string {
   // Remove /* … */ blocks, then -- line comments, so prose like
   // "-- Non-destructive: CREATE TABLE IF NOT EXISTS only" is never
   // mistaken for a real CREATE TABLE statement.
-  return sql
-    .replace(/\/\*[\s\S]*?\*\//g, " ")
-    .replace(/--[^\n]*/g, " ");
+  return sql.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/--[^\n]*/g, " ");
 }
 
 function tableNames(sql: string): string[] {
@@ -43,20 +41,14 @@ function tableNames(sql: string): string[] {
 }
 
 function rlsEnabled(sql: string, table: string): boolean {
-  const re = new RegExp(
-    `ALTER TABLE (?:public\\.)?${table}\\s+ENABLE ROW LEVEL SECURITY`,
-    "i",
-  );
+  const re = new RegExp(`ALTER TABLE (?:public\\.)?${table}\\s+ENABLE ROW LEVEL SECURITY`, "i");
   return re.test(sql);
 }
 
 /** Raw CREATE POLICY statements mentioning the table. */
 function policiesFor(sql: string, table: string): string[] {
   const out: string[] = [];
-  const re = new RegExp(
-    `CREATE POLICY[^;]*?ON (?:public\\.)?${table}[^;]*?;`,
-    "gis",
-  );
+  const re = new RegExp(`CREATE POLICY[^;]*?ON (?:public\\.)?${table}[^;]*?;`, "gis");
   let m: RegExpExecArray | null;
   while ((m = re.exec(sql)) !== null) out.push(m[0]);
   return out;
@@ -247,17 +239,11 @@ describe("RLS static audit", () => {
       const def = m![0];
       const body = m![1]!;
       expect(def, `${fn}: must be SECURITY DEFINER`).toMatch(/SECURITY DEFINER/i);
-      expect(
-        body,
-        `${fn}: helper must scope to the caller via auth.uid()`,
-      ).toContain("auth.uid()");
-      expect(
-        body,
-        `${fn}: helper must read workspace membership, not return a constant`,
-      ).toMatch(/workspace_members|workspaces/i);
-      expect(body, `${fn}: helper must not be permissive`).not.toMatch(
-        /RETURN\s+true/i,
+      expect(body, `${fn}: helper must scope to the caller via auth.uid()`).toContain("auth.uid()");
+      expect(body, `${fn}: helper must read workspace membership, not return a constant`).toMatch(
+        /workspace_members|workspaces/i,
       );
+      expect(body, `${fn}: helper must not be permissive`).not.toMatch(/RETURN\s+true/i);
     }
   });
 
@@ -271,10 +257,7 @@ describe("RLS static audit", () => {
       const policies = policiesFor(sql, table);
       expect(policies.length).toBeGreaterThan(0);
       const ownerPolicies = policies.filter((p) => p.includes("auth.uid()"));
-      expect(
-        ownerPolicies.length,
-        `${table}: no policy references auth.uid()`,
-      ).toBeGreaterThan(0);
+      expect(ownerPolicies.length, `${table}: no policy references auth.uid()`).toBeGreaterThan(0);
     }
   });
 
