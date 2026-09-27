@@ -47,9 +47,10 @@ import { Route as ApiPublicYoutubeCallbackRouteImport } from './routes/api/publi
 import { Route as ApiWebhooksDodoRouteImport } from './routes/api/webhooks/dodo'
 import { Route as ApiWebhooksRazorpayRouteImport } from './routes/api/webhooks/razorpay'
 import { Route as ApiWebhooksStripeRouteImport } from './routes/api/webhooks/stripe'
-import { Route as AuthenticatedIntelligenceNichesIndexRouteImport } from './routes/_authenticated/intelligence/niches.index'
-import { Route as AuthenticatedIntelligenceNichesNicheIdRouteImport } from './routes/_authenticated/intelligence/niches.$nicheId'
-import { Route as AuthenticatedIntelligenceTrendsIndexRouteImport } from './routes/_authenticated/intelligence/trends.index'
+import { Route as AuthenticatedIntelligenceChannelsIndexRouteImport } from './routes/_authenticated/intelligence/channels.index'
+import { Route as AuthenticatedIntelligenceChannelsChannelIdRouteImport } from './routes/_authenticated/intelligence/channels.$channelId'
+import { Route as AuthenticatedIntelligenceOutliersIndexRouteImport } from './routes/_authenticated/intelligence/outliers.index'
+import { Route as AuthenticatedIntelligenceVideosVideoIdRouteImport } from './routes/_authenticated/intelligence/videos.$videoId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -253,22 +254,28 @@ const ApiWebhooksStripeRoute = ApiWebhooksStripeRouteImport.update({
   path: '/api/webhooks/stripe',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedIntelligenceNichesIndexRoute =
-  AuthenticatedIntelligenceNichesIndexRouteImport.update({
-    id: '/intelligence/niches/',
-    path: '/intelligence/niches/',
+const AuthenticatedIntelligenceChannelsIndexRoute =
+  AuthenticatedIntelligenceChannelsIndexRouteImport.update({
+    id: '/intelligence/channels/',
+    path: '/intelligence/channels/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedIntelligenceNichesNicheIdRoute =
-  AuthenticatedIntelligenceNichesNicheIdRouteImport.update({
-    id: '/intelligence/niches/$nicheId',
-    path: '/intelligence/niches/$nicheId',
+const AuthenticatedIntelligenceChannelsChannelIdRoute =
+  AuthenticatedIntelligenceChannelsChannelIdRouteImport.update({
+    id: '/intelligence/channels/$channelId',
+    path: '/intelligence/channels/$channelId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedIntelligenceTrendsIndexRoute =
-  AuthenticatedIntelligenceTrendsIndexRouteImport.update({
-    id: '/intelligence/trends/',
-    path: '/intelligence/trends/',
+const AuthenticatedIntelligenceOutliersIndexRoute =
+  AuthenticatedIntelligenceOutliersIndexRouteImport.update({
+    id: '/intelligence/outliers/',
+    path: '/intelligence/outliers/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedIntelligenceVideosVideoIdRoute =
+  AuthenticatedIntelligenceVideosVideoIdRouteImport.update({
+    id: '/intelligence/videos/$videoId',
+    path: '/intelligence/videos/$videoId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 
@@ -310,9 +317,10 @@ export interface FileRoutesByFullPath {
   '/billing/': typeof AuthenticatedBillingIndexRoute
   '/projects/': typeof AuthenticatedProjectsIndexRoute
   '/research/': typeof AuthenticatedResearchIndexRoute
-  '/intelligence/niches/$nicheId': typeof AuthenticatedIntelligenceNichesNicheIdRoute
-  '/intelligence/niches/': typeof AuthenticatedIntelligenceNichesIndexRoute
-  '/intelligence/trends/': typeof AuthenticatedIntelligenceTrendsIndexRoute
+  '/intelligence/channels/$channelId': typeof AuthenticatedIntelligenceChannelsChannelIdRoute
+  '/intelligence/videos/$videoId': typeof AuthenticatedIntelligenceVideosVideoIdRoute
+  '/intelligence/channels/': typeof AuthenticatedIntelligenceChannelsIndexRoute
+  '/intelligence/outliers/': typeof AuthenticatedIntelligenceOutliersIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -351,9 +359,10 @@ export interface FileRoutesByTo {
   '/billing': typeof AuthenticatedBillingIndexRoute
   '/projects': typeof AuthenticatedProjectsIndexRoute
   '/research': typeof AuthenticatedResearchIndexRoute
-  '/intelligence/niches/$nicheId': typeof AuthenticatedIntelligenceNichesNicheIdRoute
-  '/intelligence/niches': typeof AuthenticatedIntelligenceNichesIndexRoute
-  '/intelligence/trends': typeof AuthenticatedIntelligenceTrendsIndexRoute
+  '/intelligence/channels/$channelId': typeof AuthenticatedIntelligenceChannelsChannelIdRoute
+  '/intelligence/videos/$videoId': typeof AuthenticatedIntelligenceVideosVideoIdRoute
+  '/intelligence/channels': typeof AuthenticatedIntelligenceChannelsIndexRoute
+  '/intelligence/outliers': typeof AuthenticatedIntelligenceOutliersIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -395,9 +404,10 @@ export interface FileRoutesById {
   '/_authenticated/billing/': typeof AuthenticatedBillingIndexRoute
   '/_authenticated/projects/': typeof AuthenticatedProjectsIndexRoute
   '/_authenticated/research/': typeof AuthenticatedResearchIndexRoute
-  '/_authenticated/intelligence/niches/$nicheId': typeof AuthenticatedIntelligenceNichesNicheIdRoute
-  '/_authenticated/intelligence/niches/': typeof AuthenticatedIntelligenceNichesIndexRoute
-  '/_authenticated/intelligence/trends/': typeof AuthenticatedIntelligenceTrendsIndexRoute
+  '/_authenticated/intelligence/channels/$channelId': typeof AuthenticatedIntelligenceChannelsChannelIdRoute
+  '/_authenticated/intelligence/videos/$videoId': typeof AuthenticatedIntelligenceVideosVideoIdRoute
+  '/_authenticated/intelligence/channels/': typeof AuthenticatedIntelligenceChannelsIndexRoute
+  '/_authenticated/intelligence/outliers/': typeof AuthenticatedIntelligenceOutliersIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -439,9 +449,10 @@ export interface FileRouteTypes {
     | '/billing/'
     | '/projects/'
     | '/research/'
-    | '/intelligence/niches/$nicheId'
-    | '/intelligence/niches/'
-    | '/intelligence/trends/'
+    | '/intelligence/channels/$channelId'
+    | '/intelligence/videos/$videoId'
+    | '/intelligence/channels/'
+    | '/intelligence/outliers/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -480,9 +491,10 @@ export interface FileRouteTypes {
     | '/billing'
     | '/projects'
     | '/research'
-    | '/intelligence/niches/$nicheId'
-    | '/intelligence/niches'
-    | '/intelligence/trends'
+    | '/intelligence/channels/$channelId'
+    | '/intelligence/videos/$videoId'
+    | '/intelligence/channels'
+    | '/intelligence/outliers'
   id:
     | '__root__'
     | '/'
@@ -523,9 +535,10 @@ export interface FileRouteTypes {
     | '/_authenticated/billing/'
     | '/_authenticated/projects/'
     | '/_authenticated/research/'
-    | '/_authenticated/intelligence/niches/$nicheId'
-    | '/_authenticated/intelligence/niches/'
-    | '/_authenticated/intelligence/trends/'
+    | '/_authenticated/intelligence/channels/$channelId'
+    | '/_authenticated/intelligence/videos/$videoId'
+    | '/_authenticated/intelligence/channels/'
+    | '/_authenticated/intelligence/outliers/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -819,25 +832,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiWebhooksStripeRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/intelligence/niches/': {
-      id: '/_authenticated/intelligence/niches/'
-      path: '/intelligence/niches'
-      fullPath: '/intelligence/niches/'
-      preLoaderRoute: typeof AuthenticatedIntelligenceNichesIndexRouteImport
+    '/_authenticated/intelligence/channels/': {
+      id: '/_authenticated/intelligence/channels/'
+      path: '/intelligence/channels'
+      fullPath: '/intelligence/channels/'
+      preLoaderRoute: typeof AuthenticatedIntelligenceChannelsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/intelligence/niches/$nicheId': {
-      id: '/_authenticated/intelligence/niches/$nicheId'
-      path: '/intelligence/niches/$nicheId'
-      fullPath: '/intelligence/niches/$nicheId'
-      preLoaderRoute: typeof AuthenticatedIntelligenceNichesNicheIdRouteImport
+    '/_authenticated/intelligence/channels/$channelId': {
+      id: '/_authenticated/intelligence/channels/$channelId'
+      path: '/intelligence/channels/$channelId'
+      fullPath: '/intelligence/channels/$channelId'
+      preLoaderRoute: typeof AuthenticatedIntelligenceChannelsChannelIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/intelligence/trends/': {
-      id: '/_authenticated/intelligence/trends/'
-      path: '/intelligence/trends'
-      fullPath: '/intelligence/trends/'
-      preLoaderRoute: typeof AuthenticatedIntelligenceTrendsIndexRouteImport
+    '/_authenticated/intelligence/outliers/': {
+      id: '/_authenticated/intelligence/outliers/'
+      path: '/intelligence/outliers'
+      fullPath: '/intelligence/outliers/'
+      preLoaderRoute: typeof AuthenticatedIntelligenceOutliersIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/intelligence/videos/$videoId': {
+      id: '/_authenticated/intelligence/videos/$videoId'
+      path: '/intelligence/videos/$videoId'
+      fullPath: '/intelligence/videos/$videoId'
+      preLoaderRoute: typeof AuthenticatedIntelligenceVideosVideoIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
   }
@@ -879,9 +899,10 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedBillingIndexRoute: typeof AuthenticatedBillingIndexRoute
   AuthenticatedProjectsIndexRoute: typeof AuthenticatedProjectsIndexRoute
   AuthenticatedResearchIndexRoute: typeof AuthenticatedResearchIndexRoute
-  AuthenticatedIntelligenceNichesNicheIdRoute: typeof AuthenticatedIntelligenceNichesNicheIdRoute
-  AuthenticatedIntelligenceNichesIndexRoute: typeof AuthenticatedIntelligenceNichesIndexRoute
-  AuthenticatedIntelligenceTrendsIndexRoute: typeof AuthenticatedIntelligenceTrendsIndexRoute
+  AuthenticatedIntelligenceChannelsChannelIdRoute: typeof AuthenticatedIntelligenceChannelsChannelIdRoute
+  AuthenticatedIntelligenceVideosVideoIdRoute: typeof AuthenticatedIntelligenceVideosVideoIdRoute
+  AuthenticatedIntelligenceChannelsIndexRoute: typeof AuthenticatedIntelligenceChannelsIndexRoute
+  AuthenticatedIntelligenceOutliersIndexRoute: typeof AuthenticatedIntelligenceOutliersIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -895,12 +916,14 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedBillingIndexRoute: AuthenticatedBillingIndexRoute,
   AuthenticatedProjectsIndexRoute: AuthenticatedProjectsIndexRoute,
   AuthenticatedResearchIndexRoute: AuthenticatedResearchIndexRoute,
-  AuthenticatedIntelligenceNichesNicheIdRoute:
-    AuthenticatedIntelligenceNichesNicheIdRoute,
-  AuthenticatedIntelligenceNichesIndexRoute:
-    AuthenticatedIntelligenceNichesIndexRoute,
-  AuthenticatedIntelligenceTrendsIndexRoute:
-    AuthenticatedIntelligenceTrendsIndexRoute,
+  AuthenticatedIntelligenceChannelsChannelIdRoute:
+    AuthenticatedIntelligenceChannelsChannelIdRoute,
+  AuthenticatedIntelligenceVideosVideoIdRoute:
+    AuthenticatedIntelligenceVideosVideoIdRoute,
+  AuthenticatedIntelligenceChannelsIndexRoute:
+    AuthenticatedIntelligenceChannelsIndexRoute,
+  AuthenticatedIntelligenceOutliersIndexRoute:
+    AuthenticatedIntelligenceOutliersIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
