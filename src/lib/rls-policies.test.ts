@@ -134,6 +134,9 @@ const OWNER_SCOPED_TABLES = [
   "comments",
   "engagement_insights",
   "project_budgets",
+  // Phase 3 Stream F — 30-second quick create + SEO studio (20260928041400).
+  "quick_create_runs",
+  "seo_packages",
 ];
 
 /**

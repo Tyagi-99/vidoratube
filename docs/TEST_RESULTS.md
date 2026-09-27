@@ -93,3 +93,15 @@ Exact counts from runs on `phase2/intelligence` + Phase 3 Stream B (`phase3/stre
 Corrected test expectations (tests were wrong, code right): 30 words @150 WPM = 12.5s (12s + 0.5s pad); "done"/"rendering" not in pinned scene-status enum → degrade to "draft"; storage fake signed URL includes bucket; rule-based hook copy asserts "not AI" (the negated phrase is intentional copy).
 
 Not run: integration/E2E against live Supabase (no local Postgres; provider keys and authenticated E2E credentials unavailable — see KNOWN_ISSUES).
+
+## Phase 3 Stream F results (2026-09-28)
+
+- `npx tsc --noEmit` — clean, 0 errors (after route-tree regeneration for the 2 new routes + restoring the dropped `@tanstack/react-start` Register block, which otherwise breaks `useLoaderData` typing in `guides.$slug.tsx`)
+- `npx vitest run` (full app suite) — **1447/1447 pass, 147 files** (48 new Stream F tests; RLS audit updated for the 2 new tables)
+- Stream F focused: `vitest run src/lib/creation/quick-create src/lib/creation/seo` — **36/36 pass, 6 files** (pipeline, script, scenes, captions, seo, e2e-30-second 11/11)
+- `npm run test:worker` — worker untouched by Stream F; `tsx` binary absent in this worktree's symlinked node_modules so the runner can't execute here — baseline 87/87 on the integrated base stands; no worker code changed
+- eslint on Stream F touched files — 0 errors after prettier --fix
+- `npm run build` — PASS (Nitro output)
+- Dev-server curl `http://127.0.0.1:3117/create/quick-create` and `/create/seo-studio` — HTTP 200 both (identical SSR shell to existing authenticated routes; content renders client-side post-auth)
+
+Not run: integration/E2E against live Supabase (no local Postgres; migration unapplied), provider-keyed paths (TTS/image/render real calls — honest skips are unit-verified, zero network calls), authenticated browser E2E (no live-browser access).

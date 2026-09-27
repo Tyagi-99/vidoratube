@@ -1137,3 +1137,74 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
   audit. The Studio is a scene-editing front end on `scenes` + existing
   durable jobs, not a second renderer.
 - **Reverse:** None planned.
+
+### D131. Quick Create honesty model: skip envelopes, never fake paid stages
+
+- **Decision:** The F23 11-stage pipeline resolves every paid stage
+  (voiceover, visuals, render) through one honest resolver: no provider key →
+  `skipped_unconfigured`; key present but no explicit spend approval →
+  `skipped_needs_spend_approval` with the exact `ESTIMATE` cost of the real
+  call attached (never null for paid stages). A stage is marked `done` only
+  when its real work happened. The music stage has no music provider in the
+  codebase, so it requires a real attached track and skips `skipped_unconfigured`
+  otherwise — ducking config is recorded honestly when a track exists.
+- **Reason:** The honesty constraint is the feature: a user must never see
+  "render complete" for a render that never ran. Skips carry the estimate so
+  the approval decision is informed, not blind.
+- **Reverse:** When providers are wired, replace `skipped_*` with real
+  Phase 1 preflight → debit → provider call → refund-on-failure flows behind
+  the same stage states.
+
+### D132. Render stage never enqueues by itself — human button only
+
+- **Decision:** The render stage in Quick Create prepares a real enqueue
+  payload (scenes, 9:16, captions burned, ducking) but stays
+  `skipped_needs_spend_approval` / approval-ready until the user presses
+  "Enqueue real render" in the UI, which calls the existing
+  `enqueueServerRender` (D93/D130) with its own credit preflight. The pipeline
+  "stops at download" — no auto-publish anywhere.
+- **Reason:** Spend + publish are the two irreversible actions; both stay
+  behind explicit human approval. One enqueue path keeps billing auditable.
+- **Reverse:** None planned.
+
+### D133. SEO Studio reuses the Title Lab engine; no CTR claims
+
+- **Decision:** F26 generates title options through Stream A's
+  `generateTitleVariants` + `scoreTitle` (same deterministic engine as Title
+  Lab), descriptions/hashtags from fixed templates, and exactly 3 thumbnail
+  *concepts* (composition + ≤4-word overlay + rationale) — never generated
+  images, never CTR predictions. Export calls the project's real strict gate
+  (`getProjectStrictGate`) and returns a blocked envelope with the reason when
+  it fails.
+- **Reason:** Reuse keeps scoring consistent across surfaces; the studio must
+  not invent performance promises or bypass F12's CONFIRM-only gate.
+- **Reverse:** Add LLM-assisted variants later behind the same package shape,
+  still scored by the same engine.
+
+### D134. Quick-create research facts are the claim candidates
+
+- **Decision:** `runResearchStage` treats each caller-supplied, source-verified
+  fact as one F11 claim candidate and links it to the persisted
+  `research_sources` rows by keyword overlap, instead of running the
+  heuristic `extractClaimCandidates` (which finds zero candidates in
+  short declarative facts). Claims persist as `qualified`/`unreviewed` with
+  the matched source ids in evidence.
+- **Reason:** The fact text IS the claim; the extractor is tuned for
+  free-text scripts. This keeps "every claim linked to a source" true without
+  inventing claims the user didn't supply.
+- **Reverse:** Revisit if fact text becomes long-form prose where extraction
+  adds value.
+
+### D135. E2E_30_SECOND_CREATION is the free-path contract test
+
+- **Decision:** The permanent scenario (topic: "Why do airplane windows have
+  a tiny hole?", 3 real sources with exact URLs) runs the whole pipeline as
+  pure functions: F8 idea scoring, F11 claim linking, 25–35s script, 5–7
+  scenes → pinned SceneManifest, scene-level regeneration, Stream E QC
+  (fails honestly without visuals / passes with them), ESTIMATE-labeled
+  captions, honest paid-stage skips, SEO package. Research wording verified
+  2026-09-28 against Gizmodo/AFAR/Family Handyman/scienceblog URLs kept in
+  the test header.
+- **Reason:** A rerunnable contract that the free path stays honest end to
+  end; any future "helpful" shortcut that fakes a stage breaks this test.
+- **Reverse:** None — extend, don't replace.

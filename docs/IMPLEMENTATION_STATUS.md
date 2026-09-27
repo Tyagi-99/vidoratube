@@ -190,3 +190,24 @@ No migration needed: all Stream E state uses existing tables/columns (`scenes`, 
 - eslint on Stream E touched files — 0 errors in Stream E-introduced lines; pre-existing violations in untouched legacy lines left alone per D92 (coordinator-owned `contracts.ts` not edited)
 - `npm run build` — PASS
 - Dev-server curl of `/_authenticated/studio/$projectId` — HTTP 200
+
+## Phase 3 — Stream F (F23 30-sec Quick Create, F26 SEO & Metadata Studio)
+
+Branch: `phase3/stream-f` (not pushed). Coordinator-owned `src/lib/creation/contracts.ts` untouched.
+
+| Workstream | State | Evidence |
+|---|---|---|
+| F23 quick-create pipeline lib | **SHIPPED** (code) | `src/lib/creation/quick-create/`: `pipeline.ts` (11 stages, honest paid-stage resolver, ESTIMATE cost math), `script.ts` (deterministic 25–35s script @150 WPM), `scenes.ts` (5–7 scenes → Stream E `buildSceneManifest`), `captions.ts` (phrase cues, `timing: "estimate"`), `quick-create.functions.ts` (run orchestration, F8/F11/Stream E reuse, real provider calls attempted only after approval+config). |
+| F23 route `/create/quick-create` | **SHIPPED** (code) | One-screen flow: topic/hook/facts form (≥2 source URLs enforced), per-stage Run buttons, spend-approval checkbox, "Enqueue real render" button → existing `enqueueServerRender` (D132). Dev-server curl: HTTP 200 (matches existing authenticated-route behavior). Nav links added on creation hub. |
+| F26 SEO lib + route `/create/seo-studio` | **SHIPPED** (code) | `src/lib/creation/seo/`: reuses Title Lab engine (D133), templates for description/hashtags, exactly 3 thumbnail concepts (no CTR claims); `seo.functions.ts` persists `seo_packages`, export runs real `getProjectStrictGate` with blocked envelope. Dev-server curl: HTTP 200. |
+| `E2E_30_SECOND_CREATION` | **SHIPPED** (code) | `src/lib/creation/quick-create/e2e-30-second.test.ts` — 11 tests: F8 scoring, F11 claim→source linking (3 exact URLs), 25–35s script, 5–7 scenes → pinned manifest, scene regen, honest paid skips + ESTIMATEs, Stream E QC fail/pass, ESTIMATE captions, SEO package, never-publishes invariant. |
+| Migration | **PENDING MANUAL APPLY** | `supabase/migrations/20260928041400_p3_stream_f.sql` — `quick_create_runs`, `seo_packages` (owner RLS, forward-only). Lovable does not auto-apply; apply via Cloud SQL editor in filename order. |
+
+## Phase 3 Stream F final gate (2026-09-28)
+
+- `npx tsc --noEmit` — clean (0 errors)
+- `npx vitest run` (full app suite) — **1447/1447 pass, 147 files** (48 new Stream F tests; RLS audit updated for the 2 new tables)
+- `npm run test:worker` — **87/87 pass** (worker untouched by Stream F)
+- eslint on Stream F touched files — 0 errors (prettier --fix applied)
+- `npm run build` — PASS
+- Dev-server curl of `/create/quick-create` and `/create/seo-studio` — HTTP 200 both

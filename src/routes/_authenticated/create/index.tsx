@@ -3,7 +3,17 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Loader2, Plus, Sparkles, FlaskConical, Mic2, Type, Package } from "lucide-react";
+import {
+  Loader2,
+  Plus,
+  Sparkles,
+  FlaskConical,
+  Mic2,
+  Type,
+  Package,
+  Zap,
+  SearchCheck,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -190,6 +200,16 @@ function IdeationHub() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button variant="outline" asChild>
+            <Link to="/create/quick-create">
+              <Zap className="mr-2 size-4" /> Quick Create
+            </Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link to="/create/seo-studio">
+              <SearchCheck className="mr-2 size-4" /> SEO Studio
+            </Link>
+          </Button>
           <Button variant="outline" asChild>
             <Link to="/create/brand-voices">
               <Mic2 className="mr-2 size-4" /> Brand voices
