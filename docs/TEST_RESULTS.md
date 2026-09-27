@@ -7,7 +7,7 @@ Exact counts from runs on `phase1/foundation`. Updated 2026-09-27.
 | Suite | Result |
 |---|---|
 | `npx tsc --noEmit` (strict + noUnusedLocals + noUncheckedIndexedAccess + exactOptionalPropertyTypes) | **clean, 0 errors** |
-| `npx vitest run` (unit) | **886/886 pass, 100 files** (was 852/852 at Phase 0; +34 from workspace roles/audit/admin-access) |
+| `npx vitest run` (unit) | **932/932 pass, 100 files** on `phase1/foundation` (852 Phase 0 → +34 roles → +46 credits). |
 | `npm run test:worker` (node:test, worker package) | **76/76 pass** (unchanged) |
 | Production build (`npm run build`) | **PASS** (last full run Phase 0; re-run at Phase 1 gate) |
 | Playwright E2E | specs exist, **not yet run** in Phase 1 |
