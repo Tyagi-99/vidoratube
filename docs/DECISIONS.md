@@ -922,3 +922,33 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
 - **Decision:** `e2e/niche-finder.spec.ts` is dual-mode: without `YOUTUBE_API_KEY` each scenario asserts the honest "YouTube Data API not connected" panel and zero fabricated rows, then returns early. The configured branch (real key, real quota burn) is opt-in by the founder.
 - **Reason:** No row is ever faked to satisfy an assertion; the unconfigured path is itself a product guarantee worth testing. The E2E spec was rewritten 2026-09-27 to the real UI flow (New niche dialog, `data-testid` row hooks, draft-script handoff toast) after the Stream-D-authored selectors drifted from the merged UI.
 - **Reverse:** If a seeded demo dataset is ever wanted for E2E, it must be labeled `DEMO DATA` in both the UI and the spec — never silently stand in for real rows.
+
+### D99. F8 idea score factor weights pinned (outlier_alignment 35 / hook_strength 25 / feasibility 20 / safety 20)
+- **Decision:** The four `IdeaScoreFactor`s carry pinned weights (35/25/20/20) in `src/lib/creation/ideas/scorer.ts`, chosen so outlier evidence dominates while feasibility/safety keep the score honest. Changing any weight is a code change, not a config tweak — the weights are part of the score's identity and are unit-pinned.
+- **Reason:** Deterministic, explainable scores (D94) require the weighting to be visible and stable; a hidden tunable weight would let the score drift without review.
+- **Reverse:** If a future stream needs tunable weights, add a workspace-level config table and include the active weight-set version in the score cache payload so old scores stay comparable.
+
+### D100. `outlier_videos.outlier_score` is the ideation evidence source (not `videos.outlier_score`)
+- **Decision:** F8's outlier_alignment factor reads `outlier_videos.outlier_score` (Phase 2: latest views ÷ sibling median). The canonical `videos` table has no `outlier_score` column — the plan's column name was wrong, and the implementation follows the real schema.
+- **Reason:** Evidence must come from the surface that actually exists and is documented (D96), not from a plan typo.
+- **Reverse:** None — if `videos` ever gains its own outlier column, Stream F must decide which source is canonical before the scorer switches.
+
+### D101. Title Lab is deterministic and template-based — no LLM spend
+- **Decision:** `generateTitleVariants` uses pinned templates over the topic/keywords (no LLM call, no paid provider spend); `scoreTitle` is a pure heuristic (length/keyword/curiosity/clarity). Variants are framed in UI copy as packaging heuristics, never CTR predictions.
+- **Reason:** Keeps Stream A credit-free (no preflight wiring needed) and deterministic; the experiment framework (`experiments`/`experiment_arms`) is the honest place to measure what actually works — Phase 4 reads it.
+- **Reverse:** If an LLM title path is added later, it must go through credit preflight + `ProviderResult` (D58/D60) and keep the deterministic path as the zero-cost default.
+
+### D102. Campaign package artifacts start `planned` with `ref: null` — no fabricated references
+- **Decision:** Every `CampaignItem` created by `buildCampaignPlan` starts with `status: "planned"` and `ref: null`; real artifact UUIDs are attached later via `linkCampaignItem` (validates target row + ownership before writing).
+- **Reason:** A campaign is a plan, not a lie — writing refs to rows that don't exist would fabricate progress. The UI shows "not created yet" for unlinked items.
+- **Reverse:** Never backfill refs from non-existent rows; if an artifact is deleted, its campaign item must return to `planned`/`ref: null`.
+
+### D103. Stream A idea→project reuses `useIdea` (no duplicate project creation)
+- **Decision:** F8 does not implement its own idea→project conversion; the `/create` hub calls the existing `useIdea` server fn (creates a real `projects` row, sets `video_ideas.project_ref` + status `used`). The hub list fn is named `listIdeasForHub` to avoid colliding with the existing `listIdeas`.
+- **Reason:** One conversion path, one invariant set (D61/D62-style real-rows-only). Duplicating it would risk two divergent "used" semantics.
+- **Reverse:** If `useIdea`'s contract changes, the Stream A hub inherits the change — no local fork to drift.
+
+### D104. TanStack Start serializability: `Json` type over `Record<string, unknown>` for jsonb fields
+- **Decision:** All jsonb-backed row fields exposed through server fns use the repo's `Json` type (from `@/integrations/supabase/types`) or a concrete interface (`CampaignMetadata`), never `Record<string, unknown>` — and server fns are invoked as `fn({ data: ... })`.
+- **Reason:** `Record<string, unknown>` fails the server-fn serializability validator (collapses the fn's type; 70+ cascading TS errors) and violates `noPropertyAccessFromIndexSignature`. The concrete types are both serializable and self-documenting.
+- **Reverse:** If a field genuinely needs an open map, keep `Json` (it is an open map) — do not regress to `Record<string, unknown>`.

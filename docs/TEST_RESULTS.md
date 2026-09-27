@@ -37,3 +37,14 @@ Exact counts from runs on `phase2/intelligence`. Updated 2026-09-27.
 - [ ] `npm run build`
 - [ ] Playwright E2E (permanent scenarios when their phases land)
 - [ ] `docs/FEATURE_MATRIX.md` statuses updated
+
+## Phase 3 Stream A (2026-09-27, branch `phase3/stream-a`, worktree `~/workspace/vidoratube-s3a`)
+
+| Suite | Result |
+|---|---|
+| `npx tsc --noEmit` (strict + noUnusedLocals + noUncheckedIndexedAccess + exactOptionalPropertyTypes) | **clean, 0 errors** (after: route-tree regen via dev server; `Record<string, unknown>` → `Json`/specific types for TanStack serializability; `noPropertyAccessFromIndexSignature` bracket access; `{ data: ... }` server-fn call wrapping) |
+| `npx eslint` (Stream-A paths only, D92) | **0 errors, 0 warnings** (`src/lib/creation/{ideas,brand,titles,campaigns}`, `src/routes/_authenticated/create`, `src/components/vidora/AppChrome.tsx`) |
+| `npx vitest run src/lib/creation` (unit) | **78/78 pass, 8 files** — scorer 17, ideas.functions 8, brand.functions 13, titles 12, titles.functions 10, campaigns 12, campaigns.functions 4, creation-modes 4 (pre-existing) |
+| `npm run build` (production) | **PASS** (Nitro build completes, deploy output generated) |
+| Dev-server route walkthrough | **4/4 new routes 200** (`/create`, `/create/brand-voices`, `/create/titles`, `/create/campaigns`), zero server exceptions in dev log |
+| Playwright E2E | Not run by this agent (no live-browser access); delegated to parent/root |
