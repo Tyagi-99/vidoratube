@@ -4,10 +4,14 @@ import { presetById, styleById, type VisualType } from "./studio-config";
 import { providerFetch } from "./providers/http.server";
 import { findBestStockAsset, type StockAsset } from "./providers/stock.server";
 import { activeImageProvider } from "./providers/image.server";
-import { mp3Duration, synthesize, DEFAULT_VOICE_ID, DEFAULT_VOICE_MODEL } from "./providers/voice.server";
+import {
+  mp3Duration,
+  synthesize,
+  DEFAULT_VOICE_ID,
+  DEFAULT_VOICE_MODEL,
+} from "./providers/voice.server";
 import {
   ELEVENLABS_TTS_USD_PER_CHAR,
-  GATEWAY_IMAGE_USD_PER_IMAGE,
   estimateTokens,
   extractUsage,
   gatewayChatUnitCostUsd,
@@ -30,33 +34,47 @@ export async function uploadAsset(
   bytes: ArrayBuffer | Uint8Array,
   contentType: string,
 ): Promise<string> {
-  const { error } = await admin.storage.from(BUCKET).upload(path, bytes, { contentType, upsert: true });
+  const { error } = await admin.storage
+    .from(BUCKET)
+    .upload(path, bytes, { contentType, upsert: true });
   if (error) throw new Error(`Storage upload failed: ${error.message}`);
-  const { data, error: signError } = await admin.storage.from(BUCKET).createSignedUrl(path, SIGNED_URL_TTL);
+  const { data, error: signError } = await admin.storage
+    .from(BUCKET)
+    .createSignedUrl(path, SIGNED_URL_TTL);
   if (signError || !data) throw new Error(`Could not sign asset URL: ${signError?.message}`);
   return data.signedUrl;
 }
 
-async function chatJson<T>(system: string, user: string): Promise<{ data: T; usage: GatewayUsage | null }> {
+async function chatJson<T>(
+  system: string,
+  user: string,
+): Promise<{ data: T; usage: GatewayUsage | null }> {
   const key = process.env["LOVABLE_API_KEY"];
   if (!key) throw new Error("AI is not configured on this project.");
-  const res = await providerFetch("Lovable AI", "https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: CHAT_MODEL,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-      response_format: { type: "json_object" },
-    }),
-    timeoutMs: 180_000,
-  });
+  const res = await providerFetch(
+    "Lovable AI",
+    "https://ai.gateway.lovable.dev/v1/chat/completions",
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: CHAT_MODEL,
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
+        response_format: { type: "json_object" },
+      }),
+      timeoutMs: 180_000,
+    },
+  );
   const payload = (await res.json()) as { choices?: { message?: { content?: string } }[] };
   const usage = extractUsage(payload);
   const content = payload.choices?.[0]?.message?.content ?? "";
-  const cleaned = content.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+  const cleaned = content
+    .replace(/^```(?:json)?/i, "")
+    .replace(/```$/, "")
+    .trim();
   try {
     return { data: JSON.parse(cleaned) as T, usage };
   } catch {
@@ -214,7 +232,12 @@ export async function resolveSceneVisual(
      */
     userFootageUrl?: string | null;
   },
-): Promise<{ url: string; thumb: string; source: Record<string, unknown>; visualType: VisualType }> {
+): Promise<{
+  url: string;
+  thumb: string;
+  source: Record<string, unknown>;
+  visualType: VisualType;
+}> {
   // Tier 1: user-uploaded footage always wins — never replaced by stock or AI.
   if (args.userFootageUrl) {
     const { recordProvenance } = await import("./provenance");
@@ -230,18 +253,31 @@ export async function resolveSceneVisual(
     return {
       url: args.userFootageUrl,
       thumb: args.userFootageUrl,
-      source: { provider: "user_upload", kind: "user_footage", fetched_at: new Date().toISOString() },
+      source: {
+        provider: "user_upload",
+        kind: "user_footage",
+        fetched_at: new Date().toISOString(),
+      },
       visualType: args.visualType,
     };
   }
 
-  const queries = (args.searchQuery ?? "").split("|").map((q) => q.trim()).filter(Boolean);
+  const queries = (args.searchQuery ?? "")
+    .split("|")
+    .map((q) => q.trim())
+    .filter(Boolean);
 
   // Stock first — it is free and preferred by the cost policy.
-  if (args.mode === "stock" && (args.visualType === "STOCK_VIDEO" || args.visualType === "STOCK_IMAGE")) {
+  if (
+    args.mode === "stock" &&
+    (args.visualType === "STOCK_VIDEO" || args.visualType === "STOCK_IMAGE")
+  ) {
     let asset: StockAsset | null = null;
     try {
-      asset = await findBestStockAsset(queries, args.visualType === "STOCK_VIDEO" ? "video" : "photo");
+      asset = await findBestStockAsset(
+        queries,
+        args.visualType === "STOCK_VIDEO" ? "video" : "photo",
+      );
       if (!asset && args.visualType === "STOCK_VIDEO") {
         asset = await findBestStockAsset(queries, "photo");
       }
@@ -315,11 +351,27 @@ export async function resolveSceneVisual(
         .join(". ");
 
   const provider = activeImageProvider();
-  const bytes = await provider.generate({
-    prompt,
-    negativePrompt: args.negativePrompt ?? "text, watermark, logo, distorted faces",
-    aspectRatio: args.aspectRatio,
-  });
+  // Telemetry path: the ProviderResult envelope carries model / latency and
+  // records the measured cost to api_usage on success (replaces the manual
+  // recordApiCost below — one row per image, no double counting).
+  const { generateImageWithTelemetry } = await import("./providers/image.server");
+  const imageResult = await generateImageWithTelemetry(
+    {
+      prompt,
+      negativePrompt: args.negativePrompt ?? "text, watermark, logo, distorted faces",
+      aspectRatio: args.aspectRatio,
+    },
+    {
+      costCtx: { admin, userId: args.userId, projectId: args.projectId },
+      meta: {
+        model: provider.id === "gemini" ? "google/gemini-2.5-flash-image" : provider.id,
+      },
+    },
+  );
+  if (!imageResult.ok || !imageResult.output) {
+    throw new Error(imageResult.error?.message ?? "Image generation failed.");
+  }
+  const bytes = imageResult.output;
   const url = await uploadAsset(
     admin,
     `${args.userId}/${args.projectId}/scene-${args.sceneNumber}.png`,
@@ -338,23 +390,15 @@ export async function resolveSceneVisual(
     prompt: base,
     assetUrl: url,
   });
-  await recordApiCost(admin, {
-    userId: args.userId,
-    projectId: args.projectId,
-    provider: provider.id,
-    operation: "image_generation",
-    units: 1,
-    // Gateway bundles its own credits; $0.03/image is an estimate (see api-cost.ts).
-    unitCostUsd: GATEWAY_IMAGE_USD_PER_IMAGE,
-    meta: {
-      model: provider.id === "gemini" ? "google/gemini-2.5-flash-image" : provider.id,
-      cost_basis: "gateway-passthrough-estimate",
-    },
-  });
   return {
     url,
     thumb: url,
-    source: { provider: provider.id, kind: "ai_image", prompt, fetched_at: new Date().toISOString() },
+    source: {
+      provider: provider.id,
+      kind: "ai_image",
+      prompt,
+      fetched_at: new Date().toISOString(),
+    },
     visualType: "AI_IMAGE",
   };
 }
@@ -378,7 +422,14 @@ export async function generateSceneVoice(
     sceneId: string;
     sceneNumber: number;
     narration: string;
-    settings: { voiceId?: string; model?: string; stability?: number; similarity?: number; style?: number; speed?: number };
+    settings: {
+      voiceId?: string;
+      model?: string;
+      stability?: number;
+      similarity?: number;
+      style?: number;
+      speed?: number;
+    };
   },
 ): Promise<{ url: string; duration: number; cacheKey: string }> {
   const voiceId = args.settings.voiceId || DEFAULT_VOICE_ID;

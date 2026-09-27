@@ -71,7 +71,11 @@ const EnqueueSchema = z.object({
   /** Legacy single aspect; kept for back-compat. Prefer `aspects`. */
   aspect: z.enum(["16:9", "9:16", "1:1"]).optional(),
   /** Aspects to render, one `renders` row each. Defaults to all three. */
-  aspects: z.array(z.enum(["16:9", "9:16", "1:1"])).min(1).max(3).optional(),
+  aspects: z
+    .array(z.enum(["16:9", "9:16", "1:1"]))
+    .min(1)
+    .max(3)
+    .optional(),
   fps: z.number().int().min(24).max(60).default(30),
   burnCaptions: z.boolean().default(true),
   musicUrl: z.string().max(500).nullable().default(null),
@@ -140,7 +144,8 @@ export const enqueueServerRender = createServerFn({ method: "POST" })
     // (watermark gating + brand overlay) after verifying membership.
     let agencyMeta: ResolvedExportMeta | undefined;
     if (data.workspaceId) {
-      const { getWorkspaceRole, resolveWorkspaceExportMeta } = await import("./agency/agency.functions");
+      const { getWorkspaceRole, resolveWorkspaceExportMeta } =
+        await import("./agency/agency.functions");
       const role = await getWorkspaceRole(supabaseAdmin, data.workspaceId, userId);
       if (!role) throw new Error("Workspace not found");
       agencyMeta = await resolveWorkspaceExportMeta(supabaseAdmin, data.workspaceId);
@@ -162,16 +167,67 @@ export const enqueueServerRender = createServerFn({ method: "POST" })
       await reserveRenderBilling(supabaseAdmin, userId, row.id!, expected);
     }
 
-    const { data: inserted, error } = await supabase
-      .from("renders")
-      .insert(rows)
-      .select("*");
+    const { data: inserted, error } = await supabase.from("renders").insert(rows).select("*");
     if (error) throw new Error(error.message);
+
+    // Phase 1 durable-jobs: ride-along tracking in generation_jobs /
+    // provider_tasks. This never replaces video_jobs/renders and never
+    // breaks the enqueue response — tracking failures are logged, not
+    // thrown. The generation job is created AFTER the renders insert so a
+    // failed enqueue leaves no orphan durable job behind.
+    try {
+      const durableJobs = await import("./jobs/durable-jobs.server");
+      const rowEstimate = (row: (typeof rows)[number]): number =>
+        Number((row.meta as { expected_credits?: number } | null)?.expected_credits ?? 0);
+      const totalEstimate = rows.reduce((sum, r) => sum + rowEstimate(r), 0);
+      const durable = await durableJobs.createGenerationJob(supabaseAdmin, {
+        userId,
+        workspaceId: data.workspaceId ?? null,
+        projectId: data.projectId,
+        jobType: "server_render",
+        // groupId is generated per enqueue call: this key dedupes only a
+        // true double-execution of the same call. Client-supplied
+        // idempotency keys are a future step (see createGenerationJob).
+        idempotencyKey: `server-render:${groupId}`,
+        maxAttempts: 3,
+        costEstimateCredits: totalEstimate > 0 ? totalEstimate : null,
+        provider: "server_ffmpeg",
+        model: data.mode,
+      });
+      // One provider task per aspect row, carrying the render row id as the
+      // external task id so an interrupted job can poll/resume the worker
+      // row instead of re-paying for the render.
+      for (const row of inserted ?? []) {
+        const meta = (row.meta ?? {}) as {
+          expected_credits?: number;
+          aspect?: string;
+        };
+        const expected = Number(meta.expected_credits ?? 0);
+        await durableJobs.recordProviderTask(supabaseAdmin, {
+          jobId: durable.id,
+          provider: "server_ffmpeg",
+          model: data.mode,
+          providerTaskId: row.id,
+          attempt: 1,
+          status: "submitted",
+          costEstimate: expected > 0 ? expected : null,
+          usage: {
+            aspect: meta.aspect ?? row.aspect_ratio,
+            group_id: groupId,
+            render_id: row.id,
+          },
+        });
+      }
+    } catch (trackingError) {
+      console.error(
+        "[durable-jobs] ride-along tracking failed (enqueue unaffected):",
+        trackingError,
+      );
+    }
     return { groupId, rows: inserted ?? [] };
   });
 
-export type ServerRenderInsert =
-  Database["public"]["Tables"]["renders"]["Insert"];
+export type ServerRenderInsert = Database["public"]["Tables"]["renders"]["Insert"];
 
 /**
  * Build one `renders` insert row per aspect for a single enqueue call.
@@ -340,7 +396,9 @@ export const listServerRenders = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const { data: rows, error } = await context.supabase
       .from("renders")
-      .select("id,status,stage,progress,aspect_ratio,resolution,file_url,error,created_at,render_started_at,render_completed_at")
+      .select(
+        "id,status,stage,progress,aspect_ratio,resolution,file_url,error,created_at,render_started_at,render_completed_at",
+      )
       .eq("project_id", data.projectId)
       .eq("user_id", context.userId)
       .eq("engine", "server_ffmpeg")
@@ -419,14 +477,9 @@ export const getRenderQueueDepth = createServerFn({ method: "GET" })
   .middleware([requireAppUser])
   .handler(async () => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const staleBefore = new Date(
-      Date.now() - RENDER_JOB_LEASE_SECONDS * 1000,
-    ).toISOString();
+    const staleBefore = new Date(Date.now() - RENDER_JOB_LEASE_SECONDS * 1000).toISOString();
 
-    const countJobs = async (
-      status: "queued" | "running",
-      onlyStale: boolean,
-    ): Promise<number> => {
+    const countJobs = async (status: "queued" | "running", onlyStale: boolean): Promise<number> => {
       let q = supabaseAdmin
         .from("renders")
         .select("id", { count: "exact", head: true })

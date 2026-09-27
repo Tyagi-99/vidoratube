@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireAppUser } from "../server-auth";
+import { auditSafely } from "../audit-log.server";
 import {
   brandKitSchema,
   buildBulkScheduledRow,
@@ -74,7 +75,13 @@ async function requireWorkspaceRole(
   return role;
 }
 
-async function rateLimit(userId: string, key: string, max: number, windowSeconds: number, message: string) {
+async function rateLimit(
+  userId: string,
+  key: string,
+  max: number,
+  windowSeconds: number,
+  message: string,
+) {
   const adminClient = await admin();
   const { enforcePostgresRateLimit } = await import("../rate-limit");
   await enforcePostgresRateLimit(adminClient, `${key}:${userId}`, { max, windowSeconds }, message);
@@ -95,7 +102,13 @@ export const createWorkspace = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { userId } = context;
     const adminClient = await admin();
-    await rateLimit(userId, "agency:workspace:create", 10, 3600, "You're creating workspaces too fast.");
+    await rateLimit(
+      userId,
+      "agency:workspace:create",
+      10,
+      3600,
+      "You're creating workspaces too fast.",
+    );
 
     const { data: workspace, error: wsError } = await adminClient
       .from("workspaces")
@@ -111,6 +124,16 @@ export const createWorkspace = createServerFn({ method: "POST" })
       role: "owner",
     });
     if (memberError) throw new Error(memberError.message);
+
+    // The workspace creator becomes its owner (default role bootstrap).
+    await auditSafely({
+      workspaceId: ws.id,
+      actorUserId: userId,
+      action: "workspace.created",
+      entityType: "workspace",
+      entityId: ws.id,
+      metadata: { name: data.name },
+    });
 
     // Every workspace starts with a default brand kit so exports always
     // have brand meta to thread into render jobs.
@@ -151,7 +174,13 @@ export const getWorkspace = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const { userId } = context;
     const adminClient = await admin();
-    const role = await requireWorkspaceRole(adminClient, data.workspaceId, userId, (r) => r !== null, "view this workspace");
+    const role = await requireWorkspaceRole(
+      adminClient,
+      data.workspaceId,
+      userId,
+      (r) => r !== null,
+      "view this workspace",
+    );
     const { data: workspace, error } = await adminClient
       .from("workspaces")
       .select("id, name, owner_id, plan_tier, created_at")
@@ -177,7 +206,13 @@ export const updateWorkspace = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { userId } = context;
     const adminClient = await admin();
-    await requireWorkspaceRole(adminClient, data.workspaceId, userId, (r) => r === "owner", "rename this workspace");
+    await requireWorkspaceRole(
+      adminClient,
+      data.workspaceId,
+      userId,
+      (r) => r === "owner",
+      "rename this workspace",
+    );
     const { data: workspace, error } = await adminClient
       .from("workspaces")
       .update({ name: data.name })
@@ -208,7 +243,13 @@ export const addMember = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { userId } = context;
     const adminClient = await admin();
-    await requireWorkspaceRole(adminClient, data.workspaceId, userId, canManageMembers, "manage members");
+    await requireWorkspaceRole(
+      adminClient,
+      data.workspaceId,
+      userId,
+      canManageMembers,
+      "manage members",
+    );
     await rateLimit(userId, "agency:member:add", 30, 3600, "You're adding members too fast.");
 
     // Resolve the invitee's user id from their email (small user base;
@@ -216,11 +257,12 @@ export const addMember = createServerFn({ method: "POST" })
     let inviteeId: string | null = null;
     let page = 1;
     for (;;) {
-      const { data: pageData, error } = await adminClient.auth.admin.listUsers({ page, perPage: 100 });
+      const { data: pageData, error } = await adminClient.auth.admin.listUsers({
+        page,
+        perPage: 100,
+      });
       if (error) throw new Error(error.message);
-      const found = pageData.users.find(
-        (u) => u.email?.toLowerCase() === data.email.toLowerCase(),
-      );
+      const found = pageData.users.find((u) => u.email?.toLowerCase() === data.email.toLowerCase());
       if (found) {
         inviteeId = found.id;
         break;
@@ -228,7 +270,8 @@ export const addMember = createServerFn({ method: "POST" })
       if (pageData.users.length < 100 || page >= 10) break;
       page += 1;
     }
-    if (!inviteeId) throw new Error("No Vidora account found for that email. Ask them to sign up first.");
+    if (!inviteeId)
+      throw new Error("No Vidora account found for that email. Ask them to sign up first.");
 
     const { data: member, error } = await adminClient
       .from("workspace_members")
@@ -239,6 +282,15 @@ export const addMember = createServerFn({ method: "POST" })
       .select()
       .single();
     if (error || !member) throw new Error(error?.message ?? "Could not add member");
+
+    await auditSafely({
+      workspaceId: data.workspaceId,
+      actorUserId: userId,
+      action: "member.invited",
+      entityType: "workspace_member",
+      entityId: (member as { id: string }).id,
+      metadata: { invitedUserId: inviteeId, email: data.email, role: data.role },
+    });
     return { member };
   });
 
@@ -258,7 +310,22 @@ export const updateMemberRole = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { userId } = context;
     const adminClient = await admin();
-    await requireWorkspaceRole(adminClient, data.workspaceId, userId, canManageMembers, "manage members");
+    await requireWorkspaceRole(
+      adminClient,
+      data.workspaceId,
+      userId,
+      canManageMembers,
+      "manage members",
+    );
+
+    const { data: current } = await adminClient
+      .from("workspace_members")
+      .select("role")
+      .eq("workspace_id", data.workspaceId)
+      .eq("user_id", data.memberUserId)
+      .maybeSingle();
+    if (!current) throw new Error("Member not found");
+    const previousRole = (current as { role: string }).role;
 
     if (data.role !== "owner") {
       const { count } = await adminClient
@@ -279,6 +346,15 @@ export const updateMemberRole = createServerFn({ method: "POST" })
       .select()
       .single();
     if (error || !member) throw new Error(error?.message ?? "Member not found");
+
+    await auditSafely({
+      workspaceId: data.workspaceId,
+      actorUserId: userId,
+      action: "member.role_changed",
+      entityType: "workspace_member",
+      entityId: (member as { id: string }).id,
+      metadata: { memberUserId: data.memberUserId, from: previousRole, to: data.role },
+    });
     return { member };
   });
 
@@ -289,7 +365,13 @@ export const removeMember = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { userId } = context;
     const adminClient = await admin();
-    await requireWorkspaceRole(adminClient, data.workspaceId, userId, canManageMembers, "manage members");
+    await requireWorkspaceRole(
+      adminClient,
+      data.workspaceId,
+      userId,
+      canManageMembers,
+      "manage members",
+    );
 
     const { data: target } = await adminClient
       .from("workspace_members")
@@ -312,6 +394,15 @@ export const removeMember = createServerFn({ method: "POST" })
       .eq("workspace_id", data.workspaceId)
       .eq("user_id", data.memberUserId);
     if (error) throw new Error(error.message);
+
+    await auditSafely({
+      workspaceId: data.workspaceId,
+      actorUserId: userId,
+      action: "member.removed",
+      entityType: "workspace_member",
+      entityId: null,
+      metadata: { removedUserId: data.memberUserId, role: (target as { role: string }).role },
+    });
     return { removed: true };
   });
 
@@ -333,7 +424,13 @@ export const createClientChannel = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { userId } = context;
     const adminClient = await admin();
-    await requireWorkspaceRole(adminClient, data.workspaceId, userId, canEditWorkspace, "manage channels");
+    await requireWorkspaceRole(
+      adminClient,
+      data.workspaceId,
+      userId,
+      canEditWorkspace,
+      "manage channels",
+    );
     const { data: channel, error } = await adminClient
       .from("client_channels")
       .insert({
@@ -355,7 +452,13 @@ export const listClientChannels = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const { userId } = context;
     const adminClient = await admin();
-    await requireWorkspaceRole(adminClient, data.workspaceId, userId, (r) => r !== null, "view channels");
+    await requireWorkspaceRole(
+      adminClient,
+      data.workspaceId,
+      userId,
+      (r) => r !== null,
+      "view channels",
+    );
     const { data: channels, error } = await adminClient
       .from("client_channels")
       .select("id, platform, handle, is_test_channel, created_at")
@@ -377,7 +480,13 @@ export const deleteClientChannel = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { userId } = context;
     const adminClient = await admin();
-    await requireWorkspaceRole(adminClient, data.workspaceId, userId, canEditWorkspace, "manage channels");
+    await requireWorkspaceRole(
+      adminClient,
+      data.workspaceId,
+      userId,
+      canEditWorkspace,
+      "manage channels",
+    );
     const { error } = await adminClient
       .from("client_channels")
       .delete()
@@ -401,10 +510,18 @@ export const getBrandKit = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const { userId } = context;
     const adminClient = await admin();
-    await requireWorkspaceRole(adminClient, data.workspaceId, userId, (r) => r !== null, "view the brand kit");
+    await requireWorkspaceRole(
+      adminClient,
+      data.workspaceId,
+      userId,
+      (r) => r !== null,
+      "view the brand kit",
+    );
     const { data: kit, error } = await adminClient
       .from("brand_kits")
-      .select("id, workspace_id, logo_path, primary_color, secondary_color, font_family, updated_at")
+      .select(
+        "id, workspace_id, logo_path, primary_color, secondary_color, font_family, updated_at",
+      )
       .eq("workspace_id", data.workspaceId)
       .maybeSingle();
     if (error) throw new Error(error.message);
@@ -431,7 +548,13 @@ export const updateBrandKit = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { userId } = context;
     const adminClient = await admin();
-    await requireWorkspaceRole(adminClient, data.workspaceId, userId, canEditWorkspace, "edit the brand kit");
+    await requireWorkspaceRole(
+      adminClient,
+      data.workspaceId,
+      userId,
+      canEditWorkspace,
+      "edit the brand kit",
+    );
 
     const kit = data.brandKit;
     if (!isSafeLogoPath(kit.logoPath, data.workspaceId)) {
@@ -475,14 +598,21 @@ export const uploadBrandLogo = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { userId } = context;
     const adminClient = await admin();
-    await requireWorkspaceRole(adminClient, data.workspaceId, userId, canEditWorkspace, "edit the brand kit");
+    await requireWorkspaceRole(
+      adminClient,
+      data.workspaceId,
+      userId,
+      canEditWorkspace,
+      "edit the brand kit",
+    );
     await rateLimit(userId, "agency:logo:upload", 20, 3600, "You're uploading logos too fast.");
 
     const bytes = Buffer.from(data.fileBase64, "base64");
     if (bytes.length === 0 || bytes.length > 2 * 1024 * 1024) {
       throw new Error("Logo must be a non-empty image under 2 MB.");
     }
-    const ext = data.contentType === "image/png" ? "png" : data.contentType === "image/webp" ? "webp" : "jpg";
+    const ext =
+      data.contentType === "image/png" ? "png" : data.contentType === "image/webp" ? "webp" : "jpg";
     const path = `${data.workspaceId}/logo.${ext}`;
     const { error: uploadError } = await adminClient.storage
       .from("brand-logos")
@@ -513,7 +643,13 @@ export const bulkSchedule = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { userId } = context;
     const adminClient = await admin();
-    await requireWorkspaceRole(adminClient, data.workspaceId, userId, canEditWorkspace, "schedule videos");
+    await requireWorkspaceRole(
+      adminClient,
+      data.workspaceId,
+      userId,
+      canEditWorkspace,
+      "schedule videos",
+    );
     await rateLimit(userId, "agency:bulk-schedule", 20, 3600, "You're scheduling too fast.");
 
     const crossCheck = validateBulkSchedule(data);
@@ -564,12 +700,15 @@ export const bulkSchedule = createServerFn({ method: "POST" })
       throw new Error("One or more projects don't belong to you.");
     }
 
-    const rows = data.items.map((item) => buildBulkScheduledRow({ userId, workspaceId: data.workspaceId, item }));
+    const rows = data.items.map((item) =>
+      buildBulkScheduledRow({ userId, workspaceId: data.workspaceId, item }),
+    );
     const { data: created, error: insertError } = await adminClient
       .from("publish_jobs")
       .insert(rows)
       .select("id");
-    if (insertError || !created) throw new Error(insertError?.message ?? "Could not schedule videos");
+    if (insertError || !created)
+      throw new Error(insertError?.message ?? "Could not schedule videos");
     const createdJobs = created as { id: string }[];
 
     // Gate every scheduled draft behind a client approval. If the approval
@@ -580,9 +719,17 @@ export const bulkSchedule = createServerFn({ method: "POST" })
       requested_by: userId,
       status: "pending" as const,
     }));
-    const { error: approvalError } = await adminClient.from("workspace_approvals").insert(approvals);
+    const { error: approvalError } = await adminClient
+      .from("workspace_approvals")
+      .insert(approvals);
     if (approvalError) {
-      await adminClient.from("publish_jobs").delete().in("id", createdJobs.map((j) => j.id));
+      await adminClient
+        .from("publish_jobs")
+        .delete()
+        .in(
+          "id",
+          createdJobs.map((j) => j.id),
+        );
       throw new Error(approvalError.message);
     }
 
@@ -608,7 +755,13 @@ export const requestApproval = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { userId } = context;
     const adminClient = await admin();
-    await requireWorkspaceRole(adminClient, data.workspaceId, userId, canRequestApproval, "request approvals");
+    await requireWorkspaceRole(
+      adminClient,
+      data.workspaceId,
+      userId,
+      canRequestApproval,
+      "request approvals",
+    );
 
     const { data: job } = await adminClient
       .from("publish_jobs")
@@ -650,7 +803,13 @@ export const listApprovals = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const { userId } = context;
     const adminClient = await admin();
-    await requireWorkspaceRole(adminClient, data.workspaceId, userId, (r) => r !== null, "view approvals");
+    await requireWorkspaceRole(
+      adminClient,
+      data.workspaceId,
+      userId,
+      (r) => r !== null,
+      "view approvals",
+    );
     let query = adminClient
       .from("workspace_approvals")
       .select("id, publish_job_id, status, requested_by, decided_by, decided_at, note, created_at")
@@ -685,7 +844,10 @@ export const listApprovals = createServerFn({ method: "GET" })
           rows.map((r) => r.publish_job_id),
         );
       publishApprovedByJob = new Map(
-        ((serverApprovals ?? []) as { publish_job_id: string }[]).map((a) => [a.publish_job_id, true]),
+        ((serverApprovals ?? []) as { publish_job_id: string }[]).map((a) => [
+          a.publish_job_id,
+          true,
+        ]),
       );
     }
     return {
@@ -733,7 +895,13 @@ export const decideApproval = createServerFn({ method: "POST" })
     const row = approval as { workspace_id: string; status: ApprovalStatus };
 
     const role = await getWorkspaceRole(adminClient, row.workspace_id, userId);
-    if (!canDecideWorkspaceApproval({ currentStatus: row.status, nextStatus: data.decision, actorRole: role })) {
+    if (
+      !canDecideWorkspaceApproval({
+        currentStatus: row.status,
+        nextStatus: data.decision,
+        actorRole: role,
+      })
+    ) {
       throw new Error(
         row.status !== "pending"
           ? "This approval has already been decided."
@@ -790,10 +958,14 @@ export async function resolveWorkspaceExportMeta(
     .select("primary_color, secondary_color, logo_path, font_family")
     .eq("workspace_id", workspaceId)
     .maybeSingle();
-  return resolveExportMeta({ planTier, brandKit: (kit as {
-    primary_color: string;
-    secondary_color: string;
-    logo_path: string | null;
-    font_family: string;
-  } | null) ?? null });
+  return resolveExportMeta({
+    planTier,
+    brandKit:
+      (kit as {
+        primary_color: string;
+        secondary_color: string;
+        logo_path: string | null;
+        font_family: string;
+      } | null) ?? null,
+  });
 }

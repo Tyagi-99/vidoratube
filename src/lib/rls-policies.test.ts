@@ -28,9 +28,7 @@ function stripSqlComments(sql: string): string {
   // Remove /* … */ blocks, then -- line comments, so prose like
   // "-- Non-destructive: CREATE TABLE IF NOT EXISTS only" is never
   // mistaken for a real CREATE TABLE statement.
-  return sql
-    .replace(/\/\*[\s\S]*?\*\//g, " ")
-    .replace(/--[^\n]*/g, " ");
+  return sql.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/--[^\n]*/g, " ");
 }
 
 function tableNames(sql: string): string[] {
@@ -43,20 +41,14 @@ function tableNames(sql: string): string[] {
 }
 
 function rlsEnabled(sql: string, table: string): boolean {
-  const re = new RegExp(
-    `ALTER TABLE (?:public\\.)?${table}\\s+ENABLE ROW LEVEL SECURITY`,
-    "i",
-  );
+  const re = new RegExp(`ALTER TABLE (?:public\\.)?${table}\\s+ENABLE ROW LEVEL SECURITY`, "i");
   return re.test(sql);
 }
 
 /** Raw CREATE POLICY statements mentioning the table. */
 function policiesFor(sql: string, table: string): string[] {
   const out: string[] = [];
-  const re = new RegExp(
-    `CREATE POLICY[^;]*?ON (?:public\\.)?${table}[^;]*?;`,
-    "gis",
-  );
+  const re = new RegExp(`CREATE POLICY[^;]*?ON (?:public\\.)?${table}[^;]*?;`, "gis");
   let m: RegExpExecArray | null;
   while ((m = re.exec(sql)) !== null) out.push(m[0]);
   return out;
@@ -107,6 +99,41 @@ const OWNER_SCOPED_TABLES = [
   // Owner SELECT only; NO client write policies (service-role writes only).
   "approvals",
   "publish_warnings",
+  // Phase 1 (Foundation) — intelligence domain (20260928020000).
+  // Snapshot/child tables are scoped via the parent row's user_id
+  // (EXISTS subquery), so every policy still references auth.uid().
+  "channels",
+  "channel_snapshots",
+  "niche_snapshots",
+  "competitor_channels",
+  "videos",
+  "video_snapshots",
+  "research_sources",
+  "research_claims",
+  // Phase 1 — creation domain (20260928020100).
+  "folders",
+  "folder_rules",
+  "folder_items",
+  "scripts",
+  "script_versions",
+  "brand_profiles",
+  "voices",
+  "scene_versions",
+  "thumbnail_projects",
+  "title_variants",
+  "content_packages",
+  // Phase 1 — operations domain (20260928020200). provider_tasks is scoped
+  // via its parent generation_jobs row; project_budgets via parent projects.
+  "generation_jobs",
+  "provider_tasks",
+  "experiments",
+  "experiment_arms",
+  "channel_connections",
+  "analytics_snapshots",
+  "retention_snapshots",
+  "comments",
+  "engagement_insights",
+  "project_budgets",
 ];
 
 /**
@@ -124,6 +151,13 @@ const WORKSPACE_MEMBER_SCOPED_TABLES = [
   "client_channels",
   "brand_kits",
   "workspace_approvals",
+  // Phase 1 (Foundation) — platform domain (20260928020300).
+  // audit_logs: members read; NO client write policies (service-role writes
+  // only, mirroring the approvals pattern). workspace_budgets / api_keys:
+  // members read, owners/editors manage.
+  "audit_logs",
+  "workspace_budgets",
+  "api_keys",
 ];
 
 /** Tables intentionally readable/writable without auth (documented exceptions). */
@@ -205,17 +239,11 @@ describe("RLS static audit", () => {
       const def = m![0];
       const body = m![1]!;
       expect(def, `${fn}: must be SECURITY DEFINER`).toMatch(/SECURITY DEFINER/i);
-      expect(
-        body,
-        `${fn}: helper must scope to the caller via auth.uid()`,
-      ).toContain("auth.uid()");
-      expect(
-        body,
-        `${fn}: helper must read workspace membership, not return a constant`,
-      ).toMatch(/workspace_members|workspaces/i);
-      expect(body, `${fn}: helper must not be permissive`).not.toMatch(
-        /RETURN\s+true/i,
+      expect(body, `${fn}: helper must scope to the caller via auth.uid()`).toContain("auth.uid()");
+      expect(body, `${fn}: helper must read workspace membership, not return a constant`).toMatch(
+        /workspace_members|workspaces/i,
       );
+      expect(body, `${fn}: helper must not be permissive`).not.toMatch(/RETURN\s+true/i);
     }
   });
 
@@ -229,10 +257,7 @@ describe("RLS static audit", () => {
       const policies = policiesFor(sql, table);
       expect(policies.length).toBeGreaterThan(0);
       const ownerPolicies = policies.filter((p) => p.includes("auth.uid()"));
-      expect(
-        ownerPolicies.length,
-        `${table}: no policy references auth.uid()`,
-      ).toBeGreaterThan(0);
+      expect(ownerPolicies.length, `${table}: no policy references auth.uid()`).toBeGreaterThan(0);
     }
   });
 
