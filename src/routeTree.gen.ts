@@ -38,6 +38,7 @@ import { Route as AuthenticatedAgencyIndexRouteImport } from './routes/_authenti
 import { Route as AuthenticatedAgencyWorkspaceIdRouteImport } from './routes/_authenticated/agency.$workspaceId'
 import { Route as AuthenticatedAnalyticsIndexRouteImport } from './routes/_authenticated/analytics.index'
 import { Route as AuthenticatedBillingIndexRouteImport } from './routes/_authenticated/billing.index'
+import { Route as AuthenticatedIntelligenceIndexRouteImport } from './routes/_authenticated/intelligence/index'
 import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authenticated/projects.index'
 import { Route as AuthenticatedProjectsProjectIdRouteImport } from './routes/_authenticated/projects.$projectId'
 import { Route as AuthenticatedResearchIndexRouteImport } from './routes/_authenticated/research.index'
@@ -47,10 +48,7 @@ import { Route as ApiPublicYoutubeCallbackRouteImport } from './routes/api/publi
 import { Route as ApiWebhooksDodoRouteImport } from './routes/api/webhooks/dodo'
 import { Route as ApiWebhooksRazorpayRouteImport } from './routes/api/webhooks/razorpay'
 import { Route as ApiWebhooksStripeRouteImport } from './routes/api/webhooks/stripe'
-import { Route as AuthenticatedIntelligenceChannelsIndexRouteImport } from './routes/_authenticated/intelligence/channels.index'
-import { Route as AuthenticatedIntelligenceChannelsChannelIdRouteImport } from './routes/_authenticated/intelligence/channels.$channelId'
-import { Route as AuthenticatedIntelligenceOutliersIndexRouteImport } from './routes/_authenticated/intelligence/outliers.index'
-import { Route as AuthenticatedIntelligenceVideosVideoIdRouteImport } from './routes/_authenticated/intelligence/videos.$videoId'
+import { Route as AuthenticatedIntelligenceFoldersIndexRouteImport } from './routes/_authenticated/intelligence/folders.index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -204,6 +202,12 @@ const AuthenticatedBillingIndexRoute =
     path: '/billing/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedIntelligenceIndexRoute =
+  AuthenticatedIntelligenceIndexRouteImport.update({
+    id: '/intelligence/',
+    path: '/intelligence/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedProjectsIndexRoute =
   AuthenticatedProjectsIndexRouteImport.update({
     id: '/projects/',
@@ -254,28 +258,10 @@ const ApiWebhooksStripeRoute = ApiWebhooksStripeRouteImport.update({
   path: '/api/webhooks/stripe',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedIntelligenceChannelsIndexRoute =
-  AuthenticatedIntelligenceChannelsIndexRouteImport.update({
-    id: '/intelligence/channels/',
-    path: '/intelligence/channels/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedIntelligenceChannelsChannelIdRoute =
-  AuthenticatedIntelligenceChannelsChannelIdRouteImport.update({
-    id: '/intelligence/channels/$channelId',
-    path: '/intelligence/channels/$channelId',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedIntelligenceOutliersIndexRoute =
-  AuthenticatedIntelligenceOutliersIndexRouteImport.update({
-    id: '/intelligence/outliers/',
-    path: '/intelligence/outliers/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedIntelligenceVideosVideoIdRoute =
-  AuthenticatedIntelligenceVideosVideoIdRouteImport.update({
-    id: '/intelligence/videos/$videoId',
-    path: '/intelligence/videos/$videoId',
+const AuthenticatedIntelligenceFoldersIndexRoute =
+  AuthenticatedIntelligenceFoldersIndexRouteImport.update({
+    id: '/intelligence/folders/',
+    path: '/intelligence/folders/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 
@@ -315,12 +301,10 @@ export interface FileRoutesByFullPath {
   '/agency/': typeof AuthenticatedAgencyIndexRoute
   '/analytics/': typeof AuthenticatedAnalyticsIndexRoute
   '/billing/': typeof AuthenticatedBillingIndexRoute
+  '/intelligence/': typeof AuthenticatedIntelligenceIndexRoute
   '/projects/': typeof AuthenticatedProjectsIndexRoute
   '/research/': typeof AuthenticatedResearchIndexRoute
-  '/intelligence/channels/$channelId': typeof AuthenticatedIntelligenceChannelsChannelIdRoute
-  '/intelligence/videos/$videoId': typeof AuthenticatedIntelligenceVideosVideoIdRoute
-  '/intelligence/channels/': typeof AuthenticatedIntelligenceChannelsIndexRoute
-  '/intelligence/outliers/': typeof AuthenticatedIntelligenceOutliersIndexRoute
+  '/intelligence/folders/': typeof AuthenticatedIntelligenceFoldersIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -357,12 +341,10 @@ export interface FileRoutesByTo {
   '/agency': typeof AuthenticatedAgencyIndexRoute
   '/analytics': typeof AuthenticatedAnalyticsIndexRoute
   '/billing': typeof AuthenticatedBillingIndexRoute
+  '/intelligence': typeof AuthenticatedIntelligenceIndexRoute
   '/projects': typeof AuthenticatedProjectsIndexRoute
   '/research': typeof AuthenticatedResearchIndexRoute
-  '/intelligence/channels/$channelId': typeof AuthenticatedIntelligenceChannelsChannelIdRoute
-  '/intelligence/videos/$videoId': typeof AuthenticatedIntelligenceVideosVideoIdRoute
-  '/intelligence/channels': typeof AuthenticatedIntelligenceChannelsIndexRoute
-  '/intelligence/outliers': typeof AuthenticatedIntelligenceOutliersIndexRoute
+  '/intelligence/folders': typeof AuthenticatedIntelligenceFoldersIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -402,12 +384,10 @@ export interface FileRoutesById {
   '/_authenticated/agency/': typeof AuthenticatedAgencyIndexRoute
   '/_authenticated/analytics/': typeof AuthenticatedAnalyticsIndexRoute
   '/_authenticated/billing/': typeof AuthenticatedBillingIndexRoute
+  '/_authenticated/intelligence/': typeof AuthenticatedIntelligenceIndexRoute
   '/_authenticated/projects/': typeof AuthenticatedProjectsIndexRoute
   '/_authenticated/research/': typeof AuthenticatedResearchIndexRoute
-  '/_authenticated/intelligence/channels/$channelId': typeof AuthenticatedIntelligenceChannelsChannelIdRoute
-  '/_authenticated/intelligence/videos/$videoId': typeof AuthenticatedIntelligenceVideosVideoIdRoute
-  '/_authenticated/intelligence/channels/': typeof AuthenticatedIntelligenceChannelsIndexRoute
-  '/_authenticated/intelligence/outliers/': typeof AuthenticatedIntelligenceOutliersIndexRoute
+  '/_authenticated/intelligence/folders/': typeof AuthenticatedIntelligenceFoldersIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -447,12 +427,10 @@ export interface FileRouteTypes {
     | '/agency/'
     | '/analytics/'
     | '/billing/'
+    | '/intelligence/'
     | '/projects/'
     | '/research/'
-    | '/intelligence/channels/$channelId'
-    | '/intelligence/videos/$videoId'
-    | '/intelligence/channels/'
-    | '/intelligence/outliers/'
+    | '/intelligence/folders/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -489,12 +467,10 @@ export interface FileRouteTypes {
     | '/agency'
     | '/analytics'
     | '/billing'
+    | '/intelligence'
     | '/projects'
     | '/research'
-    | '/intelligence/channels/$channelId'
-    | '/intelligence/videos/$videoId'
-    | '/intelligence/channels'
-    | '/intelligence/outliers'
+    | '/intelligence/folders'
   id:
     | '__root__'
     | '/'
@@ -533,12 +509,10 @@ export interface FileRouteTypes {
     | '/_authenticated/agency/'
     | '/_authenticated/analytics/'
     | '/_authenticated/billing/'
+    | '/_authenticated/intelligence/'
     | '/_authenticated/projects/'
     | '/_authenticated/research/'
-    | '/_authenticated/intelligence/channels/$channelId'
-    | '/_authenticated/intelligence/videos/$videoId'
-    | '/_authenticated/intelligence/channels/'
-    | '/_authenticated/intelligence/outliers/'
+    | '/_authenticated/intelligence/folders/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -769,6 +743,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBillingIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/intelligence/': {
+      id: '/_authenticated/intelligence/'
+      path: '/intelligence'
+      fullPath: '/intelligence/'
+      preLoaderRoute: typeof AuthenticatedIntelligenceIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/projects/': {
       id: '/_authenticated/projects/'
       path: '/projects'
@@ -832,32 +813,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiWebhooksStripeRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/intelligence/channels/': {
-      id: '/_authenticated/intelligence/channels/'
-      path: '/intelligence/channels'
-      fullPath: '/intelligence/channels/'
-      preLoaderRoute: typeof AuthenticatedIntelligenceChannelsIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/intelligence/channels/$channelId': {
-      id: '/_authenticated/intelligence/channels/$channelId'
-      path: '/intelligence/channels/$channelId'
-      fullPath: '/intelligence/channels/$channelId'
-      preLoaderRoute: typeof AuthenticatedIntelligenceChannelsChannelIdRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/intelligence/outliers/': {
-      id: '/_authenticated/intelligence/outliers/'
-      path: '/intelligence/outliers'
-      fullPath: '/intelligence/outliers/'
-      preLoaderRoute: typeof AuthenticatedIntelligenceOutliersIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/intelligence/videos/$videoId': {
-      id: '/_authenticated/intelligence/videos/$videoId'
-      path: '/intelligence/videos/$videoId'
-      fullPath: '/intelligence/videos/$videoId'
-      preLoaderRoute: typeof AuthenticatedIntelligenceVideosVideoIdRouteImport
+    '/_authenticated/intelligence/folders/': {
+      id: '/_authenticated/intelligence/folders/'
+      path: '/intelligence/folders'
+      fullPath: '/intelligence/folders/'
+      preLoaderRoute: typeof AuthenticatedIntelligenceFoldersIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
   }
@@ -897,12 +857,10 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAgencyIndexRoute: typeof AuthenticatedAgencyIndexRoute
   AuthenticatedAnalyticsIndexRoute: typeof AuthenticatedAnalyticsIndexRoute
   AuthenticatedBillingIndexRoute: typeof AuthenticatedBillingIndexRoute
+  AuthenticatedIntelligenceIndexRoute: typeof AuthenticatedIntelligenceIndexRoute
   AuthenticatedProjectsIndexRoute: typeof AuthenticatedProjectsIndexRoute
   AuthenticatedResearchIndexRoute: typeof AuthenticatedResearchIndexRoute
-  AuthenticatedIntelligenceChannelsChannelIdRoute: typeof AuthenticatedIntelligenceChannelsChannelIdRoute
-  AuthenticatedIntelligenceVideosVideoIdRoute: typeof AuthenticatedIntelligenceVideosVideoIdRoute
-  AuthenticatedIntelligenceChannelsIndexRoute: typeof AuthenticatedIntelligenceChannelsIndexRoute
-  AuthenticatedIntelligenceOutliersIndexRoute: typeof AuthenticatedIntelligenceOutliersIndexRoute
+  AuthenticatedIntelligenceFoldersIndexRoute: typeof AuthenticatedIntelligenceFoldersIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -914,16 +872,11 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAgencyIndexRoute: AuthenticatedAgencyIndexRoute,
   AuthenticatedAnalyticsIndexRoute: AuthenticatedAnalyticsIndexRoute,
   AuthenticatedBillingIndexRoute: AuthenticatedBillingIndexRoute,
+  AuthenticatedIntelligenceIndexRoute: AuthenticatedIntelligenceIndexRoute,
   AuthenticatedProjectsIndexRoute: AuthenticatedProjectsIndexRoute,
   AuthenticatedResearchIndexRoute: AuthenticatedResearchIndexRoute,
-  AuthenticatedIntelligenceChannelsChannelIdRoute:
-    AuthenticatedIntelligenceChannelsChannelIdRoute,
-  AuthenticatedIntelligenceVideosVideoIdRoute:
-    AuthenticatedIntelligenceVideosVideoIdRoute,
-  AuthenticatedIntelligenceChannelsIndexRoute:
-    AuthenticatedIntelligenceChannelsIndexRoute,
-  AuthenticatedIntelligenceOutliersIndexRoute:
-    AuthenticatedIntelligenceOutliersIndexRoute,
+  AuthenticatedIntelligenceFoldersIndexRoute:
+    AuthenticatedIntelligenceFoldersIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
