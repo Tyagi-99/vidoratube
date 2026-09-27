@@ -126,25 +126,114 @@ async function setScheduledPublishTime(
   videoId: string,
   publishAt: string,
 ): Promise<void> {
-  const res = await fetch(
-    `https://www.googleapis.com/youtube/v3/videos?part=status&id=${videoId}`,
-    {
+  const { withTransientRetry } = await import("./publish/retry");
+  await withTransientRetry(async () => {
+    const res = await fetch(
+      `https://www.googleapis.com/youtube/v3/videos?part=status&id=${videoId}`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: videoId,
+          status: { privacyStatus: "private", publishAt },
+        }),
+      },
+    );
+    if (!res.ok) {
+      throw new Error(
+        `YouTube rejected the schedule (${res.status}): ${(await res.text().catch(() => "")).slice(0, 200)}`,
+      );
+    }
+  });
+}
+
+export interface RemoteVideoMetadata {
+  videoId: string;
+  channelId: string | null;
+  title: string;
+  description: string;
+  privacyStatus: string | null;
+}
+
+/**
+ * Phase 4, Stream A — fetches the CURRENT remote title/description for a
+ * video. Used by the metadata-overwrite flow: the UI shows the diff between
+ * this and the proposed values, and the update requires an explicit human
+ * confirm against a hash of this snapshot. Transient failures retried.
+ */
+export async function fetchRemoteVideoMetadata(
+  accessToken: string,
+  videoId: string,
+): Promise<RemoteVideoMetadata> {
+  const { withTransientRetry } = await import("./publish/retry");
+  return withTransientRetry(async () => {
+    const res = await fetch(
+      `https://www.googleapis.com/youtube/v3/videos?part=snippet,status&id=${encodeURIComponent(videoId)}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+    );
+    if (!res.ok) {
+      throw new Error(
+        `YouTube rejected the metadata read (${res.status}): ${(await res.text().catch(() => "")).slice(0, 200)}`,
+      );
+    }
+    const payload = (await res.json()) as {
+      items?: {
+        id?: string;
+        snippet?: { channelId?: string; title?: string; description?: string };
+        status?: { privacyStatus?: string };
+      }[];
+    };
+    const item = payload.items?.[0];
+    if (!item) throw new Error("YouTube has no video with that id on this channel.");
+    return {
+      videoId,
+      channelId: item.snippet?.channelId ?? null,
+      title: item.snippet?.title ?? "",
+      description: item.snippet?.description ?? "",
+      privacyStatus: item.status?.privacyStatus ?? null,
+    };
+  });
+}
+
+export interface UpdateRemoteMetadataInput {
+  accessToken: string;
+  videoId: string;
+  title: string;
+  description: string;
+}
+
+/**
+ * Phase 4, Stream A — overwrites a video's title/description via
+ * videos.update. Callers MUST have shown the remote-vs-proposed diff and
+ * collected an explicit human confirm (see metadata.functions.ts) — this
+ * function performs the write, never the confirmation. Transient failures
+ * retried; the caller records quota + audit.
+ */
+export async function updateRemoteVideoMetadata(
+  input: UpdateRemoteMetadataInput,
+): Promise<void> {
+  const { withTransientRetry } = await import("./publish/retry");
+  await withTransientRetry(async () => {
+    const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet`, {
       method: "PUT",
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: `Bearer ${input.accessToken}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        id: videoId,
-        status: { privacyStatus: "private", publishAt },
+        id: input.videoId,
+        snippet: { title: input.title.slice(0, 100), description: input.description.slice(0, 5000) },
       }),
-    },
-  );
-  if (!res.ok) {
-    throw new Error(
-      `YouTube rejected the schedule (${res.status}): ${(await res.text().catch(() => "")).slice(0, 200)}`,
-    );
-  }
+    });
+    if (!res.ok) {
+      throw new Error(
+        `YouTube rejected the metadata update (${res.status}): ${(await res.text().catch(() => "")).slice(0, 200)}`,
+      );
+    }
+  });
 }
 
 export interface SetThumbnailInput {

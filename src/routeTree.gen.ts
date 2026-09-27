@@ -55,6 +55,9 @@ import { Route as AuthenticatedInviteAcceptRouteImport } from './routes/_authent
 import { Route as AuthenticatedLearningsIndexRouteImport } from './routes/_authenticated/learnings.index'
 import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authenticated/projects.index'
 import { Route as AuthenticatedProjectsProjectIdRouteImport } from './routes/_authenticated/projects.$projectId'
+import { Route as AuthenticatedPublishIndexRouteImport } from './routes/_authenticated/publish.index'
+import { Route as AuthenticatedPublishCalendarRouteImport } from './routes/_authenticated/publish.calendar'
+import { Route as AuthenticatedPublishReviewRouteImport } from './routes/_authenticated/publish.review'
 import { Route as AuthenticatedResearchIndexRouteImport } from './routes/_authenticated/research.index'
 import { Route as AuthenticatedResearchProjectIdRouteImport } from './routes/_authenticated/research.$projectId'
 import { Route as AuthenticatedSettingsApiKeysRouteImport } from './routes/_authenticated/settings.api-keys'
@@ -329,6 +332,24 @@ const AuthenticatedProjectsProjectIdRoute =
     path: '/projects/$projectId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedPublishIndexRoute =
+  AuthenticatedPublishIndexRouteImport.update({
+    id: '/publish/',
+    path: '/publish/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedPublishCalendarRoute =
+  AuthenticatedPublishCalendarRouteImport.update({
+    id: '/publish/calendar',
+    path: '/publish/calendar',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedPublishReviewRoute =
+  AuthenticatedPublishReviewRouteImport.update({
+    id: '/publish/review',
+    path: '/publish/review',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedResearchIndexRoute =
   AuthenticatedResearchIndexRouteImport.update({
     id: '/research/',
@@ -485,6 +506,8 @@ export interface FileRoutesByFullPath {
   '/experiments/$experimentId': typeof AuthenticatedExperimentsExperimentIdRoute
   '/invite/accept': typeof AuthenticatedInviteAcceptRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
+  '/publish/calendar': typeof AuthenticatedPublishCalendarRoute
+  '/publish/review': typeof AuthenticatedPublishReviewRoute
   '/research/$projectId': typeof AuthenticatedResearchProjectIdRoute
   '/settings/api-keys': typeof AuthenticatedSettingsApiKeysRoute
   '/studio/$projectId': typeof AuthenticatedStudioProjectIdRoute
@@ -505,6 +528,7 @@ export interface FileRoutesByFullPath {
   '/intelligence/': typeof AuthenticatedIntelligenceIndexRoute
   '/learnings/': typeof AuthenticatedLearningsIndexRoute
   '/projects/': typeof AuthenticatedProjectsIndexRoute
+  '/publish/': typeof AuthenticatedPublishIndexRoute
   '/research/': typeof AuthenticatedResearchIndexRoute
   '/thumbnails/': typeof AuthenticatedThumbnailsIndexRoute
   '/voices/': typeof AuthenticatedVoicesIndexRoute
@@ -552,6 +576,8 @@ export interface FileRoutesByTo {
   '/experiments/$experimentId': typeof AuthenticatedExperimentsExperimentIdRoute
   '/invite/accept': typeof AuthenticatedInviteAcceptRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
+  '/publish/calendar': typeof AuthenticatedPublishCalendarRoute
+  '/publish/review': typeof AuthenticatedPublishReviewRoute
   '/research/$projectId': typeof AuthenticatedResearchProjectIdRoute
   '/settings/api-keys': typeof AuthenticatedSettingsApiKeysRoute
   '/studio/$projectId': typeof AuthenticatedStudioProjectIdRoute
@@ -572,6 +598,7 @@ export interface FileRoutesByTo {
   '/intelligence': typeof AuthenticatedIntelligenceIndexRoute
   '/learnings': typeof AuthenticatedLearningsIndexRoute
   '/projects': typeof AuthenticatedProjectsIndexRoute
+  '/publish': typeof AuthenticatedPublishIndexRoute
   '/research': typeof AuthenticatedResearchIndexRoute
   '/thumbnails': typeof AuthenticatedThumbnailsIndexRoute
   '/voices': typeof AuthenticatedVoicesIndexRoute
@@ -622,6 +649,8 @@ export interface FileRoutesById {
   '/_authenticated/experiments/$experimentId': typeof AuthenticatedExperimentsExperimentIdRoute
   '/_authenticated/invite/accept': typeof AuthenticatedInviteAcceptRoute
   '/_authenticated/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
+  '/_authenticated/publish/calendar': typeof AuthenticatedPublishCalendarRoute
+  '/_authenticated/publish/review': typeof AuthenticatedPublishReviewRoute
   '/_authenticated/research/$projectId': typeof AuthenticatedResearchProjectIdRoute
   '/_authenticated/settings/api-keys': typeof AuthenticatedSettingsApiKeysRoute
   '/_authenticated/studio/$projectId': typeof AuthenticatedStudioProjectIdRoute
@@ -642,6 +671,7 @@ export interface FileRoutesById {
   '/_authenticated/intelligence/': typeof AuthenticatedIntelligenceIndexRoute
   '/_authenticated/learnings/': typeof AuthenticatedLearningsIndexRoute
   '/_authenticated/projects/': typeof AuthenticatedProjectsIndexRoute
+  '/_authenticated/publish/': typeof AuthenticatedPublishIndexRoute
   '/_authenticated/research/': typeof AuthenticatedResearchIndexRoute
   '/_authenticated/thumbnails/': typeof AuthenticatedThumbnailsIndexRoute
   '/_authenticated/voices/': typeof AuthenticatedVoicesIndexRoute
@@ -692,6 +722,8 @@ export interface FileRouteTypes {
     | '/experiments/$experimentId'
     | '/invite/accept'
     | '/projects/$projectId'
+    | '/publish/calendar'
+    | '/publish/review'
     | '/research/$projectId'
     | '/settings/api-keys'
     | '/studio/$projectId'
@@ -712,6 +744,7 @@ export interface FileRouteTypes {
     | '/intelligence/'
     | '/learnings/'
     | '/projects/'
+    | '/publish/'
     | '/research/'
     | '/thumbnails/'
     | '/voices/'
@@ -759,6 +792,8 @@ export interface FileRouteTypes {
     | '/experiments/$experimentId'
     | '/invite/accept'
     | '/projects/$projectId'
+    | '/publish/calendar'
+    | '/publish/review'
     | '/research/$projectId'
     | '/settings/api-keys'
     | '/studio/$projectId'
@@ -779,6 +814,7 @@ export interface FileRouteTypes {
     | '/intelligence'
     | '/learnings'
     | '/projects'
+    | '/publish'
     | '/research'
     | '/thumbnails'
     | '/voices'
@@ -828,6 +864,8 @@ export interface FileRouteTypes {
     | '/_authenticated/experiments/$experimentId'
     | '/_authenticated/invite/accept'
     | '/_authenticated/projects/$projectId'
+    | '/_authenticated/publish/calendar'
+    | '/_authenticated/publish/review'
     | '/_authenticated/research/$projectId'
     | '/_authenticated/settings/api-keys'
     | '/_authenticated/studio/$projectId'
@@ -848,6 +886,7 @@ export interface FileRouteTypes {
     | '/_authenticated/intelligence/'
     | '/_authenticated/learnings/'
     | '/_authenticated/projects/'
+    | '/_authenticated/publish/'
     | '/_authenticated/research/'
     | '/_authenticated/thumbnails/'
     | '/_authenticated/voices/'
@@ -1211,6 +1250,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProjectsProjectIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/publish/': {
+      id: '/_authenticated/publish/'
+      path: '/publish'
+      fullPath: '/publish/'
+      preLoaderRoute: typeof AuthenticatedPublishIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/publish/calendar': {
+      id: '/_authenticated/publish/calendar'
+      path: '/publish/calendar'
+      fullPath: '/publish/calendar'
+      preLoaderRoute: typeof AuthenticatedPublishCalendarRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/publish/review': {
+      id: '/_authenticated/publish/review'
+      path: '/publish/review'
+      fullPath: '/publish/review'
+      preLoaderRoute: typeof AuthenticatedPublishReviewRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/research/': {
       id: '/_authenticated/research/'
       path: '/research'
@@ -1409,6 +1469,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedExperimentsExperimentIdRoute: typeof AuthenticatedExperimentsExperimentIdRoute
   AuthenticatedInviteAcceptRoute: typeof AuthenticatedInviteAcceptRoute
   AuthenticatedProjectsProjectIdRoute: typeof AuthenticatedProjectsProjectIdRoute
+  AuthenticatedPublishCalendarRoute: typeof AuthenticatedPublishCalendarRoute
+  AuthenticatedPublishReviewRoute: typeof AuthenticatedPublishReviewRoute
   AuthenticatedResearchProjectIdRoute: typeof AuthenticatedResearchProjectIdRoute
   AuthenticatedSettingsApiKeysRoute: typeof AuthenticatedSettingsApiKeysRoute
   AuthenticatedAgencyIndexRoute: typeof AuthenticatedAgencyIndexRoute
@@ -1421,6 +1483,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedIntelligenceIndexRoute: typeof AuthenticatedIntelligenceIndexRoute
   AuthenticatedLearningsIndexRoute: typeof AuthenticatedLearningsIndexRoute
   AuthenticatedProjectsIndexRoute: typeof AuthenticatedProjectsIndexRoute
+  AuthenticatedPublishIndexRoute: typeof AuthenticatedPublishIndexRoute
   AuthenticatedResearchIndexRoute: typeof AuthenticatedResearchIndexRoute
   AuthenticatedThumbnailsIndexRoute: typeof AuthenticatedThumbnailsIndexRoute
   AuthenticatedVoicesIndexRoute: typeof AuthenticatedVoicesIndexRoute
@@ -1447,6 +1510,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedExperimentsExperimentIdRoute,
   AuthenticatedInviteAcceptRoute: AuthenticatedInviteAcceptRoute,
   AuthenticatedProjectsProjectIdRoute: AuthenticatedProjectsProjectIdRoute,
+  AuthenticatedPublishCalendarRoute: AuthenticatedPublishCalendarRoute,
+  AuthenticatedPublishReviewRoute: AuthenticatedPublishReviewRoute,
   AuthenticatedResearchProjectIdRoute: AuthenticatedResearchProjectIdRoute,
   AuthenticatedSettingsApiKeysRoute: AuthenticatedSettingsApiKeysRoute,
   AuthenticatedAgencyIndexRoute: AuthenticatedAgencyIndexRoute,
@@ -1459,6 +1524,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedIntelligenceIndexRoute: AuthenticatedIntelligenceIndexRoute,
   AuthenticatedLearningsIndexRoute: AuthenticatedLearningsIndexRoute,
   AuthenticatedProjectsIndexRoute: AuthenticatedProjectsIndexRoute,
+  AuthenticatedPublishIndexRoute: AuthenticatedPublishIndexRoute,
   AuthenticatedResearchIndexRoute: AuthenticatedResearchIndexRoute,
   AuthenticatedThumbnailsIndexRoute: AuthenticatedThumbnailsIndexRoute,
   AuthenticatedVoicesIndexRoute: AuthenticatedVoicesIndexRoute,

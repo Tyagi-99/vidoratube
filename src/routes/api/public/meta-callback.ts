@@ -69,21 +69,55 @@ export const Route = createFileRoute("/api/public/meta-callback")({
           }
 
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-          const { error } = await supabaseAdmin.from("meta_connections").upsert(
-            {
-              user_id: userId,
-              page_id: page.id,
-              page_name: page.name,
-              ig_user_id: ig?.id ?? null,
-              ig_username: ig?.username ?? null,
-              access_token: await encryptMetaToken(page.access_token),
-              token_expires_at: new Date(Date.now() + expiresIn * 1000).toISOString(),
-              scope: META_CONNECT_SCOPES,
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: "user_id" },
-          );
+          const { data: stored, error } = await supabaseAdmin
+            .from("meta_connections")
+            .upsert(
+              {
+                user_id: userId,
+                page_id: page.id,
+                page_name: page.name,
+                ig_user_id: ig?.id ?? null,
+                ig_username: ig?.username ?? null,
+                access_token: await encryptMetaToken(page.access_token),
+                token_expires_at: new Date(Date.now() + expiresIn * 1000).toISOString(),
+                scope: META_CONNECT_SCOPES,
+                updated_at: new Date().toISOString(),
+              },
+              { onConflict: "user_id" },
+            )
+            .select("id")
+            .single();
           if (error) throw new Error(error.message);
+
+          // Phase 4, Stream A (F27): register the Page and (when linked) the
+          // IG account in the channel_connections registry. Tokens stay in
+          // meta_connections — only the row id is linked.
+          const { registerChannelConnection } = await import("@/lib/publish/channels.server");
+          const register = (input: {
+            platform: "facebook" | "instagram";
+            externalChannelId: string;
+            displayName: string | null;
+          }) =>
+            registerChannelConnection(supabaseAdmin, {
+              userId,
+              platform: input.platform,
+              externalChannelId: input.externalChannelId,
+              displayName: input.displayName,
+              metaConnectionId: stored?.id ?? null,
+            }).catch((e) => {
+              console.warn(
+                "[vidora] channel registry write failed",
+                e instanceof Error ? e.message : e,
+              );
+            });
+          await register({ platform: "facebook", externalChannelId: page.id, displayName: page.name });
+          if (ig?.id) {
+            await register({
+              platform: "instagram",
+              externalChannelId: ig.id,
+              displayName: ig.username ?? null,
+            });
+          }
           return back("meta=connected");
         } catch (error) {
           const message = error instanceof Error ? error.message : "connect_failed";

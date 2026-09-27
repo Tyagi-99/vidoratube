@@ -1527,3 +1527,49 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
   `content_assets` via D49.
 - **Reverse:** Merge into `content_assets` later only if the item-scoping
   constraint is lifted; migrate rows with their provenance links intact.
+
+### D162. Every publish job gets a unique DB-backed idempotency key
+
+- **Decision:** `publish_jobs.idempotency_key` (unique, default `job_<uuid>`,
+  backfilled) — `createPublishJob` returns the existing owned job on key retry.
+- **Reason:** Upload retries and double-clicks must never create duplicate
+  publish jobs or double uploads.
+- **Reverse:** None — idempotency is load-bearing for the publish pipeline.
+
+### D163. Retry only transient platform failures
+
+- **Decision:** `withTransientRetry` retries only 429/5xx/network errors with
+  backoff + jitter; never 4xx, auth failures, or approval rejections. Wired
+  into YouTube scheduling, remote metadata read/update, and health probes.
+- **Reason:** Blind retries of auth/approval failures burn quota and can
+  trigger platform rate-limit escalation.
+- **Reverse:** None.
+
+### D164. Drag/drop on the calendar changes only `scheduled_for`
+
+- **Decision:** Calendar drag-drop reschedules `approved`/`scheduled` jobs to
+  future times only; null unschedules back to `approved`. Scheduling never
+  executes publishing.
+- **Reason:** The calendar is a planning surface; execution stays behind the
+  approval + test-account gates.
+- **Reverse:** None.
+
+### D165. Rejection is terminal cancellation with an immutable reason
+
+- **Decision:** Rejecting a publish job in Review Studio requires a reason,
+  cancels terminally, and writes an immutable `publish.rejected` audit row.
+  Client sign-off is displayed separately and never substitutes server approval.
+- **Reason:** "AI prepares. Human approves." — a rejected job must not be
+  silently revivable into the publish path.
+- **Reverse:** None.
+
+### D166. Live metadata overwrites need diff + confirm bound to a fresh remote snapshot
+
+- **Decision:** Before overwriting live YouTube metadata, fetch the current
+  remote title/description, show the diff, and require explicit human confirm
+  bound to a SHA-256 hash of that fresh snapshot (TOCTOU protection). Also
+  gated on an approved publish job whose `youtube_video_id` matches the target.
+  Writes `publish.metadata_overwritten` audit.
+- **Reason:** Never silently overwrite live metadata — the founder's live
+  channel metadata is one misclick away from damage otherwise.
+- **Reverse:** None.
