@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireAppUser } from "../server-auth";
+import { auditSafely } from "../audit-log.server";
 import {
   brandKitSchema,
   buildBulkScheduledRow,
@@ -111,6 +112,16 @@ export const createWorkspace = createServerFn({ method: "POST" })
       role: "owner",
     });
     if (memberError) throw new Error(memberError.message);
+
+    // The workspace creator becomes its owner (default role bootstrap).
+    await auditSafely({
+      workspaceId: ws.id,
+      actorUserId: userId,
+      action: "workspace.created",
+      entityType: "workspace",
+      entityId: ws.id,
+      metadata: { name: data.name },
+    });
 
     // Every workspace starts with a default brand kit so exports always
     // have brand meta to thread into render jobs.
@@ -239,6 +250,15 @@ export const addMember = createServerFn({ method: "POST" })
       .select()
       .single();
     if (error || !member) throw new Error(error?.message ?? "Could not add member");
+
+    await auditSafely({
+      workspaceId: data.workspaceId,
+      actorUserId: userId,
+      action: "member.invited",
+      entityType: "workspace_member",
+      entityId: (member as { id: string }).id,
+      metadata: { invitedUserId: inviteeId, email: data.email, role: data.role },
+    });
     return { member };
   });
 
@@ -260,6 +280,15 @@ export const updateMemberRole = createServerFn({ method: "POST" })
     const adminClient = await admin();
     await requireWorkspaceRole(adminClient, data.workspaceId, userId, canManageMembers, "manage members");
 
+    const { data: current } = await adminClient
+      .from("workspace_members")
+      .select("role")
+      .eq("workspace_id", data.workspaceId)
+      .eq("user_id", data.memberUserId)
+      .maybeSingle();
+    if (!current) throw new Error("Member not found");
+    const previousRole = (current as { role: string }).role;
+
     if (data.role !== "owner") {
       const { count } = await adminClient
         .from("workspace_members")
@@ -279,6 +308,15 @@ export const updateMemberRole = createServerFn({ method: "POST" })
       .select()
       .single();
     if (error || !member) throw new Error(error?.message ?? "Member not found");
+
+    await auditSafely({
+      workspaceId: data.workspaceId,
+      actorUserId: userId,
+      action: "member.role_changed",
+      entityType: "workspace_member",
+      entityId: (member as { id: string }).id,
+      metadata: { memberUserId: data.memberUserId, from: previousRole, to: data.role },
+    });
     return { member };
   });
 
@@ -312,6 +350,15 @@ export const removeMember = createServerFn({ method: "POST" })
       .eq("workspace_id", data.workspaceId)
       .eq("user_id", data.memberUserId);
     if (error) throw new Error(error.message);
+
+    await auditSafely({
+      workspaceId: data.workspaceId,
+      actorUserId: userId,
+      action: "member.removed",
+      entityType: "workspace_member",
+      entityId: null,
+      metadata: { removedUserId: data.memberUserId, role: (target as { role: string }).role },
+    });
     return { removed: true };
   });
 
