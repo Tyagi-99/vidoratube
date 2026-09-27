@@ -1,4 +1,11 @@
 import { providerFetch } from "./http.server";
+import { withProviderTelemetry } from "./telemetry.server";
+import type { ProviderResult } from "./contracts";
+import type { CostCtx } from "../api-cost";
+import {
+  ELEVENLABS_TTS_MULTILINGUAL_USD_PER_CHAR,
+  ELEVENLABS_TTS_USD_PER_CHAR,
+} from "../api-cost";
 
 export type VoiceOption = { id: string; name: string; category?: string | undefined };
 
@@ -55,6 +62,47 @@ export async function synthesize(text: string, settings: VoiceSettings): Promise
     },
   );
   return res.arrayBuffer();
+}
+
+/** USD/char rate for the model actually used (Flash vs Multilingual tier). */
+export function ttsUnitCostUsd(model: string): number {
+  return /multilingual/i.test(model)
+    ? ELEVENLABS_TTS_MULTILINGUAL_USD_PER_CHAR
+    : ELEVENLABS_TTS_USD_PER_CHAR;
+}
+
+export type SynthesizeTelemetryOptions = {
+  /** When set and the call succeeds, one row is recorded to api_usage. */
+  costCtx?: CostCtx | null | undefined;
+  /** Extra fields merged into the api_usage row's meta. */
+  meta?: Record<string, unknown> | undefined;
+};
+
+/**
+ * Telemetry-wrapped TTS: same call as {@link synthesize}, but the result
+ * flows through the standard {@link ProviderResult} envelope and the
+ * measured cost (model / latency / characters) is recorded to api_usage.
+ * Existing callers of `synthesize` are untouched.
+ */
+export async function synthesizeWithTelemetry(
+  text: string,
+  settings: VoiceSettings,
+  opts: SynthesizeTelemetryOptions = {},
+): Promise<ProviderResult<ArrayBuffer>> {
+  const model = settings.model || DEFAULT_VOICE_MODEL;
+  return withProviderTelemetry(() => synthesize(text, settings), {
+    provider: "elevenlabs",
+    operation: "tts",
+    model,
+    configured: elevenLabsConfigured(),
+    estimate: {
+      units: Math.max(1, text.length),
+      unitCostUsd: ttsUnitCostUsd(model),
+    },
+    usage: { characters: text.length },
+    meta: opts.meta,
+    costCtx: opts.costCtx ?? null,
+  });
 }
 
 /**
