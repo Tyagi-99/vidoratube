@@ -29,6 +29,121 @@ export function emailFrom(): string {
   return process.env["EMAIL_FROM"] ?? "Vidora <updates@vidora.ai>";
 }
 
+/**
+ * Phase 4 Stream D — pinned notification type vocab.
+ * Dotted names are canonical (docs/PHASE4_CONTRACTS.md); the legacy
+ * `render_complete` rows from Sprint 1-2 still render via the bell label map.
+ */
+export type NotificationType =
+  | "render.completed"
+  | "render.failed"
+  | "publish.approved"
+  | "publish.published"
+  | "publish.failed"
+  | "approval.requested"
+  | "budget.alert"
+  | "quota.warning"
+  | "experiment.concluded"
+  | "render_complete"; // legacy Sprint 1-2 type
+
+export interface EmitNotificationInput {
+  userId: string;
+  type: NotificationType;
+  title: string;
+  body?: string | null;
+  link?: string | null;
+  /**
+   * Stable dedup key (see migration 2026092804d000). When set, a second
+   * emit with the same key is a no-op — this is what makes the
+   * consume-only triggers exactly-once.
+   */
+  dedupKey?: string | null;
+  /** Optional email; only sent when RESEND_API_KEY is configured. */
+  email?: { to: string; subject: string; text: string } | null;
+}
+
+export interface EmitNotificationResult {
+  notified: boolean;
+  /** True when an identical dedup_key row already existed. */
+  duplicate: boolean;
+  emailed: boolean;
+  emailError: string | null;
+}
+
+/**
+ * The single server-side notification writer (Stream D owns this file).
+ * Writes the in-app row (always, never throws on email failure) and sends
+ * email only when configured. Dedup is enforced in two layers: a SELECT
+ * guard plus the partial UNIQUE(user_id, dedup_key) index as backstop
+ * (23505 → duplicate).
+ */
+export async function emitNotification(
+  supabaseAdmin: Pick<SupabaseClient, "from">,
+  input: EmitNotificationInput,
+): Promise<EmitNotificationResult> {
+  const result: EmitNotificationResult = {
+    notified: false,
+    duplicate: false,
+    emailed: false,
+    emailError: null,
+  };
+
+  // Dedup guard.
+  if (input.dedupKey) {
+    try {
+      const { data } = await supabaseAdmin
+        .from("notifications")
+        .select("id")
+        .eq("user_id", input.userId)
+        .eq("dedup_key", input.dedupKey)
+        .limit(1);
+      if ((data as unknown[] | null)?.length) {
+        result.duplicate = true;
+        return result;
+      }
+    } catch (e) {
+      console.error("[notifications] dedup check failed", input.dedupKey, e);
+    }
+  }
+
+  try {
+    const { error } = await supabaseAdmin.from("notifications").insert({
+      user_id: input.userId,
+      type: input.type,
+      title: input.title,
+      body: input.body ?? null,
+      link: input.link ?? null,
+      dedup_key: input.dedupKey ?? null,
+    });
+    if (error) {
+      // 23505 = the partial unique index caught a race: already notified.
+      if ((error as { code?: string }).code === "23505" && input.dedupKey) {
+        result.duplicate = true;
+        return result;
+      }
+      throw new Error((error as { message?: string }).message ?? "insert failed");
+    }
+    result.notified = true;
+  } catch (e) {
+    console.error("[notifications] store failed", input.type, e);
+  }
+
+  // Email — only when a provider key exists (existing pattern, kept).
+  if (!input.email || !isEmailConfigured()) return result;
+  if (!input.email.to) {
+    result.emailError = "no user email";
+    return result;
+  }
+  try {
+    await sendResendEmail(input.email);
+    result.emailed = true;
+  } catch (e) {
+    result.emailError = e instanceof Error ? e.message : "send failed";
+    console.error("[notifications] email failed", input.type, e);
+  }
+  return result;
+}
+
 export interface RenderCompleteInput {
   userId: string;
   userEmail: string | null;
@@ -100,13 +215,22 @@ export async function sendRenderCompleteEmail(
   return result;
 }
 
-async function sendResendEmail(input: { to: string; subject: string; text: string }): Promise<void> {
+/**
+ * Shared Resend sender. Exported so the generic emitNotification path and
+ * the legacy render-complete path use the same provider logic.
+ * Throws on transport/API failure; callers decide whether to swallow.
+ */
+export async function sendResendEmail(input: {
+  to: string;
+  subject: string;
+  text: string;
+}): Promise<void> {
   const key = process.env["RESEND_API_KEY"];
   if (!key) throw new Error("RESEND_API_KEY is not configured.");
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${key}`,
+      Authorization: `Bearer ${key}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
