@@ -95,8 +95,20 @@ Delivered 2026-09-28 on `phase3/stream-c` (never pushed/merged per program rules
 
 **Founder-only before prod:** apply migration `20260928041200_p3_stream_c.sql` via Lovable dashboard SQL editor (in filename order); `LOVABLE_API_KEY` for image generation; six-scene proof render for any character-consistency claim.
 
-## What's next
 
+## Phase 3 Wave 1 integration (2026-09-28) — Streams A–E merged into `phase3/creation`
+
+**Merge commits:** ed583d3 (A) → d63afd6 (B) → f313a05 (C) → 99c4359 (D) → 509aa54 (E), then 251b3c8 (integration repair). All merges `--no-ff`, docs conflicts resolved by keeping both sides; `src/routeTree.gen.ts` regenerated via dev server (never hand-merged).
+
+**Decision renumbering:** every stream independently used D99+; renumbered into one sequence during integration — Stream A kept D99–D104, B → D105–D108, C → D109–D115, D → D116–D124, E → D125–D130. Cross-references in docs and Stream B/E code comments updated. Next free: D131.
+
+**Integration repair (251b3c8):** fixed a `react-hooks/rules-of-hooks` violation in `projects.$projectId.tsx` (a `useState` sat below two early returns after Stream B's merge — moved above them); `eslint --fix` (prettier) over Phase 3 touched files only. 32 `no-explicit-any` errors remain on pre-Phase-3 legacy lines in `src/lib/publish.functions.ts` / `src/lib/publish-gate.test.ts` (2026-09-25 era) — documented in KNOWN_ISSUES, not bulk-fixed per D92.
+
+**Integrated gates (measured 2026-09-28):** `npx tsc --noEmit` clean · `npx vitest run` **1411/1411 pass, 141 files** · `npm run test:worker` **87/87 pass** · `npx eslint` on all 106 Phase-3 touched files — 0 errors on Phase 3 code · `npm run build` PASS · dev-server curls: `/create`, `/create/brand-voices`, `/create/titles`, `/create/campaigns`, `/characters`, `/voices`, `/studio`, `/studio/$projectId` → 200; `/thumbnails` → 307 in-app `?projectId=` redirect (expected); zero server exceptions.
+
+**Migrations now pending manual apply (filename order):** `20260928041000_p3_stream_a` (video_ideas.score) · `20260928041100_p3_stream_b` (research review columns) · `20260928041200_p3_stream_c` (characters, scenes.metadata) · `20260928041300_p3_stream_d` (voices index). Stream E added no migration.
+
+## What's next
 Phase 2 owner-only dependencies: `YOUTUBE_API_KEY` (no live configured-path verification possible without it), manual migration apply (2 new files, in order), `TEST_USER_EMAIL`/`TEST_USER_PASSWORD` for authenticated Playwright, then merge `phase2/intelligence` → `main`.
 
 ## Phase 3 — Creation, Stream A: Ideation & Packaging (F8 / F13 / F14 / F25): SHIPPED (code; migration apply pending)
