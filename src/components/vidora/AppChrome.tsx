@@ -16,6 +16,8 @@ const links = [
   { label: "Research", to: "/research" as const },
   { label: "Intelligence", to: "/intelligence" as const },
   { label: "Analytics", to: "/analytics" as const },
+  { label: "Thumbnails", to: "/thumbnails" as const },
+  { label: "Characters", to: "/characters" as const },
   { label: "Agency", to: "/agency" as const },
   { label: "Billing", to: "/billing" as const },
 ];
