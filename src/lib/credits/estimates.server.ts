@@ -30,6 +30,7 @@ import {
   ELEVENLABS_TTS_USD_PER_CHAR,
   GATEWAY_IMAGE_USD_PER_IMAGE,
   GATEWAY_TTS_USD_PER_CHAR,
+  OPENAI_TTS_USD_PER_CHAR,
   SHOTSTACK_USD_PER_RENDER_MINUTE,
   chatUnitCostUsd,
   GEMINI_FLASH_INPUT_USD_PER_MTOK,
@@ -189,6 +190,10 @@ function estimateTts(input: EstimateInput): CostEstimate {
     rateUsdPerChar = elevenLabsRateUsdPerChar(input.model);
     costBasis = "list-price";
     label = `ElevenLabs ${input.model ?? "eleven_flash_v2_5"}`;
+  } else if (provider === "openai") {
+    rateUsdPerChar = OPENAI_TTS_USD_PER_CHAR;
+    costBasis = "list-price";
+    label = `OpenAI TTS ${input.model ?? "gpt-4o-mini-tts"}`;
   } else if (isGatewayProvider(input.provider)) {
     rateUsdPerChar = GATEWAY_TTS_USD_PER_CHAR;
     costBasis = "gateway-passthrough-estimate";

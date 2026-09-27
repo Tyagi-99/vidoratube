@@ -44,6 +44,9 @@ export const ELEVENLABS_TTS_USD_PER_CHAR = 0.05 / 1000;
 /** ElevenLabs TTS, Multilingual v2/v3 API tier: $0.10 / 1k characters. */
 export const ELEVENLABS_TTS_MULTILINGUAL_USD_PER_CHAR = 0.1 / 1000;
 
+/** OpenAI TTS, gpt-4o-mini-tts list price: $0.60 / 1M characters. */
+export const OPENAI_TTS_USD_PER_CHAR = 0.6 / 1_000_000;
+
 /** Gemini 2.5 Flash list price, USD per 1M tokens (Google Cloud, 2026). */
 export const GEMINI_FLASH_INPUT_USD_PER_MTOK = 0.3;
 export const GEMINI_FLASH_OUTPUT_USD_PER_MTOK = 2.5;
@@ -96,8 +99,11 @@ export type GatewayUsage = {
 
 /** Pulls token counts out of a gateway chat-completions payload. */
 export function extractUsage(payload: unknown): GatewayUsage | null {
-  const u = (payload as { usage?: { prompt_tokens?: unknown; completion_tokens?: unknown; total_tokens?: unknown } })
-    ?.usage;
+  const u = (
+    payload as {
+      usage?: { prompt_tokens?: unknown; completion_tokens?: unknown; total_tokens?: unknown };
+    }
+  )?.usage;
   if (!u) return null;
   const inputTokens = Number(u.prompt_tokens ?? 0);
   const outputTokens = Number(u.completion_tokens ?? 0);
@@ -128,8 +134,7 @@ export function chatUnitCostUsd(
   const total = inputTokens + outputTokens;
   if (total <= 0) return 0;
   const cost =
-    (inputTokens / 1_000_000) * inputRatePerMtok +
-    (outputTokens / 1_000_000) * outputRatePerMtok;
+    (inputTokens / 1_000_000) * inputRatePerMtok + (outputTokens / 1_000_000) * outputRatePerMtok;
   return cost / total;
 }
 
