@@ -46,24 +46,50 @@ export const Route = createFileRoute("/api/public/youtube-callback")({
             ? await encryptToken(tokens.refresh_token)
             : (existing?.refresh_token ?? null);
           if (!refreshToken) return back("youtube=error&reason=no_refresh_token");
-          const { error } = await supabaseAdmin.from("youtube_connections").upsert(
-            {
-              user_id: verified.userId,
-              // Tokens are encrypted at rest (AES-256-GCM). Fails closed when
-              // YOUTUBE_TOKEN_ENCRYPTION_KEY is not configured.
-              refresh_token: refreshToken,
-              access_token: tokens.access_token
-                ? await encryptToken(tokens.access_token)
-                : (existing?.access_token ?? null),
-              expires_at: new Date(Date.now() + (tokens.expires_in ?? 3500) * 1000).toISOString(),
-              scope: mergedScope || null,
-              channel_id: channel.id,
-              channel_title: channel.title,
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: "user_id" },
-          );
+          const { data: stored, error } = await supabaseAdmin
+            .from("youtube_connections")
+            .upsert(
+              {
+                user_id: verified.userId,
+                // Tokens are encrypted at rest (AES-256-GCM). Fails closed when
+                // YOUTUBE_TOKEN_ENCRYPTION_KEY is not configured.
+                refresh_token: refreshToken,
+                access_token:
+                  tokens.access_token
+                    ? await encryptToken(tokens.access_token)
+                    : (existing?.access_token ?? null),
+                expires_at: new Date(Date.now() + (tokens.expires_in ?? 3500) * 1000).toISOString(),
+                scope: mergedScope || null,
+                channel_id: channel.id,
+                channel_title: channel.title,
+                updated_at: new Date().toISOString(),
+              },
+              { onConflict: "user_id" },
+            )
+            .select("id")
+            .single();
           if (error) throw new Error(error.message);
+
+          // Phase 4, Stream A (F27): register the channel in the
+          // channel_connections registry (health + quota surface). Tokens
+          // stay in youtube_connections — only the row id is linked.
+          if (channel.id) {
+            const { registerChannelConnection } = await import("@/lib/publish/channels.server");
+            await registerChannelConnection(supabaseAdmin, {
+              userId: verified.userId,
+              platform: "youtube",
+              externalChannelId: channel.id,
+              displayName: channel.title,
+              youtubeConnectionId: stored?.id ?? null,
+            }).catch((e) => {
+              // Registry failure must not break the OAuth flow that already
+              // succeeded — the row is re-registered on the next connect.
+              console.warn(
+                "[vidora] channel registry write failed",
+                e instanceof Error ? e.message : e,
+              );
+            });
+          }
 
           // Tell the studio which flow just finished so it can resume a publish.
           const done =

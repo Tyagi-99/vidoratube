@@ -276,7 +276,21 @@ export const generateSEOMetadata = createServerFn({ method: "POST" })
 const createPublishJobSchema = z.object({
   project_id: z.string().uuid(),
   video_job_id: z.string().uuid(),
+  /**
+   * Phase 4, Stream A (D136): idempotency key for retried creates. When
+   * supplied and a job with this key already exists, the existing job is
+   * returned instead of inserting a duplicate. Generated server-side when
+   * omitted (the column default backstops direct inserts).
+   */
+  idempotency_key: z.string().trim().min(1).max(128).optional(),
 });
+
+/**
+ * Generates a fresh idempotency key for a publish job.
+ */
+export function newPublishJobIdempotencyKey(): string {
+  return `job_${crypto.randomUUID()}`;
+}
 
 /** Creates a draft publish job. Drafts never publish without approval. */
 export const createPublishJob = createServerFn({ method: "POST" })
@@ -285,12 +299,28 @@ export const createPublishJob = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
+    // Idempotent create: a retried request with the same key resolves to the
+    // existing job instead of duplicating it.
+    if (data.idempotency_key) {
+      const { data: existing } = await supabase
+        .from("publish_jobs")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("idempotency_key", data.idempotency_key)
+        .maybeSingle();
+      if (existing) return { publishJob: existing, idempotent: true as const };
+    }
+
     const { data: job } = await supabase
       .from("video_jobs")
       .select("id, status, result_url")
       .eq("id", data.video_job_id)
       .eq("user_id", userId)
       .maybeSingle();
+    if (!job) throw new Error("Video not found");
+    if (job.status !== "completed" || !job.result_url) {
+      throw new Error("This video hasn't finished rendering yet.");
+    }
     if (!job) throw new Error("Video not found");
     if (job.status !== "completed" || !job.result_url) {
       throw new Error("This video hasn't finished rendering yet.");
@@ -323,6 +353,7 @@ export const createPublishJob = createServerFn({ method: "POST" })
         title: seo?.selected_title ?? null,
         description: seo?.description ?? null,
         tags: seo?.tags ?? [],
+        idempotency_key: data.idempotency_key ?? newPublishJobIdempotencyKey(),
       })
       .select()
       .single();
