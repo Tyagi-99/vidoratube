@@ -298,11 +298,34 @@ export const advanceVideoJob = createServerFn({ method: "POST" })
           const claimed = await claimJobStage(supabase, job.id, userId, "voiceover");
           if (!claimed) return await refetch();
           try {
+            // Phase 1 pre-flight credit gate: ESTIMATE the TTS cost, verify
+            // balance + budgets, and refuse BEFORE the paid provider call.
+            // This gate never debits — the render's ledger debit already
+            // happened at plan time; the debit RPCs re-check atomically.
+            // NOTE: video_jobs carries no workspace/project columns, so only
+            // the user balance is gated on this path; workspace/project
+            // budgets apply where a scope is known (generation_jobs flows).
+            const { preflightCreditsCheck } = await import("./credits/preflight.server");
+            const { elevenLabsConfigured, DEFAULT_VOICE_MODEL } = await import(
+              "./providers/voice.server"
+            );
+            const narrationText = job.narration || job.script;
+            const ttsConfigured = elevenLabsConfigured();
+            const preflight = await preflightCreditsCheck(supabaseAdmin, {
+              userId,
+              jobType: "tts",
+              provider: ttsConfigured ? "elevenlabs" : "lovable-ai",
+              model: ttsConfigured ? DEFAULT_VOICE_MODEL : "gpt-4o-mini-tts",
+              characters: narrationText.length,
+            });
+            if (!preflight.ok) {
+              throw new Error(`${preflight.code}: ${preflight.message}`);
+            }
             const { url, estimatedSeconds } = await generateVoiceover(
               supabaseAdmin,
               job.id,
               userId,
-              job.narration || job.script,
+              narrationText,
               job.voice,
             );
             return await save({
