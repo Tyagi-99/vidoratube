@@ -105,6 +105,19 @@ const EnqueueSchema = z.object({
    * gating) and meta.brandOverlay; membership is verified before enqueue.
    */
   workspaceId: z.string().uuid().optional(),
+  /**
+   * F24 shorts repurposing: source RENDER id for renders.parent_id
+   * (self-FK to renders.id per 20260926001000_renders_parent_id.sql — a
+   * dub/short derives from a finished render). Nullable; the short stays
+   * linked to its scenes' project via the standard project_id column.
+   * Optional; existing callers leave it null.
+   */
+  parentId: z.string().uuid().nullable().optional(),
+  /**
+   * F24 shorts repurposing: meta.kind = "short" distinguishes a shorts
+   * recut from a full-video render (D54 pattern). Defaults to "full".
+   */
+  kind: z.enum(["full", "short"]).default("full").optional(),
 });
 
 /** Enqueue a server-side render. Rate-limited: 10/hour per user. */
@@ -286,6 +299,9 @@ export function buildServerRenderRows(params: {
     id: randomUUID(),
     user_id: params.userId,
     project_id: params.input.projectId,
+    // F24: parent_id is the source RENDER (self-FK to renders.id); the
+    // project linkage travels on project_id above.
+    parent_id: params.input.parentId ?? null,
     type: "full",
     engine: "server_ffmpeg",
     format: "mp4",
@@ -298,6 +314,7 @@ export function buildServerRenderRows(params: {
     meta: {
       scenes: params.input.scenes,
       title: params.input.title,
+      kind: params.input.kind ?? "full",
       aspect,
       fps: params.input.fps,
       burnCaptions: params.input.burnCaptions,

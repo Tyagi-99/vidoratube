@@ -91,12 +91,56 @@ describe("story music filtergraph (ffmpeg dry-run)", () => {
     execFileSync(
       "ffmpeg",
       [
-        "-f", "lavfi", "-i", "sine=frequency=440:duration=3",
-        "-f", "lavfi", "-i", "sine=frequency=880:duration=3",
-        "-filter_complex", fc,
-        "-map", "[aout]",
-        "-t", "3",
-        "-f", "null", "-",
+        "-f",
+        "lavfi",
+        "-i",
+        "sine=frequency=440:duration=3",
+        "-f",
+        "lavfi",
+        "-i",
+        "sine=frequency=880:duration=3",
+        "-filter_complex",
+        fc,
+        "-map",
+        "[aout]",
+        "-t",
+        "3",
+        "-f",
+        "null",
+        "-",
+      ],
+      { stdio: "pipe", timeout: 30000 },
+    );
+  });
+
+  itFfmpeg("explicit asplit=2 voice split parses and runs (Stream E D99)", () => {
+    // The pipeline's post-D99 topology: the voice bus is split EXPLICITLY —
+    // one copy drives the sidechain key, the other is the audible mix input.
+    const fc =
+      `[0:a]asplit=2[vkey][vmix];` +
+      `[1:a]volume=0.15,afade=t=in:st=0:d=1[music];` +
+      `[music][vkey]sidechaincompress=${storyDuckParams()}:makeup=1[ducked];` +
+      `[vmix][ducked]amix=inputs=2:normalize=0[aout]`;
+    execFileSync(
+      "ffmpeg",
+      [
+        "-f",
+        "lavfi",
+        "-i",
+        "sine=frequency=440:duration=3",
+        "-f",
+        "lavfi",
+        "-i",
+        "sine=frequency=880:duration=3",
+        "-filter_complex",
+        fc,
+        "-map",
+        "[aout]",
+        "-t",
+        "3",
+        "-f",
+        "null",
+        "-",
       ],
       { stdio: "pipe", timeout: 30000 },
     );
@@ -117,10 +161,17 @@ describe("story-scaled parallax (ffmpeg dry-run)", () => {
     execFileSync(
       "ffmpeg",
       [
-        "-f", "lavfi", "-i", "testsrc2=size=640x360:duration=1:rate=30",
-        "-vf", `${filter},fps=30,format=yuv420p`,
-        "-frames:v", "30",
-        "-f", "null", "-",
+        "-f",
+        "lavfi",
+        "-i",
+        "testsrc2=size=640x360:duration=1:rate=30",
+        "-vf",
+        `${filter},fps=30,format=yuv420p`,
+        "-frames:v",
+        "30",
+        "-f",
+        "null",
+        "-",
       ],
       { stdio: "pipe", timeout: 30000 },
     );

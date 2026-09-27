@@ -48,6 +48,7 @@ import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authen
 import { Route as AuthenticatedProjectsProjectIdRouteImport } from './routes/_authenticated/projects.$projectId'
 import { Route as AuthenticatedResearchIndexRouteImport } from './routes/_authenticated/research.index'
 import { Route as AuthenticatedResearchProjectIdRouteImport } from './routes/_authenticated/research.$projectId'
+import { Route as AuthenticatedStudioProjectIdRouteImport } from './routes/_authenticated/studio.$projectId'
 import { Route as AuthenticatedThumbnailsIndexRouteImport } from './routes/_authenticated/thumbnails.index'
 import { Route as AuthenticatedVoicesIndexRouteImport } from './routes/_authenticated/voices/index'
 import { Route as ApiPublicMetaCallbackRouteImport } from './routes/api/public/meta-callback'
@@ -276,6 +277,12 @@ const AuthenticatedResearchProjectIdRoute =
     path: '/research/$projectId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedStudioProjectIdRoute =
+  AuthenticatedStudioProjectIdRouteImport.update({
+    id: '/$projectId',
+    path: '/$projectId',
+    getParentRoute: () => AuthenticatedStudioRoute,
+  } as any)
 const AuthenticatedThumbnailsIndexRoute =
   AuthenticatedThumbnailsIndexRouteImport.update({
     id: '/thumbnails/',
@@ -374,7 +381,7 @@ export interface FileRoutesByFullPath {
   '/status': typeof StatusRoute
   '/terms': typeof TermsRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
-  '/studio': typeof AuthenticatedStudioRoute
+  '/studio': typeof AuthenticatedStudioRouteWithChildren
   '/guides/$slug': typeof GuidesSlugRoute
   '/r/$code': typeof RCodeRoute
   '/robots/txt': typeof RobotsTxtRoute
@@ -393,6 +400,7 @@ export interface FileRoutesByFullPath {
   '/create/titles': typeof AuthenticatedCreateTitlesRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/research/$projectId': typeof AuthenticatedResearchProjectIdRoute
+  '/studio/$projectId': typeof AuthenticatedStudioProjectIdRoute
   '/api/public/meta-callback': typeof ApiPublicMetaCallbackRoute
   '/api/public/youtube-callback': typeof ApiPublicYoutubeCallbackRoute
   '/api/webhooks/dodo': typeof ApiWebhooksDodoRoute
@@ -428,7 +436,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/status': typeof StatusRoute
   '/terms': typeof TermsRoute
-  '/studio': typeof AuthenticatedStudioRoute
+  '/studio': typeof AuthenticatedStudioRouteWithChildren
   '/guides/$slug': typeof GuidesSlugRoute
   '/r/$code': typeof RCodeRoute
   '/robots/txt': typeof RobotsTxtRoute
@@ -447,6 +455,7 @@ export interface FileRoutesByTo {
   '/create/titles': typeof AuthenticatedCreateTitlesRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/research/$projectId': typeof AuthenticatedResearchProjectIdRoute
+  '/studio/$projectId': typeof AuthenticatedStudioProjectIdRoute
   '/api/public/meta-callback': typeof ApiPublicMetaCallbackRoute
   '/api/public/youtube-callback': typeof ApiPublicYoutubeCallbackRoute
   '/api/webhooks/dodo': typeof ApiWebhooksDodoRoute
@@ -485,7 +494,7 @@ export interface FileRoutesById {
   '/status': typeof StatusRoute
   '/terms': typeof TermsRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
-  '/_authenticated/studio': typeof AuthenticatedStudioRoute
+  '/_authenticated/studio': typeof AuthenticatedStudioRouteWithChildren
   '/guides/$slug': typeof GuidesSlugRoute
   '/r/$code': typeof RCodeRoute
   '/robots/txt': typeof RobotsTxtRoute
@@ -504,6 +513,7 @@ export interface FileRoutesById {
   '/_authenticated/create/titles': typeof AuthenticatedCreateTitlesRoute
   '/_authenticated/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/_authenticated/research/$projectId': typeof AuthenticatedResearchProjectIdRoute
+  '/_authenticated/studio/$projectId': typeof AuthenticatedStudioProjectIdRoute
   '/api/public/meta-callback': typeof ApiPublicMetaCallbackRoute
   '/api/public/youtube-callback': typeof ApiPublicYoutubeCallbackRoute
   '/api/webhooks/dodo': typeof ApiWebhooksDodoRoute
@@ -561,6 +571,7 @@ export interface FileRouteTypes {
     | '/create/titles'
     | '/projects/$projectId'
     | '/research/$projectId'
+    | '/studio/$projectId'
     | '/api/public/meta-callback'
     | '/api/public/youtube-callback'
     | '/api/webhooks/dodo'
@@ -615,6 +626,7 @@ export interface FileRouteTypes {
     | '/create/titles'
     | '/projects/$projectId'
     | '/research/$projectId'
+    | '/studio/$projectId'
     | '/api/public/meta-callback'
     | '/api/public/youtube-callback'
     | '/api/webhooks/dodo'
@@ -671,6 +683,7 @@ export interface FileRouteTypes {
     | '/_authenticated/create/titles'
     | '/_authenticated/projects/$projectId'
     | '/_authenticated/research/$projectId'
+    | '/_authenticated/studio/$projectId'
     | '/api/public/meta-callback'
     | '/api/public/youtube-callback'
     | '/api/webhooks/dodo'
@@ -995,6 +1008,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedResearchProjectIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/studio/$projectId': {
+      id: '/_authenticated/studio/$projectId'
+      path: '/$projectId'
+      fullPath: '/studio/$projectId'
+      preLoaderRoute: typeof AuthenticatedStudioProjectIdRouteImport
+      parentRoute: typeof AuthenticatedStudioRoute
+    }
     '/_authenticated/thumbnails/': {
       id: '/_authenticated/thumbnails/'
       path: '/thumbnails'
@@ -1128,9 +1148,20 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
 const AuthenticatedAdminRouteWithChildren =
   AuthenticatedAdminRoute._addFileChildren(AuthenticatedAdminRouteChildren)
 
+interface AuthenticatedStudioRouteChildren {
+  AuthenticatedStudioProjectIdRoute: typeof AuthenticatedStudioProjectIdRoute
+}
+
+const AuthenticatedStudioRouteChildren: AuthenticatedStudioRouteChildren = {
+  AuthenticatedStudioProjectIdRoute: AuthenticatedStudioProjectIdRoute,
+}
+
+const AuthenticatedStudioRouteWithChildren =
+  AuthenticatedStudioRoute._addFileChildren(AuthenticatedStudioRouteChildren)
+
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRouteWithChildren
-  AuthenticatedStudioRoute: typeof AuthenticatedStudioRoute
+  AuthenticatedStudioRoute: typeof AuthenticatedStudioRouteWithChildren
   AuthenticatedAgencyWorkspaceIdRoute: typeof AuthenticatedAgencyWorkspaceIdRoute
   AuthenticatedCreateBrandVoicesRoute: typeof AuthenticatedCreateBrandVoicesRoute
   AuthenticatedCreateCampaignsRoute: typeof AuthenticatedCreateCampaignsRoute
@@ -1159,7 +1190,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRouteWithChildren,
-  AuthenticatedStudioRoute: AuthenticatedStudioRoute,
+  AuthenticatedStudioRoute: AuthenticatedStudioRouteWithChildren,
   AuthenticatedAgencyWorkspaceIdRoute: AuthenticatedAgencyWorkspaceIdRoute,
   AuthenticatedCreateBrandVoicesRoute: AuthenticatedCreateBrandVoicesRoute,
   AuthenticatedCreateCampaignsRoute: AuthenticatedCreateCampaignsRoute,

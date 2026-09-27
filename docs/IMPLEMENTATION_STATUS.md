@@ -152,3 +152,29 @@ Phase 3 Stream B remaining gates: full `vitest` suite, scoped ESLint, `npm run b
 **Gates:** `npx tsc --noEmit` — clean on all Stream-D files (3 pre-existing errors in untouched `guides.$slug.tsx`); `npx vitest run src/lib/creation` — **58/58 pass, 5 files** (chain 11, library 12, voice.functions orchestration 8, stock 27); `npx eslint` on Stream-D paths — **0 errors, 0 warnings** (pre-existing notes in untouched legacy lines of `studio.tsx` and coordinator-owned `contracts.ts`); `npm run build` — PASS (`voices-Br1LJuTN.js` chunk bundled); dev-server curl — `/voices` + `/studio` 200, zero server exceptions.
 
 **Founder blockers:** Pexels/Pixabay API keys (no live stock search verification possible), ElevenLabs/OpenAI keys (no live TTS verification), manual migration apply.
+
+## Phase 3 — Stream E (F20 Video Studio, F21 Render Checkpoints, F24 Shorts Repurposing)
+
+Branch: `phase3/stream-e` (not pushed). Coordinator-owned `src/lib/creation/contracts.ts` untouched.
+
+| Workstream | State | Evidence |
+|---|---|---|
+| Explicit audio root fix (D99) | **SHIPPED** (code) | `buildFinalAudioMix` (`src/lib/audio.ts:117`) — explicit `[voice]asplit=2[vkey][vmix]` topology (sidechain key vs audible mix); worker dependency-free mirror (`worker/src/pipeline.ts:442-444`). Old graph's double consumption was correct-by-design (control signal), now explicit + unit-testable. |
+| F20 Video Studio backend | **SHIPPED** (code) | `src/lib/creation/video-studio/`: `manifest.ts` (pinned `SceneManifest` via `buildSceneManifest`/`manifestFromStudioScenes`; duration explicitly an estimate until measured audio), `regen.server.ts` (`regenerateSceneAudioCore`/`regenerateSceneVisualCore`/`recomputeSceneTimingCore` — owner verify, preflight, one provider attempt, debit-before-provider, refund-on-fail, `scene_versions` row; TTS invoked `{voiceId, model}`), `qc.ts` (`qcStudioTimeline` → pinned `QCResult`), `studio.functions.ts` (JSON-safe server fns). |
+| F20 Video Studio route | **SHIPPED** (code) | `src/routes/_authenticated/studio.$projectId.tsx` — Scenes / Assemble & Render / Shorts tabs; scene edit + per-scene regen + repair; QC blocking gates; quote via existing quoting; enqueue via existing `enqueueServerRender`; durations labeled ESTIMATE. Dev-server curl: HTTP 200. |
+| F21 checkpoint foundation | **SHIPPED** (code) | App: `src/lib/creation/checkpoints/checkpoints.ts` — `generation_jobs.checkpoint.studio` (done/failed/first-incomplete/invalidate-one-scene). Worker: `worker/src/segment-checkpoints.ts` + `readRenderCheckpoint`/`markSegmentDone` (`worker/src/supabase.ts`) — `renders.checkpoint.segments`, resume from first incomplete, stale-local-segment cleanup. D100: two stores intentionally separate, not auto-synced. |
+| F24 Shorts repurposing | **SHIPPED** (code) | `src/lib/creation/shorts/`: rule-based hook-first recut plan (labeled not-AI), tightened narration, 9:16, duration cap, exact quote; enqueue `kind: "short"`; `parent_id` = optional source RENDER id (D102 — self-FK to `renders(id)`, never the project id; project link via `project_id`); never auto-publishes. |
+| RenderPanel extension | **SHIPPED** (code) | Optional `renderKind`/`parentRenderId` props (defaults = existing full-render behavior); single `enqueueServerRender` path unchanged (D104). |
+
+No migration needed: all Stream E state uses existing tables/columns (`scenes`, `scene_versions`, `generation_jobs.checkpoint`, `renders.checkpoint`, `renders.parent_id` + self-FK from `20260926001000_renders_parent_id.sql`, `renders.meta`).
+
+## Phase 3 Stream E final gate (2026-09-28)
+
+- `npx tsc --noEmit` — clean (0 errors)
+- `npx vitest run` (full app suite) — **1145/1145 pass, 121 files**
+- `npx vitest run src/lib/creation` — **39/39 pass, 6 files**
+- `npx vitest run src/lib/audio.test.ts` — **11/11 pass**
+- `npm run test:worker` — **87/87 pass, 28 suites** (10 new segment-checkpoint tests + explicit-asplit dry-run)
+- eslint on Stream E touched files — 0 errors in Stream E-introduced lines; pre-existing violations in untouched legacy lines left alone per D92 (coordinator-owned `contracts.ts` not edited)
+- `npm run build` — PASS
+- Dev-server curl of `/_authenticated/studio/$projectId` — HTTP 200
