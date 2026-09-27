@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Trash2, UserPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { addMember, removeMember, updateMemberRole } from "@/lib/agency/agency.functions";
+import { InviteManager } from "./InviteManager";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -100,7 +101,10 @@ export function MemberManager({
                 <SelectItem value="owner">owner</SelectItem>
               </SelectContent>
             </Select>
-            <Button onClick={() => add.mutate()} disabled={add.isPending || email.trim().length === 0}>
+            <Button
+              onClick={() => add.mutate()}
+              disabled={add.isPending || email.trim().length === 0}
+            >
               <UserPlus className="mr-1 size-4" /> Invite
             </Button>
           </div>
@@ -112,14 +116,18 @@ export function MemberManager({
             {roster.members.map((m) => (
               <li key={m.user_id} className="flex items-center justify-between py-2">
                 <div className="flex items-center gap-2 text-sm">
-                  <span className="font-mono text-xs text-muted-foreground">{m.user_id.slice(0, 8)}…</span>
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {m.user_id.slice(0, 8)}…
+                  </span>
                   {m.user_id === myUserId && <Badge variant="secondary">you</Badge>}
                 </div>
                 <div className="flex items-center gap-2">
                   {isOwner && m.user_id !== myUserId ? (
                     <Select
                       value={m.role}
-                      onValueChange={(v) => changeRole.mutate({ memberUserId: m.user_id, newRole: v as WorkspaceRole })}
+                      onValueChange={(v) =>
+                        changeRole.mutate({ memberUserId: m.user_id, newRole: v as WorkspaceRole })
+                      }
                     >
                       <SelectTrigger className="w-28">
                         <SelectValue />
@@ -134,7 +142,12 @@ export function MemberManager({
                     <Badge variant="outline">{m.role}</Badge>
                   )}
                   {isOwner && m.user_id !== myUserId && (
-                    <Button variant="ghost" size="icon" onClick={() => remove.mutate(m.user_id)} aria-label="Remove member">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => remove.mutate(m.user_id)}
+                      aria-label="Remove member"
+                    >
                       <Trash2 className="size-4" />
                     </Button>
                   )}
@@ -147,8 +160,11 @@ export function MemberManager({
           </ul>
         )}
         <p className="text-xs text-muted-foreground">
-          Viewers are the client side: they approve content but cannot edit channels, brand, or schedules.
+          Viewers are the client side: they approve content but cannot edit channels, brand, or
+          schedules.
         </p>
+        {/* Phase 4 Stream E (F40): token-based invites for people without accounts. */}
+        <InviteManager workspaceId={workspaceId} myRole={myRole} />
       </CardContent>
     </Card>
   );

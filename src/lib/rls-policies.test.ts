@@ -161,6 +161,11 @@ const WORKSPACE_MEMBER_SCOPED_TABLES = [
   "audit_logs",
   "workspace_budgets",
   "api_keys",
+  // Phase 4 Stream E — platform domain (2026092804e000).
+  // brand_assets: members read, owners/editors manage. workspace_invites:
+  // members read; no client write policies (service-role writes only).
+  "brand_assets",
+  "workspace_invites",
 ];
 
 /** Tables intentionally readable/writable without auth (documented exceptions). */
