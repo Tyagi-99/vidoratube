@@ -11,16 +11,18 @@ labeled `DEMO DATA` wherever it appears in product.
 
 **Test columns:** U = unit (vitest) · I = integration (server functions / RPCs
 against a test DB) · E = end-to-end (Playwright) · M = manual verification
-checklist. `pass` = measured green in Phase 0 · `missing` = not yet written ·
+checklist. `pass` = measured green · `missing` = not yet written ·
 `n/a` = not applicable.
+
+*Database COMPLETE = schema coded, RLS-covered, static tests green. Migrations are NOT applied to production (Lovable requires manual apply — see KNOWN_ISSUES.md).
 
 ## Foundation
 
 | Feature | Current state | Target state | Frontend | Backend | Database | External API | U | I | E | M | Status |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | Auth | REAL — Supabase email auth, `requireAppUser` fail-closed middleware, RLS everywhere | Harden: session rotation, admin 403 clarity | existing | existing | existing | Supabase Auth | pass | missing | missing | done | COMPLETE |
-| Workspace | PARTIAL — `/agency/*` workspaces/members/channels wired; per-operation role checks + `audit_logs` missing | Roles (Owner/Admin/Strategist/Creator/Viewer/Client), scoped permissions, audit log | extend | extend | extend (`audit_logs`) | — | pass | missing | missing | pending | IN PROGRESS |
-| Database | REAL — ~69 tables, 36 migrations, RLS, idempotent RPCs | + new entities below, pgvector, workspace budgets, cron owner for `requeue_stale_renders` | — | migrations | new tables | — | pass | missing | n/a | done | IN PROGRESS |
+| Workspace | REAL — roles + audit + 403 shipped (Phase 1) | Roles (Owner/Admin/Strategist/Creator/Viewer/Client), scoped permissions, audit log | done | done | `audit_logs` + widened role CHECK | — | pass (34 new) | missing | missing | done | COMPLETE |
+| Database | REAL — 32 new tables migrated (Phase 1), RLS everywhere | + new entities below, pgvector, workspace budgets, cron owner for `requeue_stale_renders` | — | migrations | 32 new tables | — | pass (RLS test 9/9) | missing | n/a | done | COMPLETE* |
 | Jobs | PARTIAL — enqueue real (SKIP LOCKED, heartbeats); **worker not deployed** | Deploy worker, checkpoint/resume, scene-level repair, provider task IDs, idempotency | extend | worker deploy | `generation_jobs`, `provider_tasks` | fal.ai | pass | missing | missing | pending | IN PROGRESS |
 | Credits | REAL — per-minute ledger, idempotent debit/refund RPCs | + cost estimates, balance checks, workspace/project budgets | extend | extend | `credit_ledger` exists | — | pass | missing | missing | done | IN PROGRESS |
 | Providers | PARTIAL — ElevenLabs TTS, Lovable gateway (Gemini/OpenAI), fal.ai (sole video, no fallback); transcription/search contract-only | Formal `Text/Image/Video/TTS/Research/Storage` interfaces, fallbacks, usage+latency+cost tracing | — | extend | `provider_tasks` | ElevenLabs, fal.ai, Pexels/Pixabay | pass | missing | missing | pending | IN PROGRESS |
