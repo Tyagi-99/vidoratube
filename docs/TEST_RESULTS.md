@@ -1,21 +1,26 @@
 # Vidora OS — Test Results
 
-Exact counts from runs on `phase1/foundation`. Updated 2026-09-27.
+Exact counts from runs on `phase2/intelligence`. Updated 2026-09-27.
 
-## Current (post W-DB + W-ROLES merge)
+## Current (post Phase 2 streams A–D merge + integration + E2E alignment)
 
 | Suite | Result |
 |---|---|
 | `npx tsc --noEmit` (strict + noUnusedLocals + noUncheckedIndexedAccess + exactOptionalPropertyTypes) | **clean, 0 errors** |
-| `npm run lint` (app) | Pre-existing baseline on `origin/main`: **4459 errors / 13 warnings** (mostly `no-explicit-any` + prettier across legacy code). Phase 1 added 37 new prettier errors via workers — **all fixed**; every Phase-1-touched file (`git diff --name-only origin/main`) is eslint-clean. Repo not bulk-reformatted (see D92). |
-| `npx vitest run` (unit) | **976/976 pass, 108 files** on `phase1/foundation` (852 Phase 0 → +34 roles → +46 credits → +20 providers → +24 jobs). |
-| `npm run test:worker` | **76/76 pass** (unchanged). |
-| `npx tsc --noEmit` | **Clean.** |
-| `npm run build` (production) | **Passes** (Nitro build completes, preview/deployable). |
-| `npm run test:worker` (node:test, worker package) | **76/76 pass** (unchanged) |
-| Production build (`npm run build`) | **PASS** (last full run Phase 0; re-run at Phase 1 gate) |
-| Playwright E2E | specs exist, **not yet run** in Phase 1 |
-| `src/lib/rls-policies.test.ts` (static RLS audit) | **9/9 pass**, covers 32 new tables |
+| `npm run lint` (app) | Repo baseline on base `9014061`: **4366 problems (4353 errors / 13 warnings)** (mostly `no-explicit-any` + prettier across legacy code). On `phase2/intelligence`: **4355 problems (4342 errors / 13 warnings)** — Phase 2 adds zero new errors (11 fewer than base). All Phase-2-touched files (`src/lib/intelligence`, `src/routes/_authenticated/intelligence`, `e2e/niche-finder.spec.ts`) are eslint-clean: 0 errors, 0 warnings. |
+| `npx vitest run src/lib/intelligence` (unit) | **129/129 pass, 8 files** (A37 + B35 + C37 + D20) |
+| `npx vitest run` (unit) | **1105/1105 pass, 116 files** on `phase2/intelligence` |
+| `npm run test:worker` | **76/76 pass** (unchanged; run before UI/type-only refactors that did not touch worker code) |
+| `npm run build` (production) | **PASS** (Nitro build completes, deploy output generated) |
+| Dev-server route walkthrough | **9/9 intelligence routes 200**, zero server exceptions in dev log |
+| Playwright E2E (`e2e/niche-finder.spec.ts`) | Dual-mode spec rewritten 2026-09-27 to match real UI (New niche dialog flow, label associations, data-testid row hooks, draft-script handoff assertion); see status below |
+| `src/lib/rls-policies.test.ts` (static RLS audit) | **9/9 pass**, covers 32 Phase-1 tables |
+
+## E2E status (2026-09-27)
+
+- **Selector alignment:** the Stream-D-authored spec assumed a query-input search flow and `tbody tr` row markup; the merged UI uses card grids + a New niche dialog. Fixed: `htmlFor`/`id` label associations (create dialog + filter bar), `data-testid="channel-row|video-row|outlier-row|trend-row"`, spec rewritten to the real flow (New niche → fill → Create niche → score/freshness/factors → filter-bar narrowing → blueprint → channel detail + similar → video intel → outliers + "Draft script" → toast → trends citations → smart folders).
+- **Unconfigured branch:** unit-verified — without `YOUTUBE_API_KEY` every fetch returns `{ status: "unconfigured" }` naming the key, with zero network calls and zero quota inserts (`youtube-api.server.test.ts` "unconfigured path").
+- **Configured branch (real YouTube key):** not yet executed — requires `TEST_USER_EMAIL`/`TEST_USER_PASSWORD` plus `YOUTUBE_API_KEY`; creating a niche in the scenario burns real quota, so it must run deliberately. Recorded as **pending**, not passed.
 
 ## Rules being enforced
 
