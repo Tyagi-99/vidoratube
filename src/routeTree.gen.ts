@@ -49,6 +49,7 @@ import { Route as AuthenticatedProjectsProjectIdRouteImport } from './routes/_au
 import { Route as AuthenticatedResearchIndexRouteImport } from './routes/_authenticated/research.index'
 import { Route as AuthenticatedResearchProjectIdRouteImport } from './routes/_authenticated/research.$projectId'
 import { Route as AuthenticatedThumbnailsIndexRouteImport } from './routes/_authenticated/thumbnails.index'
+import { Route as AuthenticatedVoicesIndexRouteImport } from './routes/_authenticated/voices/index'
 import { Route as ApiPublicMetaCallbackRouteImport } from './routes/api/public/meta-callback'
 import { Route as ApiPublicYoutubeCallbackRouteImport } from './routes/api/public/youtube-callback'
 import { Route as ApiWebhooksDodoRouteImport } from './routes/api/webhooks/dodo'
@@ -281,6 +282,12 @@ const AuthenticatedThumbnailsIndexRoute =
     path: '/thumbnails/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedVoicesIndexRoute =
+  AuthenticatedVoicesIndexRouteImport.update({
+    id: '/voices/',
+    path: '/voices/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ApiPublicMetaCallbackRoute = ApiPublicMetaCallbackRouteImport.update({
   id: '/api/public/meta-callback',
   path: '/api/public/meta-callback',
@@ -401,6 +408,7 @@ export interface FileRoutesByFullPath {
   '/projects/': typeof AuthenticatedProjectsIndexRoute
   '/research/': typeof AuthenticatedResearchIndexRoute
   '/thumbnails/': typeof AuthenticatedThumbnailsIndexRoute
+  '/voices/': typeof AuthenticatedVoicesIndexRoute
   '/intelligence/channels/$channelId': typeof AuthenticatedIntelligenceChannelsChannelIdRoute
   '/intelligence/niches/$nicheId': typeof AuthenticatedIntelligenceNichesNicheIdRoute
   '/intelligence/videos/$videoId': typeof AuthenticatedIntelligenceVideosVideoIdRoute
@@ -454,6 +462,7 @@ export interface FileRoutesByTo {
   '/projects': typeof AuthenticatedProjectsIndexRoute
   '/research': typeof AuthenticatedResearchIndexRoute
   '/thumbnails': typeof AuthenticatedThumbnailsIndexRoute
+  '/voices': typeof AuthenticatedVoicesIndexRoute
   '/intelligence/channels/$channelId': typeof AuthenticatedIntelligenceChannelsChannelIdRoute
   '/intelligence/niches/$nicheId': typeof AuthenticatedIntelligenceNichesNicheIdRoute
   '/intelligence/videos/$videoId': typeof AuthenticatedIntelligenceVideosVideoIdRoute
@@ -510,6 +519,7 @@ export interface FileRoutesById {
   '/_authenticated/projects/': typeof AuthenticatedProjectsIndexRoute
   '/_authenticated/research/': typeof AuthenticatedResearchIndexRoute
   '/_authenticated/thumbnails/': typeof AuthenticatedThumbnailsIndexRoute
+  '/_authenticated/voices/': typeof AuthenticatedVoicesIndexRoute
   '/_authenticated/intelligence/channels/$channelId': typeof AuthenticatedIntelligenceChannelsChannelIdRoute
   '/_authenticated/intelligence/niches/$nicheId': typeof AuthenticatedIntelligenceNichesNicheIdRoute
   '/_authenticated/intelligence/videos/$videoId': typeof AuthenticatedIntelligenceVideosVideoIdRoute
@@ -566,6 +576,7 @@ export interface FileRouteTypes {
     | '/projects/'
     | '/research/'
     | '/thumbnails/'
+    | '/voices/'
     | '/intelligence/channels/$channelId'
     | '/intelligence/niches/$nicheId'
     | '/intelligence/videos/$videoId'
@@ -619,6 +630,7 @@ export interface FileRouteTypes {
     | '/projects'
     | '/research'
     | '/thumbnails'
+    | '/voices'
     | '/intelligence/channels/$channelId'
     | '/intelligence/niches/$nicheId'
     | '/intelligence/videos/$videoId'
@@ -674,6 +686,7 @@ export interface FileRouteTypes {
     | '/_authenticated/projects/'
     | '/_authenticated/research/'
     | '/_authenticated/thumbnails/'
+    | '/_authenticated/voices/'
     | '/_authenticated/intelligence/channels/$channelId'
     | '/_authenticated/intelligence/niches/$nicheId'
     | '/_authenticated/intelligence/videos/$videoId'
@@ -989,6 +1002,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedThumbnailsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/voices/': {
+      id: '/_authenticated/voices/'
+      path: '/voices'
+      fullPath: '/voices/'
+      preLoaderRoute: typeof AuthenticatedVoicesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/public/meta-callback': {
       id: '/api/public/meta-callback'
       path: '/api/public/meta-callback'
@@ -1126,6 +1146,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedProjectsIndexRoute: typeof AuthenticatedProjectsIndexRoute
   AuthenticatedResearchIndexRoute: typeof AuthenticatedResearchIndexRoute
   AuthenticatedThumbnailsIndexRoute: typeof AuthenticatedThumbnailsIndexRoute
+  AuthenticatedVoicesIndexRoute: typeof AuthenticatedVoicesIndexRoute
   AuthenticatedIntelligenceChannelsChannelIdRoute: typeof AuthenticatedIntelligenceChannelsChannelIdRoute
   AuthenticatedIntelligenceNichesNicheIdRoute: typeof AuthenticatedIntelligenceNichesNicheIdRoute
   AuthenticatedIntelligenceVideosVideoIdRoute: typeof AuthenticatedIntelligenceVideosVideoIdRoute
@@ -1154,6 +1175,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedProjectsIndexRoute: AuthenticatedProjectsIndexRoute,
   AuthenticatedResearchIndexRoute: AuthenticatedResearchIndexRoute,
   AuthenticatedThumbnailsIndexRoute: AuthenticatedThumbnailsIndexRoute,
+  AuthenticatedVoicesIndexRoute: AuthenticatedVoicesIndexRoute,
   AuthenticatedIntelligenceChannelsChannelIdRoute:
     AuthenticatedIntelligenceChannelsChannelIdRoute,
   AuthenticatedIntelligenceNichesNicheIdRoute:

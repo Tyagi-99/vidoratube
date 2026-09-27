@@ -35,6 +35,17 @@ Exact counts from runs on `phase2/intelligence` + Phase 3 Stream B (`phase3/stre
 | `npm run build` (Stream C, 2026-09-28) | **PASS** (Nitro production build completes) |
 | Dev-server route curl (Stream C, 2026-09-28) | `/thumbnails` → **200**, `/characters` → **200** (SSR title + meta description confirmed in HTML); auth layout pending-shell renders as expected for unauthenticated curl |
 
+## Phase 3 Stream D — Voice & Stock (2026-09-28, branch `phase3/stream-d`)
+
+| Suite | Result |
+|---|---|
+| `npx tsc --noEmit` | **clean on all Stream-D files**; 3 pre-existing errors in untouched `src/routes/guides.$slug.tsx` (implicit `any` params, from an earlier commit) |
+| `npx vitest run src/lib/creation` | **58/58 pass, 5 files** — chain 11 (ordered fallback, one attempt/provider, throwing-adapter conversion, empty-chain unconfigured), library 12 (upload validation, clone legal gate, catalog merge, TTS routing), voice.functions 8 (preflight gate → zero paid calls, NO_TTS_PROVIDER before preflight, VOICE_NOT_FOUND / VOICE_NOT_SYNTHESIZABLE gating, happy path: single cost record + checkpoint-before-completion, idempotent completed-job reuse, TTS_FAILED refund path, JOB_IN_PROGRESS pollable), stock 27 (unconfigured zero-network, mock labeling D48, rights shapes, provenance inserts) |
+| `npx eslint` (Stream-D paths) | **0 errors, 0 warnings** on all touched files (`src/lib/creation/voice`, `src/lib/creation/stock`, `src/components/vidora/voice`, `src/components/vidora/stock`, `src/routes/_authenticated/voices`, `src/lib/providers/openai-tts.server.ts`, `src/lib/api-cost.ts`, `src/lib/credits/estimates.server.ts`, `src/routes/_authenticated/studio.tsx` touched lines, `src/routes/_authenticated/projects.$projectId.tsx` touched lines). Pre-existing notes untouched per D92: 3 prettier errors in untouched legacy lines of `studio.tsx`, 2 in coordinator-owned `contracts.ts`, 21 in legacy lines of `projects.$projectId.tsx`. |
+| `npm run build` | **PASS** (Nitro build completes; `voices-Br1LJuTN.js` chunk bundled, studio chunk links it) |
+| Dev-server curl | **PASS** — `/voices` 200, `/studio` 200, zero server exceptions; app shell served (client-rendered, SSR HTML is the shell as with all routes) |
+| Live provider verification | **blocked** — no ElevenLabs/OpenAI/Pexels/Pixabay keys in this environment; configured paths untested against real APIs. Recorded as **pending**, not passed. |
+
 ## E2E status (2026-09-27)
 
 - **Selector alignment:** the Stream-D-authored spec assumed a query-input search flow and `tbody tr` row markup; the merged UI uses card grids + a New niche dialog. Fixed: `htmlFor`/`id` label associations (create dialog + filter bar), `data-testid="channel-row|video-row|outlier-row|trend-row"`, spec rewritten to the real flow (New niche → fill → Create niche → score/freshness/factors → filter-bar narrowing → blueprint → channel detail + similar → video intel → outliers + "Draft script" → toast → trends citations → smart folders).

@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -32,6 +32,7 @@ import { ResumeComposeButton, isStalledCompose } from "@/components/vidora/Resum
 
 import { getMyAccount, listMyJobs, deleteMyJob, reapStaleVideoJobs } from "@/lib/jobs.functions";
 import {
+  AudioLines,
   Coins,
   Film,
   LayoutDashboard,
@@ -172,6 +173,12 @@ function StudioPage() {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <Button variant="outline" asChild className="gap-2">
+                <Link to="/voices">
+                  <AudioLines className="h-4 w-4" />
+                  Voice Studio
+                </Link>
+              </Button>
               <Button onClick={() => setModeChooserOpen(true)} className="gap-2">
                 <Plus className="h-4 w-4" />
                 New video

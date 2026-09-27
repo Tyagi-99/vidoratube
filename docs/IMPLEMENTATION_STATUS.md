@@ -130,3 +130,25 @@ Branch `phase3/stream-a` in worktree `~/workspace/vidoratube-s3a` (not pushed; n
 
 Stream A owner-only dependency: apply `20260928041000_p3_stream_a.sql` via Lovable dashboard SQL editor (idempotent). Stream F integration entrypoints: `scoreIdea`/`scoreIdeaFn` (F8), `resolveBrandProfileForUser` (F13), `generateTitleVariants`/`scoreTitle`/`generateAndSaveTitleVariants` (F14), `buildCampaignPlan`/`createCampaignFromIdea`/`linkCampaignItem` (F25). No paid provider calls in Stream A — no credit preflight needed.
 Phase 3 Stream B remaining gates: full `vitest` suite, scoped ESLint, `npm run build`, dev-server/curl walkthrough, then merge `phase3/stream-b`. Owner-only dependencies carry over: manual migration apply (now 3 new files incl. `20260928041100_p3_stream_b.sql`, in filename order), `LOVABLE_API_KEY` for the AI draft configured path (unconfigured envelope is unit-verified, zero network calls).
+
+## Phase 3 — Creation (branch `phase3/stream-d`; not pushed to origin)
+
+### Stream D — Voice & Stock (F17/F18): SHIPPED (code; keys + migration apply pending)
+
+**F17 Voice Studio** (`src/lib/creation/voice/`, `src/components/vidora/voice/VoiceStudio.tsx`, route `/voices`, linked from `/studio`):
+- TTS fallback chain `chain.server.ts`: ordered ElevenLabs → OpenAI TTS (`gpt-4o-mini-tts`, `src/lib/providers/openai-tts.server.ts`) → Lovable AI gateway; one attempt per provider, no blind paid retries; `ProviderResult`-style envelopes, never throws.
+- Voice library `library.server.ts` + server fns `voice.functions.ts`: built-in `language_voices` catalog (read-only) merged with user `voices` rows; CRUD; upload validation (MIME allowlist, 25 MB cap, magic-byte check) with server-side object re-validation; clone legal gate (unchecked-by-default checkbox, server-enforced).
+- `runVoiceoverJob`: durable `generation_jobs` row (idempotency-key dedupe, claim race-guard, `JOB_IN_PROGRESS` pollable state), credit preflight BEFORE any provider call (INSUFFICIENT_CREDITS / BUDGET_EXCEEDED / UNKNOWN_COST returned as codes), debit via idempotent `debitMinutesForJob` (estimate → whole minutes, 1 credit = 1 minute), MP3 → `generated-videos/{userId}/voiceovers/{jobId}.mp3` + 7-day signed URL, provider task records actual once (no double-count: `completeGenerationJob` gets no `costActualCredits`), checkpoint written BEFORE completion (saveCheckpoint refuses terminal rows), `failGenerationJob` refunds.
+- D89: `voices` absent from generated DB types → local `VoiceRow`/`VoiceInsert`/`VoiceUpdate` aliases + `asVoicesClient` structural cast (established `asJobsClient` pattern); `language_voices` queried with its real columns (no `voice_type` there — catalog entries are always builtins).
+
+**F18 Stock Media** (`src/lib/creation/stock/`, `src/components/vidora/stock/StockPicker.tsx`):
+- `search.server.ts`: honest unconfigured envelope (`stockProviderStatus` key presence, no secret leakage) with ZERO network calls when no Pexels/Pixabay keys; explicit `includeMock` opt-in only — no silent mock substitution.
+- `selectStockAsset`: writes `asset_provenance` (per-scene licensed-use log, D48/D49), `content_assets` row with rights in `technical_metadata.rights`, and `scenes.asset_url` + `scenes.asset_source = { kind: 'stock', provider, rights }` (coordinator contract shape).
+- D48 preserved: mocks stay `mock://` + `"MOCK — preview asset, not licensed for use"`, never recorded as licensed.
+- Wired into the established scene editor: `SceneCard` in `projects.$projectId.tsx` gains a "Stock" button (next to "Visual" regenerate) opening `StockPicker` for that scene, pre-filled with the scene's stock search terms; selection refreshes the project query. Not a standalone orphan.
+
+**Migration (1, forward-only, `IF NOT EXISTS`):** `20260928041300_p3_stream_d.sql` — `voices(user_id, updated_at)` index (the Phase-1 table had no user-scoped index). Not applied to production (Lovable manual apply — KNOWN_ISSUES).
+
+**Gates:** `npx tsc --noEmit` — clean on all Stream-D files (3 pre-existing errors in untouched `guides.$slug.tsx`); `npx vitest run src/lib/creation` — **58/58 pass, 5 files** (chain 11, library 12, voice.functions orchestration 8, stock 27); `npx eslint` on Stream-D paths — **0 errors, 0 warnings** (pre-existing notes in untouched legacy lines of `studio.tsx` and coordinator-owned `contracts.ts`); `npm run build` — PASS (`voices-Br1LJuTN.js` chunk bundled); dev-server curl — `/voices` + `/studio` 200, zero server exceptions.
+
+**Founder blockers:** Pexels/Pixabay API keys (no live stock search verification possible), ElevenLabs/OpenAI keys (no live TTS verification), manual migration apply.

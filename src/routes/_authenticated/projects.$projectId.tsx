@@ -41,6 +41,7 @@ import { ScriptStudio } from "@/components/vidora/ScriptStudio";
 import { EvidenceDesk } from "@/components/vidora/EvidenceDesk";
 import { getProjectGateState } from "@/lib/creation/claims/evidence.functions";
 import { VoicePicker } from "@/components/vidora/VoicePicker";
+import { StockPicker } from "@/components/vidora/stock/StockPicker";
 import { ProvenanceDrawer } from "@/components/vidora/ProvenanceDrawer";
 import { useI18n } from "@/lib/i18n";
 import { VoiceoverEditorPanel } from "@/components/vidora/VoiceoverEditorPanel";
@@ -532,6 +533,7 @@ function SceneCard({
   const [visualType, setVisualType] = useState(scene.visual_type);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [provenanceOpen, setProvenanceOpen] = useState(false);
+  const [stockOpen, setStockOpen] = useState(false);
   const [sceneVoice, setSceneVoice] = useState<string | null>(scene.voice_id);
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["project", projectId] });
 
@@ -696,6 +698,16 @@ function SceneCard({
             size="sm"
             variant="outline"
             className="gap-1"
+            onClick={() => setStockOpen(true)}
+            aria-label={`Pick stock media for scene ${scene.scene_number}`}
+          >
+            <ImageIcon className="h-3.5 w-3.5" />
+            Stock
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1"
             onClick={() => regenerate.mutate("voice")}
             disabled={regenerate.isPending}
           >
@@ -745,6 +757,16 @@ function SceneCard({
         sceneId={scene.id}
         open={provenanceOpen}
         onOpenChange={setProvenanceOpen}
+      />
+      <StockPicker
+        open={stockOpen}
+        onOpenChange={setStockOpen}
+        sceneId={scene.id}
+        initialQuery={scene.search_query ?? undefined}
+        onSelected={() => {
+          setStockOpen(false);
+          invalidate();
+        }}
       />
     </div>
   );

@@ -1009,3 +1009,48 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
 - **Decision:** The server function wraps the create path into `{ project, canvas, problems }` so the UI has a single contract whether the project was found or created.
 - **Reason:** Two shapes (`ThumbnailProjectRow` vs `LoadedProject`) leaked into the UI and caused type errors; the normalization is server-side and invisible to callers.
 - **Reverse:** None.
+
+### D116. TTS fallback chain: ElevenLabs → OpenAI → gateway, one attempt each
+- **Decision:** `synthesizeSpeechWithFallback` (Stream D) mirrors the Phase-1 `generateVideoWithFallback` pattern exactly: ordered providers, ONE attempt per provider, failed paid calls never retried blindly, `ProviderResult`-style envelopes that never throw, injectable fakes for tests (production resolves from env).
+- **Reason:** Voice is paid per character; a retry loop against a failing paid provider is a money leak. The explicit order also makes the UI's "ElevenLabs first, OpenAI fallback, gateway last resort" copy truthful.
+- **Reverse:** Reorder via `VOICE_TTS_FALLBACK` env (unknown ids are ignored, fail-closed); add providers by registering a new adapter in `resolveTtsChain`.
+
+### D117. `voices` D89 local aliases + `asVoicesClient` (follows `asJobsClient`)
+- **Decision:** Generated Supabase types predate the creation migrations (`voices` absent; `language_voices` carries pre-creation columns), so Stream D declares `VoiceRow`/`VoiceInsert`/`VoiceUpdate` from the Phase-1 migration SQL and narrows the client via `asVoicesClient` — the same contained-cast pattern as `asJobsClient` in `durable-jobs.server.ts`. `language_voices` is queried with its real columns (no `voice_type` — catalog entries are always builtins).
+- **Reason:** D89 forbids broad unsafe casts; the contained `as unknown as` in one function keeps every query builder fully typed while callers pass ordinary clients.
+- **Reverse:** Regenerate `src/integrations/supabase/types.ts` from the cloud DB and retire the local aliases.
+
+### D118. Voiceover job cost recorded exactly once (no double-count)
+- **Decision:** `recordProviderTask` records `costActual` (the estimate, the only measured figure for TTS); `completeGenerationJob` is called WITHOUT `costActualCredits` because it sums `provider_tasks.cost_actual` itself — passing both would double the job's `cost_actual_credits`.
+- **Reason:** Budget math reads `cost_actual_credits`; a 2× overstatement would falsely trip workspace/project budget caps.
+- **Reverse:** If TTS ever produces a metered actual (provider usage callback), record the real figure in the task and keep the completion param absent.
+
+### D119. TTS debits ride the minute-based ledger RPC
+- **Decision:** `runVoiceoverJob` debits via `debitMinutesForJob` (idempotent per job id, balance re-checked atomically, `failGenerationJob` refunds) — the only existing idempotent debit path for generation jobs. The TTS credit estimate is converted with `Math.ceil` (1 credit = 1 minute); the deprecated flat `debitOneCreditForProject` is not used.
+- **Reason:** A bespoke non-idempotent debit would risk double-charging on retries; the minute ledger already has the refund path wired into job failure.
+- **Reverse:** Add a dedicated credit-amount debit RPC when TTS estimates need sub-credit precision.
+
+### D120. Contended voiceover jobs return `JOB_IN_PROGRESS`, not a throw
+- **Decision:** When `claimGenerationJob` loses the race (another tab/worker owns the job), `runVoiceoverJob` returns `{ ok: false, code: "JOB_IN_PROGRESS" }` telling the caller to retry with the same idempotency key; a completed job reuses its stored `checkpoint.audio_url` with no paid work.
+- **Reason:** Throwing a 500 on a normal race is hostile; the durable job already stores everything needed for a poll-and-reuse flow.
+- **Reverse:** If a real async worker pool appears, replace the message with a job-status subscription.
+
+### D121. `NO_TTS_PROVIDER` is checked before credit preflight
+- **Decision:** The ordered-chain emptiness check runs before `preflightCreditsCheck`, so a user with no provider configured gets "connect a provider" instead of a misleading insufficient-credits error.
+- **Reason:** Error precedence should name the true blocker; balance checks are meaningless when no provider could be called.
+- **Reverse:** None — ordering is internal.
+
+### D122. Stock unconfigured = honest, zero-network; mocks are explicit opt-in
+- **Decision:** Without Pexels/Pixabay keys, `searchStockAssets` returns `{ configured: false }` without a single network call; the UI renders "stock provider not connected". Mock preview assets appear ONLY when the caller passes `includeMock: true`, keep `mock://` URLs and the D48 "MOCK — preview asset, not licensed for use" label, and are never written as licensed rows.
+- **Reason:** Silent mock substitution in a licensing-sensitive flow is the exact failure D48 was written to prevent; the zero-call guarantee also means no surprise quota/key usage.
+- **Reverse:** If a demo mode is ever wanted, it must be labeled `DEMO DATA` per D98.
+
+### D123. Voice Studio extends the voiceover mode; `/voices` is a real route
+- **Decision:** Stream D extends (not replaces) the existing voiceover mode: `/voices` route renders `VoiceStudio` (library + TTS tabs), linked from `/studio` header; `StockPicker` is a dialog component wired to `selectStockAsset` for Stream F's scene integration.
+- **Reason:** The voiceover dialog's job flow stays intact; the studio adds library management and multi-provider TTS around it rather than forking a competing mode.
+- **Reverse:** If the voiceover dialog is later merged into the studio, keep the `/voices` route as the canonical surface.
+
+### D124. StockPicker lives in the project scene editor, not as a standalone page
+- **Decision:** `StockPicker` is a controlled dialog hosted by `SceneCard` (`projects.$projectId.tsx`) — a "Stock" button beside "Visual" regenerate, pre-filled with the scene's `search_query`, selecting via `selectStockAsset` then invalidating the project query. The existing P4 `VoicePicker` catalog (`src/lib/voices.ts`) was deliberately NOT merged into the Stream-D voice library: unifying the two voice id schemes is a coordinator-level merge decision, and touching the P4 picker risks breaking flows other streams depend on.
+- **Reason:** Scene assets are pipeline-written; the only manual visual-swap surface is the project page's per-scene card, so that is where manual stock selection belongs.
+- **Reverse:** If Stream F's scene producer grows its own visual-repair UI, host a second StockPicker there — the component is scene-id-keyed and reusable.
