@@ -4,7 +4,7 @@
  * (voiceover-compose) so every compose path validates its output.
  */
 
-const VALIDATE_TIMEOUT_MS = 8000;
+const VALIDATE_TIMEOUT_MS = 20000;
 
 /** Measures playable duration of a video blob via metadata (0 on failure). */
 export function measureMediaDuration(blob: Blob, timeoutMs = 15000): Promise<number> {
@@ -68,18 +68,13 @@ export function validatePlayback(blob: Blob, expectedDuration?: number): Promise
         const tolerance = Math.max(2, expectedDuration * 0.1);
         if (Math.abs(video.duration - expectedDuration) > tolerance) return finish(false);
       }
+      // Only trust probes that are populated from metadata alone.
+      // webkitAudioDecodedByteCount stays 0 until playback actually decodes
+      // audio, so with preload="metadata" it falsely reported "no audio" in
+      // Chrome and failed every valid render.
       const v = video as VideoWithAudioProbe;
-      const probeAvailable =
-        v.audioTracks !== undefined ||
-        v.mozHasAudio !== undefined ||
-        v.webkitAudioDecodedByteCount !== undefined;
-      if (probeAvailable) {
-        const hasAudio =
-          (v.audioTracks?.length ?? 0) > 0 ||
-          v.mozHasAudio === true ||
-          (v.webkitAudioDecodedByteCount ?? 0) > 0;
-        if (!hasAudio) return finish(false);
-      }
+      if (v.audioTracks !== undefined && v.audioTracks.length === 0) return finish(false);
+      if (v.mozHasAudio === false) return finish(false);
       finish(true);
     };
     video.onerror = () => finish(false);
