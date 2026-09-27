@@ -1208,3 +1208,88 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
 - **Reason:** A rerunnable contract that the free path stays honest end to
   end; any future "helpful" shortcut that fakes a stage breaks this test.
 - **Reverse:** None — extend, don't replace.
+
+### D136. API keys store SHA-256 hashes only; raw key shown once
+
+- **Decision:** `api_keys` stores the SHA-256 hash of the raw key — the raw
+  value is returned once at create/rotate and never persisted, logged, or
+  re-displayed. Authentication hashes the presented bearer and compares with
+  a constant-time digest check after an indexed hash lookup (D136).
+- **Reason:** A database or backup leak must not yield usable credentials;
+  one-time display matches the industry pattern (Stripe, GitHub).
+- **Reverse:** None — rotating is the recovery path for a lost key.
+
+### D137. In-memory sliding-window rate limiter for API keys (single instance)
+
+- **Decision:** Per-key 60/min (configurable) rate limiting uses an
+  in-memory sliding-window limiter in the server process; limits are also
+  exposed via `Retry-After` on 429 responses.
+- **Reason:** No new infrastructure for the single-server deployment; the
+  limiter is already abstracted behind a small interface.
+- **Reverse:** Multi-instance deployment MUST move to a shared store
+  (Redis/Upstash or the Postgres `check_rate_limit` RPC). Until then, each
+  instance enforces its own window — document, don't silently widen.
+
+### D138. MCP mutation tools hardcode `draft`; schemas expose no status override
+
+- **Decision:** `vidora.draft_script` and `vidora.request_publish` hardcode
+  `status: "draft"` at the tool layer, their Zod/JSON schemas expose no
+  status field (unknown keys are stripped), and the dispatcher runtime-asserts
+  the invariant — a port that returns non-draft fails the tool loudly.
+- **Reason:** The pinned contract ("can never publish") must hold even
+  against a hostile or buggy tool caller; defense in depth across schema,
+  dispatch, and port layers.
+- **Reverse:** None — publishing stays a human-gated pipeline outside MCP.
+
+### D139. API/MCP audit writes are best-effort and never break the call
+
+- **Decision:** Every authenticated API and MCP tool call writes an
+  `audit_logs` row, but a failing audit insert is caught, logged, and never
+  fails the authenticated operation (the audit hook throwing is covered by
+  test).
+- **Reason:** Availability of the API outranks completeness of the audit
+  trail; a down audit path must not become a self-inflicted outage.
+- **Reverse:** If compliance ever requires guaranteed audit, switch to
+  fail-closed explicitly — do not silently change this default.
+
+### D140. Brand Library uses a dedicated workspace-scoped `brand_assets` table
+
+- **Decision:** Brand assets (logos, fonts, intro/outro clips) live in the
+  new workspace-scoped `brand_assets` table + private `brand-library` bucket,
+  NOT in `content_assets`. `content_assets` is user-scoped and requires a
+  `content_item_id` (research pipeline); brand assets are workspace-shared
+  brand identity independent of any content item. An optional
+  `content_asset_id` links back only when the asset genuinely originated as
+  a content row (rights tracking stays there). At most one `is_default` per
+  (workspace, kind) via a partial unique index.
+- **Reason:** Reusing `content_assets` would require manufacturing fake
+  content items per workspace — a worse integrity lie than a parallel table
+  with the same storage conventions.
+- **Reverse:** If brand assets ever need per-user rights tracking, promote
+  via `content_asset_id` linkage rather than duplicating rows.
+
+### D141. Workspace invites are hashed bearer tokens with explicit acceptance
+
+- **Decision:** Invite tokens (`vdinv_` + 32 chars) are shown/emailed once;
+  only the SHA-256 hash is stored. Acceptance is an explicit signed-in action
+  on `/invite/accept`: the token must be live (unexpired, unrevoked,
+  unaccepted) AND the account's email must match the invited email. Members
+  read invites; owners/editors create/revoke. Email is best-effort via the
+  existing Resend REST pattern; when unconfigured, the inviter copies the
+  link manually.
+- **Reason:** Email-only verification is spoofable; binding the token to the
+  invited address keeps forwarding the link useless without the right
+  account. One live invite per (workspace, email) prevents invite spam.
+- **Reverse:** None planned; magic-link sign-in for invitees would be a
+  separate auth-stream decision.
+
+### D142. MCP transport is JSON-RPC 2.0 over HTTP POST
+
+- **Decision:** The MCP server is exposed as JSON-RPC 2.0 at `POST /api/mcp`
+  (`tools/list`, `tools/call`), with a `GET /api/mcp` authenticated
+  discovery manifest — no SSE or stdio transport.
+- **Reason:** Fits the serverless TanStack Start deployment (plain request/
+  response, no long-lived connections); JSON-RPC error codes map cleanly
+  onto the auth/validation failures the tools already produce.
+- **Reverse:** Add SSE/streaming later only if a client requires it; the
+  tool dispatcher is transport-agnostic by design.

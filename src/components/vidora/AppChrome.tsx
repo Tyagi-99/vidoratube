@@ -2,13 +2,33 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Aperture, Coins, Film, LogOut, Menu, Plus, Shield, X } from "lucide-react";
+import {
+  Aperture,
+  Building2,
+  Check,
+  Coins,
+  Film,
+  LogOut,
+  Menu,
+  Plus,
+  Shield,
+  X,
+} from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageToggle } from "@/components/vidora/LanguageToggle";
 import { NotificationsBell } from "@/components/vidora/NotificationsBell";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyAccount } from "@/lib/jobs.functions";
+import { listWorkspaces } from "@/lib/agency/agency.functions";
 
 const links = [
   { label: "Studio", to: "/studio" as const },
@@ -21,6 +41,7 @@ const links = [
   { label: "Characters", to: "/characters" as const },
   { label: "Agency", to: "/agency" as const },
   { label: "Billing", to: "/billing" as const },
+  { label: "Settings", to: "/settings/api-keys" as const },
 ];
 
 export function AppChrome() {
@@ -29,6 +50,14 @@ export function AppChrome() {
   const queryClient = useQueryClient();
   const accountFn = useServerFn(getMyAccount);
   const account = useQuery({ queryKey: ["account"], queryFn: () => accountFn({}) });
+  // Phase 4 Stream E (F40): workspace switcher data.
+  const workspacesFn = useServerFn(listWorkspaces);
+  const workspaces = useQuery({
+    queryKey: ["chrome-workspaces"],
+    queryFn: () => workspacesFn(),
+    staleTime: 60_000,
+  });
+  const workspaceRows = workspaces.data?.workspaces ?? [];
 
   const signOut = async () => {
     await queryClient.cancelQueries();
@@ -71,6 +100,46 @@ export function AppChrome() {
         </nav>
 
         <div className="ml-auto hidden items-center gap-2 md:flex">
+          {/* Phase 4 Stream E (F40): workspace switcher. */}
+          {workspaceRows.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="max-w-48 gap-2">
+                  <Building2 className="size-4 shrink-0" aria-hidden="true" />
+                  <span className="truncate">
+                    {workspaceRows.length === 1
+                      ? workspaceRows[0]!.name
+                      : `${workspaceRows.length} workspaces`}
+                  </span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuLabel>Switch workspace</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {workspaceRows.map((w) => (
+                  <DropdownMenuItem key={w.id} asChild>
+                    <Link
+                      to="/agency/$workspaceId"
+                      params={{ workspaceId: w.id }}
+                      className="flex items-center justify-between gap-2"
+                    >
+                      <span className="flex min-w-0 items-center gap-2">
+                        <Check className="size-3.5 shrink-0 opacity-0" aria-hidden="true" />
+                        <span className="truncate">{w.name}</span>
+                      </span>
+                      <span className="shrink-0 text-xs text-muted-foreground">{w.role}</span>
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/agency" className="flex items-center gap-2">
+                    <Plus className="size-3.5" aria-hidden="true" /> All workspaces
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           <div className="flex min-h-11 items-center gap-2 border-r border-border pr-4 text-sm text-muted-foreground">
             <Coins className="size-4 text-accent" aria-hidden="true" />
             <span className="tabular-nums">

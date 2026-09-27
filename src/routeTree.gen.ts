@@ -21,6 +21,8 @@ import { Route as StatusRouteImport } from './routes/status'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedStudioRouteImport } from './routes/_authenticated/studio'
+import { Route as ApiKeysRouteImport } from './routes/api/keys'
+import { Route as ApiMcpRouteImport } from './routes/api/mcp'
 import { Route as GuidesIndexRouteImport } from './routes/guides.index'
 import { Route as GuidesSlugRouteImport } from './routes/guides.$slug'
 import { Route as RCodeRouteImport } from './routes/r.$code'
@@ -46,13 +48,16 @@ import { Route as AuthenticatedCreateQuickCreateRouteImport } from './routes/_au
 import { Route as AuthenticatedCreateSeoStudioRouteImport } from './routes/_authenticated/create/seo-studio'
 import { Route as AuthenticatedCreateTitlesRouteImport } from './routes/_authenticated/create/titles'
 import { Route as AuthenticatedIntelligenceIndexRouteImport } from './routes/_authenticated/intelligence/index'
+import { Route as AuthenticatedInviteAcceptRouteImport } from './routes/_authenticated/invite.accept'
 import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authenticated/projects.index'
 import { Route as AuthenticatedProjectsProjectIdRouteImport } from './routes/_authenticated/projects.$projectId'
 import { Route as AuthenticatedResearchIndexRouteImport } from './routes/_authenticated/research.index'
 import { Route as AuthenticatedResearchProjectIdRouteImport } from './routes/_authenticated/research.$projectId'
+import { Route as AuthenticatedSettingsApiKeysRouteImport } from './routes/_authenticated/settings.api-keys'
 import { Route as AuthenticatedStudioProjectIdRouteImport } from './routes/_authenticated/studio.$projectId'
 import { Route as AuthenticatedThumbnailsIndexRouteImport } from './routes/_authenticated/thumbnails.index'
 import { Route as AuthenticatedVoicesIndexRouteImport } from './routes/_authenticated/voices/index'
+import { Route as ApiKeysKeyIdRouteImport } from './routes/api/keys.$keyId'
 import { Route as ApiPublicMetaCallbackRouteImport } from './routes/api/public/meta-callback'
 import { Route as ApiPublicYoutubeCallbackRouteImport } from './routes/api/public/youtube-callback'
 import { Route as ApiWebhooksDodoRouteImport } from './routes/api/webhooks/dodo'
@@ -66,6 +71,7 @@ import { Route as AuthenticatedIntelligenceNichesNicheIdRouteImport } from './ro
 import { Route as AuthenticatedIntelligenceOutliersIndexRouteImport } from './routes/_authenticated/intelligence/outliers.index'
 import { Route as AuthenticatedIntelligenceTrendsIndexRouteImport } from './routes/_authenticated/intelligence/trends.index'
 import { Route as AuthenticatedIntelligenceVideosVideoIdRouteImport } from './routes/_authenticated/intelligence/videos.$videoId'
+import { Route as ApiKeysKeyIdRotateRouteImport } from './routes/api/keys.$keyId.rotate'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -125,6 +131,16 @@ const AuthenticatedStudioRoute = AuthenticatedStudioRouteImport.update({
   id: '/studio',
   path: '/studio',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const ApiKeysRoute = ApiKeysRouteImport.update({
+  id: '/api/keys',
+  path: '/api/keys',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMcpRoute = ApiMcpRouteImport.update({
+  id: '/api/mcp',
+  path: '/api/mcp',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const GuidesIndexRoute = GuidesIndexRouteImport.update({
   id: '/guides/',
@@ -267,6 +283,12 @@ const AuthenticatedIntelligenceIndexRoute =
     path: '/intelligence/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedInviteAcceptRoute =
+  AuthenticatedInviteAcceptRouteImport.update({
+    id: '/invite/accept',
+    path: '/invite/accept',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedProjectsIndexRoute =
   AuthenticatedProjectsIndexRouteImport.update({
     id: '/projects/',
@@ -291,6 +313,12 @@ const AuthenticatedResearchProjectIdRoute =
     path: '/research/$projectId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedSettingsApiKeysRoute =
+  AuthenticatedSettingsApiKeysRouteImport.update({
+    id: '/settings/api-keys',
+    path: '/settings/api-keys',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedStudioProjectIdRoute =
   AuthenticatedStudioProjectIdRouteImport.update({
     id: '/$projectId',
@@ -309,6 +337,11 @@ const AuthenticatedVoicesIndexRoute =
     path: '/voices/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiKeysKeyIdRoute = ApiKeysKeyIdRouteImport.update({
+  id: '/$keyId',
+  path: '/$keyId',
+  getParentRoute: () => ApiKeysRoute,
+} as any)
 const ApiPublicMetaCallbackRoute = ApiPublicMetaCallbackRouteImport.update({
   id: '/api/public/meta-callback',
   path: '/api/public/meta-callback',
@@ -383,6 +416,11 @@ const AuthenticatedIntelligenceVideosVideoIdRoute =
     path: '/intelligence/videos/$videoId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiKeysKeyIdRotateRoute = ApiKeysKeyIdRotateRouteImport.update({
+  id: '/rotate',
+  path: '/rotate',
+  getParentRoute: () => ApiKeysKeyIdRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -396,6 +434,8 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/studio': typeof AuthenticatedStudioRouteWithChildren
+  '/api/keys': typeof ApiKeysRouteWithChildren
+  '/api/mcp': typeof ApiMcpRoute
   '/guides/$slug': typeof GuidesSlugRoute
   '/r/$code': typeof RCodeRoute
   '/robots/txt': typeof RobotsTxtRoute
@@ -414,9 +454,12 @@ export interface FileRoutesByFullPath {
   '/create/quick-create': typeof AuthenticatedCreateQuickCreateRoute
   '/create/seo-studio': typeof AuthenticatedCreateSeoStudioRoute
   '/create/titles': typeof AuthenticatedCreateTitlesRoute
+  '/invite/accept': typeof AuthenticatedInviteAcceptRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/research/$projectId': typeof AuthenticatedResearchProjectIdRoute
+  '/settings/api-keys': typeof AuthenticatedSettingsApiKeysRoute
   '/studio/$projectId': typeof AuthenticatedStudioProjectIdRoute
+  '/api/keys/$keyId': typeof ApiKeysKeyIdRouteWithChildren
   '/api/public/meta-callback': typeof ApiPublicMetaCallbackRoute
   '/api/public/youtube-callback': typeof ApiPublicYoutubeCallbackRoute
   '/api/webhooks/dodo': typeof ApiWebhooksDodoRoute
@@ -436,6 +479,7 @@ export interface FileRoutesByFullPath {
   '/intelligence/channels/$channelId': typeof AuthenticatedIntelligenceChannelsChannelIdRoute
   '/intelligence/niches/$nicheId': typeof AuthenticatedIntelligenceNichesNicheIdRoute
   '/intelligence/videos/$videoId': typeof AuthenticatedIntelligenceVideosVideoIdRoute
+  '/api/keys/$keyId/rotate': typeof ApiKeysKeyIdRotateRoute
   '/intelligence/channels/': typeof AuthenticatedIntelligenceChannelsIndexRoute
   '/intelligence/folders/': typeof AuthenticatedIntelligenceFoldersIndexRoute
   '/intelligence/niches/': typeof AuthenticatedIntelligenceNichesIndexRoute
@@ -453,6 +497,8 @@ export interface FileRoutesByTo {
   '/status': typeof StatusRoute
   '/terms': typeof TermsRoute
   '/studio': typeof AuthenticatedStudioRouteWithChildren
+  '/api/keys': typeof ApiKeysRouteWithChildren
+  '/api/mcp': typeof ApiMcpRoute
   '/guides/$slug': typeof GuidesSlugRoute
   '/r/$code': typeof RCodeRoute
   '/robots/txt': typeof RobotsTxtRoute
@@ -471,9 +517,12 @@ export interface FileRoutesByTo {
   '/create/quick-create': typeof AuthenticatedCreateQuickCreateRoute
   '/create/seo-studio': typeof AuthenticatedCreateSeoStudioRoute
   '/create/titles': typeof AuthenticatedCreateTitlesRoute
+  '/invite/accept': typeof AuthenticatedInviteAcceptRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/research/$projectId': typeof AuthenticatedResearchProjectIdRoute
+  '/settings/api-keys': typeof AuthenticatedSettingsApiKeysRoute
   '/studio/$projectId': typeof AuthenticatedStudioProjectIdRoute
+  '/api/keys/$keyId': typeof ApiKeysKeyIdRouteWithChildren
   '/api/public/meta-callback': typeof ApiPublicMetaCallbackRoute
   '/api/public/youtube-callback': typeof ApiPublicYoutubeCallbackRoute
   '/api/webhooks/dodo': typeof ApiWebhooksDodoRoute
@@ -493,6 +542,7 @@ export interface FileRoutesByTo {
   '/intelligence/channels/$channelId': typeof AuthenticatedIntelligenceChannelsChannelIdRoute
   '/intelligence/niches/$nicheId': typeof AuthenticatedIntelligenceNichesNicheIdRoute
   '/intelligence/videos/$videoId': typeof AuthenticatedIntelligenceVideosVideoIdRoute
+  '/api/keys/$keyId/rotate': typeof ApiKeysKeyIdRotateRoute
   '/intelligence/channels': typeof AuthenticatedIntelligenceChannelsIndexRoute
   '/intelligence/folders': typeof AuthenticatedIntelligenceFoldersIndexRoute
   '/intelligence/niches': typeof AuthenticatedIntelligenceNichesIndexRoute
@@ -513,6 +563,8 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/_authenticated/studio': typeof AuthenticatedStudioRouteWithChildren
+  '/api/keys': typeof ApiKeysRouteWithChildren
+  '/api/mcp': typeof ApiMcpRoute
   '/guides/$slug': typeof GuidesSlugRoute
   '/r/$code': typeof RCodeRoute
   '/robots/txt': typeof RobotsTxtRoute
@@ -531,9 +583,12 @@ export interface FileRoutesById {
   '/_authenticated/create/quick-create': typeof AuthenticatedCreateQuickCreateRoute
   '/_authenticated/create/seo-studio': typeof AuthenticatedCreateSeoStudioRoute
   '/_authenticated/create/titles': typeof AuthenticatedCreateTitlesRoute
+  '/_authenticated/invite/accept': typeof AuthenticatedInviteAcceptRoute
   '/_authenticated/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/_authenticated/research/$projectId': typeof AuthenticatedResearchProjectIdRoute
+  '/_authenticated/settings/api-keys': typeof AuthenticatedSettingsApiKeysRoute
   '/_authenticated/studio/$projectId': typeof AuthenticatedStudioProjectIdRoute
+  '/api/keys/$keyId': typeof ApiKeysKeyIdRouteWithChildren
   '/api/public/meta-callback': typeof ApiPublicMetaCallbackRoute
   '/api/public/youtube-callback': typeof ApiPublicYoutubeCallbackRoute
   '/api/webhooks/dodo': typeof ApiWebhooksDodoRoute
@@ -553,6 +608,7 @@ export interface FileRoutesById {
   '/_authenticated/intelligence/channels/$channelId': typeof AuthenticatedIntelligenceChannelsChannelIdRoute
   '/_authenticated/intelligence/niches/$nicheId': typeof AuthenticatedIntelligenceNichesNicheIdRoute
   '/_authenticated/intelligence/videos/$videoId': typeof AuthenticatedIntelligenceVideosVideoIdRoute
+  '/api/keys/$keyId/rotate': typeof ApiKeysKeyIdRotateRoute
   '/_authenticated/intelligence/channels/': typeof AuthenticatedIntelligenceChannelsIndexRoute
   '/_authenticated/intelligence/folders/': typeof AuthenticatedIntelligenceFoldersIndexRoute
   '/_authenticated/intelligence/niches/': typeof AuthenticatedIntelligenceNichesIndexRoute
@@ -573,6 +629,8 @@ export interface FileRouteTypes {
     | '/terms'
     | '/admin'
     | '/studio'
+    | '/api/keys'
+    | '/api/mcp'
     | '/guides/$slug'
     | '/r/$code'
     | '/robots/txt'
@@ -591,9 +649,12 @@ export interface FileRouteTypes {
     | '/create/quick-create'
     | '/create/seo-studio'
     | '/create/titles'
+    | '/invite/accept'
     | '/projects/$projectId'
     | '/research/$projectId'
+    | '/settings/api-keys'
     | '/studio/$projectId'
+    | '/api/keys/$keyId'
     | '/api/public/meta-callback'
     | '/api/public/youtube-callback'
     | '/api/webhooks/dodo'
@@ -613,6 +674,7 @@ export interface FileRouteTypes {
     | '/intelligence/channels/$channelId'
     | '/intelligence/niches/$nicheId'
     | '/intelligence/videos/$videoId'
+    | '/api/keys/$keyId/rotate'
     | '/intelligence/channels/'
     | '/intelligence/folders/'
     | '/intelligence/niches/'
@@ -630,6 +692,8 @@ export interface FileRouteTypes {
     | '/status'
     | '/terms'
     | '/studio'
+    | '/api/keys'
+    | '/api/mcp'
     | '/guides/$slug'
     | '/r/$code'
     | '/robots/txt'
@@ -648,9 +712,12 @@ export interface FileRouteTypes {
     | '/create/quick-create'
     | '/create/seo-studio'
     | '/create/titles'
+    | '/invite/accept'
     | '/projects/$projectId'
     | '/research/$projectId'
+    | '/settings/api-keys'
     | '/studio/$projectId'
+    | '/api/keys/$keyId'
     | '/api/public/meta-callback'
     | '/api/public/youtube-callback'
     | '/api/webhooks/dodo'
@@ -670,6 +737,7 @@ export interface FileRouteTypes {
     | '/intelligence/channels/$channelId'
     | '/intelligence/niches/$nicheId'
     | '/intelligence/videos/$videoId'
+    | '/api/keys/$keyId/rotate'
     | '/intelligence/channels'
     | '/intelligence/folders'
     | '/intelligence/niches'
@@ -689,6 +757,8 @@ export interface FileRouteTypes {
     | '/terms'
     | '/_authenticated/admin'
     | '/_authenticated/studio'
+    | '/api/keys'
+    | '/api/mcp'
     | '/guides/$slug'
     | '/r/$code'
     | '/robots/txt'
@@ -707,9 +777,12 @@ export interface FileRouteTypes {
     | '/_authenticated/create/quick-create'
     | '/_authenticated/create/seo-studio'
     | '/_authenticated/create/titles'
+    | '/_authenticated/invite/accept'
     | '/_authenticated/projects/$projectId'
     | '/_authenticated/research/$projectId'
+    | '/_authenticated/settings/api-keys'
     | '/_authenticated/studio/$projectId'
+    | '/api/keys/$keyId'
     | '/api/public/meta-callback'
     | '/api/public/youtube-callback'
     | '/api/webhooks/dodo'
@@ -729,6 +802,7 @@ export interface FileRouteTypes {
     | '/_authenticated/intelligence/channels/$channelId'
     | '/_authenticated/intelligence/niches/$nicheId'
     | '/_authenticated/intelligence/videos/$videoId'
+    | '/api/keys/$keyId/rotate'
     | '/_authenticated/intelligence/channels/'
     | '/_authenticated/intelligence/folders/'
     | '/_authenticated/intelligence/niches/'
@@ -747,6 +821,8 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   StatusRoute: typeof StatusRoute
   TermsRoute: typeof TermsRoute
+  ApiKeysRoute: typeof ApiKeysRouteWithChildren
+  ApiMcpRoute: typeof ApiMcpRoute
   GuidesSlugRoute: typeof GuidesSlugRoute
   RCodeRoute: typeof RCodeRoute
   RobotsTxtRoute: typeof RobotsTxtRoute
@@ -844,6 +920,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/studio'
       preLoaderRoute: typeof AuthenticatedStudioRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/keys': {
+      id: '/api/keys'
+      path: '/api/keys'
+      fullPath: '/api/keys'
+      preLoaderRoute: typeof ApiKeysRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mcp': {
+      id: '/api/mcp'
+      path: '/api/mcp'
+      fullPath: '/api/mcp'
+      preLoaderRoute: typeof ApiMcpRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/guides/': {
       id: '/guides/'
@@ -1020,6 +1110,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedIntelligenceIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/invite/accept': {
+      id: '/_authenticated/invite/accept'
+      path: '/invite/accept'
+      fullPath: '/invite/accept'
+      preLoaderRoute: typeof AuthenticatedInviteAcceptRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/projects/': {
       id: '/_authenticated/projects/'
       path: '/projects'
@@ -1048,6 +1145,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedResearchProjectIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/settings/api-keys': {
+      id: '/_authenticated/settings/api-keys'
+      path: '/settings/api-keys'
+      fullPath: '/settings/api-keys'
+      preLoaderRoute: typeof AuthenticatedSettingsApiKeysRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/studio/$projectId': {
       id: '/_authenticated/studio/$projectId'
       path: '/$projectId'
@@ -1068,6 +1172,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/voices/'
       preLoaderRoute: typeof AuthenticatedVoicesIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/keys/$keyId': {
+      id: '/api/keys/$keyId'
+      path: '/$keyId'
+      fullPath: '/api/keys/$keyId'
+      preLoaderRoute: typeof ApiKeysKeyIdRouteImport
+      parentRoute: typeof ApiKeysRoute
     }
     '/api/public/meta-callback': {
       id: '/api/public/meta-callback'
@@ -1160,6 +1271,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedIntelligenceVideosVideoIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/keys/$keyId/rotate': {
+      id: '/api/keys/$keyId/rotate'
+      path: '/rotate'
+      fullPath: '/api/keys/$keyId/rotate'
+      preLoaderRoute: typeof ApiKeysKeyIdRotateRouteImport
+      parentRoute: typeof ApiKeysKeyIdRoute
+    }
   }
 }
 
@@ -1208,8 +1326,10 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCreateQuickCreateRoute: typeof AuthenticatedCreateQuickCreateRoute
   AuthenticatedCreateSeoStudioRoute: typeof AuthenticatedCreateSeoStudioRoute
   AuthenticatedCreateTitlesRoute: typeof AuthenticatedCreateTitlesRoute
+  AuthenticatedInviteAcceptRoute: typeof AuthenticatedInviteAcceptRoute
   AuthenticatedProjectsProjectIdRoute: typeof AuthenticatedProjectsProjectIdRoute
   AuthenticatedResearchProjectIdRoute: typeof AuthenticatedResearchProjectIdRoute
+  AuthenticatedSettingsApiKeysRoute: typeof AuthenticatedSettingsApiKeysRoute
   AuthenticatedAgencyIndexRoute: typeof AuthenticatedAgencyIndexRoute
   AuthenticatedAnalyticsIndexRoute: typeof AuthenticatedAnalyticsIndexRoute
   AuthenticatedBillingIndexRoute: typeof AuthenticatedBillingIndexRoute
@@ -1239,8 +1359,10 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCreateQuickCreateRoute: AuthenticatedCreateQuickCreateRoute,
   AuthenticatedCreateSeoStudioRoute: AuthenticatedCreateSeoStudioRoute,
   AuthenticatedCreateTitlesRoute: AuthenticatedCreateTitlesRoute,
+  AuthenticatedInviteAcceptRoute: AuthenticatedInviteAcceptRoute,
   AuthenticatedProjectsProjectIdRoute: AuthenticatedProjectsProjectIdRoute,
   AuthenticatedResearchProjectIdRoute: AuthenticatedResearchProjectIdRoute,
+  AuthenticatedSettingsApiKeysRoute: AuthenticatedSettingsApiKeysRoute,
   AuthenticatedAgencyIndexRoute: AuthenticatedAgencyIndexRoute,
   AuthenticatedAnalyticsIndexRoute: AuthenticatedAnalyticsIndexRoute,
   AuthenticatedBillingIndexRoute: AuthenticatedBillingIndexRoute,
@@ -1272,6 +1394,29 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
+interface ApiKeysKeyIdRouteChildren {
+  ApiKeysKeyIdRotateRoute: typeof ApiKeysKeyIdRotateRoute
+}
+
+const ApiKeysKeyIdRouteChildren: ApiKeysKeyIdRouteChildren = {
+  ApiKeysKeyIdRotateRoute: ApiKeysKeyIdRotateRoute,
+}
+
+const ApiKeysKeyIdRouteWithChildren = ApiKeysKeyIdRoute._addFileChildren(
+  ApiKeysKeyIdRouteChildren,
+)
+
+interface ApiKeysRouteChildren {
+  ApiKeysKeyIdRoute: typeof ApiKeysKeyIdRouteWithChildren
+}
+
+const ApiKeysRouteChildren: ApiKeysRouteChildren = {
+  ApiKeysKeyIdRoute: ApiKeysKeyIdRouteWithChildren,
+}
+
+const ApiKeysRouteWithChildren =
+  ApiKeysRoute._addFileChildren(ApiKeysRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
@@ -1283,6 +1428,8 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   StatusRoute: StatusRoute,
   TermsRoute: TermsRoute,
+  ApiKeysRoute: ApiKeysRouteWithChildren,
+  ApiMcpRoute: ApiMcpRoute,
   GuidesSlugRoute: GuidesSlugRoute,
   RCodeRoute: RCodeRoute,
   RobotsTxtRoute: RobotsTxtRoute,
