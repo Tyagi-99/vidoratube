@@ -108,6 +108,16 @@ Delivered 2026-09-28 on `phase3/stream-c` (never pushed/merged per program rules
 
 **Migrations now pending manual apply (filename order):** `20260928041000_p3_stream_a` (video_ideas.score) · `20260928041100_p3_stream_b` (research review columns) · `20260928041200_p3_stream_c` (characters, scenes.metadata) · `20260928041300_p3_stream_d` (voices index). Stream E added no migration.
 
+## Phase 3 final integration — Stream F merged (2026-09-28)
+
+**Merge commit d5f4653** (`phase3/stream-f` → `phase3/creation`, `--no-ff`, zero conflicts). Stream F used D131–D135 as allocated — no renumbering needed.
+
+**Final Phase 3 gates on the merged tree (measured 2026-09-28):** `npx tsc --noEmit` clean · `npx vitest run` **1447/1447 pass, 147 files** · `npm run test:worker` **87/87 pass** · `npx eslint` over all 122 Phase-3 touched files — 0 errors on Phase 3 code (32 pre-existing 2026-09-25 `no-explicit-any` lines remain, documented in KNOWN_ISSUES) · `npm run build` PASS · dev-server curls `/create/quick-create`, `/create/seo-studio` → 200; all Wave 1 routes re-verified 200; zero server exceptions.
+
+**Migrations pending manual Lovable dashboard apply (filename order):** `20260928041000_p3_stream_a` · `20260928041100_p3_stream_b` · `20260928041200_p3_stream_c` · `20260928041300_p3_stream_d` · `20260928041400_p3_stream_f` (`quick_create_runs`, `seo_packages`).
+
+**F16 stays IN PROGRESS** until a real six-scene proof render verifies character consistency. **E2E_30_SECOND_CREATION** verifies all free stages; paid render stage documented as ESTIMATE + `skipped_needs_spend_approval` pending founder spend approval.
+
 ## What's next
 Phase 2 owner-only dependencies: `YOUTUBE_API_KEY` (no live configured-path verification possible without it), manual migration apply (2 new files, in order), `TEST_USER_EMAIL`/`TEST_USER_PASSWORD` for authenticated Playwright, then merge `phase2/intelligence` → `main`.
 
