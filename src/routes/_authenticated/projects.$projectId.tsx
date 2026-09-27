@@ -4,7 +4,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import JSZip from "jszip";
-import { advanceProject, deleteScene, getProject, regenerateScene, updateScene } from "@/lib/studio.functions";
+import {
+  advanceProject,
+  deleteScene,
+  getProject,
+  regenerateScene,
+  updateScene,
+} from "@/lib/studio.functions";
 import { VISUAL_TYPES } from "@/lib/studio-config";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,7 +37,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Download, ImageIcon, Loader2, Play, RefreshCw, Trash2, Wand2, User, Mic, ShieldAlert } from "lucide-react";
+import {
+  ArrowLeft,
+  Download,
+  ImageIcon,
+  Loader2,
+  Play,
+  RefreshCw,
+  Trash2,
+  Wand2,
+  User,
+  Mic,
+  ShieldAlert,
+} from "lucide-react";
 import { RenderPanel } from "@/components/vidora/RenderPanel";
 import { PublishPipeline } from "@/components/vidora/PublishPipeline";
 import { SafetyPanel } from "@/components/vidora/SafetyPanel";
@@ -49,12 +67,15 @@ import { AutoEditEditorPanel } from "@/components/vidora/AutoEditEditorPanel";
 import { projectCreationMode } from "@/lib/mode2/settings";
 import { formatSrtTimecode } from "@/lib/srt";
 
-
 export const Route = createFileRoute("/_authenticated/projects/$projectId")({
   head: () => ({
     meta: [
       { title: "Project editor — Vidora AI" },
-      { name: "description", content: "Review scenes, swap visuals, regenerate voice and export your Vidora AI video package." },
+      {
+        name: "description",
+        content:
+          "Review scenes, swap visuals, regenerate voice and export your Vidora AI video package.",
+      },
       { property: "og:title", content: "Project editor — Vidora AI" },
       { property: "og:description", content: "Scene-by-scene control over your AI video." },
       { property: "og:type", content: "website" },
@@ -111,6 +132,7 @@ function ProjectEditor() {
 
   const [running, setRunning] = useState(false);
   const busy = useRef(false);
+  const [exporting, setExporting] = useState(false);
 
   // Drives the pipeline one step at a time and refreshes the view after each step.
   useEffect(() => {
@@ -195,14 +217,18 @@ function ProjectEditor() {
     );
   }
 
-    const stageIndex = Math.max(0, STAGES.indexOf(project.stage as (typeof STAGES)[number]));
+  const stageIndex = Math.max(0, STAGES.indexOf(project.stage as (typeof STAGES)[number]));
   const readyScenes = scenes.filter((s) => s.asset_url).length;
   const progress =
     project.status === "completed"
       ? 100
-      : Math.min(95, Math.round(((stageIndex + (scenes.length ? readyScenes / scenes.length : 0)) / STAGES.length) * 100));
-
-  const [exporting, setExporting] = useState(false);
+      : Math.min(
+          95,
+          Math.round(
+            ((stageIndex + (scenes.length ? readyScenes / scenes.length : 0)) / STAGES.length) *
+              100,
+          ),
+        );
 
   const exportPackage = async (): Promise<number> => {
     // -1: already running (button is disabled, this is a belt-and-braces guard)
@@ -210,9 +236,16 @@ function ProjectEditor() {
     setExporting(true);
     try {
       const zip = new JSZip();
-      const safe = project.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase().slice(0, 60) || "vidora-project";
+      const safe =
+        project.title
+          .replace(/[^a-z0-9]+/gi, "-")
+          .toLowerCase()
+          .slice(0, 60) || "vidora-project";
 
-      zip.file("narration.txt", scenes.map((s, i) => `SCENE ${i + 1}\n${s.narration}`).join("\n\n"));
+      zip.file(
+        "narration.txt",
+        scenes.map((s, i) => `SCENE ${i + 1}\n${s.narration}`).join("\n\n"),
+      );
       zip.file(
         "shot-list.txt",
         scenes
@@ -341,8 +374,16 @@ function ProjectEditor() {
           <div className="flex flex-wrap gap-2">
             {project.status !== "completed" && (
               <Button onClick={() => setRunning(true)} disabled={running} className="gap-2">
-                {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-                {running ? STAGE_LABEL[project.stage] ?? "Working" : project.status === "failed" ? "Retry" : "Generate"}
+                {running ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Wand2 className="h-4 w-4" />
+                )}
+                {running
+                  ? (STAGE_LABEL[project.stage] ?? "Working")
+                  : project.status === "failed"
+                    ? "Retry"
+                    : "Generate"}
               </Button>
             )}
             <Button
@@ -386,7 +427,11 @@ function ProjectEditor() {
                     : undefined
               }
             >
-              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              {exporting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
               Export package
             </Button>
           </div>
@@ -415,7 +460,9 @@ function ProjectEditor() {
           <div className="surface-card mt-6 p-5">
             <div className="flex items-center justify-between text-sm">
               <span className="font-semibold text-foreground">
-                {project.status === "failed" ? "Generation stopped" : STAGE_LABEL[project.stage] ?? project.step}
+                {project.status === "failed"
+                  ? "Generation stopped"
+                  : (STAGE_LABEL[project.stage] ?? project.step)}
               </span>
               <span className="text-muted-foreground">{progress}%</span>
             </div>
@@ -425,7 +472,8 @@ function ProjectEditor() {
         )}
 
         <h2 className="mt-10 text-xl font-bold tracking-tight text-foreground">
-          Scenes {scenes.length > 0 && <span className="text-muted-foreground">({scenes.length})</span>}
+          Scenes{" "}
+          {scenes.length > 0 && <span className="text-muted-foreground">({scenes.length})</span>}
         </h2>
 
         {/* P4: Studio v2 creative controls */}
@@ -459,9 +507,7 @@ function ProjectEditor() {
 
         {/* P6: Monetization safety — score before publishing */}
         <div className="mt-10">
-          <h2 className="text-xl font-bold tracking-tight text-foreground">
-            {t("safety_title")}
-          </h2>
+          <h2 className="text-xl font-bold tracking-tight text-foreground">{t("safety_title")}</h2>
           <div className="mt-4">
             <SafetyPanel projectId={projectId} script={project.script ?? ""} />
           </div>
@@ -476,22 +522,29 @@ function ProjectEditor() {
 
         {/* P5: Publish pipeline — thumbnail → SEO → schedule → review → approve */}
         <div className="mt-10">
-          <h2 className="text-xl font-bold tracking-tight text-foreground">
-            {t("publish_tab")}
-          </h2>
+          <h2 className="text-xl font-bold tracking-tight text-foreground">{t("publish_tab")}</h2>
           <div className="mt-4">
             <PublishPipeline
               projectId={projectId}
               videoTitle={project.title}
               videoTopic={project.topic ?? project.title}
-              scriptSummary={scenes.map((s: { narration?: string }) => s.narration).filter(Boolean).join(" ").slice(0, 4000) || project.topic || project.title}
+              scriptSummary={
+                scenes
+                  .map((s: { narration?: string }) => s.narration)
+                  .filter(Boolean)
+                  .join(" ")
+                  .slice(0, 4000) ||
+                project.topic ||
+                project.title
+              }
               primaryKeyword={project.topic ?? project.title}
-              nicheKeywords={(project.topic ?? project.title).split(/\s+/).filter((w: string) => w.length > 3)}
+              nicheKeywords={(project.topic ?? project.title)
+                .split(/\s+/)
+                .filter((w: string) => w.length > 3)}
             />
           </div>
         </div>
       </div>
-
     </main>
   );
 }
@@ -651,7 +704,11 @@ function SceneCard({
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">Stock search terms</Label>
-            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="ancient ruins | desert" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="ancient ruins | desert"
+            />
           </div>
         </div>
 
@@ -753,11 +810,7 @@ function SceneCard({
           </AlertDialog>
         </div>
       </div>
-      <ProvenanceDrawer
-        sceneId={scene.id}
-        open={provenanceOpen}
-        onOpenChange={setProvenanceOpen}
-      />
+      <ProvenanceDrawer sceneId={scene.id} open={provenanceOpen} onOpenChange={setProvenanceOpen} />
       <StockPicker
         open={stockOpen}
         onOpenChange={setStockOpen}

@@ -29,12 +29,7 @@ import { emptyCanvas } from "./canvas";
 
 type Filter = { col: string; val: unknown };
 type DbOut = { data: unknown; error: { message: string } | null };
-type Responder = (ctx: {
-  table: string;
-  op: string;
-  filters: Filter[];
-  payload: unknown;
-}) => DbOut;
+type Responder = (ctx: { table: string; op: string; filters: Filter[]; payload: unknown }) => DbOut;
 
 class FakeQuery {
   filters: Filter[] = [];

@@ -45,12 +45,7 @@ export const SceneManifestSchema = z.object({
 });
 export type SceneManifest = z.infer<typeof SceneManifestSchema>;
 
-export const SceneRepairKindSchema = z.enum([
-  "narration",
-  "visual",
-  "audio",
-  "timing",
-]);
+export const SceneRepairKindSchema = z.enum(["narration", "visual", "audio", "timing"]);
 export type SceneRepairKind = z.infer<typeof SceneRepairKindSchema>;
 
 export const SceneRepairRequestSchema = z.object({
@@ -125,9 +120,7 @@ export const QuickCreateStageStatusSchema = z.enum([
   "skipped_unconfigured",
   "skipped_needs_spend_approval",
 ]);
-export type QuickCreateStageStatus = z.infer<
-  typeof QuickCreateStageStatusSchema
->;
+export type QuickCreateStageStatus = z.infer<typeof QuickCreateStageStatusSchema>;
 
 export const QuickCreateStageSchema = z.object({
   stage: z.string(),

@@ -27,12 +27,7 @@ import {
 
 type Filter = { col: string; val: unknown };
 type DbOut = { data: unknown; error: { message: string } | null };
-type Responder = (ctx: {
-  table: string;
-  op: string;
-  filters: Filter[];
-  payload: unknown;
-}) => DbOut;
+type Responder = (ctx: { table: string; op: string; filters: Filter[]; payload: unknown }) => DbOut;
 
 class FakeQuery {
   filters: Filter[] = [];
@@ -84,7 +79,12 @@ class FakeQuery {
   }
   then(onF: (v: DbOut) => void, onR?: (e: unknown) => void): Promise<void> {
     return Promise.resolve(
-      this.respond({ table: this.table, op: this.op, filters: this.filters, payload: this.payload }),
+      this.respond({
+        table: this.table,
+        op: this.op,
+        filters: this.filters,
+        payload: this.payload,
+      }),
     ).then(onF, onR);
   }
 }
@@ -127,7 +127,9 @@ describe("validateReferenceUpload", () => {
     for (const mime of REFERENCE_IMAGE_ALLOWED_MIME) {
       expect(validateReferenceUpload({ byteLength: 1024, mimeType: mime })).toBeNull();
     }
-    expect(validateReferenceUpload({ byteLength: 5 * 1024 * 1024, mimeType: "image/png" })).toBeNull();
+    expect(
+      validateReferenceUpload({ byteLength: 5 * 1024 * 1024, mimeType: "image/png" }),
+    ).toBeNull();
   });
   it("rejects unsupported MIME types, empty files and oversize files", () => {
     expect(validateReferenceUpload({ byteLength: 100, mimeType: "image/gif" })).toContain(
@@ -186,7 +188,11 @@ describe("createCharacter", () => {
     const db = new FakeDb(() => dbErr("must not hit the db"));
     const blank = await createCharacter(db.asDb(), { userId: UID, name: "   " });
     expect(blank).toMatchObject({ ok: false, code: "invalid_input" });
-    const long = await createCharacter(db.asDb(), { userId: UID, name: "X", description: "y".repeat(2001) });
+    const long = await createCharacter(db.asDb(), {
+      userId: UID,
+      name: "X",
+      description: "y".repeat(2001),
+    });
     expect(long).toMatchObject({ ok: false, code: "invalid_input" });
   });
 });
@@ -303,8 +309,7 @@ describe("bindCharacterToScene", () => {
     return new FakeDb((ctx) => {
       if (ctx.table === "scenes" && ctx.op === "select") return ok(scene);
       if (ctx.table === "characters" && ctx.op === "select") return ok(charRow);
-      if (ctx.table === "scenes" && ctx.op === "update")
-        return ok({ ...(ctx.payload as object) });
+      if (ctx.table === "scenes" && ctx.op === "update") return ok({ ...(ctx.payload as object) });
       return dbErr("unexpected");
     });
   }
