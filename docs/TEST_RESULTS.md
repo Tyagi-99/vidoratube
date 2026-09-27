@@ -29,6 +29,11 @@ Exact counts from runs on `phase2/intelligence` + Phase 3 Stream B (`phase3/stre
 | Dev-server route walkthrough | **9/9 intelligence routes 200**, zero server exceptions in dev log |
 | Playwright E2E (`e2e/niche-finder.spec.ts`) | Dual-mode spec rewritten 2026-09-27 to match real UI (New niche dialog flow, label associations, data-testid row hooks, draft-script handoff assertion); see status below |
 | `src/lib/rls-policies.test.ts` (static RLS audit) | **9/9 pass**, covers 32 Phase-1 tables |
+| `npx tsc --noEmit` (Stream C, 2026-09-28) | **clean, 0 errors** (branch `phase3/stream-c`, after route-tree regeneration) |
+| `npx vitest run src/lib/creation` (Stream C, 2026-09-28) | **51/51 pass, 4 files** — F15: `canvas.test.ts` 14/14 + `projects.server.test.ts` 17/17 = 31; F16: `characters.test.ts` 16/16; pre-existing `creation-modes.test.ts` 4/4 |
+| ESLint, Stream-C-touched files (2026-09-28) | **0 errors, 0 warnings** on all 15 touched files (server, canvas, components, routes) |
+| `npm run build` (Stream C, 2026-09-28) | **PASS** (Nitro production build completes) |
+| Dev-server route curl (Stream C, 2026-09-28) | `/thumbnails` → **200**, `/characters` → **200** (SSR title + meta description confirmed in HTML); auth layout pending-shell renders as expected for unauthenticated curl |
 
 ## E2E status (2026-09-27)
 

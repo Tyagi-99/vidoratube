@@ -972,3 +972,40 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
 - **Decision:** The ZIP package is generated client-side in `projects.$projectId.tsx`, so its strict gate is client-enforced: the Export button disables when `getProjectGateState` reports `blocked === true` and the handler re-fetches the gate immediately before packaging. Publish approval and execution are enforced on the server and cannot be bypassed by UI state. This limitation is documented, not hidden.
 - **Reason:** A server-generated package endpoint is the correct long-term fix, but inventing one inside Stream B's scope would duplicate the export pipeline. The client gate is honest defense-in-depth; the money path (YouTube upload) is fully server-gated.
 - **Reverse:** When a server-side package endpoint exists, move the gate check there and keep the client button as a UX affordance only.
+
+## 2026-09-28 — Phase 3 Stream C (Thumbnails & Characters)
+
+### D109. Normalized 0–1 canvas coordinates; design projects vs rendered variants stay separate
+- **Decision:** The layered canvas (`thumbnail_projects.canvas`) uses normalized 0–1 coordinates so one editing model serves 16:9 and 9:16. `thumbnail_projects` is the design surface; `public.thumbnails` remains the canonical rendered-variant/winner store.
+- **Reason:** Aspect-agnostic editing; variant renders are the things experiments and YouTube uploads consume, while the canvas is the thing users edit. Mixing them would corrupt the experiment arm contract.
+- **Reverse:** Store per-aspect canvases if normalization ever causes rounding artifacts.
+
+### D110. Provider availability checked before preflight; no fake images
+- **Decision:** `generateThumbnailVariants` checks the image-provider key first (`image_provider_unconfigured`), then ownership, then credit preflight. The UI disables generation and shows an honest panel when unconfigured.
+- **Reason:** Preflighting or debiting a call that cannot run would burn credits on nothing; fabricating a placeholder image would violate the no-fake-output rule. Unconfigured honesty is unit-tested (zero network calls).
+- **Reverse:** If a free fallback generator is ever added, gate it behind the same preflight and label outputs clearly.
+
+### D111. Scene binding via `scenes.metadata.character_id`, not legacy `scenes.character_id`
+- **Decision:** Character↔scene binding writes `character_id` into `scenes.metadata` JSONB (null to unbind, other keys preserved); the legacy `scenes.character_id` column is left untouched.
+- **Reason:** Per the Phase 3 assignment; metadata binding avoids a schema dependency on the legacy column and keeps unbind idempotent.
+- **Reverse:** If Stream F standardizes on the column, migrate bindings over and drop the metadata key.
+
+### D112. Reference images stored as private paths; UI gets signed URLs
+- **Decision:** `characters.reference_image_url` stores a storage path (`character-refs/<uid>/<cid>/ref.<ext>`), never a hotlinked URL; the UI receives 1-hour signed URLs. Upload validates JPEG/PNG/WebP and ≤5 MB before any storage write.
+- **Reason:** SECURITY_MODEL roadmap item 4 (malware-safe handling): server-validated MIME/size, private bucket, no user-controlled public URLs.
+- **Reverse:** None planned; magic-byte sniffing could strengthen validation later.
+
+### D113. Character binding is a reference attachment, never a consistency claim
+- **Decision:** Every reference surface shows “Reference attached — visual consistency across scenes is not yet verified. A 6-scene proof render is required before any consistency claim is made.” No consistency claim until a real six-scene proof render passes.
+- **Reason:** The brief's explicit rule; claiming consistency without the proof render would be a fabricated capability. Recorded in KNOWN_ISSUES as a founder/Phase-4 blocker.
+- **Reverse:** After the proof render passes, update the copy and FEATURE_MATRIX.
+
+### D114. No debit after variant generation — billing policy left to Stream F
+- **Decision:** `generateThumbnailVariants` preflights (affordability) but does not debit. The `debit_credits_for_job_once` RPC debits exactly 1 credit with no amount parameter (the legacy thumbnail flow's `p_amount` argument does not match the RPC signature), so inventing per-variant debit semantics here would be a money decision made without authority.
+- **Reason:** Debiting real user credits with wrong semantics is worse than not debiting; preflight satisfies the "credit preflight before paid ops" rule. Documented in KNOWN_ISSUES as a Stream F integration need.
+- **Reverse:** Once billing policy is decided (1/batch vs per-variant vs estimate-based), add the debit call in `generateThumbnailVariants` after successful persistence, with an idempotency key per generation run.
+
+### D115. `getOrCreateThumbnailProject` normalizes to one `LoadedProject` shape
+- **Decision:** The server function wraps the create path into `{ project, canvas, problems }` so the UI has a single contract whether the project was found or created.
+- **Reason:** Two shapes (`ThumbnailProjectRow` vs `LoadedProject`) leaked into the UI and caused type errors; the normalization is server-side and invisible to callers.
+- **Reverse:** None.

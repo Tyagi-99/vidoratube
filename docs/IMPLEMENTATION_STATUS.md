@@ -83,6 +83,18 @@ Branch `phase3/stream-b` (base `cab2f1e`, coordinator-owned creation contracts �
 
 **Tests (2026-09-28):** `src/lib/creation` **88/88** (canvas 20, scripts 33, claims 18, evidence 7, strict-gate 6, creation-modes 4) + `publish-strict-gate.test.ts` **7/7**. Full suite / build / ESLint / dev-server walkthrough still to run before merge.
 
+## Phase 3 — Stream C (Thumbnails & Characters): SHIPPED (code; apply + keys pending)
+
+Delivered 2026-09-28 on `phase3/stream-c` (never pushed/merged per program rules).
+
+**F15 Thumbnail Studio.** `supabase/migrations/20260928041200_p3_stream_c.sql` (additive; `thumbnail_projects` already existed). Layered canvas model (`src/lib/creation/thumbnails/canvas.ts`): normalized 0–1 coordinates, 16:9 + 9:16, text/image layers, backgrounds, z-order, ≤24 layers, immutable ops, corrupt-canvas fallback. Project flow `draft → in_review → approved` (approved terminal). 1–8 AI variants via `generateImageWithTelemetry()` with credit preflight; missing key returns honest `image_provider_unconfigured` — no fake images. Variants persist to canonical `public.thumbnails`; private `generated-videos` bucket; signed preview URLs. Compare two variants, select winner (clears sibling selection), link winner to a Phase-4 experiment arm (`experiment_arms.thumbnail_id`) — linkage only, metrics live in Phase 4. UI: `ThumbnailStudio.tsx` extended with a "Layered editor" tab (`LayeredCanvasEditor.tsx` + `ThumbnailProjectEditor.tsx`); standalone `/thumbnails` route (project picker, curl-verified 200). 31 new tests.
+
+**F16 Character System.** Same migration adds `characters` (with `style_notes` jsonb) and `scenes.metadata` jsonb, owner RLS. CRUD + validated reference upload (JPEG/PNG/WebP, ≤5 MB, owner-scoped `character-refs/<uid>/<cid>/` paths, private storage, signed previews). Scene binding via `scenes.metadata.character_id` (null unbind, metadata preserved, foreign scene/character rejected). Every reference surface carries: “Reference attached — visual consistency across scenes is not yet verified.” No consistency claim until a six-scene proof render passes (founder/Phase-4 work). UI: `CharacterManager.tsx` rewritten (CRUD, style notes, upload, project→scene bind picker, usage list); standalone `/characters` route (curl-verified 200, SSR title + meta confirmed); mounted in StudioV2Panel. 16 new tests.
+
+**Gates (measured):** `npx tsc --noEmit` clean · `npx vitest run src/lib/creation` 51/51 (4 files; includes pre-existing `creation-modes` 4) · ESLint 0 errors on all touched files · `npm run build` green · dev-server curl `/thumbnails` + `/characters` → 200.
+
+**Founder-only before prod:** apply migration `20260928041200_p3_stream_c.sql` via Lovable dashboard SQL editor (in filename order); `LOVABLE_API_KEY` for image generation; six-scene proof render for any character-consistency claim.
+
 ## What's next
 
 Phase 2 owner-only dependencies: `YOUTUBE_API_KEY` (no live configured-path verification possible without it), manual migration apply (2 new files, in order), `TEST_USER_EMAIL`/`TEST_USER_PASSWORD` for authenticated Playwright, then merge `phase2/intelligence` → `main`.

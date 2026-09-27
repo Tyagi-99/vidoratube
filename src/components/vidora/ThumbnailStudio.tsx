@@ -13,6 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ThumbnailProjectEditor } from "./ThumbnailProjectEditor";
 import { useI18n } from "@/lib/i18n";
 import {
   generateThumbnails,
@@ -36,7 +38,12 @@ const FONT_STACKS: Record<TextOverlay["font"], string> = {
 /** Burns the text overlay onto the image via canvas, returns a JPEG data URL. */
 async function burnOverlay(
   imageUrl: string,
-  overlay: { headline: string; font: TextOverlay["font"]; color: string; position: TextOverlay["position"] },
+  overlay: {
+    headline: string;
+    font: TextOverlay["font"];
+    color: string;
+    position: TextOverlay["position"];
+  },
 ): Promise<string> {
   const img = await new Promise<HTMLImageElement>((resolve, reject) => {
     const el = new Image();
@@ -196,140 +203,183 @@ export function ThumbnailStudio({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">{t("thumbnail_studio")}</h3>
-        <div className="flex gap-2">
-          <Select value={aspect} onValueChange={(v) => setAspect(v as ThumbnailAspect)}>
-            <SelectTrigger className="w-24">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="16:9">16:9</SelectItem>
-              <SelectItem value="9:16">9:16</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button size="sm" onClick={() => generate.mutate()} disabled={generate.isPending}>
-            {generate.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
-            {generate.isPending ? t("generating_thumbnails") : t("generate_thumbnails")}
-          </Button>
-        </div>
+        <TabsList>
+          <TabsTrigger value="variants">Variants</TabsTrigger>
+          <TabsTrigger value="editor">Layered editor</TabsTrigger>
+        </TabsList>
       </div>
-
-      {thumbs.isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
-      ) : visible.length === 0 ? (
-        <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-          Generate 4 AI thumbnail variants to get started.
-        </p>
-      ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {visible.map((thumb) => (
-            <button
-              key={thumb.id}
-              type="button"
-              onClick={() => select.mutate(thumb.id)}
-              className={`relative overflow-hidden rounded-lg border-2 transition-colors ${
-                thumb.selected ? "border-primary" : "border-transparent hover:border-muted"
-              }`}
-            >
-              {thumb.viewUrl ? (
-                <img
-                  src={thumb.viewUrl}
-                  alt={`Thumbnail variant ${thumb.variant}`}
-                  className={aspect === "16:9" ? "aspect-video w-full object-cover" : "aspect-[9/16] w-full object-cover"}
-                />
+      <Tabs defaultValue="variants">
+        <TabsContent value="variants" className="space-y-4">
+          <div className="flex items-center justify-end gap-2">
+            <Select value={aspect} onValueChange={(v) => setAspect(v as ThumbnailAspect)}>
+              <SelectTrigger className="w-24">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="16:9">16:9</SelectItem>
+                <SelectItem value="9:16">9:16</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button size="sm" onClick={() => generate.mutate()} disabled={generate.isPending}>
+              {generate.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <div className="flex aspect-video items-center justify-center bg-muted">
-                  <ImageIcon className="h-6 w-6 text-muted-foreground" />
-                </div>
+                <ImageIcon className="h-4 w-4" />
               )}
-              {thumb.selected && (
-                <span className="absolute right-1.5 top-1.5 rounded-full bg-primary p-1 text-primary-foreground">
-                  <Check className="h-3.5 w-3.5" />
-                </span>
-              )}
-              <span className="absolute bottom-1.5 left-1.5 rounded bg-black/60 px-1.5 py-0.5 text-xs text-white">
-                {thumb.variant}
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {provenance && (
-        <p className="text-xs text-muted-foreground">
-          Selected variant {selected?.variant}: {provenance}
-        </p>
-      )}
-
-      {selected && (
-        <div className="space-y-3 rounded-lg border p-4">
-          <div className="space-y-1.5">
-            <Label>{t("thumbnail_headline")}</Label>
-            <Input
-              value={headline}
-              onChange={(e) => setHeadline(e.target.value)}
-              placeholder="YOUR HEADLINE HERE"
-              maxLength={60}
-            />
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1.5">
-              <Label>{t("thumbnail_font")}</Label>
-              <Select value={font} onValueChange={(v) => setFont(v as TextOverlay["font"])}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {FONTS.map((f) => (
-                    <SelectItem key={f} value={f}>{f}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>{t("thumbnail_color")}</Label>
-              <Input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-10 w-full cursor-pointer p-1" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>{t("thumbnail_position")}</Label>
-              <Select value={position} onValueChange={(v) => setPosition(v as TextOverlay["position"])}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {POSITIONS.map((p) => (
-                    <SelectItem key={p} value={p}>{p}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => saveOverlay.mutate(selected.id)}
-              disabled={saveOverlay.isPending || !headline.trim()}
-            >
-              {saveOverlay.isPending && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}
-              Save overlay
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => burnAndUpload.mutate(selected)}
-              disabled={burnAndUpload.isPending || !headline.trim()}
-            >
-              {burnAndUpload.isPending && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}
-              Burn text into image
+              {generate.isPending ? t("generating_thumbnails") : t("generate_thumbnails")}
             </Button>
           </div>
-          {burnPreview && (
-            <div className="space-y-1.5">
-              <Label>Preview (what YouTube will show)</Label>
-              <img src={burnPreview} alt="Burned thumbnail preview" className="w-full rounded-lg border" />
+
+          {thumbs.isLoading ? (
+            <p className="text-sm text-muted-foreground">Loading…</p>
+          ) : visible.length === 0 ? (
+            <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+              Generate 4 AI thumbnail variants to get started.
+            </p>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {visible.map((thumb) => (
+                <button
+                  key={thumb.id}
+                  type="button"
+                  onClick={() => select.mutate(thumb.id)}
+                  className={`relative overflow-hidden rounded-lg border-2 transition-colors ${
+                    thumb.selected ? "border-primary" : "border-transparent hover:border-muted"
+                  }`}
+                >
+                  {thumb.viewUrl ? (
+                    <img
+                      src={thumb.viewUrl}
+                      alt={`Thumbnail variant ${thumb.variant}`}
+                      className={
+                        aspect === "16:9"
+                          ? "aspect-video w-full object-cover"
+                          : "aspect-[9/16] w-full object-cover"
+                      }
+                    />
+                  ) : (
+                    <div className="flex aspect-video items-center justify-center bg-muted">
+                      <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                  )}
+                  {thumb.selected && (
+                    <span className="absolute right-1.5 top-1.5 rounded-full bg-primary p-1 text-primary-foreground">
+                      <Check className="h-3.5 w-3.5" />
+                    </span>
+                  )}
+                  <span className="absolute bottom-1.5 left-1.5 rounded bg-black/60 px-1.5 py-0.5 text-xs text-white">
+                    {thumb.variant}
+                  </span>
+                </button>
+              ))}
             </div>
           )}
-          <p className="text-xs text-muted-foreground">
-            “Burn text into image” bakes the headline onto the thumbnail — this is the
-            version uploaded to YouTube.
-          </p>
-        </div>
-      )}
+
+          {provenance && (
+            <p className="text-xs text-muted-foreground">
+              Selected variant {selected?.variant}: {provenance}
+            </p>
+          )}
+
+          {selected && (
+            <div className="space-y-3 rounded-lg border p-4">
+              <div className="space-y-1.5">
+                <Label>{t("thumbnail_headline")}</Label>
+                <Input
+                  value={headline}
+                  onChange={(e) => setHeadline(e.target.value)}
+                  placeholder="YOUR HEADLINE HERE"
+                  maxLength={60}
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label>{t("thumbnail_font")}</Label>
+                  <Select value={font} onValueChange={(v) => setFont(v as TextOverlay["font"])}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {FONTS.map((f) => (
+                        <SelectItem key={f} value={f}>
+                          {f}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{t("thumbnail_color")}</Label>
+                  <Input
+                    type="color"
+                    value={color}
+                    onChange={(e) => setColor(e.target.value)}
+                    className="h-10 w-full cursor-pointer p-1"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{t("thumbnail_position")}</Label>
+                  <Select
+                    value={position}
+                    onValueChange={(v) => setPosition(v as TextOverlay["position"])}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {POSITIONS.map((p) => (
+                        <SelectItem key={p} value={p}>
+                          {p}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => saveOverlay.mutate(selected.id)}
+                  disabled={saveOverlay.isPending || !headline.trim()}
+                >
+                  {saveOverlay.isPending && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}
+                  Save overlay
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => burnAndUpload.mutate(selected)}
+                  disabled={burnAndUpload.isPending || !headline.trim()}
+                >
+                  {burnAndUpload.isPending && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}
+                  Burn text into image
+                </Button>
+              </div>
+              {burnPreview && (
+                <div className="space-y-1.5">
+                  <Label>Preview (what YouTube will show)</Label>
+                  <img
+                    src={burnPreview}
+                    alt="Burned thumbnail preview"
+                    className="w-full rounded-lg border"
+                  />
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                “Burn text into image” bakes the headline onto the thumbnail — this is the version
+                uploaded to YouTube.
+              </p>
+            </div>
+          )}
+        </TabsContent>
+        <TabsContent value="editor">
+          <ThumbnailProjectEditor
+            projectId={projectId}
+            videoTitle={videoTitle}
+            videoTopic={videoTopic}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
