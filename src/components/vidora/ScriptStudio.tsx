@@ -11,7 +11,7 @@
  * locked-read-only. Nothing here fabricates data: timings are estimates,
  * AI output is labeled, costs are shown before spending.
  */
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -169,7 +169,18 @@ function SectionEditor({
   );
 }
 
-export function ScriptStudio({ projectId }: { projectId: string }) {
+export function ScriptStudio({
+  projectId,
+  scriptId: controlledScriptId,
+  onScriptIdChange,
+}: {
+  projectId: string;
+  /** Controlled selected script. When omitted the studio manages its own
+   * selection; pass both props to share the selection (e.g. with the
+   * Evidence Desk's claim extractor). */
+  scriptId?: string | null;
+  onScriptIdChange?: (id: string | null) => void;
+}) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const listScriptsFn = useServerFn(listProjectScripts);
@@ -185,7 +196,17 @@ export function ScriptStudio({ projectId }: { projectId: string }) {
   const draftFn = useServerFn(generateScriptDraftFn);
   const gateFn = useServerFn(getProjectGateState);
 
-  const [scriptId, setScriptId] = useState<string | null>(null);
+  const [internalScriptId, setInternalScriptId] = useState<string | null>(null);
+  // Controlled when the parent passes scriptId (shared with Evidence Desk);
+  // otherwise the studio owns its selection.
+  const scriptId = controlledScriptId !== undefined ? controlledScriptId : internalScriptId;
+  const setScriptId = useCallback(
+    (id: string | null) => {
+      if (onScriptIdChange) onScriptIdChange(id);
+      else setInternalScriptId(id);
+    },
+    [onScriptIdChange],
+  );
   const [sections, setSections] = useState<ScriptSection[]>([]);
   const [changeNote, setChangeNote] = useState("");
   const [confirmRestoreId, setConfirmRestoreId] = useState<string | null>(null);
@@ -230,7 +251,7 @@ export function ScriptStudio({ projectId }: { projectId: string }) {
     if (!scriptId && scriptsQ.data && scriptsQ.data.length > 0) {
       setScriptId(scriptsQ.data[0]!.id);
     }
-  }, [scriptsQ.data, scriptId]);
+  }, [scriptsQ.data, scriptId, setScriptId]);
   // Reset the editor when the loaded version changes. The ref guard keeps
   // background refetches (same version id, new array identity) from wiping
   // in-progress edits.

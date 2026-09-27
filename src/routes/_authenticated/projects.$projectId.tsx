@@ -100,6 +100,9 @@ function ProjectEditor() {
   });
   const gateBlocked = gate.data?.blocked === true;
   const gateUnknown = gate.isPending || gate.isError;
+  // Shared script selection (P3 Stream B): ScriptStudio owns the picker;
+  // EvidenceDesk extracts claims from the same selected script.
+  const [scriptId, setScriptId] = useState<string | null>(null);
   const project = data.data?.project;
   const scenes = data.data?.scenes ?? [];
   const captions = data.data?.captions ?? [];
@@ -466,8 +469,8 @@ function ProjectEditor() {
         {/* P3 Stream B: research → script layer */}
         <div className="mt-10 space-y-6">
           <ResearchCanvas projectId={projectId} />
-          <ScriptStudio projectId={projectId} />
-          <EvidenceDesk projectId={projectId} />
+          <ScriptStudio projectId={projectId} scriptId={scriptId} onScriptIdChange={setScriptId} />
+          <EvidenceDesk projectId={projectId} scriptId={scriptId} />
         </div>
 
         {/* P5: Publish pipeline — thumbnail → SEO → schedule → review → approve */}

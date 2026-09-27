@@ -205,7 +205,14 @@ function CandidateCard({
   );
 }
 
-export function EvidenceDesk({ projectId, scriptId }: { projectId: string; scriptId?: string }) {
+export function EvidenceDesk({
+  projectId,
+  scriptId,
+}: {
+  projectId: string;
+  /** Script the "Extract claims" button reads; null/undefined hides it. */
+  scriptId?: string | null;
+}) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const deskFn = useServerFn(getEvidenceDesk);
