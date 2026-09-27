@@ -167,6 +167,61 @@ export const enqueueServerRender = createServerFn({ method: "POST" })
       .insert(rows)
       .select("*");
     if (error) throw new Error(error.message);
+
+    // Phase 1 durable-jobs: ride-along tracking in generation_jobs /
+    // provider_tasks. This never replaces video_jobs/renders and never
+    // breaks the enqueue response — tracking failures are logged, not
+    // thrown. The generation job is created AFTER the renders insert so a
+    // failed enqueue leaves no orphan durable job behind.
+    try {
+      const durableJobs = await import("./jobs/durable-jobs.server");
+      const rowEstimate = (row: (typeof rows)[number]): number =>
+        Number((row.meta as { expected_credits?: number } | null)?.expected_credits ?? 0);
+      const totalEstimate = rows.reduce((sum, r) => sum + rowEstimate(r), 0);
+      const durable = await durableJobs.createGenerationJob(supabaseAdmin, {
+        userId,
+        workspaceId: data.workspaceId ?? null,
+        projectId: data.projectId,
+        jobType: "server_render",
+        // groupId is generated per enqueue call: this key dedupes only a
+        // true double-execution of the same call. Client-supplied
+        // idempotency keys are a future step (see createGenerationJob).
+        idempotencyKey: `server-render:${groupId}`,
+        maxAttempts: 3,
+        costEstimateCredits: totalEstimate > 0 ? totalEstimate : null,
+        provider: "server_ffmpeg",
+        model: data.mode,
+      });
+      // One provider task per aspect row, carrying the render row id as the
+      // external task id so an interrupted job can poll/resume the worker
+      // row instead of re-paying for the render.
+      for (const row of inserted ?? []) {
+        const meta = (row.meta ?? {}) as {
+          expected_credits?: number;
+          aspect?: string;
+        };
+        const expected = Number(meta.expected_credits ?? 0);
+        await durableJobs.recordProviderTask(supabaseAdmin, {
+          jobId: durable.id,
+          provider: "server_ffmpeg",
+          model: data.mode,
+          providerTaskId: row.id,
+          attempt: 1,
+          status: "submitted",
+          costEstimate: expected > 0 ? expected : null,
+          usage: {
+            aspect: meta.aspect ?? row.aspect_ratio,
+            group_id: groupId,
+            render_id: row.id,
+          },
+        });
+      }
+    } catch (trackingError) {
+      console.error(
+        "[durable-jobs] ride-along tracking failed (enqueue unaffected):",
+        trackingError,
+      );
+    }
     return { groupId, rows: inserted ?? [] };
   });
 
