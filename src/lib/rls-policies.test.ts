@@ -107,6 +107,41 @@ const OWNER_SCOPED_TABLES = [
   // Owner SELECT only; NO client write policies (service-role writes only).
   "approvals",
   "publish_warnings",
+  // Phase 1 (Foundation) — intelligence domain (20260928020000).
+  // Snapshot/child tables are scoped via the parent row's user_id
+  // (EXISTS subquery), so every policy still references auth.uid().
+  "channels",
+  "channel_snapshots",
+  "niche_snapshots",
+  "competitor_channels",
+  "videos",
+  "video_snapshots",
+  "research_sources",
+  "research_claims",
+  // Phase 1 — creation domain (20260928020100).
+  "folders",
+  "folder_rules",
+  "folder_items",
+  "scripts",
+  "script_versions",
+  "brand_profiles",
+  "voices",
+  "scene_versions",
+  "thumbnail_projects",
+  "title_variants",
+  "content_packages",
+  // Phase 1 — operations domain (20260928020200). provider_tasks is scoped
+  // via its parent generation_jobs row; project_budgets via parent projects.
+  "generation_jobs",
+  "provider_tasks",
+  "experiments",
+  "experiment_arms",
+  "channel_connections",
+  "analytics_snapshots",
+  "retention_snapshots",
+  "comments",
+  "engagement_insights",
+  "project_budgets",
 ];
 
 /**
@@ -124,6 +159,13 @@ const WORKSPACE_MEMBER_SCOPED_TABLES = [
   "client_channels",
   "brand_kits",
   "workspace_approvals",
+  // Phase 1 (Foundation) — platform domain (20260928020300).
+  // audit_logs: members read; NO client write policies (service-role writes
+  // only, mirroring the approvals pattern). workspace_budgets / api_keys:
+  // members read, owners/editors manage.
+  "audit_logs",
+  "workspace_budgets",
+  "api_keys",
 ];
 
 /** Tables intentionally readable/writable without auth (documented exceptions). */
