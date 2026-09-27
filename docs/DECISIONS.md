@@ -1208,3 +1208,129 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
 - **Reason:** A rerunnable contract that the free path stays honest end to
   end; any future "helpful" shortcut that fakes a stage breaks this test.
 - **Reverse:** None — extend, don't replace.
+
+### D136. Experiment stats engine is hand-rolled pure TypeScript (no new deps)
+
+- **Decision:** `src/lib/experiments/stats.ts` implements the two-proportion
+  z-test (pooled SE, two-tailed) and Welch's t-test from scratch: erf via
+  Abramowitz–Stegun 7.1.26, t-CDF via the regularized incomplete beta
+  (Numerical Recipes continued fraction), Lanczos log-gamma. No scipy/native
+  dependency.
+- **Reason:** The pinned stats discipline (p < 0.05, z-test for CTR, t-test for
+  continuous) must be deterministic, dependency-free, and unit-testable in the
+  worker/edge-safe bundle. Test fixtures carry p-values computed independently
+  with scipy 1.11.4 (see test header) — the engine must match them to 1e-6.
+- **Reverse:** Swap in a stats library later only if it reproduces the same
+  fixtures; the fixtures are the contract, not the implementation.
+
+### D137. Arm metrics jsonb shape: `{impressions,clicks}` for CTR, `{n,mean,variance}` for continuous
+
+- **Decision:** `experiment_arms.metrics` carries, per `primary_metric`:
+  CTR → `{ impressions, clicks }`; views/avg_view_duration_s/
+  watch_time_minutes → `{ n, mean, variance }` (also accepts `{ std }` in
+  place of `variance`). The min-sample gate counts `impressions` for CTR and
+  `n` for continuous metrics against `experiments.min_sample_size`
+  (default 100, CHECK ≥ 100 — never lower without a D-decision).
+- **Reason:** The z-test needs raw counts; Welch's t-test needs mean/variance/
+  n. One jsonb column with a documented per-metric shape keeps the migration
+  minimal and the arm rows comparable.
+- **Reverse:** Add per-observation rows later if real impression-level data
+  arrives; the aggregate shape stays the read contract.
+
+### D138. Conclusion rules: same gates for human and auto, pause = back to draft
+
+- **Decision:** `concludeExperiment` (human) and the auto-conclude check run
+  the SAME `evaluateConclusion`: min sample on every arm AND 24h wall-clock
+  since `started_at` AND p < 0.05 before a winner may be named. A conclusion
+  with no significant winner is recorded as `verdict: "inconclusive"`
+  (`winner_arm_id: null`) — that is an honest conclusion, not a failure.
+  `pauseExperiment` returns status to `draft` (data collection stops); the 24h
+  gate stays wall-clock from first `started_at` (conservative: pausing cannot
+  rewind the novelty-effect clock). Auto-conclude fires only from `running`,
+  writes `decided_by: "auto"`, and NEVER applies the winner.
+- **Reason:** "No conclusion before min sample AND 24h" applies to humans too —
+  otherwise the UI would let a founder peek at p=0.04 on 30 impressions and
+  declare victory. Pause-as-draft avoids a new column while keeping the state
+  machine inside the pinned `draft|running|completed|archived` vocab.
+- **Reverse:** Track accumulated run-seconds across pauses if pause/resume
+  becomes frequent; the gate semantics stay the same.
+
+### D139. "Apply winner" is a separate human-only action, audit-logged best-effort
+
+- **Decision:** `applyWinner` requires a completed experiment whose conclusion
+  is `verdict: "winner"`. It sets `seo_metadata.selected_title` (winning
+  title variant) and/or `thumbnails.selected` (winning thumbnail, siblings
+  deselected), marks the winning `title_variants` row `status: "winner"`, and
+  writes `audit_logs` (`action: "experiment.winner_applied"`). The audit row
+  needs a workspace (`workspace_id` NOT NULL); the workspace is resolved
+  best-effort (owned → member). If the user has no workspace, the apply still
+  succeeds but returns `auditLogged: false` and logs loudly — the UI must
+  surface that.
+- **Reason:** The pinned contract demands the apply be human and audit-logged;
+  failing the whole apply when no workspace exists would punish users for a
+  schema constraint. Loud logging + a visible flag keeps it honest.
+- **Reverse:** Make audit mandatory if workspaces become universal.
+
+### D140. Learning evidence gate enforced in code, not just documented
+
+- **Decision:** `promoteLearning` (proposed → validated) throws unless
+  `evidence` is non-empty AND `confidence` is a number in (0, 1]. Auto-drafted
+  experiment learnings get `evidence: { type: "experiment_outcome",
+  refs: [experimentId], metrics: {...}, sample }` and
+  `confidence = 1 − p` (winner) or `0.5` (inconclusive), always `status:
+  "proposed"`, `source: "system"`.
+- **Reason:** The pinned "learning without evidence stays proposed" rule is
+  only real if the promote path rejects gateless promotions. Confidence 0 is
+  rejected — zero confidence is not evidence.
+- **Reverse:** None.
+
+### D141. Pattern mining drafts `kind: "pattern"` learnings, status proposed, source `ai_analysis`
+
+- **Decision:** `minePatterns` aggregates VALIDATED learnings only, groups by
+  `topic`, and drafts one `kind: "pattern"` learning per topic with
+  `status: "proposed"`, `source: "ai_analysis"`, evidence refs = the cited
+  learning ids, confidence = min cited confidence. The learnings UI renders
+  every `ai_analysis` row with an "AI analysis" badge and a citation list.
+- **Reason:** "Only validated learnings may feed brief advice" + "ALWAYS
+  labeled AI analysis, always cites the underlying learnings". Proposed status
+  keeps a human in the loop before pattern advice is treated as validated.
+- **Reverse:** None — labeling is a contract requirement.
+
+### D142. Comment-signal learnings are read-only over Stream D's `engagement_insights`
+
+- **Decision:** `draftFromCommentSignals` only SELECTs `engagement_insights`
+  (Stream D owns all writes). Insights from the last 30 days are grouped by
+  `kind`; a kind with ≥ 3 insights drafts one `kind: "comment_signal"`
+  learning (`status: "proposed"`, `source: "system"`,
+  `evidence: { type: "comment_signal", refs: [insightIds], sample: n }`).
+  Re-running skips kinds already drafted in the last 30 days (payload marker).
+- **Reason:** Respects the read-only contract with Stream D while turning
+  recurring audience signals into evidence-gated learnings. The ≥3 threshold
+  keeps one-off comments from becoming "learnings".
+- **Reverse:** Lower/raise the threshold with a D-decision if it misfires.
+
+### D143. New columns are minimal: two gates on experiments, two labels on learnings
+
+- **Decision:** Migration `2026092804c000_p4_experiments.sql` adds ONLY:
+  `experiments.min_sample_size` (default 100, CHECK ≥ 100),
+  `experiments.min_duration_hours` (default 24, CHECK ≥ 1),
+  `learning_insights.topic` (default `"general"`),
+  `learning_insights.source` (`human|ai_analysis|system`, default `human`),
+  plus indexes. RLS policies already exist on both tables; the migration only
+  re-asserts them. Everything else (conclusion shape, evidence shape) lives in
+  the existing jsonb columns per the pinned contracts.
+- **Reason:** The Phase 1 schema already carries experiments/experiment_arms/
+  learning_insights/engagement_insights. "Only add what's genuinely missing":
+  the per-experiment gate config and the AI-analysis label have no home today.
+- **Reverse:** None.
+
+### D144. Experiment/learn metric writes go through `recordArmMetrics`, never direct SQL from UI
+
+- **Decision:** The only write path for arm metrics is the `recordArmMetrics`
+  server function (jsonb merge + validation + auto-conclude check). UI never
+  constructs metric rows. Every record triggers the auto-conclude evaluation
+  so conclusions land without a cron.
+- **Reason:** Single choke point keeps the stats discipline and the
+  never-auto-apply rule enforceable; no background worker needed in v1.
+- **Reverse:** Move to a cron/queue consumer if metric ingestion becomes
+  high-volume; the evaluation function stays pure and reusable.
