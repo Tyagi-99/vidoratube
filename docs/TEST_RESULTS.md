@@ -2,7 +2,20 @@
 
 Exact counts from measured runs. Updated 2026-09-28.
 
-## Current — Post-merge/post-migration gates on `main` (2026-09-28, ~10:10 IST)
+## Current — Phase 5 merged gates on `phase5/platform` (2026-09-28, ~10:25 IST)
+
+Three Phase 5 streams merged (A: F10 agent, B: F41 gaps + MCP E2E harness, C: F42 docs). One coordinator fix: `rls-policies.test.ts` classified the two new agent tables (was the single failing test).
+
+| Suite | Result |
+|---|---|
+| `npx tsc --noEmit` (strict + noUnusedLocals + noUncheckedIndexedAccess + exactOptionalPropertyTypes) | **clean, 0 errors** |
+| `npx vitest run` (unit, full) | **1738/1738 pass, 173 files** (was 1709/1709 on main; +29: agent 12, MCP E2E 10, rate-limit headers, RLS audit) |
+| `npm run test:worker` | **87/87 pass, 28 suites, 0 fail** |
+| `npm run build` (production) | **PASS** (Nitro) |
+
+Not browser-verified: the `/agent` route compiles and follows existing route patterns but was not checked in a live browser (no live-browser access in this environment). The Phase 5 agent migration (`20260928050000_p5_agent.sql`) is unapplied — dashboard apply required.
+
+## Previous — Post-merge/post-migration gates on `main` (2026-09-28, ~10:10 IST)
 
 After merge `8ccb460` (Phase 4), all 19 migrations applied live, migration
 corrections + docs landed on `main` (D174/D175/D176/D177, `2026092804f000_client_errors_hardening.sql`):
