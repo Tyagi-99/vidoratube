@@ -28,9 +28,15 @@ npm run dev     # tsx watch mode
 npm run build && npm start
 ```
 
-The worker needs the P2 migration applied (`claim_render_job` /
-`heartbeat_render_job` RPCs): `supabase db push` or apply
-`supabase/migrations/20260925143500_server_render_worker.sql`.
+The worker needs these RPCs on the database: `claim_render_job` /
+`heartbeat_render_job` (both in
+`supabase/migrations/20260925120000_schema_reconciliation.sql`),
+`worker_heartbeats` (`20260925197000_worker_heartbeats.sql`),
+`requeue_stale_renders` (`20260925210000_requeue_stale_renders.sql`),
+`finalize_render_billing` (`20260925220000_exact_render_settle.sql`), and
+`requeue_stale_chapters` (`20260925230000_chapters.sql`). Apply them via the
+dashboard SQL editor in filename order if they are not already live — the
+full applied list lives in `docs/PHASE4_MIGRATION_LIST.md`.
 
 ## How jobs flow
 
@@ -149,8 +155,8 @@ encode changes).
 The repo root ships everything the founder needs:
 
 - `worker/Dockerfile` — Node 20 + native FFmpeg, non-root, no exposed ports.
-- `docker-compose.yml` (repo root) — one `render-worker` service, `.env` as env_file.
-- `.env.example` (repo root) — copy to `.env`, fill `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`.
+- `docker-compose.yml` (repo root) — one `worker` service (container `vidora-render-worker`), `.env` as env_file.
+- `.env.example` (repo root) — copy to `.env`, fill `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`. For the full worker-only variable reference (every var, what it is, where to get it, secret or not) see `worker/.env.example`.
 - `scripts/deploy-worker.sh` — one-command deploy.
 
 ### One-time host setup (Oracle Cloud, Ubuntu 22.04+)
