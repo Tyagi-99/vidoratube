@@ -5,13 +5,16 @@
  * scope and are audit-logged.
  */
 import { auditApiCall, authenticateApiKey, type VerifiedApiKey } from "./keys.server";
+import { rateLimitHeaders, type RateLimitState } from "./keys";
 
 export async function requireAdminKey(
   request: Request,
-): Promise<{ key: VerifiedApiKey } | { response: Response }> {
+): Promise<{ key: VerifiedApiKey; rateLimit: RateLimitState } | { response: Response }> {
   const auth = await authenticateApiKey(request, ["admin:keys"]);
   if (!auth.ok) {
-    const headers: Record<string, string> = {};
+    const headers: Record<string, string> = {
+      ...rateLimitHeaders(auth.failure.rateLimit),
+    };
     if (auth.failure.retryAfterMs !== undefined) {
       headers["Retry-After"] = String(Math.ceil(auth.failure.retryAfterMs / 1000));
     }
@@ -22,7 +25,7 @@ export async function requireAdminKey(
       ),
     };
   }
-  return { key: auth.key };
+  return { key: auth.key, rateLimit: auth.rateLimit };
 }
 
 export async function auditKeyAction(

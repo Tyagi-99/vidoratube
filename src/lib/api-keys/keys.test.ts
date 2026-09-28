@@ -8,6 +8,7 @@ import {
   isValidApiKeyFormat,
   normalizeScopes,
   provenanceBlock,
+  rateLimitHeaders,
 } from "./keys";
 
 describe("API key format", () => {
@@ -124,5 +125,62 @@ describe("SlidingWindowRateLimiter", () => {
     const limiter = new SlidingWindowRateLimiter();
     expect(() => limiter.check("k", 0)).toThrow(/positive/);
     expect(() => limiter.check("k", -5)).toThrow(/positive/);
+  });
+
+  // D178: decisions expose remaining + epoch-second reset for headers.
+  it("decision exposes limit, remaining, and epoch-second reset", () => {
+    const now = 1_000_000; // fixed clock
+    const limiter = new SlidingWindowRateLimiter(() => now);
+    const first = limiter.check("k", 3);
+    expect(first.allowed).toBe(true);
+    expect(first.limit).toBe(3);
+    expect(first.remaining).toBe(2);
+    expect(first.resetAt).toBe(Math.floor((now + 60_000) / 1000));
+    const second = limiter.check("k", 3);
+    expect(second.remaining).toBe(1);
+    limiter.check("k", 3); // exhausts
+    const denied = limiter.check("k", 3);
+    expect(denied.allowed).toBe(false);
+    expect(denied.remaining).toBe(0);
+    expect(denied.resetAt).toBe(Math.floor((now + 60_000) / 1000));
+  });
+});
+
+describe("rateLimitHeaders", () => {
+  it("emits the standard trio from a rate-limit state", () => {
+    expect(
+      rateLimitHeaders({ limit: 60, remaining: 41, reset: 1_759_000_000 }),
+    ).toEqual({
+      "X-RateLimit-Limit": "60",
+      "X-RateLimit-Remaining": "41",
+      "X-RateLimit-Reset": "1759000000",
+    });
+  });
+
+  it("round-trips limiter decisions on allow and deny", () => {
+    const limiter = new SlidingWindowRateLimiter(() => 2_000_000);
+    const ok = limiter.check("k", 1);
+    const okHeaders = rateLimitHeaders({
+      limit: ok.limit,
+      remaining: ok.remaining,
+      reset: ok.resetAt,
+    });
+    expect(okHeaders["X-RateLimit-Limit"]).toBe("1");
+    expect(okHeaders["X-RateLimit-Remaining"]).toBe("0");
+    expect(okHeaders["X-RateLimit-Reset"]).toBe(String(Math.floor(2_060_000 / 1000)));
+    const denied = limiter.check("k", 1);
+    expect(denied.allowed).toBe(false);
+    const denyHeaders = rateLimitHeaders({
+      limit: denied.limit,
+      remaining: denied.remaining,
+      reset: denied.resetAt,
+    });
+    expect(denyHeaders["X-RateLimit-Remaining"]).toBe("0");
+    // Reset is epoch seconds (X-RateLimit-Reset), not milliseconds.
+    expect(Number(denyHeaders["X-RateLimit-Reset"])).toBeLessThan(10_000_000_000);
+  });
+
+  it("returns {} when there is no rate-limit state (e.g. 401 before any check)", () => {
+    expect(rateLimitHeaders(undefined)).toEqual({});
   });
 });

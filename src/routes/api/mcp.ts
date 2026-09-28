@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { MCP_TOOLS, handleJsonRpc, toolJsonSchema, type McpHttpDeps } from "@/lib/mcp/server";
 import { makeSupabaseMcpPort } from "@/lib/mcp/port.supabase";
+import { rateLimitHeaders, type RateLimitState } from "@/lib/api-keys/keys";
 import { auditApiCall, authenticateApiKey, type VerifiedApiKey } from "@/lib/api-keys/keys.server";
 
 /**
@@ -20,7 +21,13 @@ export const Route = createFileRoute("/api/mcp")({
       GET: async ({ request }) => {
         const auth = await authenticateApiKey(request, []);
         if (!auth.ok) {
-          return Response.json({ error: auth.failure.error }, { status: auth.failure.status });
+          return Response.json(
+            { error: auth.failure.error },
+            {
+              status: auth.failure.status,
+              headers: rateLimitHeaders(auth.failure.rateLimit),
+            },
+          );
         }
         await auditApiCall({
           workspaceId: auth.key.workspaceId,
@@ -30,12 +37,15 @@ export const Route = createFileRoute("/api/mcp")({
           entityId: null,
           metadata: { api_key_id: auth.key.id, api_key_name: auth.key.name },
         });
-        return Response.json({
-          name: "vidora-mcp",
-          transport: "json-rpc-2.0",
-          endpoint: "/api/mcp",
-          tools: MCP_TOOLS.map(toolJsonSchema),
-        });
+        return Response.json(
+          {
+            name: "vidora-mcp",
+            transport: "json-rpc-2.0",
+            endpoint: "/api/mcp",
+            tools: MCP_TOOLS.map(toolJsonSchema),
+          },
+          { headers: rateLimitHeaders(auth.rateLimit) },
+        );
       },
 
       POST: async ({ request }) => {
@@ -57,6 +67,11 @@ export const Route = createFileRoute("/api/mcp")({
         const port = makeSupabaseMcpPort(supabaseAdmin);
 
         const authedKey: { current: VerifiedApiKey | null } = { current: null };
+        // D178: capture rate-limit state from the auth check so every POST
+        // response (success or failure) carries X-RateLimit-* headers.
+        const rateLimitSeen: { current: RateLimitState | undefined } = {
+          current: undefined,
+        };
         const deps: McpHttpDeps = {
           authenticate: async (requiredScopes) => {
             const auth = await authenticateApiKey(request, requiredScopes);
@@ -65,10 +80,20 @@ export const Route = createFileRoute("/api/mcp")({
               if (auth.failure.retryAfterMs !== undefined) {
                 failureBody["retry_after_ms"] = auth.failure.retryAfterMs;
               }
-              return { failure: { status: auth.failure.status, body: failureBody } };
+              if (auth.failure.rateLimit) {
+                rateLimitSeen.current = auth.failure.rateLimit;
+              }
+              return {
+                failure: {
+                  status: auth.failure.status,
+                  body: failureBody,
+                  rateLimit: auth.failure.rateLimit,
+                },
+              };
             }
             authedKey.current = auth.key;
-            return { key: auth.key };
+            rateLimitSeen.current = auth.rateLimit;
+            return { key: auth.key, rateLimit: auth.rateLimit };
           },
           port,
           audit: async (entry) => {
@@ -108,7 +133,9 @@ export const Route = createFileRoute("/api/mcp")({
           });
         }
 
-        const headers: Record<string, string> = {};
+        const headers: Record<string, string> = {
+          ...rateLimitHeaders(rateLimitSeen.current),
+        };
         const failureBody = (res.body as { error?: { data?: { retry_after_ms?: number } } }).error
           ?.data;
         if (typeof failureBody?.retry_after_ms === "number") {

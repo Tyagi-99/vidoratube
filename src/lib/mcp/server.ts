@@ -27,10 +27,41 @@
  *
  * Testability: all DB access goes through `McpDataPort`; tests inject a
  * fake. The route file is a thin adapter.
+ *
+ * CREDIT-GATING AUDIT — Phase 5 Stream B (D180), 2026-09-28.
+ * Every MCP tool path was traced for spend (credits / paid provider calls):
+ *
+ * - vidora.search_channels / vidora.get_channel / vidora.list_projects /
+ *   vidora.get_project / vidora.get_analytics / vidora.list_learnings —
+ *   read-only port methods (DB SELECTs through the Supabase port). No LLM
+ *   calls, no renders, no uploads: SPEND NOTHING.
+ * - vidora.draft_script, verbatim `sections` mode — stores caller-supplied
+ *   sections as-is via port.createDraftScript. No generation: SPENDS NOTHING.
+ * - vidora.draft_script, `generate` mode — THE ONLY SPENDING PATH. Calls
+ *   port.generateScriptDraft → generateScriptDraft
+ *   (src/lib/creation/scripts/scripts.functions.ts), which runs the Phase 1
+ *   preflight credit gate (ESTIMATE → balance → budget) BEFORE any LLM call,
+ *   refuses on INSUFFICIENT_CREDITS / BUDGET_EXCEEDED / unconfigured gateway,
+ *   and debits exactly 1 credit BEFORE persisting the draft (debit-first:
+ *   if the debit fails, no draft is saved). Verified in source 2026-09-28.
+ * - vidora.request_publish — port.createDraftPublishJob inserts a draft
+ *   publish_job row only. Publishing, scheduling, and uploading still go
+ *   through the human approval gate; the tool CANNOT approve, publish,
+ *   schedule, or spend: SPENDS NOTHING.
+ *
+ * Outcome: 1 of 8 tool paths spends, behind the real preflight+debit gate.
+ * Nothing ungated was found; no additional gates were needed. If a future
+ * tool gains a spending path, it must call preflightCreditsCheck +
+ * debit-first before the spend, and this comment must be updated.
  */
 
 import { z } from "zod";
-import { provenanceBlock, type ApiKeyScope, type ProvenanceBlock } from "../api-keys/keys";
+import {
+  provenanceBlock,
+  type ApiKeyScope,
+  type ProvenanceBlock,
+  type RateLimitState,
+} from "../api-keys/keys";
 import type { VerifiedApiKey } from "../api-keys/keys.server";
 
 // ---------------------------------------------------------------------------
@@ -674,10 +705,20 @@ export interface McpHttpDeps {
   /**
    * Authenticate for the given scopes. Returns the verified key, or null
    * when auth failed (the failure response is already built).
+   *
+   * D178: the failure may carry `rateLimit` state so the route can emit
+   * X-RateLimit-* headers even on 429/403 responses.
    */
-  authenticate: (
-    requiredScopes: ApiKeyScope[],
-  ) => Promise<{ key: VerifiedApiKey } | { failure: { status: number; body: unknown } }>;
+  authenticate: (requiredScopes: ApiKeyScope[]) => Promise<
+    | { key: VerifiedApiKey; rateLimit?: RateLimitState | undefined }
+    | {
+        failure: {
+          status: number;
+          body: unknown;
+          rateLimit?: RateLimitState | undefined;
+        };
+      }
+  >;
   port: McpDataPort;
   audit: McpCallDeps["audit"];
 }

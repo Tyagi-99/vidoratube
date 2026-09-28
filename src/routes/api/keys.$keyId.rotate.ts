@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { rotateApiKey } from "@/lib/api-keys/keys.server";
+import { rateLimitHeaders } from "@/lib/api-keys/keys";
 import { auditKeyAction, requireAdminKey } from "@/lib/api-keys/rest.server";
 
 /**
@@ -16,7 +17,7 @@ export const Route = createFileRoute("/api/keys/$keyId/rotate")({
         if (!gate.key.createdBy) {
           return Response.json(
             { error: "this API key has no owning user and cannot rotate keys" },
-            { status: 403 },
+            { status: 403, headers: rateLimitHeaders(gate.rateLimit) },
           );
         }
         try {
@@ -30,7 +31,10 @@ export const Route = createFileRoute("/api/keys/$keyId/rotate")({
             name: rotated.meta.name,
           });
           // raw_key is surfaced HERE ONLY — never stored, never logged.
-          return Response.json({ key: rotated.meta, raw_key: rotated.rawKey });
+          return Response.json(
+            { key: rotated.meta, raw_key: rotated.rawKey },
+            { headers: rateLimitHeaders(gate.rateLimit) },
+          );
         } catch (e) {
           return Response.json(
             { error: e instanceof Error ? e.message : "could not rotate API key" },

@@ -102,6 +102,23 @@ export interface RateLimitDecision {
   allowed: boolean;
   /** ms until the oldest hit in the window expires (0 when allowed). */
   retryAfterMs: number;
+  /** The per-minute limit this bucket was checked against. */
+  limit: number;
+  /** Requests remaining in the current window (0 when denied). */
+  remaining: number;
+  /** Epoch seconds when the window releases a slot again. */
+  resetAt: number;
+}
+
+/**
+ * The public rate-limit state attached to authenticated responses.
+ * D178: exposed so routes can emit standard X-RateLimit-* headers.
+ */
+export interface RateLimitState {
+  limit: number;
+  remaining: number;
+  /** Epoch seconds (X-RateLimit-Reset). */
+  reset: number;
 }
 
 export class SlidingWindowRateLimiter {
@@ -116,11 +133,18 @@ export class SlidingWindowRateLimiter {
     const now = this.now();
     const windowStart = now - 60_000;
     const recent = (this.hits.get(bucket) ?? []).filter((t) => t > windowStart);
+    const oldest = recent[0] ?? now;
+    const resetAt = Math.floor((oldest + 60_000) / 1000);
     if (recent.length >= limitPerMin) {
       // oldest hit still inside the window decides the retry delay
-      const oldest = recent[0] ?? now;
       this.hits.set(bucket, recent);
-      return { allowed: false, retryAfterMs: Math.max(0, oldest + 60_000 - now) };
+      return {
+        allowed: false,
+        retryAfterMs: Math.max(0, oldest + 60_000 - now),
+        limit: limitPerMin,
+        remaining: 0,
+        resetAt,
+      };
     }
     recent.push(now);
     this.hits.set(bucket, recent);
@@ -131,11 +155,32 @@ export class SlidingWindowRateLimiter {
         if (this.hits.size <= 5_000) break;
       }
     }
-    return { allowed: true, retryAfterMs: 0 };
+    return {
+      allowed: true,
+      retryAfterMs: 0,
+      limit: limitPerMin,
+      remaining: limitPerMin - recent.length,
+      resetAt,
+    };
   }
 
   reset(bucket?: string): void {
     if (bucket === undefined) this.hits.clear();
     else this.hits.delete(bucket);
   }
+}
+
+/**
+ * Standard rate-limit response headers (D178).
+ * `X-RateLimit-Limit` / `X-RateLimit-Remaining` / `X-RateLimit-Reset`
+ * (epoch seconds). Returns {} when the request never hit a rate-limit
+ * check (e.g. unauthenticated), so callers can spread unconditionally.
+ */
+export function rateLimitHeaders(state: RateLimitState | undefined): Record<string, string> {
+  if (!state) return {};
+  return {
+    "X-RateLimit-Limit": String(state.limit),
+    "X-RateLimit-Remaining": String(state.remaining),
+    "X-RateLimit-Reset": String(state.reset),
+  };
 }
