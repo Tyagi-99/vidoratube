@@ -3,6 +3,7 @@ import { Hero } from "@/components/vidora/cinema/Hero";
 import { Pipeline } from "@/components/vidora/cinema/Pipeline";
 import { VoiceWall } from "@/components/vidora/cinema/VoiceWall";
 import { StyleGallery } from "@/components/vidora/cinema/StyleGallery";
+import { OsMap } from "@/components/vidora/cinema/OsMap";
 import { DemoReel } from "@/components/vidora/cinema/DemoReel";
 import { FinalCta } from "@/components/vidora/cinema/FinalCta";
 import { PricingSection } from "@/components/vidora/PricingSection";
@@ -39,6 +40,7 @@ function Index() {
       <Pipeline />
       <VoiceWall />
       <StyleGallery />
+      <OsMap />
       <DemoReel />
       <PricingSection />
       <FaqSection />

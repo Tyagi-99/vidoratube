@@ -2,6 +2,16 @@ import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, Play } from "lucide-react";
 import { Timecode, RecBadge } from "./Timecode";
+import { VOICE_CATALOG } from "@/lib/voices";
+import { STYLES } from "./StyleGallery";
+
+/**
+ * Marketing counts are derived from code, never hardcoded (D307): the hero
+ * stat strip and copy read the voice catalog and style gallery directly, so
+ * the public numbers can never drift from what the product actually ships.
+ */
+const BUILT_IN_VOICE_COUNT = VOICE_CATALOG.filter((v) => !v.library).length;
+const VISUAL_STYLE_COUNT = STYLES.length;
 
 const STAGES = [
   { id: "script", label: "Script", duration: 2 },
@@ -224,9 +234,9 @@ export function Hero() {
               Film out.
             </h1>
             <p className="mt-6 max-w-lg text-lg leading-relaxed text-muted-foreground">
-              Vidora writes the scene plan, narrates it in 25+ voices, generates the
-              stills, and burns in the captions. You download a 1080p MP4, ready for
-              YouTube.
+              Vidora writes the scene plan, narrates it in {BUILT_IN_VOICE_COUNT}{" "}
+              built-in voices, generates the stills, and burns in the captions.
+              You download a 1080p MP4, ready for YouTube.
             </p>
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <Link
@@ -248,8 +258,8 @@ export function Hero() {
             <dl className="mt-12 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-4">
               {[
                 ["1080p", "MP4 download"],
-                ["25+", "AI voices"],
-                ["10", "visual styles"],
+                [String(BUILT_IN_VOICE_COUNT), "built-in AI voices"],
+                [String(VISUAL_STYLE_COUNT), "visual styles"],
                 ["EN · हिन्दी", "and more"],
               ].map(([v, l]) => (
                 <div key={l} className="bg-background px-5 py-4">

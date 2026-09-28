@@ -1,4 +1,5 @@
-const STYLES = [
+/** Exported so marketing copy can derive the count from code (D307) — never hardcode it. */
+export const STYLES = [
   { name: "Cinematic", desc: "Anamorphic light, film grain", img: "/styles/style-cinematic.jpg", grade: "from-amber-900/60 via-[#1a1208] to-black" },
   { name: "Documentary", desc: "Natural light, honest", img: "/styles/style-documentary.jpg", grade: "from-stone-700/50 via-[#141210] to-black" },
   { name: "Anime", desc: "Cel-shaded, bold lines", img: "/styles/style-anime.jpg", grade: "from-orange-800/50 via-[#160f08] to-black" },
@@ -17,11 +18,11 @@ export function StyleGallery() {
             THE LOOK
           </p>
           <h2 className="font-display mt-4 text-balance text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
-            Ten ways to look.
+            {STYLES.length === 1 ? "One way to look." : `${STYLES.length} ways to look.`}
           </h2>
           <p className="mt-4 text-lg text-muted-foreground">
-            One script, ten different films. Pick a visual style and every scene
-            follows it — characters stay consistent throughout.
+            One script, {STYLES.length} different films. Pick a visual style and every scene
+            follows it.
           </p>
         </div>
 
@@ -54,8 +55,7 @@ export function StyleGallery() {
           ))}
         </div>
         <p className="mt-6 font-mono text-xs text-muted-foreground">
-          Six signature looks from the Vidora style library.
-          + 4 more in the studio, including a custom style trained on your references.
+          {STYLES.length} signature looks from the Vidora style library.
         </p>
       </div>
     </section>

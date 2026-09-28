@@ -2100,3 +2100,114 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
   updated to the corrected behavior.
 - **Reverse:** revert `resolveOnboardingEntry()` in
   `src/lib/onboarding/onboarding.ts`; DB rows remain valid.
+
+### D307. Marketing numbers are derived from code, never hardcoded (2026-09-28)
+
+- **Decision:** the homepage claimed "25+" AI voices and "10" visual styles
+  while code truth is 16 built-in voices (`VOICE_CATALOG` minus
+  `library: true`) and 6 styles (`STYLES`). `Hero.tsx` now imports
+  `VOICE_CATALOG` from `@/lib/voices` and `STYLES` (newly exported) from
+  `StyleGallery.tsx`, deriving both counts at module load. The "narrates it
+  in 25+ voices" sentence now reads from the same constant.
+- **Reverse:** revert the import + constant + copy edits in `Hero.tsx`.
+
+### D308. StyleGallery's own inflated claims corrected (2026-09-28)
+
+- **Decision:** `StyleGallery.tsx` said "Ten ways to look" and footnoted
+  "+ 4 more in the studio, including a custom style trained on your
+  references" — four styles that exist nowhere in code. The heading now
+  renders `STYLES.length`, the footnote only states the library size, and
+  the "characters stay consistent throughout" clause was dropped because
+  F16's own UI says cross-scene consistency is not yet verified.
+- **Reverse:** revert the three copy edits in `StyleGallery.tsx`.
+
+### D309. feature-catalog.ts is the marketing single source of truth (2026-09-28)
+
+- **Decision:** new `src/lib/feature-catalog.ts` holds the six pillars and
+  all 49 marketable features for the public showcase. It is separate from
+  `docs/FEATURE_MATRIX.md`, which remains the engineering inventory — the
+  two serve different readers and must not be merged.
+- **Reverse:** delete the file and its two consumers (`OsMap`, `/features`).
+
+### D310. Six-pillar framing: Discover / Validate / Create / Publish / Measure / Learn (2026-09-28)
+
+- **Decision:** the public showcase is organized as six moves, each with a
+  name, tagline, anchor id, app route, and feature list. Platform items
+  (API & MCP, Chrome extension, workspaces, credits, /status) live under
+  Learn as "run the team on one OS" rather than getting a seventh pillar.
+- **Reverse:** re-categorize in `feature-catalog.ts`.
+
+### D311. Honest one-liners in the catalog (2026-09-28)
+
+- **Decision:** every feature gets one sentence with no guarantees, no
+  virality predictions, no income claims. Provider-gated features name the
+  key they need ("connect a YouTube Data API key", "ElevenLabs key",
+  "Pexels or Pixabay key", "YouTube Analytics API key"). Badges:
+  `Needs a key`, `Shipping next` (Short-Form Engine, Meta publishing UI),
+  `Design only` (Chrome extension — docs only, never built).
+- **Reverse:** edit `feature-catalog.ts`.
+
+### D312. Catalog routes are real, verified against src/routes (2026-09-28)
+
+- **Decision:** every feature's `route` is an existing app route a signed-in
+  user lands on (checked against the `src/routes` tree). The Chrome
+  extension, having no route, points at `/settings/api-keys` — the closest
+  real surface, where its token model lives.
+- **Reverse:** edit `feature-catalog.ts`.
+
+### D313. OsMap placement on the homepage (2026-09-28)
+
+- **Decision:** the new "One OS. Six moves" section (`OsMap.tsx`, cinema
+  design language) sits between `StyleGallery` and `DemoReel`, i.e. after
+  the pipeline/style area and before pricing. No existing section was
+  removed or reordered.
+- **Reverse:** remove the `<OsMap />` line in `src/routes/index.tsx`.
+
+### D314. /features rebuilt as the full public catalog (2026-09-28)
+
+- **Decision:** `/features` now renders all 49 features from
+  `feature-catalog.ts` with pillar anchors, a sticky
+  "Everything below is included — sign in to use it." bar, and a sign-in
+  CTA. The old `DemoUI`/`FeatureSection`/`ResultsSection` blocks were
+  removed from this page only; the components remain in the repo.
+- **Reverse:** restore the previous `features.tsx` from git.
+
+### D315. Sign-in CTAs target /auth; feature links target app routes (2026-09-28)
+
+- **Decision:** "Sign in to use everything" goes to the existing `/auth`
+  route. Each feature links to its real app route — signed-out visitors hit
+  the auth guard and land at sign-in, which is real behavior, not a fake
+  button. No dead links.
+- **Reverse:** edit `OsMap.tsx` / `features.tsx`.
+
+### D316. marketing-claims.test.ts guardrails (2026-09-28)
+
+- **Decision:** new test pins code truth (16 built-in voices, 6 styles),
+  fails on stale hardcoded claims in `Hero.tsx` ("25+", "10"-styles in any
+  quoting style — excluding legitimate CSS values like `border-white/10`),
+  and validates the catalog: six pillar ids, every feature with a route
+  starting in "/", descriptions ≥ 20 chars, no banned phrases, provider-gated
+  features naming their key, unbuilt features badged and self-describing.
+- **Reverse:** delete `src/lib/marketing-claims.test.ts`.
+
+### D317. Banned-phrase patterns are targeted, not naive (2026-09-28)
+
+- **Decision:** the catalog honesty patterns ban affirmative claims only
+  ("guarantee you'll earn", "will go viral", "predicts virality",
+  "trusted by N", "$X per month") so honest disclaimers like "never
+  guarantees" or "never a virality prediction" pass.
+- **Reverse:** edit the `BANNED_CATALOG` list in the test.
+
+### D318. Homepage shows headlines; /features shows everything (2026-09-28)
+
+- **Decision:** pillar cards list 3–4 headline capabilities each to avoid
+  overwhelming visitors; the complete 49-feature list lives on `/features`
+  with anchors. Counts (`TOTAL_CATALOG_FEATURES`) are computed, never typed.
+- **Reverse:** edit `HEADLINES` in `OsMap.tsx`.
+
+### D319. Credits and /status cataloged under Learn (2026-09-28)
+
+- **Decision:** "Credits & Budgets" (`/billing`) and "Production Readiness"
+  (`/status`, kept public) are cataloged as Learn-pillar features — they are
+  part of running the business on the OS, not part of making a video.
+- **Reverse:** edit `feature-catalog.ts`.
