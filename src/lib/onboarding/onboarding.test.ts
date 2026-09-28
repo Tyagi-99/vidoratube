@@ -75,9 +75,9 @@ describe("skip logic (D220)", () => {
   });
 });
 
-describe("resume logic (D221)", () => {
-  it("no row -> redirect to /studio (never started)", () => {
-    expect(resolveOnboardingEntry(null)).toEqual({ action: "redirect", to: "/studio" });
+describe("resume logic (D221, fixed by D306)", () => {
+  it("no row -> start the wizard at welcome (brand-new user)", () => {
+    expect(resolveOnboardingEntry(null)).toEqual({ action: "resume", step: "welcome" });
   });
 
   it("completed row -> redirect to /studio (auto-skip)", () => {

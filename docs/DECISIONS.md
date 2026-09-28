@@ -2083,3 +2083,20 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
   cannot block publishing on its own.
 - **Reverse:** remove the checklist component; the `checklist_dismissals`
   table is additive.
+
+### D306. Onboarding: no-row users start the wizard instead of redirecting (2026-09-28)
+
+- **Bug found during live verification:** `resolveOnboardingEntry()` (D221)
+  redirected users with NO `onboarding_progress` row to `/studio`. Since
+  post-signup (`auth.tsx`) sends brand-new users to `/onboarding` and new
+  users have no row, every new signup bounced straight to `/studio` — the
+  wizard was unreachable for exactly the users it was built for. Live check
+  confirmed: `/onboarding` showed "Loading your setup…" then redirected to
+  `/studio` for a fresh admin account.
+- **Fix:** no row -> `{ action: "resume", step: "welcome" }`; only
+  `completed = true` redirects to `/studio`. Safe because
+  `saveOnboardingProgress` upserts on the first step save, so the row is
+  created the moment the user advances. Doc comments and the D221-era test
+  updated to the corrected behavior.
+- **Reverse:** revert `resolveOnboardingEntry()` in
+  `src/lib/onboarding/onboarding.ts`; DB rows remain valid.

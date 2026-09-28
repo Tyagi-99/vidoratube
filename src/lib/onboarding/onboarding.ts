@@ -61,14 +61,18 @@ export interface OnboardingRow {
 
 /**
  * Decide what the /onboarding route should do for a user.
- * - no row, or row with completed=true  -> redirect to /studio (auto-skip, D221)
- * - row with an unknown/invalid step     -> start over at "welcome" (defensive)
- * - otherwise                            -> resume at the persisted step
+ * - no row (brand-new user, e.g. fresh signup) -> start the wizard at "welcome"
+ *   (the first step save upserts the progress row; D306 fixes the D221 bug
+ *   that bounced new users straight to /studio)
+ * - row with completed=true                  -> redirect to /studio (auto-skip)
+ * - row with an unknown/invalid step          -> start over at "welcome" (defensive)
+ * - otherwise                                 -> resume at the persisted step
  */
 export function resolveOnboardingEntry(
   row: OnboardingRow | null,
 ): { action: "redirect"; to: "/studio" } | { action: "resume"; step: OnboardingStep } {
-  if (!row || row.completed) return { action: "redirect", to: "/studio" };
+  if (!row) return { action: "resume", step: "welcome" };
+  if (row.completed) return { action: "redirect", to: "/studio" };
   if (isOnboardingStep(row.current_step)) return { action: "resume", step: row.current_step };
   return { action: "resume", step: "welcome" };
 }

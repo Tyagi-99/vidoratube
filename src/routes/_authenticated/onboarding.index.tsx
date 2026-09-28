@@ -5,8 +5,10 @@
  * Nine steps: welcome -> connect -> creator-type -> niche -> goal ->
  * brand -> scan -> idea -> video. Progress is persisted server-side
  * (`public.onboarding_progress`) so the wizard resumes after tab closes or
- * OAuth round-trips; completed or never-started users are redirected to
- * /studio (D221). Deliberately NOT in the main nav (D223) — entry points
+ * OAuth round-trips; completed users are redirected to /studio (D221), while
+ * users with no progress row start the wizard at "welcome" (D306 — D221's
+ * original no-row redirect bounced brand-new signups straight to /studio,
+ * so nobody ever saw the wizard). Deliberately NOT in the main nav (D223) — entry points
  * are post-signup (auth.tsx) and the studio empty state.
  *
  * Honesty rules: scan results carry an "AI analysis" badge and a
