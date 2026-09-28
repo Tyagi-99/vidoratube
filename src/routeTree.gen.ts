@@ -39,6 +39,7 @@ import { Route as AuthenticatedAdminSafetyRouteImport } from './routes/_authenti
 import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin.users'
 import { Route as AuthenticatedAgencyIndexRouteImport } from './routes/_authenticated/agency.index'
 import { Route as AuthenticatedAgencyWorkspaceIdRouteImport } from './routes/_authenticated/agency.$workspaceId'
+import { Route as AuthenticatedAgentIndexRouteImport } from './routes/_authenticated/agent.index'
 import { Route as AuthenticatedAnalyticsIndexRouteImport } from './routes/_authenticated/analytics.index'
 import { Route as AuthenticatedAnalyticsAuditRouteImport } from './routes/_authenticated/analytics.audit'
 import { Route as AuthenticatedAnalyticsBucketsRouteImport } from './routes/_authenticated/analytics.buckets'
@@ -242,6 +243,11 @@ const AuthenticatedAgencyWorkspaceIdRoute =
     path: '/agency/$workspaceId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAgentIndexRoute = AuthenticatedAgentIndexRouteImport.update({
+  id: '/agent/',
+  path: '/agent/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedAnalyticsIndexRoute =
   AuthenticatedAnalyticsIndexRouteImport.update({
     id: '/',
@@ -567,6 +573,7 @@ export interface FileRoutesByFullPath {
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/agency/': typeof AuthenticatedAgencyIndexRoute
+  '/agent/': typeof AuthenticatedAgentIndexRoute
   '/analytics/': typeof AuthenticatedAnalyticsIndexRoute
   '/billing/': typeof AuthenticatedBillingIndexRoute
   '/characters/': typeof AuthenticatedCharactersIndexRoute
@@ -642,6 +649,7 @@ export interface FileRoutesByTo {
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/agency': typeof AuthenticatedAgencyIndexRoute
+  '/agent': typeof AuthenticatedAgentIndexRoute
   '/analytics': typeof AuthenticatedAnalyticsIndexRoute
   '/billing': typeof AuthenticatedBillingIndexRoute
   '/characters': typeof AuthenticatedCharactersIndexRoute
@@ -721,6 +729,7 @@ export interface FileRoutesById {
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/agency/': typeof AuthenticatedAgencyIndexRoute
+  '/_authenticated/agent/': typeof AuthenticatedAgentIndexRoute
   '/_authenticated/analytics/': typeof AuthenticatedAnalyticsIndexRoute
   '/_authenticated/billing/': typeof AuthenticatedBillingIndexRoute
   '/_authenticated/characters/': typeof AuthenticatedCharactersIndexRoute
@@ -800,6 +809,7 @@ export interface FileRouteTypes {
     | '/api/webhooks/stripe'
     | '/admin/'
     | '/agency/'
+    | '/agent/'
     | '/analytics/'
     | '/billing/'
     | '/characters/'
@@ -875,6 +885,7 @@ export interface FileRouteTypes {
     | '/api/webhooks/stripe'
     | '/admin'
     | '/agency'
+    | '/agent'
     | '/analytics'
     | '/billing'
     | '/characters'
@@ -953,6 +964,7 @@ export interface FileRouteTypes {
     | '/api/webhooks/stripe'
     | '/_authenticated/admin/'
     | '/_authenticated/agency/'
+    | '/_authenticated/agent/'
     | '/_authenticated/analytics/'
     | '/_authenticated/billing/'
     | '/_authenticated/characters/'
@@ -1212,6 +1224,13 @@ declare module '@tanstack/react-router' {
       path: '/agency/$workspaceId'
       fullPath: '/agency/$workspaceId'
       preLoaderRoute: typeof AuthenticatedAgencyWorkspaceIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/agent/': {
+      id: '/_authenticated/agent/'
+      path: '/agent'
+      fullPath: '/agent/'
+      preLoaderRoute: typeof AuthenticatedAgentIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/analytics/': {
@@ -1618,6 +1637,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedResearchProjectIdRoute: typeof AuthenticatedResearchProjectIdRoute
   AuthenticatedSettingsApiKeysRoute: typeof AuthenticatedSettingsApiKeysRoute
   AuthenticatedAgencyIndexRoute: typeof AuthenticatedAgencyIndexRoute
+  AuthenticatedAgentIndexRoute: typeof AuthenticatedAgentIndexRoute
   AuthenticatedBillingIndexRoute: typeof AuthenticatedBillingIndexRoute
   AuthenticatedCharactersIndexRoute: typeof AuthenticatedCharactersIndexRoute
   AuthenticatedCommentsIndexRoute: typeof AuthenticatedCommentsIndexRoute
@@ -1660,6 +1680,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedResearchProjectIdRoute: AuthenticatedResearchProjectIdRoute,
   AuthenticatedSettingsApiKeysRoute: AuthenticatedSettingsApiKeysRoute,
   AuthenticatedAgencyIndexRoute: AuthenticatedAgencyIndexRoute,
+  AuthenticatedAgentIndexRoute: AuthenticatedAgentIndexRoute,
   AuthenticatedBillingIndexRoute: AuthenticatedBillingIndexRoute,
   AuthenticatedCharactersIndexRoute: AuthenticatedCharactersIndexRoute,
   AuthenticatedCommentsIndexRoute: AuthenticatedCommentsIndexRoute,

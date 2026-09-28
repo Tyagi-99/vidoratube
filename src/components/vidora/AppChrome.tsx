@@ -36,6 +36,7 @@ const links = [
   { label: "Research", to: "/research" as const },
   { label: "Create", to: "/create" as const },
   { label: "Intelligence", to: "/intelligence" as const },
+  { label: "Agent", to: "/agent" as const },
   { label: "Analytics", to: "/analytics" as const },
   { label: "Thumbnails", to: "/thumbnails" as const },
   { label: "Characters", to: "/characters" as const },
