@@ -145,6 +145,12 @@ const OWNER_SCOPED_TABLES = [
   // every policy still references auth.uid().
   "agent_conversations",
   "agent_messages",
+  // Phase 6 — onboarding (2026092806a000) + Stream E (20260928060000,
+  // 20260928060100). All three are keyed by user_id with owner-only
+  // auth.uid() policies, same pattern as the Phase 5 agent tables.
+  "onboarding_progress",
+  "alert_rules",
+  "checklist_dismissals",
 ];
 
 /**
