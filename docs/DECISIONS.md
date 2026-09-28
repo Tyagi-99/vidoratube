@@ -1957,3 +1957,62 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
   bucket list, profile count).
 - **Reverse:** adjust per-check `blocking` flags or remediation copy in
   `src/lib/readiness.functions.ts`.
+### D270. Phase 6 Stream D: docker-compose.yml reworked, service renamed to `worker` (2026-09-28)
+
+- **Decision:** the pre-existing compose service was named `render-worker`; renamed the service key to `worker` (container_name `vidora-render-worker` unchanged, so `scripts/deploy-worker.sh`'s `docker inspect` still works). Added per-variable comments documenting every worker env var and a docs pointer to `worker/.env.example`. Kept the pre-existing `deploy.resources.limits` but added an explicit NOTE that plain `docker compose up` (non-swarm) does not enforce them — the VPS itself must be sized (~4 vCPU / 8 GB for defaults).
+- **Reason:** the old file had zero per-variable documentation; a founder deploying this must know what each variable does and which are secrets without reading worker source.
+- **Reverse:** rename the service key back; nothing else references the key.
+
+### D271. Phase 6 Stream D: `worker/.env.example` is the authoritative worker env reference (2026-09-28)
+
+- **Decision:** added `worker/.env.example` covering all 11 vars from `worker/src/config.ts` (checked 1:1 against ConfigSchema), each with what-it-is / where-to-get-it / secret-or-not. The repo-root `.env.example` keeps its full worker section (deploy script + compose `env_file` read root `.env`) with a pointer to `worker/.env.example`; added the two missing keys (`BRAND_LOGOS_BUCKET`, `WORKER_CHAPTER_CONCURRENCY`).
+- **Reason:** the old root section was incomplete and undocumented; two env references must not drift — the pointer establishes which one is canonical.
+- **Reverse:** delete `worker/.env.example`; root section remains self-sufficient.
+
+### D272. Phase 6 Stream D: `docs/RENDER_WORKER_DEPLOY.md` — one-command deploy + /status verification (2026-09-28)
+
+- **Decision:** new deploy guide with: one-time Oracle host setup, `WORKER_HOST=... ./scripts/deploy-worker.sh` as the single deploy command, a full secrets checklist (required/secret/where/what-breaks), DB pre-checks (worker_heartbeats table + the 5 RPCs + private buckets, all with their real migration filenames), heartbeat verification on https://vidoratube.lovable.app/status ("no heartbeat recorded yet" → "Operational", 15-min ok / 60-min degraded thresholds read from `src/lib/worker-health.ts`), and a rollback procedure (compose down; claim lease reclaims jobs automatically).
+- **Reason:** the worker is still undeployed (founder blocker #1); the blocker is now actionable in one command with an observable success criterion instead of a vague "needs a deploy target".
+- **Reverse:** docs-only; nothing to revert in code.
+
+### D273. Phase 6 Stream D: FEATURE_MATRIX live-verification legend + ledger; COMPLETE ≠ live-verified (2026-09-28)
+
+- **Decision:** added a live-verification legend (`live`/`fakes`/`unconfigured`/`untested`/`design`/`infra`) and a per-feature "Live-provider verification ledger" at the end of `docs/FEATURE_MATRIX.md`. Documented the standing rule explicitly: COMPLETE in this matrix means code-complete with unit/integration tests green — it does NOT mean verified against real providers. Honest bottom line recorded: as of 2026-09-28, zero features have been exercised against a live external provider; all provider tests use fakes/mocks with zero network calls; the live-verified surface is infrastructure only (migrations applied, RLS checked, bundle published).
+- **Reason:** the matrix's U/I/E/M columns let a reader mistake "COMPLETE" for "proven live". The ledger is now the only place that answers "has it touched a real provider?"
+- **Reverse:** docs-only.
+
+### D274. Phase 6 Stream D: removed 4 stale jammed rows in FEATURE_MATRIX.md (2026-09-28)
+
+- **Decision:** the Creation table had 4 lines where stale Wave-1 duplicate rows were jammed after `||` on the same line as the proper row (F15, F17, F19, F26 duplicates with outdated content, e.g. "migration unapplied"). Deleted only the duplicate suffixes; kept the proper rows. The F26 content existed only as a jammed suffix, so I restored it as a proper row with the migration recorded as applied live 2026-09-28.
+- **Reason:** the jammed rows made the table unparseable and carried stale claims.
+- **Reverse:** docs-only; git history retains the old lines.
+
+### D275. Phase 6 Stream D: fixed stale migration filename in worker/README.md (2026-09-28)
+
+- **Decision:** the README told the founder to apply `supabase/migrations/20260925143500_server_render_worker.sql` — that file does not exist in this tree; `claim_render_job`/`heartbeat_render_job` actually live in `20260925120000_schema_reconciliation.sql`. Replaced with the verified full dependency list (worker_heartbeats, claim/heartbeat RPCs, requeue_stale_renders, finalize_render_billing, requeue_stale_chapters + their real migration filenames).
+- **Reason:** a founder following the old instruction would chase a missing file. Found by grep, not guessed.
+- **Reverse:** docs-only.
+
+### D276. Phase 6 Stream D: ElevenLabs `verified: true` voice IDs are code-claims, never live-checked (2026-09-28)
+
+- **Decision:** recorded as KNOWN_ISSUES.md #13: the `language_voices` seed + `src/lib/voices.ts` mark catalog voice IDs `verified: true`, but no `ELEVENLABS_API_KEY` exists in this environment, so no ID has ever been checked against the ElevenLabs API in this program. A wrong/rotated ID fails as a provider 404 on the first real TTS call — after the credit debit. One unqualified TTS call per catalog voice is founder-gated before paid paths are trusted; the ledger marks F17 `unconfigured`.
+- **Reason:** `verified: true` reads as "proven" and sits one step before real money; the honest state is "claimed in code, never tested".
+- **Reverse:** docs-only; flip the flag only after a live check.
+
+### D277. Phase 6 Stream D (continuation): fixed 3 accuracy gaps found on re-verification (2026-09-28)
+
+- **Decision:** (1) `docker-compose.yml`'s per-variable comment called SUPABASE_URL "secret" — it is public by design; only the service-role key is the secret. Fixed to "*required* (not a secret — it's public)". (2) `worker/README.md` still said the compose file ships "one `render-worker` service" after the D270 rename to `worker`; fixed to "one `worker` service (container `vidora-render-worker`)". (3) Added `stub` (= placeholder UI / partial shell, not implemented) to the FEATURE_MATRIX.md live-verification legend — the F19 row already used it but it was undefined.
+- **Reason:** a founder following the old wording would misclassify the URL as a secret or chase the old service key; the undefined legend code made F19's honesty label meaningless.
+- **Reverse:** docs-only.
+
+### D278. Phase 6 Stream D (continuation): historical test counts left as history; measured 87/87 (2026-09-28)
+
+- **Decision:** the old `76/76` worker-test counts in `docs/TEST_RESULTS.md`, `docs/SPRINT_REPORTS.md`, `docs/PRODUCT_AUDIT.md`, and pre-Phase-6 `IMPLEMENTATION_STATUS.md` sections are past-run records — left untouched. `docs/RENDER_WORKER_DEPLOY.md` states `npm run test:worker` 87/87 because I ran it in this worktree and measured it (10 test files, 87 pass / 0 fail).
+- **Reason:** rewriting past-run logs would falsify history; the deploy guide is a current runbook and must reflect a measured number.
+- **Reverse:** docs-only.
+
+### D279. Phase 6 Stream D (continuation): `docker compose config` unverified in this VM (2026-09-28)
+
+- **Decision:** recorded as unverified, not claimed as validated: `docker` is not installed in this VM's PATH, so `docker compose config` could not be run. The compose file was hand-checked against the real consumer (`scripts/deploy-worker.sh` — same filenames, same `container_name` in its `docker inspect`, same `WORKER_HOST`/`REMOTE_DIR` defaults) and the YAML follows the pre-existing file's proven structure; the real parse check happens on the deploy host when `scripts/deploy-worker.sh` runs `docker compose up -d`.
+- **Reason:** claiming a validation I never ran is exactly the dishonesty Stream D exists to remove. `IMPLEMENTATION_STATUS.md`'s Phase 6 section already marks this as the coordinator-visible gap.
+- **Reverse:** docs-only; re-verify on any host with Docker before the first real deploy.
