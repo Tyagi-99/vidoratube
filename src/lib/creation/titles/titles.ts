@@ -10,6 +10,7 @@
  * `titles.functions.ts` persist the results.
  */
 import { type TitleScore } from "../contracts";
+import { applyTitleFormat, fillsForTopic, getTitleFormat } from "./formats";
 
 /* ------------------------------------------------------------------ */
 /* Variant generation                                                  */
@@ -22,6 +23,12 @@ export interface TitleGenInput {
   keywords?: string[];
   /** Max variants to emit (default 10). */
   maxVariants?: number;
+  /**
+   * Optional pinned format id (Phase 6 Stream E, TI-3 pattern). When set,
+   * variants come from the format's slot fills instead of the generic
+   * template list. Deterministic, no LLM.
+   */
+  formatId?: string | undefined;
 }
 
 function titleCase(s: string): string {
@@ -41,6 +48,27 @@ export function generateTitleVariants(input: TitleGenInput): string[] {
   if (!topic) return [];
   const kw = (input.keywords ?? []).map((k) => k.trim()).filter(Boolean);
   const keyword = kw[0] ? titleCase(kw[0]!) : topic;
+
+  // Format mode: deterministic slot fills from the pinned library.
+  if (input.formatId) {
+    const format = getTitleFormat(input.formatId);
+    if (!format) return [];
+    const fills = fillsForTopic(format, topic, keyword);
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const fill of fills) {
+      const t = applyTitleFormat(format, fill.values);
+      // Skip fills that left unfilled slots (e.g. formats whose example
+      // slots need more than one word).
+      if (/\[[^\]]+\]/.test(t)) continue;
+      const key = t.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(t);
+      if (out.length >= (input.maxVariants ?? 10)) break;
+    }
+    return out;
+  }
 
   const templates: Array<() => string> = [
     () => `${topic}: What Nobody Tells You`,

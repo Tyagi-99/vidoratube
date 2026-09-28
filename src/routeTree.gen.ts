@@ -77,6 +77,7 @@ import { Route as ApiPublicYoutubeCallbackRouteImport } from './routes/api/publi
 import { Route as ApiWebhooksDodoRouteImport } from './routes/api/webhooks/dodo'
 import { Route as ApiWebhooksRazorpayRouteImport } from './routes/api/webhooks/razorpay'
 import { Route as ApiWebhooksStripeRouteImport } from './routes/api/webhooks/stripe'
+import { Route as AuthenticatedIntelligenceAlertsIndexRouteImport } from './routes/_authenticated/intelligence/alerts.index'
 import { Route as AuthenticatedIntelligenceChannelsIndexRouteImport } from './routes/_authenticated/intelligence/channels.index'
 import { Route as AuthenticatedIntelligenceChannelsChannelIdRouteImport } from './routes/_authenticated/intelligence/channels.$channelId'
 import { Route as AuthenticatedIntelligenceFoldersIndexRouteImport } from './routes/_authenticated/intelligence/folders.index'
@@ -465,6 +466,12 @@ const ApiWebhooksStripeRoute = ApiWebhooksStripeRouteImport.update({
   path: '/api/webhooks/stripe',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedIntelligenceAlertsIndexRoute =
+  AuthenticatedIntelligenceAlertsIndexRouteImport.update({
+    id: '/intelligence/alerts/',
+    path: '/intelligence/alerts/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedIntelligenceChannelsIndexRoute =
   AuthenticatedIntelligenceChannelsIndexRouteImport.update({
     id: '/intelligence/channels/',
@@ -591,6 +598,7 @@ export interface FileRoutesByFullPath {
   '/intelligence/niches/$nicheId': typeof AuthenticatedIntelligenceNichesNicheIdRoute
   '/intelligence/videos/$videoId': typeof AuthenticatedIntelligenceVideosVideoIdRoute
   '/api/keys/$keyId/rotate': typeof ApiKeysKeyIdRotateRoute
+  '/intelligence/alerts/': typeof AuthenticatedIntelligenceAlertsIndexRoute
   '/intelligence/channels/': typeof AuthenticatedIntelligenceChannelsIndexRoute
   '/intelligence/folders/': typeof AuthenticatedIntelligenceFoldersIndexRoute
   '/intelligence/niches/': typeof AuthenticatedIntelligenceNichesIndexRoute
@@ -667,6 +675,7 @@ export interface FileRoutesByTo {
   '/intelligence/niches/$nicheId': typeof AuthenticatedIntelligenceNichesNicheIdRoute
   '/intelligence/videos/$videoId': typeof AuthenticatedIntelligenceVideosVideoIdRoute
   '/api/keys/$keyId/rotate': typeof ApiKeysKeyIdRotateRoute
+  '/intelligence/alerts': typeof AuthenticatedIntelligenceAlertsIndexRoute
   '/intelligence/channels': typeof AuthenticatedIntelligenceChannelsIndexRoute
   '/intelligence/folders': typeof AuthenticatedIntelligenceFoldersIndexRoute
   '/intelligence/niches': typeof AuthenticatedIntelligenceNichesIndexRoute
@@ -747,6 +756,7 @@ export interface FileRoutesById {
   '/_authenticated/intelligence/niches/$nicheId': typeof AuthenticatedIntelligenceNichesNicheIdRoute
   '/_authenticated/intelligence/videos/$videoId': typeof AuthenticatedIntelligenceVideosVideoIdRoute
   '/api/keys/$keyId/rotate': typeof ApiKeysKeyIdRotateRoute
+  '/_authenticated/intelligence/alerts/': typeof AuthenticatedIntelligenceAlertsIndexRoute
   '/_authenticated/intelligence/channels/': typeof AuthenticatedIntelligenceChannelsIndexRoute
   '/_authenticated/intelligence/folders/': typeof AuthenticatedIntelligenceFoldersIndexRoute
   '/_authenticated/intelligence/niches/': typeof AuthenticatedIntelligenceNichesIndexRoute
@@ -827,6 +837,7 @@ export interface FileRouteTypes {
     | '/intelligence/niches/$nicheId'
     | '/intelligence/videos/$videoId'
     | '/api/keys/$keyId/rotate'
+    | '/intelligence/alerts/'
     | '/intelligence/channels/'
     | '/intelligence/folders/'
     | '/intelligence/niches/'
@@ -903,6 +914,7 @@ export interface FileRouteTypes {
     | '/intelligence/niches/$nicheId'
     | '/intelligence/videos/$videoId'
     | '/api/keys/$keyId/rotate'
+    | '/intelligence/alerts'
     | '/intelligence/channels'
     | '/intelligence/folders'
     | '/intelligence/niches'
@@ -982,6 +994,7 @@ export interface FileRouteTypes {
     | '/_authenticated/intelligence/niches/$nicheId'
     | '/_authenticated/intelligence/videos/$videoId'
     | '/api/keys/$keyId/rotate'
+    | '/_authenticated/intelligence/alerts/'
     | '/_authenticated/intelligence/channels/'
     | '/_authenticated/intelligence/folders/'
     | '/_authenticated/intelligence/niches/'
@@ -1492,6 +1505,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiWebhooksStripeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/intelligence/alerts/': {
+      id: '/_authenticated/intelligence/alerts/'
+      path: '/intelligence/alerts'
+      fullPath: '/intelligence/alerts/'
+      preLoaderRoute: typeof AuthenticatedIntelligenceAlertsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/intelligence/channels/': {
       id: '/_authenticated/intelligence/channels/'
       path: '/intelligence/channels'
@@ -1653,6 +1673,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedIntelligenceChannelsChannelIdRoute: typeof AuthenticatedIntelligenceChannelsChannelIdRoute
   AuthenticatedIntelligenceNichesNicheIdRoute: typeof AuthenticatedIntelligenceNichesNicheIdRoute
   AuthenticatedIntelligenceVideosVideoIdRoute: typeof AuthenticatedIntelligenceVideosVideoIdRoute
+  AuthenticatedIntelligenceAlertsIndexRoute: typeof AuthenticatedIntelligenceAlertsIndexRoute
   AuthenticatedIntelligenceChannelsIndexRoute: typeof AuthenticatedIntelligenceChannelsIndexRoute
   AuthenticatedIntelligenceFoldersIndexRoute: typeof AuthenticatedIntelligenceFoldersIndexRoute
   AuthenticatedIntelligenceNichesIndexRoute: typeof AuthenticatedIntelligenceNichesIndexRoute
@@ -1699,6 +1720,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedIntelligenceNichesNicheIdRoute,
   AuthenticatedIntelligenceVideosVideoIdRoute:
     AuthenticatedIntelligenceVideosVideoIdRoute,
+  AuthenticatedIntelligenceAlertsIndexRoute:
+    AuthenticatedIntelligenceAlertsIndexRoute,
   AuthenticatedIntelligenceChannelsIndexRoute:
     AuthenticatedIntelligenceChannelsIndexRoute,
   AuthenticatedIntelligenceFoldersIndexRoute:

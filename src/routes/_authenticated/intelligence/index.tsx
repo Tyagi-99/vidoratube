@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   BarChart3,
+  BellRing,
   Compass,
   FolderKanban,
   Layers,
@@ -64,6 +65,14 @@ const SECTIONS: Section[] = [
     description: "Velocity-ranked topics with cited evidence sources.",
     icon: TrendingUp,
     statusHint: "YouTube Data API",
+  },
+  {
+    title: "Watchtower",
+    to: "/intelligence/alerts",
+    description:
+      "Alert rules on your tracked channels — breakout videos, title patterns, growth signals — delivered to your bell and saved as draft ideas.",
+    icon: BellRing,
+    statusHint: null,
   },
   {
     title: "Folders",

@@ -37,10 +37,10 @@ function GuidePage() {
       <article className="mt-6">
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{guide.title}</h1>
         <p className="mt-3 text-lg text-muted-foreground">{guide.description}</p>
-        {guide.sections.map((section) => (
+        {guide.sections.map((section: { heading: string; body: string[] }) => (
           <section key={section.heading} className="mt-10">
             <h2 className="text-xl font-semibold">{section.heading}</h2>
-            {section.body.map((para, i) => (
+            {section.body.map((para: string, i: number) => (
               <p key={i} className="mt-3 leading-relaxed text-foreground/90">
                 {para}
               </p>

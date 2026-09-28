@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireAppUser } from "./server-auth";
+import { deriveTopicFromSource, validateProjectSource } from "./studio/project-sources";
 
 /* ------------------------------- schemas -------------------------------- */
 
@@ -14,6 +15,10 @@ const createSchema = z.object({
   language: z.string().trim().max(40).default("English"),
   duration_minutes: z.number().int().min(1).max(60).default(5),
   aspect_ratio: z.enum(["16:9", "9:16", "1:1"]).default("16:9"),
+  /* Phase 6 Stream E (P5): multi-source ingestion — provenance columns. */
+  source_kind: z.enum(["topic", "draft", "transcript", "article", "url"]).default("topic"),
+  source_text: z.string().trim().max(100000).optional(),
+  source_url: z.string().trim().max(2048).optional(),
 });
 
 const idSchema = z.object({ id: z.string().uuid() });
@@ -92,15 +97,28 @@ export const createProject = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => createSchema.parse(i))
   .handler(async ({ data, context }) => {
     if (data.mode === "video") throw new Error("Complete Video Mode is coming soon.");
-    if (!data.topic && !data.script) throw new Error("Give Vidora a topic or paste a script.");
+    // Phase 6 Stream E (P5): source validation — URL is reference-only, never fetched.
+    const sourceErrors = validateProjectSource({
+      topic: data.topic,
+      script: data.script,
+      sourceKind: data.source_kind,
+      sourceText: data.source_text,
+      sourceUrl: data.source_url,
+    });
+    if (sourceErrors.length > 0) throw new Error(sourceErrors[0]);
+    const topic =
+      data.topic ||
+      (data.source_kind === "topic"
+        ? ""
+        : deriveTopicFromSource(data.source_text ?? ""));
 
     const { data: project, error } = await context.supabase
       .from("projects")
       .insert({
         user_id: context.userId,
-        topic: data.topic,
+        topic: topic,
         script: data.script ?? null,
-        title: data.topic ? data.topic.slice(0, 120) : "Untitled project",
+        title: (topic || "Untitled project").slice(0, 120),
         mode: data.mode,
         category: data.category ?? null,
         preset: data.preset,
@@ -108,6 +126,9 @@ export const createProject = createServerFn({ method: "POST" })
         language: data.language,
         duration_minutes: data.duration_minutes,
         aspect_ratio: data.aspect_ratio,
+        source_kind: data.source_kind,
+        source_text: data.source_text?.trim() ? data.source_text : null,
+        source_url: data.source_url?.trim() ? data.source_url : null,
         status: "draft",
         stage: "created",
         step: "Ready to generate",

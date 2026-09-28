@@ -1772,3 +1772,71 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
   publish, schedule, or spend beyond the existing gates — human approvals
   stay in the publish pipeline.
 - **Reverse:** disable the `/agent` route; the agent tables are additive.
+
+### D300. Watchtower: on-demand evaluation over existing tracked data, notification + draft idea (2026-09-28)
+
+- **Decision:** Phase 6 Stream E applies the Algrow AG-5 alert pattern as
+  Watchtower: alert rules evaluate the user's already-tracked channels,
+  videos, and snapshots on demand (a "Check now" button; no background
+  worker — Lovable's pg_cron is not provisioned per D175). Rule types:
+  breakout_video, title_pattern, growth_condition. Firing rules dedup with
+  stable keys (`alert:<ruleId>:<videoId|channelId>`) so re-checks never
+  re-fire. Each newly delivered alert emits an `intel.alert` notification
+  AND auto-creates a draft `video_ideas` row, so the signal lands in the
+  ideation backlog instead of stopping at a ping. Empty states are honest
+  (`no_rules`, `no_data`).
+- **Reverse:** drop the `/intelligence/alerts` route and the `alert_rules`
+  table; the evaluation library is additive.
+
+### D301. Title format library: deterministic packaging aids, never predictions (2026-09-28)
+
+- **Decision:** the TubeAI TI-3 pattern lands as a 12-format deterministic
+  library (`src/lib/creation/titles/formats.ts`) with slot templates, lever
+  labels, and usage notes. Deliberately no outperformance multipliers, no
+  CTR/virality claims — a unit test asserts the library serialization
+  contains none. Formats are starting points; the title generator fills
+  slots in the creator's voice.
+- **Reverse:** remove the format selector from Title Lab; formats are
+  in-memory, nothing persisted.
+
+### D302. Word vectors computed only from the user's own outlier corpus (2026-09-28)
+
+- **Decision:** the TubeAI TI-6 pattern is reimplemented without a
+  cross-platform word database: vectors are computed from the user's own
+  tracked `outlier_videos` with sample floors (≥3 videos per word, ≥10
+  videos before the panel renders) and median-outlier lift versus the
+  corpus median. Pairing suggestions and all copy use non-predictive
+  language; `insufficient_data` is an explicit state, never silence.
+- **Reverse:** hide the vectors panel in Title Lab; no new tables.
+
+### D303. Thumbnail surface previews are original generic mocks (2026-09-28)
+
+- **Decision:** the TubeAI TI-9 5-surface preview lands as a "Surface
+  preview" tab built from original generic mocks at explicit display
+  widths, labeled as approximations — no YouTube UI recreated, no
+  competitor videos embedded. Pure presentational component.
+- **Reverse:** remove the tab; surface specs are data, easily replaced.
+
+### D304. URL ingestion stores provenance only — no server-side fetching (2026-09-28)
+
+- **Decision:** the ShortForge SF-1 pattern lands as a "Start from"
+  selector on project creation (topic / draft / transcript / article /
+  URL). A URL source is stored as reference/provenance metadata only;
+  Vidora never fetches arbitrary URLs server-side (SSRF surface, untrusted
+  content, no evidence of competitor doing so safely). Optional pasted
+  notes can accompany a URL. Source provenance persists in
+  `projects.source_kind/source_text/source_url`.
+- **Reverse:** revert the creation form to topic/draft; columns are
+  nullable and additive.
+
+### D305. Packaging checklist is advisory; dismissals never bypass gates (2026-09-28)
+
+- **Decision:** the AgentTube AT-10 pattern lands as a versioned
+  pre-publish checklist in Review Studio (title / description / tags /
+  privacy / safety score / schedule rules, `CHECKLIST_VERSION = 1`).
+  Dismissals require a reason and are scoped global or per-channel, but
+  are purely advisory — they never bypass the strict evidence gate,
+  safety checks, approval workflow, or publish execution. The checklist
+  cannot block publishing on its own.
+- **Reverse:** remove the checklist component; the `checklist_dismissals`
+  table is additive.

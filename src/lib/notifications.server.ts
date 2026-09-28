@@ -44,6 +44,7 @@ export type NotificationType =
   | "budget.alert"
   | "quota.warning"
   | "experiment.concluded"
+  | "intel.alert" // Phase 6 Stream E (P1): Watchtower competitor alerts
   | "render_complete"; // legacy Sprint 1-2 type
 
 export interface EmitNotificationInput {

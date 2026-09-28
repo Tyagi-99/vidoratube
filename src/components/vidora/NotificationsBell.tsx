@@ -29,6 +29,7 @@ const TYPE_LABELS: Record<string, string> = {
   "budget.alert": "Budget",
   "quota.warning": "Quota",
   "experiment.concluded": "Experiment",
+  "intel.alert": "Watchtower", // Phase 6 Stream E (P1)
 };
 
 function typeLabel(type: string): string {
