@@ -53,6 +53,18 @@ Phase 0a audit, 2026-09-27. Every feature/route classified against the live
 | YouTube ingestion honesty | Without `YOUTUBE_API_KEY` every fetch returns `{ status: "unconfigured" }` naming the key — zero network calls, zero quota inserts (unit-tested); with key, `youtube_api_cache` TTLs (channels 24h / videos 6h / search 1h) + quota recording |
 | Honest labels everywhere | Estimates labeled **ESTIMATE**; stored/real data vs estimates distinguished in UI; no virality/CTR/RPM guarantees anywhere |
 
+## Phase 4 — Operations/Learning (2026-09-28, branch `phase4/operations`; gates: tsc clean, vitest 1709/1709, worker 87/87, build PASS)
+
+| Feature / route | Evidence |
+|---|---|
+| Publish pipeline (F27/F28/F29) | `publish_jobs.idempotency_key` unique + backfilled (migration `2026092804a000`); transient-failure retry with backoff (`src/lib/publish/retry.ts` + tests); live-metadata overwrite requires diff + human confirm bound to fresh snapshot hash (TOCTOU, D166); calendar drag/drop changes only `scheduled_for`; rejection is terminal with immutable reason + `publish.rejected` audit row (D165) |
+| Analytics (F30–F33, F37, F38) | Ingestion writes explicit `source`; `fixture` default forces DEMO DATA labels (migration `2026092804b000`, D167); deltas vs prior 28d or "insufficient history" (D168); buckets from project metadata (D169); weakest-scene from real points (D170); channel audit findings cited or AI-labeled (D171); revenue always **ESTIMATE** (D172); ROI = net ledger credits, unattributed spend visible, per-plan USD rates (D173) |
+| Experiments + Learning (F34/F35) | Sample-size floors + 24h minimum before any conclusion (migration `2026092804c000`); conclusion `{ winner_arm_id, p_value, method, decided_at, decided_by }`; insights topic-grouped, AI-mined labeled "AI analysis" |
+| Comment intelligence (F36) | Rule-based sentiment/question classification at ingest (D136); question feed (partial index); draft replies require human confirmation; never auto-deletes; exactly-once notifications via `dedup_key` (migration `2026092804d000`) |
+| API keys + MCP (F41) | Key-hash-only storage, scoped, revocable, `last_used_at`; JSON-RPC 2.0 MCP server over HTTP POST, authenticated + audited (D160; migration `2026092804e000`) |
+| Brand library + invites (F39/F40) | `brand_assets` (workspace-scoped), `workspace_invites`; invites unit-tested |
+| No dedicated closed-loop E2E | No publish→analytics→experiments→learnings E2E test exists; the loop is covered by per-stream unit/integration tests (~244 Phase 4 tests). Recorded as a gap, not a pass. |
+
 ## PARTIAL
 
 | Feature | Gap | Evidence |

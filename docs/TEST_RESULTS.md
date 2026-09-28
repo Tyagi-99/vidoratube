@@ -1,8 +1,22 @@
 # Vidora OS — Test Results
 
-Exact counts from runs on `phase2/intelligence` + Phase 3 Stream B (`phase3/stream-b`). Updated 2026-09-28.
+Exact counts from measured runs. Updated 2026-09-28.
 
-## Current — Phase 3 Stream B (2026-09-28, final gate)
+## Current — Phase 4 full merge verification (2026-09-28, ~09:55 IST, `phase4/operations`)
+
+All five Phase 4 streams merged (A publishing, B analytics, C experiments/learning, D comments/notifications, E API keys/MCP + brand/invites). Worktree `~/workspace/vidoratube-p4ops` with `node_modules` symlinked from the main worktree (identical `package.json`); worker `node_modules` likewise symlinked (fixes the previously noted missing `tsx` binary).
+
+| Suite | Result |
+|---|---|
+| `./node_modules/.bin/tsc --noEmit` (strict + noUnusedLocals + noUncheckedIndexedAccess + exactOptionalPropertyTypes) | **clean, 0 errors** on merged `phase4/operations` (first attempt hit a fresh-worktree quirk: `npx tsc` fetched the placeholder `tsc` package — "This is not the tsc command you are looking for" — because no local install existed; reran against the real TypeScript 5.9.3) |
+| `vitest run` (unit, full) | **1709/1709 pass, 171 files** — up from 1447 (Phase 3); ~262 new Phase 4 tests: publish ~36, analytics ~53, experiments ~40, learnings ~17, comments ~32, api-keys ~29, mcp ~22, brand ~10, invites ~5 |
+| `npm run test:worker` | **87/87 pass, 28 suites, 0 fail** — `tsx` binary now resolves via symlinked worker `node_modules`; earlier "tsx: not found" was an environment setup issue, not a code issue |
+| `npm run build` (production) | **PASS** (Nitro build completes, deploy output generated) |
+| Merge conflict resolution | Stream B merge had one real conflict: `docs/DECISIONS.md` decision-number collision (both streams wrote D136+). Resolved by renumbering Stream B's section to D167–D173; `src/routeTree.gen.ts` and `src/lib/rls-policies.test.ts` auto-merged. Verified: zero conflict markers in tree, `git diff --check` clean, route-path repetitions match the pre-existing generated pattern (not merge duplication) |
+
+Not run (same standing gaps as Phase 3): integration/E2E against live Supabase (no local Postgres; **19 migrations unapplied** — see `docs/PHASE4_MIGRATION_LIST.md`), provider-keyed paths (TTS/image/render real calls — honest skips unit-verified, zero network calls), authenticated browser E2E (no test credentials in this environment), **no dedicated publish→analytics→experiments→learnings closed-loop E2E exists** — the loop is covered by per-stream unit/integration tests only.
+
+## Previous — Phase 3 Stream F (2026-09-28, final gate)
 
 | Suite | Result |
 |---|---|
