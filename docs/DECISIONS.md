@@ -1726,3 +1726,24 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
   The caps remove the blob-store abuse vector without breaking telemetry.
 - **Reverse:** drop the constraint; the anon INSERT policy remains the
   documented intentional surface.
+
+### D178. F42 extension token model: separate minimal-scope keys, publish:request excluded (2026-09-28)
+
+- **Found:** the extension (DOCS ONLY — no code) is a client of the
+  existing MCP surface (`/api/mcp`, D160). The pinned scope vocab
+  (`API_KEY_SCOPES`) already gates every tool per-call on the server.
+- **Decision:** the extension gets its own dedicated `vdsk_` key per
+  install/user with one of two profiles: Status
+  (`read:projects` + `read:analytics`, default) or Status + Drafts
+  (adds `write:projects`, explicit opt-in at key creation).
+  `publish:request` is deliberately excluded — the extension cannot touch
+  the publish pipeline at all — and `admin:keys` is never granted to
+  extension keys. Key stored in `chrome.storage.local` only, never in page
+  JS or the web app's client JS. Server-side scope re-checks (existing)
+  make a tampered client unable to escalate (403). Stolen key → revoke or
+  rotate via the existing key routes; blast radius is scope-limited by
+  design. Documented in `docs/CHROME_EXTENSION.md`.
+- **Reason:** minimal scopes + existing server gates give the companion
+  UX (status reads, draft prep) with zero new server attack surface and no
+  path past the human-approval gates.
+- **Reverse:** revoke/rotate the key; no server changes exist to revert.
