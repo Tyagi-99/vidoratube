@@ -151,6 +151,12 @@ const OWNER_SCOPED_TABLES = [
   "onboarding_progress",
   "alert_rules",
   "checklist_dismissals",
+  // Voice Intelligence (D327): owner-scoped per-user voice state.
+  "voice_profiles",
+  "user_voice_favorites",
+  "channel_voice_defaults",
+  "generated_voice_previews",
+  "voice_generation_jobs",
 ];
 
 /**
@@ -211,6 +217,15 @@ const PUBLIC_BY_DESIGN: Record<string, string> = {
   // deductions). Reference data like languages (D45/D63): no user data,
   // read-only for all, service-role writes only.
   safety_rules: "public read",
+  // Voice Intelligence reference catalog (D327): no user data, read-only
+  // for all; service_role writes only. Character seeds never overwrite
+  // live provider_voice_id / status.
+  voice_categories: "public read",
+  voice_models: "public read",
+  voice_characters: "public read",
+  // Voice Intelligence analytics (D327): authenticated INSERT only; no user
+  // SELECT policy, so reads are service-role only. No sensitive payloads.
+  voice_analytics_events: "authenticated INSERT only",
 };
 
 /**

@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useSession } from "@/hooks/useSession";
 import { isAppUser } from "@/lib/auth-user";
@@ -44,6 +44,7 @@ import {
   resolveDialogVoiceKey,
 } from "@/components/vidora/voice/dialog-voice-mapping";
 import type { VoiceSelection } from "@/lib/voice-intel/types";
+import { getVoiceProviderStatus } from "@/lib/voice-intel/voice-intel.functions";
 
 /** Target-length presets (seconds); "auto" follows the script's natural length. */
 const TARGET_DURATIONS = [
@@ -135,6 +136,20 @@ export function GenerateVideoDialog({
   const advance = useServerFn(advanceVideoJob);
   const finalize = useServerFn(finalizeVideoJob);
   const failCompose = useServerFn(failVideoJobCompose);
+  const voiceProviderStatus = useServerFn(getVoiceProviderStatus);
+
+  // Real TTS provider readiness from the backend — the Voice & Language
+  // mapping derives fallback honesty from this instead of assuming.
+  const providerQuery = useQuery({
+    queryKey: ["voice-provider-status"],
+    queryFn: () => voiceProviderStatus(),
+    enabled: !sessionLoading && !!user,
+    staleTime: 5 * 60 * 1000,
+  });
+  const elevenLabsReady =
+    providerQuery.data?.providers.some(
+      (p) => p.id === "elevenlabs" && p.configured,
+    ) ?? false;
 
   const runClientCompose = async (job: JobResult): Promise<JobResult> => {
     if (!user) throw new Error("Sign in to finish rendering.");
@@ -313,7 +328,14 @@ export function GenerateVideoDialog({
           // The Voice & Language section resolves the selection onto a
           // legacy pipeline key explicitly (never silent): unmapped
           // characters carry an honest fallback note in the summary panel.
-          voice: resolveDialogVoiceKey(voiceSelection ?? FALLBACK_VOICE_SELECTION).legacyKey,
+          // elevenLabsReady comes from the backend — no hardcoded assumption.
+          voice: resolveDialogVoiceKey(
+            voiceSelection ?? FALLBACK_VOICE_SELECTION,
+            elevenLabsReady,
+          ).legacyKey,
+          // D328: the full Voice Intelligence selection travels with the job
+          // so the TTS stage honors language + character + model + settings.
+          voice_config: voiceSelection ?? FALLBACK_VOICE_SELECTION,
           format,
           story_mode: storyMode,
           aspect_ratio: aspect,

@@ -131,6 +131,13 @@ export async function generateVoiceover(
   userId: string,
   narration: string,
   voice: string,
+  /**
+   * Voice Intelligence selection (D328). When present and ElevenLabs is
+   * configured, the TTS call honors the selected character + model +
+   * settings (explicit fallback, never silent). Otherwise the legacy
+   * nickname map below is used unchanged.
+   */
+  voiceConfig?: unknown,
 ): Promise<{ url: string; estimatedSeconds: number }> {
   const text = narration.slice(0, 4000);
   let audio: ArrayBuffer | null = null;
@@ -146,10 +153,34 @@ export async function generateVoiceover(
   if (elevenLabsConfigured()) {
     // Telemetry path: the ProviderResult envelope carries model / latency /
     // characters and records the measured cost to api_usage on success.
-    const voiceId = ELEVENLABS_VOICE_MAP[voice.toLowerCase()] ?? DEFAULT_VOICE_ID;
+    let voiceId = ELEVENLABS_VOICE_MAP[voice.toLowerCase()] ?? DEFAULT_VOICE_ID;
+    let model = DEFAULT_VOICE_MODEL;
+    let settings: {
+      stability?: number;
+      similarity?: number;
+      style?: number;
+      speed?: number;
+      speakerBoost?: boolean;
+    } = {};
+    const { isVoiceSelection, resolveSynthesisPlan } = await import("./voice-intel/plan");
+    if (isVoiceSelection(voiceConfig)) {
+      const plan = resolveSynthesisPlan(voiceConfig, text.length, true);
+      if (plan.voiceId) voiceId = plan.voiceId;
+      model = plan.modelId;
+      settings = {
+        stability: plan.settings.stability,
+        similarity: plan.settings.similarityBoost,
+        style: plan.settings.style,
+        speed: plan.settings.speed,
+        speakerBoost: plan.settings.speakerBoost,
+      };
+      if (plan.viaFallback || plan.fallbackNote) {
+        console.warn(`[vidora] ElevenLabs voiceover for job ${jobId}: ${plan.fallbackNote}`);
+      }
+    }
     const result = await synthesizeWithTelemetry(
       text,
-      { voiceId, model: DEFAULT_VOICE_MODEL },
+      { voiceId, model, ...settings },
       { costCtx: { admin, userId }, meta: { job_id: jobId, mode: "story" } },
     );
     if (result.ok && result.output) {

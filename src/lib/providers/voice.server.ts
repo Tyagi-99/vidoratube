@@ -13,6 +13,8 @@ export type VoiceSettings = {
   similarity?: number;
   style?: number;
   speed?: number;
+  /** Defaults to true (legacy behaviour) when omitted. */
+  speakerBoost?: boolean;
 };
 
 export const DEFAULT_VOICE_ID = "JBFqnCBsd6RMkjVDRZzb"; // George
@@ -54,7 +56,7 @@ export async function synthesize(text: string, settings: VoiceSettings): Promise
           stability: settings.stability ?? 0.55,
           similarity_boost: settings.similarity ?? 0.75,
           style: settings.style ?? 0.25,
-          use_speaker_boost: true,
+          use_speaker_boost: settings.speakerBoost ?? true,
           speed: settings.speed ?? 1,
         },
       }),

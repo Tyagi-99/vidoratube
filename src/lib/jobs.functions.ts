@@ -15,6 +15,7 @@ import {
   nextStageAfterVisuals,
   validateClientFinalizeMeta,
 } from "./jobs/final-video";
+import { VoiceSelectionSchema } from "./voice-intel/voice-intel.functions";
 
 export const getMyAccount = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -65,6 +66,12 @@ export const getMyJob = createServerFn({ method: "GET" })
 const createSchema = z.object({
   script: z.string().trim().min(20, "Script needs at least 20 characters").max(12000),
   voice: z.string().trim().min(1).max(40),
+  /**
+   * Voice Intelligence selection (D328). Optional: when present the TTS
+   * stage honors language + character + model + settings; the legacy
+   * `voice` nickname remains the fallback for older workers.
+   */
+  voice_config: VoiceSelectionSchema.optional(),
   format: z.string().trim().min(1).max(40),
   /** Story Mode: the narration plan follows the five-beat narrative template. */
   story_mode: z.boolean().default(false),
@@ -187,6 +194,7 @@ export const createVideoJob = createServerFn({ method: "POST" })
         user_id: userId,
         script: data.script,
         voice: data.voice,
+        voice_config: data.voice_config ?? null,
         format: data.format,
         aspect_ratio: data.aspect_ratio,
         idempotency_key: data.idempotency_key ?? null,
@@ -338,11 +346,22 @@ export const advanceVideoJob = createServerFn({ method: "POST" })
               await import("./providers/voice.server");
             const narrationText = job.narration || job.script;
             const ttsConfigured = elevenLabsConfigured();
+            // D328: honor the persisted Voice Intelligence selection when
+            // present — the preflight prices the model that will actually
+            // be used, and generateVoiceover applies character + settings.
+            const { isVoiceSelection, resolveSynthesisPlan } = await import(
+              "./voice-intel/plan"
+            );
+            const voiceConfig = isVoiceSelection(job.voice_config) ? job.voice_config : null;
+            const ttsModel =
+              voiceConfig && ttsConfigured
+                ? resolveSynthesisPlan(voiceConfig, narrationText.length, true).modelId
+                : DEFAULT_VOICE_MODEL;
             const preflight = await preflightCreditsCheck(supabaseAdmin, {
               userId,
               jobType: "tts",
               provider: ttsConfigured ? "elevenlabs" : "lovable-ai",
-              model: ttsConfigured ? DEFAULT_VOICE_MODEL : "gpt-4o-mini-tts",
+              model: ttsConfigured ? ttsModel : "gpt-4o-mini-tts",
               characters: narrationText.length,
             });
             if (!preflight.ok) {
@@ -354,6 +373,7 @@ export const advanceVideoJob = createServerFn({ method: "POST" })
               userId,
               narrationText,
               job.voice,
+              voiceConfig,
             );
             return await save({
               audio_url: url,

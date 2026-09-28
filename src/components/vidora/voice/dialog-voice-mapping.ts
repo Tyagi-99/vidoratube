@@ -49,6 +49,12 @@ export const FALLBACK_VOICE_SELECTION: VoiceSelection = {
 
 export function resolveDialogVoiceKey(
   selection: VoiceSelection,
+  /**
+   * Real ElevenLabs readiness from the backend (getVoiceProviderStatus).
+   * Defaults to false (conservative) when the caller has no status yet —
+   * never claim a mapped provider voice until the backend confirms it.
+   */
+  providerConfigured = false,
 ): DialogVoiceResolution {
   const requested = voiceCharacter(selection.characterId);
   const requestedName = requested?.name ?? "This voice";
@@ -69,8 +75,7 @@ export function resolveDialogVoiceKey(
   const resolution = resolveVoiceForSynthesis({
     characterId: selection.characterId,
     categoryId: selection.categoryId,
-    // The stored ElevenLabs key is invalid (401) — never claim readiness.
-    providerConfigured: false,
+    providerConfigured,
   });
 
   if (resolution.ok && !resolution.viaFallback) {

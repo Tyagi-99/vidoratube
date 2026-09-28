@@ -4531,6 +4531,7 @@ export type Database = {
           updated_at: string
           user_id: string
           voice: string
+          voice_config: Json | null
           youtube_status: string | null
           youtube_video_id: string | null
         }
@@ -4559,6 +4560,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           voice?: string
+          voice_config?: Json | null
           youtube_status?: string | null
           youtube_video_id?: string | null
         }
@@ -4587,6 +4589,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           voice?: string
+          voice_config?: Json | null
           youtube_status?: string | null
           youtube_video_id?: string | null
         }

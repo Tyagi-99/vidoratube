@@ -56,4 +56,19 @@ describe("resolveDialogVoiceKey", () => {
     expect(r.legacyKey.length).toBeGreaterThan(0);
     expect(r.note).not.toBeNull();
   });
+
+  it("derives availability from the backend flag, not a hardcoded guess", () => {
+    // With a healthy provider, a mapped-but-pipeline-unknown voice (Elli)
+    // still falls back explicitly — the pipeline only knows legacy keys.
+    const ready = resolveDialogVoiceKey(
+      sel({ languageCode: "de", characterId: "elli" }),
+      true,
+    );
+    expect(ready.viaFallback).toBe(true);
+    expect(ready.note).toContain("Elli");
+    // Adam maps cleanly either way.
+    expect(
+      resolveDialogVoiceKey(sel({ characterId: "adam" }), true).note,
+    ).toBeNull();
+  });
 });

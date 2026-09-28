@@ -11,35 +11,44 @@ const ids = (languageCode: string, categoryId: any, niche?: string | null) =>
   topVoices(languageCode, categoryId, niche).map((r) => r.character.id);
 
 describe("recommendVoices", () => {
-  it("English + Crime & Mystery → Sawyer, Adam, then best residual (Florence)", () => {
-    // Spec's headline order for the top two; the third slot goes to the
-    // highest-scoring remaining voice by the same rule (Florence carries
-    // the crime_mystery tag and outranks Finley here).
-    expect(ids("en", "crime_mystery")).toEqual(["sawyer", "adam", "florence"]);
+  it("English + Crime & Mystery → Sawyer, Adam, Finley (spec order)", () => {
+    expect(ids("en", "crime_mystery")).toEqual(["sawyer", "adam", "finley"]);
   });
 
-  it("English + Beauty → Jade, Talia, then best residual (Adam)", () => {
-    expect(ids("en", "lifestyle_beauty")).toEqual(["jade", "talia", "adam"]);
+  it("English + Beauty → Jade, Talia, Florence (spec order)", () => {
+    expect(ids("en", "lifestyle_beauty")).toEqual(["jade", "talia", "florence"]);
   });
 
-  it("Hindi + Shorts → Bunty, Krishna Gupta, then best residual (Niraj)", () => {
-    expect(ids("hi", "shorts_reels")).toEqual(["bunty", "krishna-gupta", "niraj"]);
+  it("Hindi + Shorts → Bunty, Krishna Gupta, Raju (spec order)", () => {
+    expect(ids("hi", "shorts_reels")).toEqual(["bunty", "krishna-gupta", "raju"]);
   });
 
-  it("Spanish + Documentary top-3 set is Miguel, Alberto, David", () => {
-    const got = new Set(ids("es", "documentary"));
-    expect(got).toEqual(new Set(["miguel", "alberto-rodriguez", "david-martin"]));
+  it("Hindi + Education → Vikram, Aakash (spec order)", () => {
+    expect(ids("hi", "educational").slice(0, 2)).toEqual(["vikram", "aakash"]);
   });
 
-  it("German + Cinematic top-3 set is Leon, Helmut, Christian", () => {
-    const got = new Set(ids("de", "cinematic"));
-    expect(got).toEqual(new Set(["leon-stern", "helmut-stieglbauer", "christian"]));
+  it("Hindi + Emotional → Niraj, Raju, Monika (spec order)", () => {
+    expect(ids("hi", "emotional")).toEqual(["niraj", "raju", "monika-sogam"]);
   });
 
-  it("Hindi + Emotional ranks Niraj first", () => {
-    const top = topVoices("hi", "emotional");
-    expect(top[0]!.character.id).toBe("niraj");
-    expect(top.map((r) => r.character.id)).toContain("monika-sogam");
+  it("Spanish + Documentary → Alberto, Miguel, David (spec order)", () => {
+    expect(ids("es", "documentary")).toEqual(["alberto-rodriguez", "miguel", "david-martin"]);
+  });
+
+  it("Spanish + Crime → Carmelo, Miguel (spec order)", () => {
+    expect(ids("es", "crime_mystery").slice(0, 2)).toEqual(["carmelo", "miguel"]);
+  });
+
+  it("German + Cinematic → Leon, Helmut, Christian (spec order)", () => {
+    expect(ids("de", "cinematic")).toEqual(["leon-stern", "helmut-stieglbauer", "christian"]);
+  });
+
+  it("German + Documentary → Leon, Helmut, Christian (spec order)", () => {
+    expect(ids("de", "documentary")).toEqual(["leon-stern", "helmut-stieglbauer", "christian"]);
+  });
+
+  it("German casual creator → Otto first (spec order)", () => {
+    expect(ids("de", "entertainment")[0]).toBe("otto");
   });
 
   it("maps niche 'True Crime' to crime_mystery", () => {

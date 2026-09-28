@@ -2303,3 +2303,95 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
   The standalone overlay usage is unchanged (no other call sites exist).
 - **Reverse:** drop the `inline` prop and the `.ae-app--inline` CSS rule; revert the
   page branch to the bare `<AutoEditStudio>`.
+
+### D327. Voice Intelligence Layer: character catalog + recommendation engine (2026-09-29)
+
+- **Decision:** new `src/lib/voice-intel/` module holds the full curated voice
+  data layer as pure client-safe TypeScript: 4 active languages (EN/HI/ES/DE)
+  + 8 planned, 40 voice characters (10/language with personality/category
+  tags, gender, accent, score, default rank), 17 content categories, 5 voice
+  model seeds, per-language preview samples, a deterministic recommendation
+  engine (language + category/niche → ranked voices with reasons), auto model
+  selection (short-form → Flash, long-form → Multilingual v2, emotional →
+  Eleven v3 alpha), per-category TTS settings, cost estimator, and an
+  availability resolver.
+- **Honesty rule:** only Adam (`pNInz6obpgDQGcFmaJgB`) and Elli
+  (`MF3mGyEYCl7XYWb3QV9V`) carry providerVoiceIds — both already present in
+  the codebase (`src/lib/voices.ts`). The other 38 characters are
+  `providerVoiceId: null` + `status: "unmapped"`. `"mapped"` means "id from
+  the codebase", NOT "live-verified". Unmapped voices never synthesize
+  silently: the resolver returns an explicit same-language fallback or a
+  hard failure the UI must surface.
+- **Note:** commit `ff2d9df`'s message says "D326" but D326 was already taken
+  by the AutoEditStudio inline-layout fix (recorded above); the voice-intel
+  data-layer decision is D327. History was not rewritten.
+- **Reverse:** delete `src/lib/voice-intel/`; nothing else imports it yet.
+
+### D328. Voice Intelligence backend + migration (2026-09-29)
+
+- **Decision:** `src/lib/voice-intel/` gains `backend.server.ts` (DB-first
+  character/model loading with catalog fallback when the migration is
+  unapplied), `provider.server.ts` (ElevenLabs implemented; OpenAI/Google/
+  Azure/Cartesia/PlayHT adapters honestly report `unconfigured` — never
+  simulated), `db.server.ts`, and full implementations of the 17
+  `voice-intel.functions.ts` server functions: provider status, dynamic
+  ElevenLabs model discovery (unknown models get conservative metadata),
+  preview synthesis with per-user SHA-256 cache, 3-voice comparison, credit
+  preflight → synthesize → debit-after-success narration, favorites/channel
+  defaults/profiles/project-config CRUD, best-effort analytics (never
+  throws), friendly error envelopes.
+- **Migration:** `20260929040000_voice_intelligence.sql` creates/seeds
+  `voice_categories`, `voice_models`, `voice_characters` (40 seeded),
+  `voice_profiles`, `user_voice_favorites`, `channel_voice_defaults`,
+  `generated_voice_previews` (owner-scoped via `(user_id, cache_key)`
+  uniqueness), `voice_generation_jobs`, `voice_analytics_events`, and
+  `projects.voice_config`. Reference tables: explicit public SELECT; user
+  tables: owner-scoped + "No guest sessions" restrictive policy. Character
+  seed updates never overwrite live `provider_voice_id`/`status`.
+  Migration NOT applied to Lovable (parent applies manually via SQL editor).
+- **Reverse:** drop the migration's tables; delete `*.server.ts` files;
+  functions revert to the stub contract in `voice-intel.functions.ts`.
+
+### D329. Voice Intelligence UI + GenerateVideoDialog integration (2026-09-29)
+
+- **Decision:** reusable UI under `src/components/vidora/voice/`
+  (`VoiceLanguageSection` with Simple/Advanced modes,
+  `VoiceLibraryGrid`, `CompareTray` (≤3 voices, same script), `ModelSelector`,
+  capability-gated `VoiceSettingsControls`, `VoiceSummaryPanel`,
+  `useVoiceSelection`, `useVoicePreview`, `dialog-voice-mapping`). 4 active
+  language cards + 8 disabled "Coming soon"; 17 category cards; scores marked
+  **ESTIMATE**; real preview server calls (no fake audio); favorites/channel
+  defaults/profiles/project persistence with consistency warning; mobile
+  scroll-snap cards, ≥44px controls, skeleton/error states.
+- **Dialog integration:** `GenerateVideoDialog` gained a Voice & Language
+  section before Generate; the old Deneb/Sirius/Vega/Altair selector was
+  removed. `resolveDialogVoiceKey` maps the selection onto the legacy
+  pipeline key explicitly — the summary panel names the fallback whenever
+  the requested character cannot be consumed (never silent).
+- **Reverse:** revert `GenerateVideoDialog.tsx` voice section; delete
+  `src/components/vidora/voice/`.
+
+### D330. Voice Intelligence generation contract + spec-required ordering (2026-09-29)
+
+- **Decision:** `video_jobs` gains `voice_config JSONB`
+  (`20260929050000_video_jobs_voice_config.sql`, NOT yet applied).
+  `createVideoJob` accepts/stores the full `VoiceSelection`; the TTS stage
+  resolves it through pure `resolveSynthesisPlan()` (explicit same-language
+  fallback or null → legacy path, "auto" model → duration/category-aware
+  pick, settings clamped) and `generateVoiceover` applies character +
+  model + settings server-side — the preflight prices the model that will
+  actually be used. `synthesize` gains optional `speakerBoost`
+  (default true, backward compatible). `resolveDialogVoiceKey` now takes
+  the real `getVoiceProviderStatus` readiness instead of a hardcoded false.
+- **Recommendation ordering:** the spec's explicit example orders
+  (en/crime_mystery → Sawyer, Adam, Finley; en/lifestyle_beauty → Jade,
+  Talia, Florence; hi/shorts_reels → Bunty, Krishna Gupta, Raju;
+  hi/educational → Vikram, Aakash; hi/emotional → Niraj, Raju, Monika;
+  es/documentary → Alberto Rodríguez, Miguel, David Martin;
+  es/crime_mystery → Carmelo, Miguel; de/cinematic + de/documentary →
+  Leon Stern, Helmut Stieglbauer, Christian; de/entertainment → Otto)
+  are now `EDITORIAL_PICKS` in `recommend.ts` (documented, deterministic;
+  the algorithm still fills every remaining slot). The earlier tests that
+  rationalized different residual orders were restored to the spec.
+- **Reverse:** drop `voice_config` column; remove the `VoiceSelection`
+  passthrough; delete `plan.ts` and `EDITORIAL_PICKS`.

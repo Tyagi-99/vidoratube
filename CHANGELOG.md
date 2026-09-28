@@ -1,5 +1,35 @@
 # Changelog
 
+## 2026-09-29 — Voice Intelligence (D327–D330)
+
+Multilingual narration system: Language → Category → Recommended Voice →
+Character → Model → Preview → Generate.
+
+- **Data layer (D327):** `src/lib/voice-intel/` — 4 active languages
+  (EN/HI/ES/DE) + 8 planned, 40 curated characters (10/language), 17 content
+  categories, 5 model seeds, deterministic recommendation engine with
+  reasons, auto model selection, per-category TTS settings, cost estimator,
+  availability + explicit fallback resolver. Spec-required example orders
+  are `EDITORIAL_PICKS` (deterministic; algorithm fills the rest).
+- **Backend (D328):** DB-first loading with catalog fallback, ElevenLabs
+  adapter (+ dynamic model discovery), honest `unconfigured` future
+  adapters, preview cache, 3-voice compare, credit-preflight narration,
+  favorites/defaults/profiles/project-config, best-effort analytics.
+  Migration `20260929040000_voice_intelligence.sql` — **not yet applied**.
+- **UI (D329):** `src/components/vidora/voice/` — Simple/Advanced modes,
+  real previews, compare tray, capability-gated settings, summary panel
+  with explicit fallback notes. `GenerateVideoDialog` Voice & Language
+  section replaces the old voice selector.
+- **Generation contract (D330):** `video_jobs.voice_config JSONB`
+  (`20260929050000_video_jobs_voice_config.sql` — **not yet applied**);
+  the TTS stage honors language + character + model + settings server-side
+  and the preflight prices the actual model. Dialog derives provider
+  readiness from `getVoiceProviderStatus` (no hardcoded assumption).
+- **Honesty:** only Adam + Elli carry provider voice IDs (from the existing
+  codebase, not live-verified); the other 38 are `unmapped` and resolve to
+  an explicit fallback or a hard failure. ElevenLabs probe still 401 —
+  provider paths are code-complete/mock-tested, **not live-verified**.
+
 ## 2026-09-25 — P10: Launch Readiness
 
 ### Legal
