@@ -137,6 +137,9 @@ const OWNER_SCOPED_TABLES = [
   // Phase 3 Stream F — 30-second quick create + SEO studio (20260928041400).
   "quick_create_runs",
   "seo_packages",
+  // Phase 4 Stream B — analytics (2026092804b000). monetization_settings is
+  // keyed by user_id with an auth.uid() owner policy.
+  "monetization_settings",
 ];
 
 /**
@@ -161,6 +164,11 @@ const WORKSPACE_MEMBER_SCOPED_TABLES = [
   "audit_logs",
   "workspace_budgets",
   "api_keys",
+  // Phase 4 Stream E — platform domain (2026092804e000).
+  // brand_assets: members read, owners/editors manage. workspace_invites:
+  // members read; no client write policies (service-role writes only).
+  "brand_assets",
+  "workspace_invites",
 ];
 
 /** Tables intentionally readable/writable without auth (documented exceptions). */

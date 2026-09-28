@@ -1208,3 +1208,443 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
 - **Reason:** A rerunnable contract that the free path stays honest end to
   end; any future "helpful" shortcut that fakes a stage breaks this test.
 - **Reverse:** None — extend, don't replace.
+
+
+
+
+### D136. Comment sentiment is rule-based at ingest; AI is deferred and labeled
+
+- **Decision:** F36 sentiment/question classification ships as deterministic
+  rule-based classifiers (`src/lib/comments/sentiment.ts`) run at ingest time.
+  If an LLM classifier is added later (e.g. Lovable AI gateway), its outputs
+  MUST be labeled "AI analysis" per the pinned contracts.
+- **Reason:** Deterministic, offline, testable, zero cost. A rule-based
+  baseline can't hallucinate confidence; AI sentiment without provenance
+  labels would violate the honesty rules.
+- **Reverse:** Swap in AI classification behind the same
+  `classifySentiment` signature once gateway keys exist, with results tagged.
+
+### D137. Notification type vocab moves to dotted names; legacy rows still render
+
+- **Decision:** New notifications use the pinned dotted types
+  (`render.completed`, `publish.published`, …). The Sprint 1-2
+  `render_complete` type is kept in the `NotificationType` union and the bell
+  label map so legacy rows render.
+- **Reason:** Matches the pinned Phase 4 contract; keeps history readable.
+- **Reverse:** None — additive only.
+
+### D138. Consume-only triggers + dedup_key for exactly-once notifications
+
+- **Decision:** `src/lib/notifications/triggers.server.ts` READS other
+  streams' tables (generation_jobs, publish_jobs, experiments,
+  workspace_budgets, channel_connections) and writes ONLY notification rows
+  (asserted by `expectConsumeOnly` in tests). Every emission carries a
+  `dedup_key` backed by a partial UNIQUE(user_id, dedup_key) index
+  (migration 2026092804d000) plus a 23505 race fallback.
+- **Reason:** Cross-stream coordination without write coupling; re-running a
+  trigger (or two workers racing) cannot double-notify.
+- **Reverse:** If streams grow their own emitters, keep dedup_key as the
+  single exactly-once mechanism.
+
+### D139. Comment-derived ideas file under an auto-created "Audience requests" research project
+
+- **Decision:** The one-click idea handoff writes to the canonical
+  `video_ideas` table under a per-user research project titled
+  "Audience requests", created lazily on first handoff. No schema change.
+  Second click on the same insight is a no-op (stamped `idea_id`).
+- **Reason:** video_ideas requires a project_id; a dedicated project keeps
+  audience-sourced ideas separate from research projects without a parallel
+  table (pinned contracts forbid parallel tables).
+- **Reverse:** Allow the user to pick a target project in the UI later.
+
+### D140. Draft replies: pinned metadata shape, server-enforced approve-before-post
+
+- **Decision:** Drafts live at `comments.metadata.draft_reply =
+  { text, status: 'draft'|'approved'|'posted', approved_by, posted_at }`.
+  `postApprovedReply` reads the stored row and throws unless status is
+  exactly `'approved'`; the approver is stamped from the session user.
+  Creating a draft never touches the network.
+- **Reason:** Makes "drafts never auto-send" a server invariant, not a UI
+  convention. A compromised/misbehaving client cannot bypass approval.
+- **Reverse:** None.
+
+### D141. Comment ingestion scope: top-level + one reply level via commentThreads.list
+
+- **Decision:** Ingestion uses `commentThreads.list?part=snippet,replies`,
+  storing top-level comments and their direct replies (each reply linked via
+  `metadata.parent_external_comment_id`). Paginates up to 5 pages (500
+  threads) per video per run.
+- **Reason:** `part=replies` returns both levels in one quota-cheap call
+  (1 unit/thread page). Deeper nesting adds little for request mining.
+- **Reverse:** Raise maxPages or add `comments.list` per thread if deep
+  threads prove valuable.
+
+### D142. No YouTube grant → honest "unavailable", never fixture comments
+
+- **Decision:** Ingestion without a stored grant (or with a revoked one)
+  returns `{ status: "unavailable", reason }` and makes zero network calls.
+  There is no fixture/sample fallback in the ingestion path.
+- **Reason:** Fabricated comments would poison sentiment, mining, and idea
+  handoffs. Honest unavailability is the only safe default.
+- **Reverse:** None.
+
+### D143. Bell keeps "mark read on open" (existing behavior)
+
+- **Decision:** The notification bell marks all as read when the panel opens
+  (existing Sprint 1-2 behavior); new types only add a category label chip.
+- **Reason:** No reason to change a working interaction; the Stream D work
+  is the new event sources, not the bell mechanics.
+- **Reverse:** Per-row read toggles if users ask.
+
+### D144. No platform comment-delete code path, enforced by test
+
+- **Decision:** `drafts.test.ts` greps the comments module sources
+  (comments stripped) for delete-shaped calls
+  (`commentThreads.delete`, `.delete(`, `method: "DELETE"`) and fails the
+  suite if any appear. Verified clean 2026-09-28.
+- **Reason:** The pinned contract ("comments are NEVER auto-deleted") must
+  survive future edits; a test is stronger than a comment.
+- **Reverse:** None — deletion stays out of scope permanently.
+### D145. Experiment stats engine is hand-rolled pure TypeScript (no new deps)
+
+- **Decision:** `src/lib/experiments/stats.ts` implements the two-proportion
+  z-test (pooled SE, two-tailed) and Welch's t-test from scratch: erf via
+  Abramowitz–Stegun 7.1.26, t-CDF via the regularized incomplete beta
+  (Numerical Recipes continued fraction), Lanczos log-gamma. No scipy/native
+  dependency.
+- **Reason:** The pinned stats discipline (p < 0.05, z-test for CTR, t-test for
+  continuous) must be deterministic, dependency-free, and unit-testable in the
+  worker/edge-safe bundle. Test fixtures carry p-values computed independently
+  with scipy 1.11.4 (see test header) — the engine must match them to 1e-6.
+- **Reverse:** Swap in a stats library later only if it reproduces the same
+  fixtures; the fixtures are the contract, not the implementation.
+
+### D146. Arm metrics jsonb shape: `{impressions,clicks}` for CTR, `{n,mean,variance}` for continuous
+
+- **Decision:** `experiment_arms.metrics` carries, per `primary_metric`:
+  CTR → `{ impressions, clicks }`; views/avg_view_duration_s/
+  watch_time_minutes → `{ n, mean, variance }` (also accepts `{ std }` in
+  place of `variance`). The min-sample gate counts `impressions` for CTR and
+  `n` for continuous metrics against `experiments.min_sample_size`
+  (default 100, CHECK ≥ 100 — never lower without a D-decision).
+- **Reason:** The z-test needs raw counts; Welch's t-test needs mean/variance/
+  n. One jsonb column with a documented per-metric shape keeps the migration
+  minimal and the arm rows comparable.
+- **Reverse:** Add per-observation rows later if real impression-level data
+  arrives; the aggregate shape stays the read contract.
+
+### D147. Conclusion rules: same gates for human and auto, pause = back to draft
+
+- **Decision:** `concludeExperiment` (human) and the auto-conclude check run
+  the SAME `evaluateConclusion`: min sample on every arm AND 24h wall-clock
+  since `started_at` AND p < 0.05 before a winner may be named. A conclusion
+  with no significant winner is recorded as `verdict: "inconclusive"`
+  (`winner_arm_id: null`) — that is an honest conclusion, not a failure.
+  `pauseExperiment` returns status to `draft` (data collection stops); the 24h
+  gate stays wall-clock from first `started_at` (conservative: pausing cannot
+  rewind the novelty-effect clock). Auto-conclude fires only from `running`,
+  writes `decided_by: "auto"`, and NEVER applies the winner.
+- **Reason:** "No conclusion before min sample AND 24h" applies to humans too —
+  otherwise the UI would let a founder peek at p=0.04 on 30 impressions and
+  declare victory. Pause-as-draft avoids a new column while keeping the state
+  machine inside the pinned `draft|running|completed|archived` vocab.
+- **Reverse:** Track accumulated run-seconds across pauses if pause/resume
+  becomes frequent; the gate semantics stay the same.
+
+### D148. "Apply winner" is a separate human-only action, audit-logged best-effort
+
+- **Decision:** `applyWinner` requires a completed experiment whose conclusion
+  is `verdict: "winner"`. It sets `seo_metadata.selected_title` (winning
+  title variant) and/or `thumbnails.selected` (winning thumbnail, siblings
+  deselected), marks the winning `title_variants` row `status: "winner"`, and
+  writes `audit_logs` (`action: "experiment.winner_applied"`). The audit row
+  needs a workspace (`workspace_id` NOT NULL); the workspace is resolved
+  best-effort (owned → member). If the user has no workspace, the apply still
+  succeeds but returns `auditLogged: false` and logs loudly — the UI must
+  surface that.
+- **Reason:** The pinned contract demands the apply be human and audit-logged;
+  failing the whole apply when no workspace exists would punish users for a
+  schema constraint. Loud logging + a visible flag keeps it honest.
+- **Reverse:** Make audit mandatory if workspaces become universal.
+
+### D149. Learning evidence gate enforced in code, not just documented
+
+- **Decision:** `promoteLearning` (proposed → validated) throws unless
+  `evidence` is non-empty AND `confidence` is a number in (0, 1]. Auto-drafted
+  experiment learnings get `evidence: { type: "experiment_outcome",
+  refs: [experimentId], metrics: {...}, sample }` and
+  `confidence = 1 − p` (winner) or `0.5` (inconclusive), always `status:
+  "proposed"`, `source: "system"`.
+- **Reason:** The pinned "learning without evidence stays proposed" rule is
+  only real if the promote path rejects gateless promotions. Confidence 0 is
+  rejected — zero confidence is not evidence.
+- **Reverse:** None.
+
+### D150. Pattern mining drafts `kind: "pattern"` learnings, status proposed, source `ai_analysis`
+
+- **Decision:** `minePatterns` aggregates VALIDATED learnings only, groups by
+  `topic`, and drafts one `kind: "pattern"` learning per topic with
+  `status: "proposed"`, `source: "ai_analysis"`, evidence refs = the cited
+  learning ids, confidence = min cited confidence. The learnings UI renders
+  every `ai_analysis` row with an "AI analysis" badge and a citation list.
+- **Reason:** "Only validated learnings may feed brief advice" + "ALWAYS
+  labeled AI analysis, always cites the underlying learnings". Proposed status
+  keeps a human in the loop before pattern advice is treated as validated.
+- **Reverse:** None — labeling is a contract requirement.
+
+### D151. Comment-signal learnings are read-only over Stream D's `engagement_insights`
+
+- **Decision:** `draftFromCommentSignals` only SELECTs `engagement_insights`
+  (Stream D owns all writes). Insights from the last 30 days are grouped by
+  `kind`; a kind with ≥ 3 insights drafts one `kind: "comment_signal"`
+  learning (`status: "proposed"`, `source: "system"`,
+  `evidence: { type: "comment_signal", refs: [insightIds], sample: n }`).
+  Re-running skips kinds already drafted in the last 30 days (payload marker).
+- **Reason:** Respects the read-only contract with Stream D while turning
+  recurring audience signals into evidence-gated learnings. The ≥3 threshold
+  keeps one-off comments from becoming "learnings".
+- **Reverse:** Lower/raise the threshold with a D-decision if it misfires.
+
+### D152. New columns are minimal: two gates on experiments, two labels on learnings
+
+- **Decision:** Migration `2026092804c000_p4_experiments.sql` adds ONLY:
+  `experiments.min_sample_size` (default 100, CHECK ≥ 100),
+  `experiments.min_duration_hours` (default 24, CHECK ≥ 1),
+  `learning_insights.topic` (default `"general"`),
+  `learning_insights.source` (`human|ai_analysis|system`, default `human`),
+  plus indexes. RLS policies already exist on both tables; the migration only
+  re-asserts them. Everything else (conclusion shape, evidence shape) lives in
+  the existing jsonb columns per the pinned contracts.
+- **Reason:** The Phase 1 schema already carries experiments/experiment_arms/
+  learning_insights/engagement_insights. "Only add what's genuinely missing":
+  the per-experiment gate config and the AI-analysis label have no home today.
+- **Reverse:** None.
+
+### D153. Experiment/learn metric writes go through `recordArmMetrics`, never direct SQL from UI
+
+- **Decision:** The only write path for arm metrics is the `recordArmMetrics`
+  server function (jsonb merge + validation + auto-conclude check). UI never
+  constructs metric rows. Every record triggers the auto-conclude evaluation
+  so conclusions land without a cron.
+- **Reason:** Single choke point keeps the stats discipline and the
+  never-auto-apply rule enforceable; no background worker needed in v1.
+- **Reverse:** Move to a cron/queue consumer if metric ingestion becomes
+  high-volume; the evaluation function stays pure and reusable.
+### D154. API keys store SHA-256 hashes only; raw key shown once
+
+- **Decision:** `api_keys` stores the SHA-256 hash of the raw key — the raw
+  value is returned once at create/rotate and never persisted, logged, or
+  re-displayed. Authentication hashes the presented bearer and compares with
+  a constant-time digest check after an indexed hash lookup (D154).
+- **Reason:** A database or backup leak must not yield usable credentials;
+  one-time display matches the industry pattern (Stripe, GitHub).
+- **Reverse:** None — rotating is the recovery path for a lost key.
+
+### D155. In-memory sliding-window rate limiter for API keys (single instance)
+
+- **Decision:** Per-key 60/min (configurable) rate limiting uses an
+  in-memory sliding-window limiter in the server process; limits are also
+  exposed via `Retry-After` on 429 responses.
+- **Reason:** No new infrastructure for the single-server deployment; the
+  limiter is already abstracted behind a small interface.
+- **Reverse:** Multi-instance deployment MUST move to a shared store
+  (Redis/Upstash or the Postgres `check_rate_limit` RPC). Until then, each
+  instance enforces its own window — document, don't silently widen.
+
+### D156. MCP mutation tools hardcode `draft`; schemas expose no status override
+
+- **Decision:** `vidora.draft_script` and `vidora.request_publish` hardcode
+  `status: "draft"` at the tool layer, their Zod/JSON schemas expose no
+  status field (unknown keys are stripped), and the dispatcher runtime-asserts
+  the invariant — a port that returns non-draft fails the tool loudly.
+- **Reason:** The pinned contract ("can never publish") must hold even
+  against a hostile or buggy tool caller; defense in depth across schema,
+  dispatch, and port layers.
+- **Reverse:** None — publishing stays a human-gated pipeline outside MCP.
+
+### D157. API/MCP audit writes are best-effort and never break the call
+
+- **Decision:** Every authenticated API and MCP tool call writes an
+  `audit_logs` row, but a failing audit insert is caught, logged, and never
+  fails the authenticated operation (the audit hook throwing is covered by
+  test).
+- **Reason:** Availability of the API outranks completeness of the audit
+  trail; a down audit path must not become a self-inflicted outage.
+- **Reverse:** If compliance ever requires guaranteed audit, switch to
+  fail-closed explicitly — do not silently change this default.
+
+### D158. Brand Library uses a dedicated workspace-scoped `brand_assets` table
+
+- **Decision:** Brand assets (logos, fonts, intro/outro clips) live in the
+  new workspace-scoped `brand_assets` table + private `brand-library` bucket,
+  NOT in `content_assets`. `content_assets` is user-scoped and requires a
+  `content_item_id` (research pipeline); brand assets are workspace-shared
+  brand identity independent of any content item. An optional
+  `content_asset_id` links back only when the asset genuinely originated as
+  a content row (rights tracking stays there). At most one `is_default` per
+  (workspace, kind) via a partial unique index.
+- **Reason:** Reusing `content_assets` would require manufacturing fake
+  content items per workspace — a worse integrity lie than a parallel table
+  with the same storage conventions.
+- **Reverse:** If brand assets ever need per-user rights tracking, promote
+  via `content_asset_id` linkage rather than duplicating rows.
+
+### D159. Workspace invites are hashed bearer tokens with explicit acceptance
+
+- **Decision:** Invite tokens (`vdinv_` + 32 chars) are shown/emailed once;
+  only the SHA-256 hash is stored. Acceptance is an explicit signed-in action
+  on `/invite/accept`: the token must be live (unexpired, unrevoked,
+  unaccepted) AND the account's email must match the invited email. Members
+  read invites; owners/editors create/revoke. Email is best-effort via the
+  existing Resend REST pattern; when unconfigured, the inviter copies the
+  link manually.
+- **Reason:** Email-only verification is spoofable; binding the token to the
+  invited address keeps forwarding the link useless without the right
+  account. One live invite per (workspace, email) prevents invite spam.
+- **Reverse:** None planned; magic-link sign-in for invitees would be a
+  separate auth-stream decision.
+
+### D160. MCP transport is JSON-RPC 2.0 over HTTP POST
+
+- **Decision:** The MCP server is exposed as JSON-RPC 2.0 at `POST /api/mcp`
+  (`tools/list`, `tools/call`), with a `GET /api/mcp` authenticated
+  discovery manifest — no SSE or stdio transport.
+- **Reason:** Fits the serverless TanStack Start deployment (plain request/
+  response, no long-lived connections); JSON-RPC error codes map cleanly
+  onto the auth/validation failures the tools already produce.
+- **Reverse:** Add SSE/streaming later only if a client requires it; the
+  tool dispatcher is transport-agnostic by design.
+
+### D161. Brand Library uses a dedicated workspace-scoped `brand_assets` table (coordinator sign-off)
+
+- **Decision:** F39 ships `brand_assets` (workspace_id, kind, is_default, nullable
+  `content_asset_id` provenance link) rather than forcing brand assets into
+  `content_assets`. Approved at Phase 4 integration.
+- **Reason:** `content_assets` requires a `content_item_id` and is item-scoped;
+  brand assets are workspace-scoped with a "one default per kind" rule — a
+  genuinely different access pattern. The nullable `content_asset_id` preserves
+  honest provenance (set only when the asset genuinely originated as a content
+  asset) instead of manufacturing fake linkage. Rights tracking stays in
+  `content_assets` via D49.
+- **Reverse:** Merge into `content_assets` later only if the item-scoping
+  constraint is lifted; migrate rows with their provenance links intact.
+
+### D162. Every publish job gets a unique DB-backed idempotency key
+
+- **Decision:** `publish_jobs.idempotency_key` (unique, default `job_<uuid>`,
+  backfilled) — `createPublishJob` returns the existing owned job on key retry.
+- **Reason:** Upload retries and double-clicks must never create duplicate
+  publish jobs or double uploads.
+- **Reverse:** None — idempotency is load-bearing for the publish pipeline.
+
+### D163. Retry only transient platform failures
+
+- **Decision:** `withTransientRetry` retries only 429/5xx/network errors with
+  backoff + jitter; never 4xx, auth failures, or approval rejections. Wired
+  into YouTube scheduling, remote metadata read/update, and health probes.
+- **Reason:** Blind retries of auth/approval failures burn quota and can
+  trigger platform rate-limit escalation.
+- **Reverse:** None.
+
+### D164. Drag/drop on the calendar changes only `scheduled_for`
+
+- **Decision:** Calendar drag-drop reschedules `approved`/`scheduled` jobs to
+  future times only; null unschedules back to `approved`. Scheduling never
+  executes publishing.
+- **Reason:** The calendar is a planning surface; execution stays behind the
+  approval + test-account gates.
+- **Reverse:** None.
+
+### D165. Rejection is terminal cancellation with an immutable reason
+
+- **Decision:** Rejecting a publish job in Review Studio requires a reason,
+  cancels terminally, and writes an immutable `publish.rejected` audit row.
+  Client sign-off is displayed separately and never substitutes server approval.
+- **Reason:** "AI prepares. Human approves." — a rejected job must not be
+  silently revivable into the publish path.
+- **Reverse:** None.
+
+### D166. Live metadata overwrites need diff + confirm bound to a fresh remote snapshot
+
+- **Decision:** Before overwriting live YouTube metadata, fetch the current
+  remote title/description, show the diff, and require explicit human confirm
+  bound to a SHA-256 hash of that fresh snapshot (TOCTOU protection). Also
+  gated on an approved publish job whose `youtube_video_id` matches the target.
+  Writes `publish.metadata_overwritten` audit.
+- **Reason:** Never silently overwrite live metadata — the founder's live
+  channel metadata is one misclick away from damage otherwise.
+## Phase 4 — Stream B (Analytics), 2026-09-28
+
+### D167. `source` is REQUIRED on analytics/retention snapshots, defaulting to 'fixture'
+
+- **Decision:** `analytics_snapshots.source` and `retention_snapshots.source`
+  are `NOT NULL DEFAULT 'fixture'` with
+  `CHECK (source IN ('youtube_analytics','meta_insights','fixture'))`.
+  Ingestion paths write the real source explicitly; anything else renders
+  with a DEMO DATA badge in the UI.
+- **Reason:** The pinned contracts require a source label on every snapshot.
+  Defaulting to `fixture` makes the honest label the path of least
+  resistance — an unlabelled row can never masquerade as platform-measured.
+- **Reverse:** If a new platform source is added, extend the CHECK in a new
+  migration; never loosen the default.
+
+### D168. Dashboard deltas compare against the prior 28d, honestly
+
+- **Decision:** `pickDeltaPair` takes the latest snapshot and the latest
+  snapshot dated ≥28 days earlier, labeled "vs prior 28d". With no such
+  prior snapshot the UI shows "insufficient history" and no delta number.
+- **Reason:** A delta without a real baseline is a fabricated comparison.
+- **Reverse:** Window stays 28d unless a D-decision changes it.
+
+### D169. Content buckets derive from project metadata, never invented labels
+
+- **Decision:** Bucket key = `<projects.category> · <projects.preset>`
+  (pillar × format); missing metadata → "Uncategorized · standard".
+  Single-video buckets render with a `thinData` flag ("anecdote, not a trend").
+- **Reason:** Buckets must be explainable from data the user already owns.
+- **Reverse:** Add more dimensions (e.g. visual_style) via a new decision.
+
+### D170. Weakest-scene diagnosis from real points only
+
+- **Decision:** Hook baseline = mean of the first 3 retention points;
+  weakest scene = scene owning the point with the largest drop below that
+  baseline. Requires ≥4 points, never interpolates, counts unattributed
+  (scene-less) points separately. Diagnosis text is positional
+  (early/mid/late) and descriptive, never a guaranteed fix.
+- **Reason:** D73 honesty rules — no invented points.
+- **Reverse:** None.
+
+### D171. Channel audit findings are descriptive or AI-labeled, always evidenced
+
+- **Decision:** Five rules (upload cadence, CTR trend, retention vs the
+  documented 35% niche reference, metadata completeness, subscriber growth
+  stall over `channel_snapshots`). Every finding cites evidence rows
+  (snapshot ids/dates/values); guidance is `descriptive` or prefixed
+  "AI analysis — not a guaranteed fix".
+- **Reason:** An audit that can't show its work is a black box; one that
+  promises fixes is dishonest.
+- **Reverse:** Add rules freely; removing evidence citation needs a decision.
+
+### D172. Revenue is ESTIMATE unless provably measured
+
+- **Decision:** `revenueLabel()` returns `measured` only when
+  `revenue_basis='measured'` AND `source != 'fixture'`; fixture rows are
+  always demoted to `estimate`. RPM/CPM-derived revenue is always ESTIMATE;
+  `summarizeMonetization` returns `null` (not $0) when no RPM is set. The UI
+  carries a no-earnings-guarantees notice.
+- **Reason:** Contracts default `revenue_basis` to `estimate`; the UI must
+  make that impossible to misread.
+- **Reverse:** None.
+
+### D173. ROI costs are net ledger credits; unattributed spend stays visible
+
+- **Decision:** Cost per video = net `credit_ledger` deltas (debits negative,
+  refunds positive) attributed via
+  `ref_id → renders.id | renders.job_id (video_jobs) | projects.id (legacy)`
+  → `renders.project_id` → `publish_jobs` → video. Unattributable rows are
+  reported as "unattributed production cost", counted in totals, never
+  silently dropped. USD equivalents shown at every plan's effective
+  per-credit rate (`src/lib/billing/plans.ts`).
+- **Reason:** Real costs, honest gaps; per-plan transparency for the
+  founder's pricing decisions.
+- **Reverse:** None.

@@ -221,3 +221,30 @@ Branch: `phase3/stream-f` (not pushed). Coordinator-owned `src/lib/creation/cont
 - eslint on Stream F touched files — 0 errors (prettier --fix applied)
 - `npm run build` — PASS
 - Dev-server curl of `/create/quick-create` and `/create/seo-studio` — HTTP 200 both
+
+## Phase 4 branch state (2026-09-28, ~09:20 IST)
+
+- All Phase 4 streams merged into `phase4/operations` (all five: A publishing, B analytics, C experiments/learning, D comments/notifications, E API keys/MCP). Stream B merged as `092eeab` after resolving a `docs/DECISIONS.md` numbering collision (Stream B decisions renumbered D167–D173; Stream A owns D136–D166).
+- Pushed to GitHub per owner instruction: `phase4/operations`, `phase4/stream-a`…`phase4/stream-e`, `phase1/foundation`, `phase2/intelligence`, `phase3/creation` — all 9 branches now on `origin` (verified by fetch).
+- `main` untouched (`8d12daa` both local and origin); live site unaffected.
+
+## Phase 4 verification — GO (2026-09-28, ~09:55 IST, `phase4/operations`)
+
+All five streams merged; full gates run on the integrated tree in `~/workspace/vidoratube-p4ops`:
+
+- `tsc --noEmit` — **clean, 0 errors** (reran against real TypeScript 5.9.3 after fixing a fresh-worktree `npx tsc` quirk)
+- `vitest run` — **1709/1709 pass, 171 files** (~262 new Phase 4 tests)
+- `npm run test:worker` — **87/87 pass, 28 suites**
+- `npm run build` — **PASS** (Nitro)
+- **No code fixes needed** — the merged tree was green as-is. Only environment setup: symlinked `node_modules` (root + worker) from the main worktree (identical `package.json`).
+
+**GO for merge to `main`** — verified per the CODED → CONNECTED → RUN → TESTED → VERIFIED chain (live integration and authenticated E2E remain founder-gated: 19 migrations unapplied, no provider keys, no test credentials — see KNOWN_ISSUES.md).
+
+Delivered in Phase 4 (F27–F41):
+- **Stream A (publishing):** `publish_jobs.idempotency_key` (unique, backfilled), transient-failure retry, live-metadata overwrite diff + human confirm bound to a fresh snapshot hash (TOCTOU protection), calendar drag/drop reschedules only `scheduled_for`, rejection is terminal with immutable reason + audit row.
+- **Stream B (analytics):** ingestion with REQUIRED `source` (fixture default → DEMO DATA labels), honest 28d deltas ("insufficient history" when no baseline), content buckets from project metadata, weakest-scene diagnosis from real points only, channel audit with cited/AI-labeled findings, revenue as ESTIMATE, ROI from net ledger credits with unattributed spend visible.
+- **Stream C (experiments/learning):** packaging experiments with sample-size floors and 24h minimum before conclusions; learning engine mines evidence-linked insights (topic-grouped, AI-labeled `ai_analysis`).
+- **Stream D (comments/notifications):** rule-based sentiment/question classification at ingest (AI deferred and labeled), question feed, draft replies requiring human confirmation (never auto-delete), exactly-once notifications via `dedup_key`.
+- **Stream E (platform):** hashed/scoped/revocable API keys with `last_used_at`, authenticated + audited MCP server (JSON-RPC over HTTP POST), brand library (`brand_assets`), workspace invites (`workspace_invites`).
+
+Migration list for the founder: `docs/PHASE4_MIGRATION_LIST.md` (19 files total, filename order).

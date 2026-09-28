@@ -105,6 +105,10 @@ export const disconnectYouTube = createServerFn({ method: "POST" })
       .delete()
       .eq("user_id", context.userId);
     if (error) throw new Error(error.message);
+    // Phase 4, Stream A (F27): registry rows keep the audit trail but are
+    // marked revoked so health/quota reads treat them as disconnected.
+    const { revokeChannelRegistrations } = await import("./publish/channels.server");
+    await revokeChannelRegistrations(supabaseAdmin, context.userId, "youtube");
     return { ok: true };
   });
 

@@ -1679,6 +1679,8 @@ export type Database = {
           description: string | null
           error: string | null
           id: string
+          // Phase 4 Stream A: hand-added for 2026092804a000_p4_publish.sql; regenerate to confirm.
+          idempotency_key: string
           made_for_kids: boolean | null
           meta_fb_post_id: string | null
           meta_ig_media_id: string | null
@@ -1708,6 +1710,8 @@ export type Database = {
           description?: string | null
           error?: string | null
           id?: string
+          // Phase 4 Stream A: hand-added for 2026092804a000_p4_publish.sql; regenerate to confirm.
+          idempotency_key?: string | null
           made_for_kids?: boolean | null
           meta_fb_post_id?: string | null
           meta_ig_media_id?: string | null
@@ -1737,6 +1741,8 @@ export type Database = {
           description?: string | null
           error?: string | null
           id?: string
+          // Phase 4 Stream A: hand-added for 2026092804a000_p4_publish.sql; regenerate to confirm.
+          idempotency_key?: string | null
           made_for_kids?: boolean | null
           meta_fb_post_id?: string | null
           meta_ig_media_id?: string | null
