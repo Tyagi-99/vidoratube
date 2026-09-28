@@ -221,3 +221,9 @@ Branch: `phase3/stream-f` (not pushed). Coordinator-owned `src/lib/creation/cont
 - eslint on Stream F touched files — 0 errors (prettier --fix applied)
 - `npm run build` — PASS
 - Dev-server curl of `/create/quick-create` and `/create/seo-studio` — HTTP 200 both
+
+## Phase 4 branch state (2026-09-28, ~09:20 IST)
+
+- All Phase 4 streams merged into `phase4/operations` (all five: A publishing, B analytics, C experiments/learning, D comments/notifications, E API keys/MCP). Stream B merged as `092eeab` after resolving a `docs/DECISIONS.md` numbering collision (Stream B decisions renumbered D167–D173; Stream A owns D136–D166).
+- Pushed to GitHub per owner instruction: `phase4/operations`, `phase4/stream-a`…`phase4/stream-e`, `phase1/foundation`, `phase2/intelligence`, `phase3/creation` — all 9 branches now on `origin` (verified by fetch). **NOT verified yet** — full Phase 4 gates (tsc, vitest, worker tests, build, closed-loop walkthrough) still pending before merge to `main`.
+- `main` untouched (`8d12daa` both local and origin); live site unaffected.
