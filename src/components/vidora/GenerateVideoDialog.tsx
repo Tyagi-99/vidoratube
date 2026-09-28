@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -38,6 +38,12 @@ import { toast } from "sonner";
 import { STORY_BEATS } from "@/lib/story-template";
 import { AspectRatioSelect, type AspectRatio } from "@/components/vidora/aspect-ratio-select";
 import { estimateNarrationSeconds, formatClock } from "@/lib/narration-estimate";
+import { VoiceLanguageSection } from "@/components/vidora/voice/VoiceLanguageSection";
+import {
+  FALLBACK_VOICE_SELECTION,
+  resolveDialogVoiceKey,
+} from "@/components/vidora/voice/dialog-voice-mapping";
+import type { VoiceSelection } from "@/lib/voice-intel/types";
 
 /** Target-length presets (seconds); "auto" follows the script's natural length. */
 const TARGET_DURATIONS = [
@@ -95,7 +101,12 @@ export function GenerateVideoDialog({
   storyMode?: boolean;
 }) {
   const [script, setScript] = useState("");
-  const [voice, setVoice] = useState("deneb");
+  // Voice & Language section owns the full VoiceSelection; the dialog only
+  // keeps the latest value to wire into job creation.
+  const [voiceSelection, setVoiceSelection] = useState<VoiceSelection | null>(null);
+  const handleVoiceSelectionChange = useCallback((s: VoiceSelection) => {
+    setVoiceSelection(s);
+  }, []);
   const [format, setFormat] = useState("documentary");
   const [aspect, setAspect] = useState<AspectRatio>("16:9");
   const [targetDuration, setTargetDuration] = useState<string>("auto");
@@ -299,7 +310,10 @@ export function GenerateVideoDialog({
       const job = (await create({
         data: {
           script,
-          voice,
+          // The Voice & Language section resolves the selection onto a
+          // legacy pipeline key explicitly (never silent): unmapped
+          // characters carry an honest fallback note in the summary panel.
+          voice: resolveDialogVoiceKey(voiceSelection ?? FALLBACK_VOICE_SELECTION).legacyKey,
           format,
           story_mode: storyMode,
           aspect_ratio: aspect,
@@ -618,20 +632,6 @@ export function GenerateVideoDialog({
 
           <div className="grid gap-5 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Voice</Label>
-              <Select value={voice} onValueChange={setVoice}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Pick a voice" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="deneb">Deneb · EN</SelectItem>
-                  <SelectItem value="sirius">Sirius · EN</SelectItem>
-                  <SelectItem value="vega">Vega · ES</SelectItem>
-                  <SelectItem value="altair">Altair · FR</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
               <Label>Format</Label>
               <Select value={format} onValueChange={setFormat}>
                 <SelectTrigger>
@@ -666,6 +666,11 @@ export function GenerateVideoDialog({
               </p>
             </div>
           </div>
+
+          <VoiceLanguageSection
+            narrationText={script}
+            onSelectionChange={handleVoiceSelectionChange}
+          />
 
           <Button
             onClick={() => mutation.mutate()}
