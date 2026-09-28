@@ -2288,3 +2288,18 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
   shadow-state is gone). The dialog branch's inline aspect select was also
   replaced with the shared component.
 - **Reverse:** revert `AutoEditCreateDialog.tsx` to the onboard-only page.
+
+### D326. AutoEditStudio inline layout variant fixes settings-panel overlap (2026-09-29)
+
+- **Decision:** live verification of D325 found the new `/studio?create=auto_edit`
+  settings panel present in the DOM but invisible and unclickable: `AutoEditStudio`'s
+  root (`<main class="app ae-app">`) is `position: fixed; inset: 64px 0 0; z-index: 40`,
+  so it painted over the entire viewport below the header — including the settings
+  panel — and its `h1.onboard__h` intercepted pointer events (verified via keyboard
+  interaction only). `AutoEditStudio` now accepts an `inline` prop; when set, the
+  root gains `ae-app--inline`, which resets the overlay to normal document flow
+  (`position: static; height: auto; min-height: 60dvh`). The `asPage` branch passes
+  `inline` and widens its wrapper to `max-w-6xl` so the studio keeps room to breathe.
+  The standalone overlay usage is unchanged (no other call sites exist).
+- **Reverse:** drop the `inline` prop and the `.ae-app--inline` CSS rule; revert the
+  page branch to the bare `<AutoEditStudio>`.

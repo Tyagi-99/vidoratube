@@ -11,6 +11,20 @@
   font-family: var(--font-ui, ui-sans-serif, system-ui, sans-serif);
   -webkit-font-smoothing: antialiased;
 }
+/* Inline (page-embedded) variant: the studio flows in the document below the
+   page's own content instead of covering the viewport as a fixed overlay.
+   D326 — the overlay variant covered the /studio?create=auto_edit settings
+   panel and intercepted its pointer events. */
+.ae-app.app.ae-app--inline {
+  position: static;
+  inset: auto;
+  z-index: auto;
+  width: 100%;
+  height: auto;
+  min-height: 60dvh;
+  max-width: min(2560px, 97vw);
+  margin: 0 auto;
+}
 .ae-app {
   /* TryAIToday Flow theme — silver on near-black (matches Flow Automator). */
   --bg: var(--background);

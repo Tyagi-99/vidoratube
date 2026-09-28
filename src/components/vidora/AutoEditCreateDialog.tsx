@@ -201,7 +201,7 @@ export function AutoEditCreateDialog({
 
   if (asPage) {
     return (
-      <div className="mx-auto w-full max-w-3xl space-y-6 px-4 py-6">
+      <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-6">
         <section aria-label="Edit settings" className="rounded-xl border bg-card p-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
@@ -237,6 +237,7 @@ export function AutoEditCreateDialog({
           )}
         </section>
         <AutoEditStudio
+          inline
           file={file}
           audioName={audioFile?.name ?? null}
           busy={busy}

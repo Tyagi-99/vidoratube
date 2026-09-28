@@ -70,6 +70,7 @@ export function AutoEditStudio({
   onPickFile,
   onPickAudio,
   onGenerate,
+  inline = false,
 }: {
   file: File | null;
   audioName: string | null;
@@ -79,11 +80,19 @@ export function AutoEditStudio({
   onPickFile: (file: File) => void;
   onPickAudio: (file: File) => void;
   onGenerate: () => void;
+  /**
+   * When true the studio flows inline in the page document instead of
+   * rendering as a fixed full-viewport overlay. Used by the
+   * /studio?create=auto_edit page, which renders its own settings panel
+   * above the studio — the overlay variant would cover that panel and
+   * intercept its pointer events (D326).
+   */
+  inline?: boolean;
 }) {
   const ready = Boolean(file);
 
   return (
-    <main className="app ae-app">
+    <main className={inline ? "app ae-app ae-app--inline" : "app ae-app"}>
       <div className="projbar projbar--onboard">
         <div className="projbar__id">
           <button type="button" className="brand__back" onClick={onClose} title="Back to studio">
