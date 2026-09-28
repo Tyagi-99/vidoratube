@@ -73,6 +73,7 @@ import { Route as AuthenticatedSettingsApiKeysRouteImport } from './routes/_auth
 import { Route as AuthenticatedStudioProjectIdRouteImport } from './routes/_authenticated/studio.$projectId'
 import { Route as AuthenticatedThumbnailsIndexRouteImport } from './routes/_authenticated/thumbnails.index'
 import { Route as AuthenticatedVoicesIndexRouteImport } from './routes/_authenticated/voices/index'
+import { Route as AuthenticatedVoicesLabRouteImport } from './routes/_authenticated/voices/lab'
 import { Route as ApiKeysKeyIdRouteImport } from './routes/api/keys.$keyId'
 import { Route as ApiPublicMetaCallbackRouteImport } from './routes/api/public/meta-callback'
 import { Route as ApiPublicYoutubeCallbackRouteImport } from './routes/api/public/youtube-callback'
@@ -449,6 +450,11 @@ const AuthenticatedVoicesIndexRoute =
     path: '/voices/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedVoicesLabRoute = AuthenticatedVoicesLabRouteImport.update({
+  id: '/voices/lab',
+  path: '/voices/lab',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const ApiKeysKeyIdRoute = ApiKeysKeyIdRouteImport.update({
   id: '/$keyId',
   path: '/$keyId',
@@ -587,6 +593,7 @@ export interface FileRoutesByFullPath {
   '/research/$projectId': typeof AuthenticatedResearchProjectIdRoute
   '/settings/api-keys': typeof AuthenticatedSettingsApiKeysRoute
   '/studio/$projectId': typeof AuthenticatedStudioProjectIdRoute
+  '/voices/lab': typeof AuthenticatedVoicesLabRoute
   '/api/keys/$keyId': typeof ApiKeysKeyIdRouteWithChildren
   '/api/public/meta-callback': typeof ApiPublicMetaCallbackRoute
   '/api/public/youtube-callback': typeof ApiPublicYoutubeCallbackRoute
@@ -666,6 +673,7 @@ export interface FileRoutesByTo {
   '/research/$projectId': typeof AuthenticatedResearchProjectIdRoute
   '/settings/api-keys': typeof AuthenticatedSettingsApiKeysRoute
   '/studio/$projectId': typeof AuthenticatedStudioProjectIdRoute
+  '/voices/lab': typeof AuthenticatedVoicesLabRoute
   '/api/keys/$keyId': typeof ApiKeysKeyIdRouteWithChildren
   '/api/public/meta-callback': typeof ApiPublicMetaCallbackRoute
   '/api/public/youtube-callback': typeof ApiPublicYoutubeCallbackRoute
@@ -749,6 +757,7 @@ export interface FileRoutesById {
   '/_authenticated/research/$projectId': typeof AuthenticatedResearchProjectIdRoute
   '/_authenticated/settings/api-keys': typeof AuthenticatedSettingsApiKeysRoute
   '/_authenticated/studio/$projectId': typeof AuthenticatedStudioProjectIdRoute
+  '/_authenticated/voices/lab': typeof AuthenticatedVoicesLabRoute
   '/api/keys/$keyId': typeof ApiKeysKeyIdRouteWithChildren
   '/api/public/meta-callback': typeof ApiPublicMetaCallbackRoute
   '/api/public/youtube-callback': typeof ApiPublicYoutubeCallbackRoute
@@ -832,6 +841,7 @@ export interface FileRouteTypes {
     | '/research/$projectId'
     | '/settings/api-keys'
     | '/studio/$projectId'
+    | '/voices/lab'
     | '/api/keys/$keyId'
     | '/api/public/meta-callback'
     | '/api/public/youtube-callback'
@@ -911,6 +921,7 @@ export interface FileRouteTypes {
     | '/research/$projectId'
     | '/settings/api-keys'
     | '/studio/$projectId'
+    | '/voices/lab'
     | '/api/keys/$keyId'
     | '/api/public/meta-callback'
     | '/api/public/youtube-callback'
@@ -993,6 +1004,7 @@ export interface FileRouteTypes {
     | '/_authenticated/research/$projectId'
     | '/_authenticated/settings/api-keys'
     | '/_authenticated/studio/$projectId'
+    | '/_authenticated/voices/lab'
     | '/api/keys/$keyId'
     | '/api/public/meta-callback'
     | '/api/public/youtube-callback'
@@ -1503,6 +1515,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedVoicesIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/voices/lab': {
+      id: '/_authenticated/voices/lab'
+      path: '/voices/lab'
+      fullPath: '/voices/lab'
+      preLoaderRoute: typeof AuthenticatedVoicesLabRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/keys/$keyId': {
       id: '/api/keys/$keyId'
       path: '/$keyId'
@@ -1698,6 +1717,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPublishReviewRoute: typeof AuthenticatedPublishReviewRoute
   AuthenticatedResearchProjectIdRoute: typeof AuthenticatedResearchProjectIdRoute
   AuthenticatedSettingsApiKeysRoute: typeof AuthenticatedSettingsApiKeysRoute
+  AuthenticatedVoicesLabRoute: typeof AuthenticatedVoicesLabRoute
   AuthenticatedAgencyIndexRoute: typeof AuthenticatedAgencyIndexRoute
   AuthenticatedAgentIndexRoute: typeof AuthenticatedAgentIndexRoute
   AuthenticatedBillingIndexRoute: typeof AuthenticatedBillingIndexRoute
@@ -1743,6 +1763,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPublishReviewRoute: AuthenticatedPublishReviewRoute,
   AuthenticatedResearchProjectIdRoute: AuthenticatedResearchProjectIdRoute,
   AuthenticatedSettingsApiKeysRoute: AuthenticatedSettingsApiKeysRoute,
+  AuthenticatedVoicesLabRoute: AuthenticatedVoicesLabRoute,
   AuthenticatedAgencyIndexRoute: AuthenticatedAgencyIndexRoute,
   AuthenticatedAgentIndexRoute: AuthenticatedAgentIndexRoute,
   AuthenticatedBillingIndexRoute: AuthenticatedBillingIndexRoute,
