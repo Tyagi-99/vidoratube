@@ -257,7 +257,7 @@ Delivered in Phase 4 (F27–F41):
 
 Migration list for the founder: `docs/PHASE4_MIGRATION_LIST.md` (19 files total, filename order).
 
-## Phase 5 — Platform (F10, F41–F42): merged on `phase5/platform` (2026-09-28, NOT pushed to main)
+## Phase 5 — Platform (F10, F41–F42): merged to `main`, published (2026-09-28)
 
 Contract pinned first on `phase5/contracts` (`docs/PHASE5_CONTRACTS.md` —
 agent tool list, API shape, message persistence, extension token model);
@@ -276,7 +276,8 @@ Delivered:
   labeled "AI analysis"; `/agent` route with conversation list + thread,
   honest unconfigured/insufficient-credits states. New migration
   `20260928050000_p5_agent.sql` (`agent_conversations`, `agent_messages`,
-  owner-only RLS) — NOT applied live; needs dashboard apply (KNOWN_ISSUES).
+  owner-only RLS) — applied live 2026-09-28 via dashboard SQL editor; both
+  tables + indexes + trigger + owner policies verified in pg_catalog.
 - **Stream B — F41 gaps:** standard `X-RateLimit-*` headers on `/api/mcp`
   and `/api/keys*` (D178); rotation UX audited (settings UI already
   complete; one copy fix); credit-gating audit (D180 — only
