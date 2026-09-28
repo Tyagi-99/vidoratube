@@ -2395,3 +2395,21 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
   rationalized different residual orders were restored to the spec.
 - **Reverse:** drop `voice_config` column; remove the `VoiceSelection`
   passthrough; delete `plan.ts` and `EDITORIAL_PICKS`.
+
+## D331 — /voices now renders the Voice Intelligence library (2026-09-29)
+- **Trigger:** live UI tour found /voices still mounting the legacy Phase-3
+  `VoiceStudio` (old 8-voice catalog + stale "No TTS provider is connected")
+  while the Voice Intelligence UI only existed inside the creation dialog —
+  two parallel voice systems, one contradicting the other.
+- **Decision:** /voices renders the new `VoiceLibraryPage` (language tabs:
+  4 active + 8 planned disabled; category filter; 40-character grid with
+  honest availability states; previews; favorites; 3-voice comparison tray;
+  reusable voice profiles). The legacy TTS panel + custom voice uploads were
+  NOT deleted — they moved to /voices/lab with a back link, since arbitrary
+  text→speech and voice-clone upload are genuinely different features.
+- **Also fixed in passing:** nothing else; the "inconsistent badge" report
+  from the tour was not reproducible in code (`unmapped =
+  !character.providerVoiceId`, catalog-backed, consistent) — the re-verify
+  tour explicitly re-checks all 10 Hindi cards.
+- **Reverse:** point `voices/index.tsx` back at `VoiceStudio`; delete
+  `voices/lab.tsx` and `VoiceLibraryPage.tsx`.
