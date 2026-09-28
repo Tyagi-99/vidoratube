@@ -7,7 +7,10 @@
 --    angle, format, difficulty, safety_flag, status, project_ref) and D74's
 --    deterministic recommendation engine scores over it. A parallel `ideas`
 --    table would split the idea graph and orphan D74. Added below: score
---    breakdown, numeric score, outlier linkage, evidence payload, source.
+--    breakdown, score (jsonb cache payload — MUST stay jsonb; the Phase 3
+--    idea engine writes { computed_at, score: IdeaScore } via
+--    buildScoreCachePayload in src/lib/creation/ideas/ideas.functions.ts),
+--    outlier linkage, evidence payload, source.
 --
 -- 2) plan `learnings` → EXTEND public.learning_insights (NOT a new table).
 --    Evidence: learning_insights already stores derived learnings
@@ -43,8 +46,14 @@
 -- ── 1) video_ideas: F8 evidence-backed scoring fields ─────────────────────
 ALTER TABLE public.video_ideas
   ADD COLUMN IF NOT EXISTS score_breakdown jsonb NOT NULL DEFAULT '{}'::jsonb;
+-- NOTE (2026-09-28): `score` is jsonb, NOT numeric. The Phase 3 idea engine
+-- (src/lib/creation/ideas/ideas.functions.ts) writes the cache payload
+-- { computed_at, score: IdeaScore } via buildScoreCachePayload and reads it
+-- back as an object. The Phase 3 migration 20260928041000_p3_stream_a.sql
+-- declares the same jsonb shape; its ADD COLUMN IF NOT EXISTS is a no-op
+-- once this file has run. A numeric score would break the scorer cache.
 ALTER TABLE public.video_ideas
-  ADD COLUMN IF NOT EXISTS score numeric CHECK (score IS NULL OR score >= 0);
+  ADD COLUMN IF NOT EXISTS score jsonb;
 ALTER TABLE public.video_ideas
   ADD COLUMN IF NOT EXISTS outlier_video_id uuid
     REFERENCES public.outlier_videos(id) ON DELETE SET NULL;

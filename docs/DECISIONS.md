@@ -1648,3 +1648,81 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
 - **Reason:** Real costs, honest gaps; per-plan transparency for the
   founder's pricing decisions.
 - **Reverse:** None.
+
+### D174. video_ideas.score is jsonb, not numeric (migration bug fixed pre-apply)
+
+- **Decision:** `20260928020400_p1_extensions.sql` added `video_ideas.score numeric`;
+  the Phase 3 idea engine (`src/lib/creation/ideas/ideas.functions.ts`)
+  writes a JSON cache payload `{ computed_at, score: IdeaScore }` via
+  `buildScoreCachePayload` and reads it back as an object (line 49 type:
+  `score: { computed_at?: string; score?: IdeaScore } | null`). A numeric
+  column would break scoreIdeaFn's cache write. The migration was corrected
+  to `ADD COLUMN IF NOT EXISTS score jsonb` BEFORE it was applied to the live
+  database (file 5 not yet applied as of this decision); the live DB and repo
+  file now agree. The Phase 3 migration `20260928041000_p3_stream_a.sql` also
+  declares `score jsonb` — its ADD COLUMN IF NOT EXISTS is a harmless no-op.
+  No code reads `video_ideas.score` as a number (verified via grep).
+- **Reason:** Code is the contract; the migration file was wrong. Caught before
+  live apply, so no data migration needed.
+- **Reverse:** None — jsonb is the only type the code supports.
+
+### D175. pg_cron schedule deferred — SQL editor role cannot manage cron.job (2026-09-28)
+
+- **Decision:** File 6 (`20260928020500_p1_vector_cron.sql`) was split on apply:
+  the pgvector half (extension + 3 embedding columns + 3 ivfflat indexes) was
+  applied via the SQL editor; the pg_cron half (extension + `requeue-stale-renders`
+  schedule) was NOT applied because the editor role gets `permission denied for
+  table cron.job` on `DELETE FROM cron.job` (the whole script runs as one
+  transaction and rolled back). The migration file itself anticipated this
+  (caveat a): pg_cron must be enabled via Lovable dashboard → Database →
+  Extensions, an owner-only step. Until the owner enables it,
+  `requeue_stale_renders()` stays server/worker-invoked exactly as today —
+  no behavior change, no data touched.
+- **Owner action needed:** enable the pg_cron extension in the Lovable Cloud
+  dashboard (Database → Extensions), then run the schedule block:
+  `DELETE FROM cron.job WHERE jobname='requeue-stale-renders';`
+  `SELECT cron.schedule('requeue-stale-renders','*/5 * * * *',
+    $$SELECT public.requeue_stale_renders()$$);`
+  Verify with `SELECT jobname, schedule FROM cron.job;`
+- **Reason:** Safest reversible alternative per autopilot rules — the vector
+  half is independent and safe; the cron half needs a dashboard permission
+  only the owner has.
+- **Reverse:** Once pg_cron is enabled, apply the schedule block above.
+
+### D176. Live characters table predates migration shape — hardened p3_stream_c (2026-09-28)
+
+- **Found:** live `public.characters` has columns
+  id/user_id/name/description/style/reference_image_url/created_at only —
+  NO `updated_at`, NO `style_notes` (it has a legacy `style` text column),
+  no CHECK/FK constraints, and existing policies "No guest sessions" +
+  "Users manage own characters". The repo migration's
+  `CREATE INDEX characters_user_idx ON (user_id, updated_at DESC)` failed
+  with 42703 and the whole file rolled back (nothing applied).
+- **Decision:** hardened `20260928041200_p3_stream_c.sql` to cover this shape:
+  `ADD COLUMN IF NOT EXISTS updated_at`, `ADD COLUMN IF NOT EXISTS
+  style_notes`, plus a guarded backfill preserving legacy `style` text into
+  `style_notes` as `{legacy_style: ...}` where style_notes is still empty.
+  All changes additive; existing policies and the legacy `style` column are
+  left in place. The live recovery block applies exactly this hardened file.
+- **Reason:** safest reversible alternative — additive-only, no data dropped,
+  preserves the legacy style text instead of orphaning it.
+- **Reverse:** drop the added columns/index/trigger if needed; the legacy
+  `style` column remains untouched.
+
+### D177. client_errors anon insert kept; DB payload caps added (2026-09-28)
+
+- **Found:** Lovable's pre-publish security scan flags `client_errors` because
+  its INSERT policy is `WITH CHECK (true)` for anon+authenticated. The policy
+  is intentional: anonymous crash telemetry must work for signed-out visitors
+  hitting the root error boundary, and the table is insert-only (no SELECT
+  policy — only the service role can read rows; no PII stored).
+- **Decision:** keep the anonymous insert path; add DB-enforced payload caps
+  (`client_errors_payload_caps_check`: message ≤ 2000, stack ≤ 8000,
+  route ≤ 500, user_agent ≤ 1000) via
+  `2026092804f000_client_errors_hardening.sql` (added NOT VALID, then
+  validated). Caps sit slightly above the client-side truncation in
+  `src/routes/__root.tsx` (message ≤1000, stack ≤4000, route ≤200,
+  user_agent ≤300) so legitimate reports can never be rejected by drift.
+  The caps remove the blob-store abuse vector without breaking telemetry.
+- **Reverse:** drop the constraint; the anon INSERT policy remains the
+  documented intentional surface.

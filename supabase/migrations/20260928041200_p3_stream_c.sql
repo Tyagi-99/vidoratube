@@ -6,7 +6,10 @@
 -- The pre-Phase-3 reconciliation migration (20260925120000) already creates a
 -- `public.characters` table without `style_notes`; this migration keeps that
 -- table when present (adding the missing column) and creates the full
--- F16 shape when it is absent.
+-- F16 shape when it is absent. It also covers an even older live shape found
+-- 2026-09-28 (id/user_id/name/description/style/reference_image_url/
+-- created_at — no updated_at, no style_notes): updated_at is added, and the
+-- legacy `style` text is preserved into style_notes. All changes additive.
 CREATE TABLE IF NOT EXISTS public.characters (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -23,6 +26,27 @@ CREATE TABLE IF NOT EXISTS public.characters (
 -- Covers the pre-Phase-3 characters table (which lacks style_notes).
 ALTER TABLE public.characters
   ADD COLUMN IF NOT EXISTS style_notes jsonb NOT NULL DEFAULT '{}'::jsonb;
+
+-- Covers live characters tables that predate updated_at entirely (the
+-- original characters shape has no updated_at; the index and trigger below
+-- need it). Applied 2026-09-28 after the live table was found without it.
+ALTER TABLE public.characters
+  ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
+
+-- Preserve legacy `style` text into the new style_notes payload where the
+-- old column exists and style_notes is still empty. Additive, reversible.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'characters'
+      AND column_name = 'style'
+  ) THEN
+    UPDATE public.characters
+      SET style_notes = jsonb_build_object('legacy_style', style)
+      WHERE style IS NOT NULL AND style_notes = '{}'::jsonb;
+  END IF;
+END $$;
 
 -- F16 scene binding target: metadata jsonb carries { character_id: <uuid> }.
 -- (Kept separate from the legacy scenes.character_id column so the binding is

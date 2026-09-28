@@ -240,6 +240,14 @@ All five streams merged; full gates run on the integrated tree in `~/workspace/v
 
 **GO for merge to `main`** — verified per the CODED → CONNECTED → RUN → TESTED → VERIFIED chain (live integration and authenticated E2E remain founder-gated: 19 migrations unapplied, no provider keys, no test credentials — see KNOWN_ISSUES.md).
 
+## Phase 4 live verification (2026-09-28, ~10:05 IST, post-merge `8ccb460`)
+
+- Merge `8ccb460` pushed to `origin/main` (fetch-verified), published via Lovable (03:56:48 UTC) — live bundle differs from Phase 3's `index-gCISugho.js`.
+- **All 19 migration files applied** in filename order via the Lovable Cloud SQL editor, each verified with `information_schema`/`pg_catalog` read queries before proceeding (full log: `docs/PHASE4_MIGRATION_LIST.md`). Final read-only verification: **38/38 expected tables exist**, `vector` extension installed, **RLS=true on all 6 new Phase 3/4 tables** (`brand_assets`, `characters`, `monetization_settings`, `quick_create_runs`, `seo_packages`, `workspace_invites`), **24/24 key columns** across phases verified (incl. `video_ideas.score` jsonb, `publish_jobs.idempotency_key`, `analytics_snapshots.source`, `notifications.dedup_key`, `api_keys.last_used_at`).
+- Migration corrections committed on `main` (D174: `video_ideas.score` jsonb in file 5; D176: hardened `p3_stream_c` for the live `characters` shape with legacy `style` preserved; D177: `client_errors` DB payload caps via `2026092804f000_client_errors_hardening.sql` — follow-up file 20, remediates the pre-publish scan warning without removing anon telemetry).
+- Deferred (owner action, reversible fallback in place): pg_cron schedule (`requeue-stale-renders`) — the SQL editor role cannot manage `cron.job` (D175, KNOWN_ISSUES #3); requeue stays server/worker-invoked.
+- Post-merge repo gates on `main`: `tsc --noEmit` clean, `vitest run` **1709/1709**, `npm run test:worker` **87/87**, `npm run build` PASS.
+
 Delivered in Phase 4 (F27–F41):
 - **Stream A (publishing):** `publish_jobs.idempotency_key` (unique, backfilled), transient-failure retry, live-metadata overwrite diff + human confirm bound to a fresh snapshot hash (TOCTOU protection), calendar drag/drop reschedules only `scheduled_for`, rejection is terminal with immutable reason + audit row.
 - **Stream B (analytics):** ingestion with REQUIRED `source` (fixture default → DEMO DATA labels), honest 28d deltas ("insufficient history" when no baseline), content buckets from project metadata, weakest-scene diagnosis from real points only, channel audit with cited/AI-labeled findings, revenue as ESTIMATE, ROI from net ledger credits with unattributed spend visible.

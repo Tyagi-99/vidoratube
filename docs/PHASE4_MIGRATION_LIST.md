@@ -5,10 +5,26 @@ Database SQL editor, one file at a time, then verified via `information_schema`.
 Lovable does NOT auto-apply migrations pushed to GitHub. All files are
 forward-only, `IF NOT EXISTS`-style, non-destructive.
 
-Status as of 2026-09-28: NONE of these 19 have been applied on the live
-database yet (Phases 1–3 code is live at bundle `index-gCISugho.js`, but
-database-backed features will show honest setup/error states until the
-migrations exist).
+Status as of 2026-09-28 ~04:31 UTC: ALL 19 files APPLIED on the live database
+in filename order via the Lovable Cloud SQL editor (each verified with
+information_schema/pg_catalog read queries before proceeding).
+Deviations recorded in docs/DECISIONS.md:
+- D174: `video_ideas.score` corrected to jsonb (file 5) to match the code's
+  `{ computed_at, score: IdeaScore }` cache payload.
+- D175: file 6 applied as pgvector-only (extension + 3 embedding columns +
+  3 ivfflat indexes); the pg_cron schedule is DEFERRED — the SQL editor role
+  gets `permission denied for table cron.job`. Owner action: enable pg_cron
+  in Lovable dashboard → Database → Extensions, then run
+  `SELECT cron.schedule('requeue-stale-renders','*/5 * * * *',
+   $$SELECT public.requeue_stale_renders()$$);`. Requeue stays
+  server/worker-invoked as today until then.
+- D176: file 12 hardened for the live `characters` shape (no `updated_at`,
+  legacy `style` text instead of `style_notes`): adds both columns and
+  preserves legacy `style` into `style_notes`.
+
+Follow-up migration (pending apply): `2026092804f000_client_errors_hardening.sql`
+— DB payload caps on the anonymous insert-only client_errors telemetry path
+(remediates the pre-publish scan warning without removing anon telemetry).
 
 ## Phase 1 — Foundation (7 files)
 

@@ -2,7 +2,28 @@
 
 Exact counts from measured runs. Updated 2026-09-28.
 
-## Current — Phase 4 full merge verification (2026-09-28, ~09:55 IST, `phase4/operations`)
+## Current — Post-merge/post-migration gates on `main` (2026-09-28, ~10:10 IST)
+
+After merge `8ccb460` (Phase 4), all 19 migrations applied live, migration
+corrections + docs landed on `main` (D174/D175/D176/D177, `2026092804f000_client_errors_hardening.sql`):
+
+| Suite | Result |
+|---|---|
+| `npx tsc --noEmit` (strict + noUnusedLocals + noUncheckedIndexedAccess + exactOptionalPropertyTypes) | **clean, 0 errors** |
+| `npx vitest run` (unit, full) | **1709/1709 pass, 171 files** |
+| `npm run test:worker` | **87/87 pass, 28 suites, 0 fail** |
+| `npm run build` (production) | **PASS** (Nitro, exit 0) |
+
+Live database verification (Lovable Cloud SQL editor, read-only queries):
+**38/38 expected tables**, `vector` extension installed (pg_cron deferred — D175),
+**RLS=true** on all new Phase 3/4 tables, **24/24 key columns** across phases,
+`client_errors_payload_caps_check` validated (file 20, pending commit).
+
+Standing gaps unchanged: no dedicated publish→analytics→experiments→learnings
+closed-loop E2E, no authenticated browser E2E (no test credentials), provider-keyed
+paths honestly skipped in tests.
+
+## Previous — Phase 4 full merge verification (2026-09-28, ~09:55 IST, `phase4/operations`)
 
 All five Phase 4 streams merged (A publishing, B analytics, C experiments/learning, D comments/notifications, E API keys/MCP + brand/invites). Worktree `~/workspace/vidoratube-p4ops` with `node_modules` symlinked from the main worktree (identical `package.json`); worker `node_modules` likewise symlinked (fixes the previously noted missing `tsx` binary).
 
