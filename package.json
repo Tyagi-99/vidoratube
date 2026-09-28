@@ -15,8 +15,9 @@
     "predev": "node scripts/vendor-ffmpeg-core.mjs --dev",
     "prebuild": "node scripts/vendor-ffmpeg-core.mjs --build",
     "prebuild:dev": "node scripts/vendor-ffmpeg-core.mjs --build",
-    "test:e2e": "playwright test",
+    "test:e2e": "npm run build:e2e && playwright test",
     "test:e2e:ui": "playwright test --ui",
+    "build:e2e": "NITRO_PRESET=node-server VITE_SUPABASE_URL=http://127.0.0.1:3100/__e2e/supabase VITE_SUPABASE_PUBLISHABLE_KEY=e2e-test-publishable-key npm run build",
     "i18n:check": "node scripts/i18n-check.mjs",
     "test:worker": "npm run --prefix worker test"
   },

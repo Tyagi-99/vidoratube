@@ -48,6 +48,39 @@ export type AdminDb = Pick<SupabaseClient, "from">;
 type Db = AdminDb;
 
 const SCRIPT_MODEL = "google/gemini-3.5-flash";
+
+/**
+ * Deterministic script-generation adapter for E2E (D200).
+ *
+ * Active ONLY when VIDORA_E2E_ADAPTER=deterministic is set in the server
+ * environment. Returns canned, topic-derived sections instead of calling the
+ * Lovable AI gateway — no provider keys, no cost, fully reproducible. The
+ * credit preflight, debit-first charge, and version-save path are unchanged,
+ * so E2E still exercises the real billing + persistence code. Fail-closed:
+ * any other value (or unset) keeps the production provider path.
+ */
+const DETERMINISTIC_ADAPTER_MODEL = "[adapter:deterministic-e2e] script-draft";
+
+function isDeterministicAdapter(): boolean {
+  return (
+    typeof process !== "undefined" &&
+    process.env["VIDORA_E2E_ADAPTER"] === "deterministic"
+  );
+}
+
+function deterministicScriptContent(topic: string, sectionCount: number): string {
+  const clean = topic.trim().slice(0, 200) || "Untitled topic";
+  const count = Math.min(Math.max(sectionCount, 1), 20);
+  const beats = ["Hook", "Setup", "Rising tension", "Climax", "Payoff"];
+  const sections = Array.from({ length: count }, (_, i) => ({
+    heading: i < beats.length ? beats[i]! : `Beat ${i + 1}`,
+    body:
+      `[deterministic-e2e] Narration for "${clean}" — section ${i + 1} of ${count}. ` +
+      "This is a deterministic test draft: no AI provider was called. " +
+      "Replace with real narration before publishing.",
+  }));
+  return JSON.stringify({ sections });
+}
 const SCRIPT_DEBIT_REASON = "script-studio: ai draft generation";
 
 export class ScriptLockedError extends Error {
@@ -544,55 +577,84 @@ export async function generateScriptDraft(
     );
   }
 
-  const apiKey = process.env["LOVABLE_API_KEY"];
-  if (!apiKey) {
-    return fail(
-      "unconfigured",
-      "unconfigured",
-      "AI script generation is not configured (LOVABLE_API_KEY is missing). Write sections manually or ask the workspace owner to connect AI.",
-    );
-  }
-
-  let res: Response;
-  try {
-    res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: SCRIPT_MODEL,
-        messages: [
-          { role: "system", content: system + "\nRespond with JSON only. No markdown fences." },
-          { role: "user", content: user },
-        ],
-        temperature: 0.7,
-      }),
-    });
-  } catch (e) {
-    return fail("error", "network_error", e instanceof Error ? e.message : "AI request failed");
-  }
-  if (!res.ok) {
-    return fail("error", "provider_error", `AI request failed (${res.status})`);
-  }
-  const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-  const content = json.choices?.[0]?.message?.content ?? "";
-
-  // Cost bookkeeping: fail-open, never breaks the user's draft.
   const { recordApiCost, gatewayChatUnitCostUsd } = await import("@/lib/api-cost");
-  const usedInputTokens = Math.ceil(promptChars / 4);
-  const usedOutputTokens = Math.max(1, Math.ceil(content.length / 4));
-  await recordApiCost(admin, {
-    userId,
-    provider: "lovable-ai",
-    operation: "llm_script",
-    units: usedInputTokens + usedOutputTokens,
-    unitCostUsd: gatewayChatUnitCostUsd(usedInputTokens, usedOutputTokens),
-    meta: {
-      model: SCRIPT_MODEL,
-      input_tokens: usedInputTokens,
-      output_tokens: usedOutputTokens,
-      cost_basis: "gateway-passthrough-estimate",
-    },
-  });
+  let content: string;
+  let usedInputTokens: number;
+  let usedOutputTokens: number;
+  let modelLabel = SCRIPT_MODEL;
+  let draftNotePrefix = `AI-generated draft (${SCRIPT_MODEL})`;
+
+  if (isDeterministicAdapter()) {
+    // Deterministic E2E adapter (D200): skip the provider call entirely.
+    content = deterministicScriptContent(input.topic, input.sectionCount);
+    usedInputTokens = 0;
+    usedOutputTokens = 0;
+    modelLabel = DETERMINISTIC_ADAPTER_MODEL;
+    draftNotePrefix = "[adapter:deterministic-e2e] deterministic draft";
+    await recordApiCost(admin, {
+      userId,
+      provider: "lovable-ai",
+      operation: "llm_script",
+      units: 0,
+      unitCostUsd: 0,
+      meta: {
+        adapter: "deterministic-e2e",
+        model: modelLabel,
+        input_tokens: 0,
+        output_tokens: 0,
+        cost_basis: "e2e-deterministic-zero",
+      },
+    });
+  } else {
+    const apiKey = process.env["LOVABLE_API_KEY"];
+    if (!apiKey) {
+      return fail(
+        "unconfigured",
+        "unconfigured",
+        "AI script generation is not configured (LOVABLE_API_KEY is missing). Write sections manually or ask the workspace owner to connect AI.",
+      );
+    }
+
+    let res: Response;
+    try {
+      res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: SCRIPT_MODEL,
+          messages: [
+            { role: "system", content: system + "\nRespond with JSON only. No markdown fences." },
+            { role: "user", content: user },
+          ],
+          temperature: 0.7,
+        }),
+      });
+    } catch (e) {
+      return fail("error", "network_error", e instanceof Error ? e.message : "AI request failed");
+    }
+    if (!res.ok) {
+      return fail("error", "provider_error", `AI request failed (${res.status})`);
+    }
+    const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+    content = json.choices?.[0]?.message?.content ?? "";
+
+    // Cost bookkeeping: fail-open, never breaks the user's draft.
+    usedInputTokens = Math.ceil(promptChars / 4);
+    usedOutputTokens = Math.max(1, Math.ceil(content.length / 4));
+    await recordApiCost(admin, {
+      userId,
+      provider: "lovable-ai",
+      operation: "llm_script",
+      units: usedInputTokens + usedOutputTokens,
+      unitCostUsd: gatewayChatUnitCostUsd(usedInputTokens, usedOutputTokens),
+      meta: {
+        model: SCRIPT_MODEL,
+        input_tokens: usedInputTokens,
+        output_tokens: usedOutputTokens,
+        cost_basis: "gateway-passthrough-estimate",
+      },
+    });
+  }
 
   const parsed = GeneratedSectionsSchema.safeParse(tryParseJson(content));
   if (!parsed.success) {
@@ -642,13 +704,13 @@ export async function generateScriptDraft(
     userId,
     target.id,
     sections,
-    `AI-generated draft (${SCRIPT_MODEL})${brand ? `, brand voice: ${brand.name}` : ""}`,
+    `${draftNotePrefix}${brand ? `, brand voice: ${brand.name}` : ""}`,
   );
 
   return {
     ok: true,
     output: { scriptId: target.id, versionNumber: version.version_number, sections },
-    model: SCRIPT_MODEL,
+    model: modelLabel,
     taskId: null,
     latencyMs: Date.now() - started,
     estimatedCost: preflight.estimate.credits,
