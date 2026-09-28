@@ -1,5 +1,5 @@
 /**
- * Voice Intelligence — recommendation engine (D326).
+ * Voice Intelligence — recommendation engine (D327).
  *
  * Pure functions: language + content category (+ optional niche) → ranked
  * voice characters. Deterministic and explainable — every ranking carries

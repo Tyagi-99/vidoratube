@@ -1,6 +1,6 @@
 /**
  * Voice Intelligence catalog — curated voice characters, languages,
- * categories and model metadata (D326).
+ * categories and model metadata (D327).
  *
  * HONESTY RULES (do not weaken):
  * - `providerVoiceId` is set ONLY for ids already present in this codebase

@@ -1,5 +1,5 @@
 /**
- * Voice Intelligence Layer — public barrel (D326).
+ * Voice Intelligence Layer — public barrel (D327).
  *
  * Pure client-safe modules: catalog data, recommendation engine, model
  * selection, cost estimation, availability resolution. Server-only code

@@ -1,5 +1,5 @@
 /**
- * Voice Intelligence — model selection + recommended settings (D326).
+ * Voice Intelligence — model selection + recommended settings (D327).
  *
  * The voice CHARACTER (who speaks) and the voice MODEL (how the provider
  * renders it) are independent choices. Auto mode picks a model from the

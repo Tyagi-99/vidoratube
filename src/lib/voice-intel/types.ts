@@ -1,5 +1,5 @@
 /**
- * Voice Intelligence Layer — core types (D326).
+ * Voice Intelligence Layer — core types (D327).
  *
  * A "voice character" is a casting persona (Adam, Niraj, Miguel…), NOT a
  * provider voice. The character carries personality/category metadata used

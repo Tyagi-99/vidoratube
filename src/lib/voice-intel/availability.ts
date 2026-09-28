@@ -1,5 +1,5 @@
 /**
- * Voice Intelligence — availability + fallback resolution (D326).
+ * Voice Intelligence — availability + fallback resolution (D327).
  *
  * A character is synthesizable only when it has a providerVoiceId AND the
  * provider is reachable. Unmapped characters NEVER fail silently: the
