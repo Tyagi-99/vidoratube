@@ -136,6 +136,9 @@ function makeKeyStore(): UntypedDb & { rows: Row[] } {
       return {
         select: (_cols?: string) => new FakeQuery(rows, "select"),
         insert: (row: Row) => new FakeQuery(rows, "insert", row),
+        // e2e fake: upsert behaves like insert (no conflict handling needed here).
+        upsert: (row: Row, _opts?: { onConflict?: string }) =>
+          new FakeQuery(rows, "insert", row),
         update: (patch: Row) => new FakeQuery(rows, "update", patch),
         delete: () => new FakeQuery(rows, "select"),
       };

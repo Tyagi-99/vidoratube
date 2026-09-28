@@ -1840,3 +1840,51 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
   iPhone 13 device descriptor in `playwright.config.ts` once WebKit or a
   fixed Chromium is available; revert spec copy changes if the marketing
   site is redesigned again.
+
+### D220. Onboarding: connect and scan steps are skippable (2026-09-28)
+
+- **Context:** the /onboarding wizard (Phase 6 Stream B) has nine steps:
+  welcome → connect → creator-type → niche → goal → brand → scan → idea →
+  video. Forcing every step would trap users who lack a YouTube channel or
+  don't want to spend credits yet.
+- **Decision:** `connect` and `scan` are skippable; every other step requires
+  an answer. YouTube can be connected later from the studio (the OAuth flow
+  itself is unchanged), and the niche scan costs a real research credit —
+  skipping is the honest option, never a dark pattern. `isSkippable()` in
+  `src/lib/onboarding/onboarding.ts` is the single source of truth.
+- **Reverse:** remove either step from `isSkippable()`; nothing else depends
+  on the skippable set.
+
+### D221. Onboarding: resume semantics and auto-skip to /studio (2026-09-28)
+
+- **Decision:** `/onboarding` never shows the wizard to a user who shouldn't
+  see it. `resolveOnboardingEntry()` redirects to `/studio` when there is no
+  progress row (never started, e.g. a fresh signup who landed here by
+  mistake) or when the row is `completed`. An in-progress row resumes at the
+  persisted `current_step`; a row with an unrecognized step restarts
+  defensively at `welcome`. `current_step` records where the user IS — the
+  advance mutation persists the *next* step before rendering it — so a tab
+  close or OAuth round-trip loses nothing.
+- **Reverse:** change `resolveOnboardingEntry()`; the DB rows remain valid.
+
+### D222. Onboarding: scan results persist immediately because the scan spends a credit (2026-09-28)
+
+- **Decision:** the niche-scan step (`createResearchProject`) debits a real
+  research credit via the existing rate-limit/debit path. On success the
+  wizard calls `onPersist()` immediately — before the user advances — so the
+  sub-niches and `research_project_id` are in `onboarding_progress.answers`
+  even if the tab closes. Re-running the scan on resume is never required.
+  Results are labelled "AI analysis" with an explicit no-guarantees note
+  (`ob_scan_credit_note`).
+- **Reverse:** drop the `onPersist` call in the scan step; the credit debit
+  still stands on its own.
+
+### D223. Onboarding route is reachable but not in the main nav (2026-09-28)
+
+- **Decision:** `/onboarding` is deliberately NOT in the app nav (excluded
+  from `src/components/vidora/appNav.ts`; the appNav reachability test does
+  not cover it). Entry points are (1) post-signup redirect in `auth.tsx`
+  (explicit `?next=` still wins) and (2) a "New here? Take the guided setup"
+  link in the studio empty state only. The route sets `noindex` so it is
+  never indexed.
+- **Reverse:** add it to the nav groups; entry-point links are independent.

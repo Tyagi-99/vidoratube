@@ -60,6 +60,7 @@ import { Route as AuthenticatedExperimentsExperimentIdRouteImport } from './rout
 import { Route as AuthenticatedIntelligenceIndexRouteImport } from './routes/_authenticated/intelligence/index'
 import { Route as AuthenticatedInviteAcceptRouteImport } from './routes/_authenticated/invite.accept'
 import { Route as AuthenticatedLearningsIndexRouteImport } from './routes/_authenticated/learnings.index'
+import { Route as AuthenticatedOnboardingIndexRouteImport } from './routes/_authenticated/onboarding.index'
 import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authenticated/projects.index'
 import { Route as AuthenticatedProjectsProjectIdRouteImport } from './routes/_authenticated/projects.$projectId'
 import { Route as AuthenticatedPublishIndexRouteImport } from './routes/_authenticated/publish.index'
@@ -368,6 +369,12 @@ const AuthenticatedLearningsIndexRoute =
     path: '/learnings/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedOnboardingIndexRoute =
+  AuthenticatedOnboardingIndexRouteImport.update({
+    id: '/onboarding/',
+    path: '/onboarding/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedProjectsIndexRoute =
   AuthenticatedProjectsIndexRouteImport.update({
     id: '/projects/',
@@ -582,6 +589,7 @@ export interface FileRoutesByFullPath {
   '/experiments/': typeof AuthenticatedExperimentsIndexRoute
   '/intelligence/': typeof AuthenticatedIntelligenceIndexRoute
   '/learnings/': typeof AuthenticatedLearningsIndexRoute
+  '/onboarding/': typeof AuthenticatedOnboardingIndexRoute
   '/projects/': typeof AuthenticatedProjectsIndexRoute
   '/publish/': typeof AuthenticatedPublishIndexRoute
   '/research/': typeof AuthenticatedResearchIndexRoute
@@ -658,6 +666,7 @@ export interface FileRoutesByTo {
   '/experiments': typeof AuthenticatedExperimentsIndexRoute
   '/intelligence': typeof AuthenticatedIntelligenceIndexRoute
   '/learnings': typeof AuthenticatedLearningsIndexRoute
+  '/onboarding': typeof AuthenticatedOnboardingIndexRoute
   '/projects': typeof AuthenticatedProjectsIndexRoute
   '/publish': typeof AuthenticatedPublishIndexRoute
   '/research': typeof AuthenticatedResearchIndexRoute
@@ -738,6 +747,7 @@ export interface FileRoutesById {
   '/_authenticated/experiments/': typeof AuthenticatedExperimentsIndexRoute
   '/_authenticated/intelligence/': typeof AuthenticatedIntelligenceIndexRoute
   '/_authenticated/learnings/': typeof AuthenticatedLearningsIndexRoute
+  '/_authenticated/onboarding/': typeof AuthenticatedOnboardingIndexRoute
   '/_authenticated/projects/': typeof AuthenticatedProjectsIndexRoute
   '/_authenticated/publish/': typeof AuthenticatedPublishIndexRoute
   '/_authenticated/research/': typeof AuthenticatedResearchIndexRoute
@@ -818,6 +828,7 @@ export interface FileRouteTypes {
     | '/experiments/'
     | '/intelligence/'
     | '/learnings/'
+    | '/onboarding/'
     | '/projects/'
     | '/publish/'
     | '/research/'
@@ -894,6 +905,7 @@ export interface FileRouteTypes {
     | '/experiments'
     | '/intelligence'
     | '/learnings'
+    | '/onboarding'
     | '/projects'
     | '/publish'
     | '/research'
@@ -973,6 +985,7 @@ export interface FileRouteTypes {
     | '/_authenticated/experiments/'
     | '/_authenticated/intelligence/'
     | '/_authenticated/learnings/'
+    | '/_authenticated/onboarding/'
     | '/_authenticated/projects/'
     | '/_authenticated/publish/'
     | '/_authenticated/research/'
@@ -1373,6 +1386,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLearningsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/onboarding/': {
+      id: '/_authenticated/onboarding/'
+      path: '/onboarding'
+      fullPath: '/onboarding/'
+      preLoaderRoute: typeof AuthenticatedOnboardingIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/projects/': {
       id: '/_authenticated/projects/'
       path: '/projects'
@@ -1645,6 +1665,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedExperimentsIndexRoute: typeof AuthenticatedExperimentsIndexRoute
   AuthenticatedIntelligenceIndexRoute: typeof AuthenticatedIntelligenceIndexRoute
   AuthenticatedLearningsIndexRoute: typeof AuthenticatedLearningsIndexRoute
+  AuthenticatedOnboardingIndexRoute: typeof AuthenticatedOnboardingIndexRoute
   AuthenticatedProjectsIndexRoute: typeof AuthenticatedProjectsIndexRoute
   AuthenticatedPublishIndexRoute: typeof AuthenticatedPublishIndexRoute
   AuthenticatedResearchIndexRoute: typeof AuthenticatedResearchIndexRoute
@@ -1688,6 +1709,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedExperimentsIndexRoute: AuthenticatedExperimentsIndexRoute,
   AuthenticatedIntelligenceIndexRoute: AuthenticatedIntelligenceIndexRoute,
   AuthenticatedLearningsIndexRoute: AuthenticatedLearningsIndexRoute,
+  AuthenticatedOnboardingIndexRoute: AuthenticatedOnboardingIndexRoute,
   AuthenticatedProjectsIndexRoute: AuthenticatedProjectsIndexRoute,
   AuthenticatedPublishIndexRoute: AuthenticatedPublishIndexRoute,
   AuthenticatedResearchIndexRoute: AuthenticatedResearchIndexRoute,

@@ -43,6 +43,15 @@ export interface UntypedTable {
    * `await .insert(row)` and `.insert(row).select().single()` execute.
    */
   insert(row: Record<string, unknown>): UntypedQuery;
+  /**
+   * Upsert builder — thenable like the real supabase-js client, so both
+   * `await .upsert(row, { onConflict })` and `.upsert(...).select().single()`
+   * execute. (Phase 6 Stream B: onboarding progress upserts by user_id.)
+   */
+  upsert(
+    row: Record<string, unknown>,
+    opts?: { onConflict?: string },
+  ): UntypedQuery;
   update(patch: Record<string, unknown>): UntypedQuery;
   delete(): UntypedQuery;
 }
