@@ -418,3 +418,46 @@ demonetization risk score — "the AI YouTube studio built to keep your channel 
 - FFmpeg.wasm vendoring, Supabase hardening, atomic credits, encrypted YouTube
   tokens, render resume/cancel, double-spend protection, strict TypeScript.
 - Real render proof: 18s 1080p H.264 MP4 via FFmpeg.wasm (FFprobe verified).
+
+## 2026-09-29 — Duration + aspect-ratio options (D324)
+
+### What changed
+- New shared `AspectRatioSelect` (16:9 Landscape / 9:16 Vertical / 1:1 Square)
+  added to the Script-to-Video dialog and the Voiceover dialog. Auto Edit
+  already had both selectors; Quick Create intentionally stays fixed at
+  9:16 / 30s.
+- Script-to-Video gains a target-length selector (Auto / 30s / 1m / 1:30 /
+  3m / 5m / 10m) plus a live narration estimate under the script box
+  (words at ~150 wpm) with an over/under-target hint.
+- Migration `20260929030000_video_jobs_aspect_ratio.sql` persists the chosen
+  aspect on `video_jobs.aspect_ratio` (default `16:9`); it drives the
+  scene-still image prompt orientation and the final client-side MP4 frame.
+- Target length guides the AI narration planning prompt only — audio is never
+  silently trimmed.
+
+### Verification
+- `tsc --noEmit` clean; vitest 1854/1854 (185 files); production build green.
+- Commit `5b849d1` on `origin/main`.
+
+## 2026-09-29 — Production-readiness fixes (D320–D323)
+
+### What changed
+- ElevenLabs readiness probe corrected from nonexistent `/v2/user` to
+  `/v1/user` (D320).
+- `20260929010000_billing_dodo_provider_check.sql`: dodo provider CHECKs on
+  `subscriptions` / `billing_events` (D321).
+- `20260929020000_client_errors_policy_caps.sql`: `client_errors` INSERT
+  policy now enforces its own char_length caps (D322) — this resolved the
+  last pre-publish security finding ("No security issues found").
+- Billing docs corrected: DODO_PRODUCT_IDS example slugs, DODO_ENVIRONMENT
+  note, Razorpay dead-end errors now say Dodo (D323).
+
+### Live verification (browser, 2026-09-29 ~00:45 IST)
+- Both migrations applied + verified via Lovable SQL editor; publish
+  succeeded; security scan clean.
+- `/admin/readiness`: AI text / image / storage / database / queue PASS;
+  YouTube OAuth PASS (config check); TTS FAIL HTTP 401 — the probe fix
+  worked diagnostically: endpoint is correct, the stored
+  `ELEVENLABS_API_KEY` is invalid/revoked and must be replaced in Lovable
+  Cloud Secrets. Render worker: no heartbeat (external deploy blocker).
+  Billing: unconfigured, deferred by the founder.
