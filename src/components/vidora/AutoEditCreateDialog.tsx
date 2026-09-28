@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Loader2, Upload } from "lucide-react";
 import { CreateSurface } from "@/components/vidora/CreateSurface";
+import { AspectRatioSelect } from "@/components/vidora/aspect-ratio-select";
 import { AutoEditStudio } from "@/components/vidora/AutoEditStudio";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,7 +71,6 @@ export function AutoEditCreateDialog({
   const [captionStyle, setCaptionStyle] = useState<AutoEditCaptionStyleId>("karaoke");
   const [voiceoverMode, setVoiceoverMode] = useState<VoiceoverMode>("off");
   const [language, setLanguage] = useState("Auto");
-  const [targetDuration, setTargetDuration] = useState(60);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [sourceDuration, setSourceDuration] = useState(0);
   const [, setCurrentTime] = useState(0);
@@ -129,7 +129,6 @@ export function AutoEditCreateDialog({
     setCaptionStyle("karaoke");
     setVoiceoverMode("off");
     setLanguage("Auto");
-    setTargetDuration(60);
     setCurrentTime(0);
     setPlaying(false);
   };
@@ -173,12 +172,9 @@ export function AutoEditCreateDialog({
           source_storage_path: path,
           source_file_name: file.name,
           source_duration_seconds: sourceDuration || source_duration_seconds,
-          duration_preset: asPage ? "custom" : (preset as never),
-          custom_duration_seconds: asPage
-            ? targetDuration
-            : preset === "custom"
-              ? Number(customSec)
-              : undefined,
+          duration_preset: preset as never,
+          custom_duration_seconds:
+            preset === "custom" ? Number(customSec) : undefined,
           aspect_ratio: aspect,
           language: language === "Auto" ? "English" : language,
           burn_captions: burnCaptions,
@@ -205,19 +201,55 @@ export function AutoEditCreateDialog({
 
   if (asPage) {
     return (
-      <AutoEditStudio
-        file={file}
-        audioName={audioFile?.name ?? null}
-        busy={busy}
-        onClose={() => onOpenChange(false)}
-        onReset={reset}
-        onPickFile={pickFile}
-        onPickAudio={(next) => {
-          setAudioFile(next);
-          setVoiceoverMode("upload");
-        }}
-        onGenerate={() => void onSubmit()}
-      />
+      <div className="mx-auto w-full max-w-3xl space-y-6 px-4 py-6">
+        <section aria-label="Edit settings" className="rounded-xl border bg-card p-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="ae-page-target">Target duration</Label>
+              <Select value={preset} onValueChange={setPreset}>
+                <SelectTrigger id="ae-page-target">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DURATION_PRESETS.map((s) => (
+                    <SelectItem key={s} value={String(s)}>
+                      {s}s
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="custom">Custom</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <AspectRatioSelect value={aspect} onValueChange={(v) => setAspect(v)} />
+          </div>
+          {preset === "custom" && (
+            <div className="mt-4 max-w-xs space-y-2">
+              <Label htmlFor="ae-page-custom">Custom seconds</Label>
+              <Input
+                id="ae-page-custom"
+                type="number"
+                min={5}
+                max={600}
+                value={customSec}
+                onChange={(e) => setCustomSec(e.target.value)}
+              />
+            </div>
+          )}
+        </section>
+        <AutoEditStudio
+          file={file}
+          audioName={audioFile?.name ?? null}
+          busy={busy}
+          onClose={() => onOpenChange(false)}
+          onReset={reset}
+          onPickFile={pickFile}
+          onPickAudio={(next) => {
+            setAudioFile(next);
+            setVoiceoverMode("upload");
+          }}
+          onGenerate={() => void onSubmit()}
+        />
+      </div>
     );
   }
 
@@ -291,22 +323,7 @@ export function AutoEditCreateDialog({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>Aspect ratio</Label>
-              <Select
-                value={aspect}
-                onValueChange={(v) => setAspect(v as "16:9" | "9:16" | "1:1")}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="16:9">16:9</SelectItem>
-                  <SelectItem value="9:16">9:16</SelectItem>
-                  <SelectItem value="1:1">1:1</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <AspectRatioSelect value={aspect} onValueChange={(v) => setAspect(v)} />
             <div className="space-y-2">
               <Label>Target duration</Label>
               <Select value={preset} onValueChange={setPreset}>

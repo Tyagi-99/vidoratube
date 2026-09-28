@@ -2274,3 +2274,17 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
   image prompt orientation, and drives the final MP4 frame in the
   client-side compose.
 - **Reverse:** revert the dialog UI additions; drop the column via migration.
+
+### D325. Automatic Edit page restores duration + aspect controls (2026-09-29)
+
+- **Decision:** the live tour found `/studio?create=auto_edit` rendering the
+  AutoEditor-style onboard (`AutoEditStudio`) with NO duration or aspect
+  controls, while the homepage button promises "target duration/aspect".
+  The `asPage` branch was silently submitting 60s / 16:9 defaults.
+  The page branch now renders a settings panel (target-duration preset +
+  custom seconds, shared `AspectRatioSelect`) above the onboard studio,
+  wired to the same `preset`/`customSec`/`aspect` state the dialog branch
+  already used; submit duration logic unified (the `targetDuration`
+  shadow-state is gone). The dialog branch's inline aspect select was also
+  replaced with the shared component.
+- **Reverse:** revert `AutoEditCreateDialog.tsx` to the onboard-only page.
