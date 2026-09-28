@@ -187,6 +187,13 @@ export async function generateVoiceover(
   return { url, estimatedSeconds: estimatedSeconds ?? 8 };
 }
 
+/** Orientation phrase for the image prompt, matching the output frame. */
+export const ASPECT_ORIENTATION: Record<string, string> = {
+  "16:9": "16:9 widescreen",
+  "9:16": "9:16 vertical",
+  "1:1": "1:1 square",
+};
+
 /** Generates one cinematic still per scene and stores them. */
 export async function generateSceneImages(
   admin: SupabaseClient<Database>,
@@ -194,6 +201,7 @@ export async function generateSceneImages(
   userId: string,
   scenes: { visual: string; caption: string }[],
   format: string,
+  aspect: string = "16:9",
 ): Promise<string[]> {
   const selected = scenes.slice(0, 5);
   const urls: string[] = [];
@@ -218,7 +226,8 @@ export async function generateSceneImages(
   };
 
   for (const [index, scene] of selected.entries()) {
-    const base = `Cinematic ${format} b-roll still, 16:9 widescreen, photorealistic, filmic colour grading, no text or logos. Scene: `;
+    const orientation = ASPECT_ORIENTATION[aspect] ?? ASPECT_ORIENTATION["16:9"]!;
+    const base = `Cinematic ${format} b-roll still, ${orientation}, photorealistic, filmic colour grading, no text or logos. Scene: `;
     let attempt = await requestImage(`${base}${scene.visual}`);
 
     if (isContentBlocked(attempt.status, attempt.body)) {

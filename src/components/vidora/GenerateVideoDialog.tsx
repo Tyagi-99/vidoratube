@@ -36,6 +36,19 @@ import { captureError } from "@/lib/sentry";
 import { toast } from "sonner";
 
 import { STORY_BEATS } from "@/lib/story-template";
+import { AspectRatioSelect, type AspectRatio } from "@/components/vidora/aspect-ratio-select";
+import { estimateNarrationSeconds, formatClock } from "@/lib/narration-estimate";
+
+/** Target-length presets (seconds); "auto" follows the script's natural length. */
+const TARGET_DURATIONS = [
+  { value: "auto", label: "Auto (script length)" },
+  { value: "30", label: "30 seconds" },
+  { value: "60", label: "1 minute" },
+  { value: "90", label: "1:30 minutes" },
+  { value: "180", label: "3 minutes" },
+  { value: "300", label: "5 minutes" },
+  { value: "600", label: "10 minutes" },
+] as const;
 
 const PIPELINE = [
   { label: "Writing narration", at: 22 },
@@ -84,6 +97,8 @@ export function GenerateVideoDialog({
   const [script, setScript] = useState("");
   const [voice, setVoice] = useState("deneb");
   const [format, setFormat] = useState("documentary");
+  const [aspect, setAspect] = useState<AspectRatio>("16:9");
+  const [targetDuration, setTargetDuration] = useState<string>("auto");
   const [stepLabel, setStepLabel] = useState("Writing narration");
   const [progress, setProgress] = useState(0);
   const [showPercent, setShowPercent] = useState(true);
@@ -139,6 +154,7 @@ export function GenerateVideoDialog({
       captions,
       narration: job.narration || job.script || "",
       durationSeconds: job.duration_seconds ?? Math.max(15, images.length * 6),
+      aspect,
       storyMode,
       runKey: `job:${job.id}`,
       signal: controller.signal,
@@ -286,6 +302,9 @@ export function GenerateVideoDialog({
           voice,
           format,
           story_mode: storyMode,
+          aspect_ratio: aspect,
+          target_duration_seconds:
+            targetDuration === "auto" ? undefined : Number(targetDuration),
           // Fresh UUID per submit click: a double-click or network retry with
           // the same key returns the already-created job instead of charging
           // a second credit.
@@ -346,6 +365,8 @@ export function GenerateVideoDialog({
     setProgress(0);
     setShowPercent(true);
     setScript("");
+    setAspect("16:9");
+    setTargetDuration("auto");
     setComposeError(null);
     setPendingComposeJob(null);
     setResumableJob(null);
@@ -557,9 +578,31 @@ export function GenerateVideoDialog({
               className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground"
             >
               <p>
-                {script.trim().length < 20
-                  ? "At least 20 characters."
-                  : `${script.trim().split(/\s+/).length} words`}
+                {script.trim().length < 20 ? (
+                  "At least 20 characters."
+                ) : (
+                  <>
+                    {script.trim().split(/\s+/).length} words · ≈
+                    {formatClock(estimateNarrationSeconds(script))} of narration
+                    {targetDuration !== "auto" &&
+                      (() => {
+                        const target = Number(targetDuration);
+                        const est = estimateNarrationSeconds(script);
+                        if (Math.abs(est - target) / target <= 0.25) return null;
+                        return est > target ? (
+                          <span className="text-amber-600 dark:text-amber-400">
+                            {" "}
+                            — over your {formatClock(target)} target
+                          </span>
+                        ) : (
+                          <span className="text-amber-600 dark:text-amber-400">
+                            {" "}
+                            — under your {formatClock(target)} target
+                          </span>
+                        );
+                      })()}
+                  </>
+                )}
               </p>
               <Button
                 type="button"
@@ -602,6 +645,25 @@ export function GenerateVideoDialog({
                   <SelectItem value="sleep">Sleep story</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <AspectRatioSelect value={aspect} onValueChange={setAspect} />
+            <div className="space-y-2">
+              <Label htmlFor="target-duration">Target length</Label>
+              <Select value={targetDuration} onValueChange={setTargetDuration}>
+                <SelectTrigger id="target-duration">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TARGET_DURATIONS.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>
+                      {t.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Guides the narration rewrite; the final MP4 follows the spoken audio.
+              </p>
             </div>
           </div>
 

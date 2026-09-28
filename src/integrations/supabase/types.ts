@@ -4507,6 +4507,7 @@ export type Database = {
       }
       video_jobs: {
         Row: {
+          aspect_ratio: string
           assets: Json
           audio_url: string | null
           created_at: string
@@ -4534,6 +4535,7 @@ export type Database = {
           youtube_video_id: string | null
         }
         Insert: {
+          aspect_ratio?: string
           assets?: Json
           audio_url?: string | null
           created_at?: string
@@ -4561,6 +4563,7 @@ export type Database = {
           youtube_video_id?: string | null
         }
         Update: {
+          aspect_ratio?: string
           assets?: Json
           audio_url?: string | null
           created_at?: string

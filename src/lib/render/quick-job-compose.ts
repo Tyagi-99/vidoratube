@@ -14,6 +14,11 @@ export type QuickJobComposeInput = {
   /** Full narration/script used when scene captions are missing. */
   narration?: string | null;
   durationSeconds: number;
+  /**
+   * Output frame shape. Defaults to "16:9"; the render pipeline and the
+   * server worker both resolve these to concrete dimensions.
+   */
+  aspect?: "16:9" | "9:16" | "1:1";
   burnCaptions?: boolean;
   /** Story Mode: apply the five-beat template (pacing, captions, ducking). */
   storyMode?: boolean;
@@ -133,7 +138,7 @@ export async function composeQuickJobMp4(input: QuickJobComposeInput): Promise<R
 
   return renderProject(scenes, {
     title: input.title || "Vidora video",
-    aspect: "16:9",
+    aspect: input.aspect ?? "16:9",
     motion: "ken_burns",
     transition: "fade",
     captionStyle: "subtitle",

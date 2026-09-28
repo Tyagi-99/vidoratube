@@ -64,14 +64,24 @@ function fallbackPlan(script: string, format: string): GeneratedPlan {
  * System prompt for the narration plan. Pure and unit-tested: Story Mode
  * appends the five-beat narrative structure so the plan follows it.
  */
-export function buildPlanSystemPrompt(format: string, voice: string, storyMode = false): string {
+export function buildPlanSystemPrompt(
+  format: string,
+  voice: string,
+  storyMode = false,
+  targetDurationSeconds?: number,
+): string {
   const base = `You are the pre-production crew of an AI video studio. Given a raw script you produce:
 - a short punchy video title (max 70 chars)
 - polished narration copy in a ${format} style, suited to the "${voice}" voice
 - a scene-by-scene breakdown (4-8 scenes) with timestamps, a visual description and an on-screen caption
 - an estimated duration in seconds
 Respond with JSON only.`;
-  return storyMode ? `${base}\n\n${STORY_SCRIPT_GUIDANCE}` : base;
+  const target =
+    targetDurationSeconds && targetDurationSeconds > 0
+      ? `\n- target narration length: about ${targetDurationSeconds} seconds (~${Math.max(20, Math.round((targetDurationSeconds / 60) * 150))} words at ~150 wpm); expand or tighten the narration to land near it`
+      : "";
+  const withTarget = `${base}${target}`;
+  return storyMode ? `${withTarget}\n\n${STORY_SCRIPT_GUIDANCE}` : withTarget;
 }
 
 /** Uses Lovable AI to turn a raw script into narration + a scene breakdown. */
@@ -81,12 +91,17 @@ export async function generateVideoPlan(
   voice: string,
   /** Cost ctx: when provided, the plan LLM call's measured cost is recorded. */
   cost?: PlanCostCtx,
-  options?: { storyMode?: boolean },
+  options?: { storyMode?: boolean; targetDurationSeconds?: number },
 ): Promise<GeneratedPlan> {
   const apiKey = process.env["LOVABLE_API_KEY"];
   if (!apiKey) return fallbackPlan(script, format);
 
-  const system = buildPlanSystemPrompt(format, voice, options?.storyMode ?? false);
+  const system = buildPlanSystemPrompt(
+    format,
+    voice,
+    options?.storyMode ?? false,
+    options?.targetDurationSeconds,
+  );
   const userPrompt = script.slice(0, 8000);
 
   try {

@@ -68,6 +68,17 @@ const createSchema = z.object({
   format: z.string().trim().min(1).max(40),
   /** Story Mode: the narration plan follows the five-beat narrative template. */
   story_mode: z.boolean().default(false),
+  /**
+   * Output frame shape. Stored on the job so the visuals stage composes
+   * scene stills in the right orientation; the final MP4 compose crops
+   * to it as well.
+   */
+  aspect_ratio: z.enum(["16:9", "9:16", "1:1"]).default("16:9"),
+  /**
+   * Optional target length (seconds). Guides the AI narration rewrite toward
+   * the chosen length; the real MP4 duration still follows the spoken audio.
+   */
+  target_duration_seconds: z.number().int().min(5).max(3600).optional(),
   /** Client-generated UUID per submit click; a retry with the same key returns the existing job. */
   idempotency_key: z.string().uuid().optional(),
   /** Opaque per-browser id for free-credit abuse correlation (optional). */
@@ -177,6 +188,7 @@ export const createVideoJob = createServerFn({ method: "POST" })
         script: data.script,
         voice: data.voice,
         format: data.format,
+        aspect_ratio: data.aspect_ratio,
         idempotency_key: data.idempotency_key ?? null,
         status: "running",
         stage: "planning",
@@ -199,7 +211,12 @@ export const createVideoJob = createServerFn({ method: "POST" })
           userId,
           jobId: job.id,
         },
-        { storyMode: data.story_mode },
+        {
+          storyMode: data.story_mode,
+          ...(data.target_duration_seconds != null
+            ? { targetDurationSeconds: data.target_duration_seconds }
+            : {}),
+        },
       );
       reserveMinutes = finishedMinutes(plan.durationSeconds);
       const { data: updated, error } = await supabase
@@ -361,6 +378,7 @@ export const advanceVideoJob = createServerFn({ method: "POST" })
               userId,
               scenes,
               job.format,
+              job.aspect_ratio ?? "16:9",
             );
             const next = nextStageAfterVisuals(shotstackConfigured());
             return await save({

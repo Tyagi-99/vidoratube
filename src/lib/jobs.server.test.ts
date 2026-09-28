@@ -25,4 +25,18 @@ describe("buildPlanSystemPrompt", () => {
       expect(p.toLowerCase()).not.toContain(lang);
     }
   });
+
+  it("adds a target-length instruction only when a target duration is given", () => {
+    const plain = buildPlanSystemPrompt("documentary", "george", false);
+    expect(plain).not.toContain("target narration length");
+
+    const targeted = buildPlanSystemPrompt("documentary", "george", false, 60);
+    expect(targeted).toContain("target narration length: about 60 seconds");
+    expect(targeted).toContain("~150 words");
+
+    // Story mode keeps both the beats and the target instruction.
+    const story = buildPlanSystemPrompt("documentary", "george", true, 90);
+    expect(story).toContain("HOOK");
+    expect(story).toContain("target narration length: about 90 seconds");
+  });
 });

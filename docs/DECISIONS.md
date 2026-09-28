@@ -2254,3 +2254,23 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
   say Dodo (Stripe is not approved). Razorpay subscriptions stay
   deliberately unimplemented (INR = one-time packs only).
 - **Reverse:** edit the three files back.
+
+### D324. Duration + aspect-ratio options in every creation flow (2026-09-29)
+
+- **Decision:** the user spotted that creation flows had no duration or
+  aspect-ratio (9:16 / 16:9) options. Audit confirmed: Script-to-Video had
+  neither (aspect hardcoded 16:9 in `composeQuickJobMp4`, duration
+  auto-derived); Voiceover had duration presets but no aspect picker (its
+  backend schema already accepted `aspect_ratio`); Auto Edit already had
+  both; Quick Create is correctly fixed to 9:16/30s.
+- **Change:** new shared `AspectRatioSelect` (16:9 Landscape / 9:16 Vertical /
+  1:1 Square) added to Script-to-Video and Voiceover dialogs; Script-to-Video
+  also gains a target-length selector (Auto / 30s / 1m / 1:30 / 3m / 5m /
+  10m) plus a live narration estimate (`words / 150 wpm`) with an over/under
+  hint. Target length guides the AI narration rewrite via the plan prompt
+  (never silently trims audio); aspect flows end-to-end: stored on
+  `video_jobs.aspect_ratio` (new migration
+  `20260929030000_video_jobs_aspect_ratio.sql`), drives the scene-still
+  image prompt orientation, and drives the final MP4 frame in the
+  client-side compose.
+- **Reverse:** revert the dialog UI additions; drop the column via migration.

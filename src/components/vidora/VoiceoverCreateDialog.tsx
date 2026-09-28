@@ -21,6 +21,7 @@ import { useSession } from "@/hooks/useSession";
 import { probeVideoDuration } from "@/lib/probe-video";
 import { createVoiceoverProject } from "@/lib/mode2/mode2.functions";
 import { COMMENTARY_STYLES, DURATION_PRESETS } from "@/lib/mode2/duration";
+import { AspectRatioSelect, type AspectRatio } from "@/components/vidora/aspect-ratio-select";
 import { PERMISSION_STATUSES } from "@/lib/content/stages";
 
 const RIGHTS_LABELS: Record<string, string> = {
@@ -55,6 +56,7 @@ export function VoiceoverCreateDialog({
   const [preset, setPreset] = useState("60");
   const [customSec, setCustomSec] = useState("90");
   const [style, setStyle] = useState<(typeof COMMENTARY_STYLES)[number]>("documentary");
+  const [aspect, setAspect] = useState<AspectRatio>("16:9");
   const [muteOriginal, setMuteOriginal] = useState(true);
   const [metaUrl, setMetaUrl] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -68,6 +70,7 @@ export function VoiceoverCreateDialog({
     setPreset("60");
     setCustomSec("90");
     setStyle("documentary");
+    setAspect("16:9");
     setMuteOriginal(true);
     setMetaUrl("");
     setFile(null);
@@ -125,6 +128,7 @@ export function VoiceoverCreateDialog({
           source_url_metadata: metaUrl.trim() || undefined,
           duration_preset: preset as never,
           custom_duration_seconds: preset === "custom" ? Number(customSec) : undefined,
+          aspect_ratio: aspect,
           commentary_style: style,
           mute_original: muteOriginal,
         },
@@ -282,6 +286,7 @@ export function VoiceoverCreateDialog({
               </SelectContent>
             </Select>
           </div>
+          <AspectRatioSelect value={aspect} onValueChange={setAspect} />
         </div>
 
         <div className="flex items-center justify-between rounded-xl border border-border px-3 py-2">
