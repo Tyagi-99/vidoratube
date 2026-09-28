@@ -294,3 +294,41 @@ Gates on `phase5/platform`: `tsc --noEmit` clean, `vitest run`
 Not pushed to `origin/main` per instruction — the branch is ready for
 review/merge. The `/agent` route has not been browser-verified
 (subagents have no live-browser access).
+
+## Phase 6 — Production Hardening, Stream D: deploy package + honest docs (2026-09-28)
+
+Branch `phase6/stream-d` (worktree `~/workspace/vidoratube-p6d`; base `012e912`).
+Stream D's assignment: (1) render-worker deploy package, (2) honesty pass on
+`docs/*`. Docs-only + deploy-file changes; no app code touched.
+
+### What I verified myself (inspection + gates in this worktree)
+
+| Deliverable | State | Evidence |
+|---|---|---|
+| `docker-compose.yml` | **REWORKED** — pre-existing `render-worker` service renamed to `worker`, kept build/image/container_name/env_file/restart/tmpfs/resource limits; added per-variable comments + docs pointers | `docker compose config` **not run** (no `docker` in this VM; see note below) |
+| `worker/.env.example` | **ADDED** — all 11 worker env vars from `worker/src/config.ts` (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, RENDER_BUCKET, BRAND_LOGOS_BUCKET, FFMPEG_PATH, FFPROBE_PATH, WORKER_ID, POLL_INTERVAL_SEC, WORK_DIR, CONCURRENCY, WORKER_CHAPTER_CONCURRENCY), each with what-it-is / where-to-get / secret-or-not | Matches ConfigSchema 1:1 — checked field-by-field |
+| Root `.env.example` worker section | **EXTENDED** — pointer to `worker/.env.example`, added missing `BRAND_LOGOS_BUCKET` + `WORKER_CHAPTER_CONCURRENCY` (compose env_file needs them present) | — |
+| `docs/RENDER_WORKER_DEPLOY.md` | **ADDED** — one-command deploy (`WORKER_HOST=... ./scripts/deploy-worker.sh`), full secrets checklist, /status heartbeat verification ("no heartbeat recorded yet" → "Operational", 15/60-min thresholds from `src/lib/worker-health.ts`), rollback, known limits | Thresholds read from source; /status route + `renderWorkerCheck` read from source |
+| `worker/README.md` | **FIXED 2 stale refs** — named a non-existent migration (`20260925143500_server_render_worker.sql`; RPCs actually live in `20260925120000_schema_reconciliation.sql`) and now points at `worker/.env.example` | File listing + grep for RPC definitions |
+| `docs/FEATURE_MATRIX.md` | **HONESTY PASS** — added live-verification legend codes, fixed 4 malformed jammed rows (stale Wave-1 duplicates after `||`), corrected 2 stale footnotes (F10 + F23/F26 migrations now recorded as applied live 2026-09-28), restored the lost F26 row, appended the per-feature live-provider verification ledger | Diff reviewed row-by-row |
+| `docs/KNOWN_ISSUES.md` | **HONESTY PASS** — fixed duplicate `#8` numbering, rewrote stale resolved entries (#2 now reflects applied state), added: ElevenLabs voice-ID verification gap, E2E coverage state summary, payments sharpness | All claims sourced from in-repo evidence |
+| `docs/DECISIONS.md` | **APPENDED** D270–D279 (Stream D's decisions, append-only) | — |
+
+**Stream D gates (this worktree):** `npx tsc --noEmit` — clean (no TS added);
+`docker compose config` — **could not run** (`docker` not installed in this VM); compose file hand-checked against `scripts/deploy-worker.sh` (same filenames, container_name, host defaults). The worker itself is
+still **not deployed** (founder action per `docs/RENDER_WORKER_DEPLOY.md`).
+
+### The other three Phase 6 streams
+
+Stream D's assignment did not include the other three streams' scopes, and no
+coordinator brief for them exists in this worktree — I make no claims about
+their contents or status. (Coordinator: fill in Streams A/B/C here before the
+Phase 6 report.)
+
+### Known Phase 6 gaps visible from Stream D's inspection
+
+- No stream in this phase can close the owner-only items: worker deploy,
+  provider keys, test credentials, pg_cron enablement (see KNOWN_ISSUES.md).
+- `docker` is not installed in this VM's PATH for a real `docker compose
+  config` run — validation status recorded below in the Phase 6 verification
+  note the coordinator merges.

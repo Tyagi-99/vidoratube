@@ -6,7 +6,7 @@
 #   WORKER_HOST=ubuntu@<oracle-ip> ./scripts/deploy-worker.sh
 #
 # What it does:
-#   1. Builds the worker image locally (or --no-build to skip).
+#   1. Builds the worker image locally (or SKIP_BUILD=1 to skip).
 #   2. Copies docker-compose.yml + .env to the host over SSH.
 #   3. On the host: docker compose pull/up, verifies the container is running.
 #
@@ -15,10 +15,14 @@
 # as a tarball — no registry needed).
 #
 # Never pass secrets as CLI args (they leak into shell history). Put them in
-# .env (gitignored) at the repo root.
+# .env (gitignored) at the repo root — see worker/.env.example for the full
+# variable reference with per-variable docs.
 
 services:
-  render-worker:
+  # The ONLY service this app deploys. The worker polls Postgres (Supabase)
+  # for queued `server_ffmpeg` renders — it needs no inbound traffic and no
+  # companion services (no local DB, no Redis, no reverse proxy).
+  worker:
     build:
       context: ./worker
       dockerfile: Dockerfile
@@ -27,14 +31,51 @@ services:
     env_file:
       - .env
     environment:
+      # ── Worker env vars (all come from .env unless listed here) ─────────
+      # SUPABASE_URL              *required* (not a secret — it's public):
+      #                             your Supabase project URL
+      #                             (https://xyzcompany.supabase.co).
+      # SUPABASE_SERVICE_ROLE_KEY *required, secret*: service_role key — bypasses
+      #                             RLS. Worker-only; never in browsers.
+      # RENDER_BUCKET             Storage bucket for render inputs/outputs
+      #                             (default: generated-videos).
+      # BRAND_LOGOS_BUCKET        Storage bucket for agency brand-kit logos
+      #                             (default: brand-logos).
+      # FFMPEG_PATH / FFPROBE_PATH  Binary paths (defaults: ffmpeg / ffprobe;
+      #                             correct as-is inside this image).
+      # POLL_INTERVAL_SEC         Seconds between queue polls when idle, 1-300
+      #                             (default: 5).
+      # CONCURRENCY               Max concurrent renders per worker, 1-4
+      #                             (default: 1 — raise only with RAM/CPU headroom).
+      # WORKER_CHAPTER_CONCURRENCY  Max chapters rendered concurrently within
+      #                             one chapter-mode job, 1-8 (default: 2).
+      # WORK_DIR                  Working dir for downloads/segments
+      #                             (default: /tmp/vidora-worker, tmpfs below).
+      #
+      # WORKER_ID is overridden here (not just env_file) so it can be set per
+      # deployment from the shell without editing .env: WORKER_ID=eu-worker
+      # docker compose up -d. It identifies this instance in claim leases,
+      # heartbeats, and logs; default falls back to "oracle-worker".
       WORKER_ID: "${WORKER_ID:-oracle-worker}"
+    # A crashed worker must come back by itself: a rebooted host or an
+    # OOM-killed container resumes polling and reclaims its claimable jobs
+    # via the 5-minute claim lease (requeue_stale_renders).
     restart: unless-stopped
     # No ports published: the worker polls Postgres (Supabase) and needs no
-    # inbound traffic. Heartbeats in the renders table are the health signal.
+    # inbound traffic. Heartbeats in worker_heartbeats (shown on /status) are
+    # the health signal — open https://vidoratube.lovable.app/status and look
+    # for the "Render worker" check to go from "no heartbeat recorded yet" to
+    # "Operational" after first deploy.
     tmpfs:
       - /tmp/vidora-worker:rw,noexec,nosuid,size=8g
     deploy:
       resources:
         limits:
+          # ~1 vCPU per concurrent x264 encode is the safe rule of thumb;
+          # these limits match the default CONCURRENCY=1 +
+          # WORKER_CHAPTER_CONCURRENCY=2 chapter renders.
+          # NOTE: plain `docker compose up` (non-swarm) does not enforce
+          # these — they apply in swarm mode only. Size the VPS itself
+          # accordingly (~4 vCPU / 8 GB for the defaults above).
           cpus: "3.5"
           memory: 6G

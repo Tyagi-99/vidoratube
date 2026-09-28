@@ -35,6 +35,7 @@ import { Route as AuthenticatedAdminIntegrationsRouteImport } from './routes/_au
 import { Route as AuthenticatedAdminJobsRouteImport } from './routes/_authenticated/admin.jobs'
 import { Route as AuthenticatedAdminMessagesRouteImport } from './routes/_authenticated/admin.messages'
 import { Route as AuthenticatedAdminPlansRouteImport } from './routes/_authenticated/admin.plans'
+import { Route as AuthenticatedAdminReadinessRouteImport } from './routes/_authenticated/admin.readiness'
 import { Route as AuthenticatedAdminSafetyRouteImport } from './routes/_authenticated/admin.safety'
 import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin.users'
 import { Route as AuthenticatedAgencyIndexRouteImport } from './routes/_authenticated/agency.index'
@@ -60,6 +61,7 @@ import { Route as AuthenticatedExperimentsExperimentIdRouteImport } from './rout
 import { Route as AuthenticatedIntelligenceIndexRouteImport } from './routes/_authenticated/intelligence/index'
 import { Route as AuthenticatedInviteAcceptRouteImport } from './routes/_authenticated/invite.accept'
 import { Route as AuthenticatedLearningsIndexRouteImport } from './routes/_authenticated/learnings.index'
+import { Route as AuthenticatedOnboardingIndexRouteImport } from './routes/_authenticated/onboarding.index'
 import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authenticated/projects.index'
 import { Route as AuthenticatedProjectsProjectIdRouteImport } from './routes/_authenticated/projects.$projectId'
 import { Route as AuthenticatedPublishIndexRouteImport } from './routes/_authenticated/publish.index'
@@ -77,6 +79,7 @@ import { Route as ApiPublicYoutubeCallbackRouteImport } from './routes/api/publi
 import { Route as ApiWebhooksDodoRouteImport } from './routes/api/webhooks/dodo'
 import { Route as ApiWebhooksRazorpayRouteImport } from './routes/api/webhooks/razorpay'
 import { Route as ApiWebhooksStripeRouteImport } from './routes/api/webhooks/stripe'
+import { Route as AuthenticatedIntelligenceAlertsIndexRouteImport } from './routes/_authenticated/intelligence/alerts.index'
 import { Route as AuthenticatedIntelligenceChannelsIndexRouteImport } from './routes/_authenticated/intelligence/channels.index'
 import { Route as AuthenticatedIntelligenceChannelsChannelIdRouteImport } from './routes/_authenticated/intelligence/channels.$channelId'
 import { Route as AuthenticatedIntelligenceFoldersIndexRouteImport } from './routes/_authenticated/intelligence/folders.index'
@@ -220,6 +223,12 @@ const AuthenticatedAdminPlansRoute = AuthenticatedAdminPlansRouteImport.update({
   path: '/plans',
   getParentRoute: () => AuthenticatedAdminRoute,
 } as any)
+const AuthenticatedAdminReadinessRoute =
+  AuthenticatedAdminReadinessRouteImport.update({
+    id: '/readiness',
+    path: '/readiness',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminSafetyRoute =
   AuthenticatedAdminSafetyRouteImport.update({
     id: '/safety',
@@ -368,6 +377,12 @@ const AuthenticatedLearningsIndexRoute =
     path: '/learnings/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedOnboardingIndexRoute =
+  AuthenticatedOnboardingIndexRouteImport.update({
+    id: '/onboarding/',
+    path: '/onboarding/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedProjectsIndexRoute =
   AuthenticatedProjectsIndexRouteImport.update({
     id: '/projects/',
@@ -465,6 +480,12 @@ const ApiWebhooksStripeRoute = ApiWebhooksStripeRouteImport.update({
   path: '/api/webhooks/stripe',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedIntelligenceAlertsIndexRoute =
+  AuthenticatedIntelligenceAlertsIndexRouteImport.update({
+    id: '/intelligence/alerts/',
+    path: '/intelligence/alerts/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedIntelligenceChannelsIndexRoute =
   AuthenticatedIntelligenceChannelsIndexRouteImport.update({
     id: '/intelligence/channels/',
@@ -544,6 +565,7 @@ export interface FileRoutesByFullPath {
   '/admin/jobs': typeof AuthenticatedAdminJobsRoute
   '/admin/messages': typeof AuthenticatedAdminMessagesRoute
   '/admin/plans': typeof AuthenticatedAdminPlansRoute
+  '/admin/readiness': typeof AuthenticatedAdminReadinessRoute
   '/admin/safety': typeof AuthenticatedAdminSafetyRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/agency/$workspaceId': typeof AuthenticatedAgencyWorkspaceIdRoute
@@ -582,6 +604,7 @@ export interface FileRoutesByFullPath {
   '/experiments/': typeof AuthenticatedExperimentsIndexRoute
   '/intelligence/': typeof AuthenticatedIntelligenceIndexRoute
   '/learnings/': typeof AuthenticatedLearningsIndexRoute
+  '/onboarding/': typeof AuthenticatedOnboardingIndexRoute
   '/projects/': typeof AuthenticatedProjectsIndexRoute
   '/publish/': typeof AuthenticatedPublishIndexRoute
   '/research/': typeof AuthenticatedResearchIndexRoute
@@ -591,6 +614,7 @@ export interface FileRoutesByFullPath {
   '/intelligence/niches/$nicheId': typeof AuthenticatedIntelligenceNichesNicheIdRoute
   '/intelligence/videos/$videoId': typeof AuthenticatedIntelligenceVideosVideoIdRoute
   '/api/keys/$keyId/rotate': typeof ApiKeysKeyIdRotateRoute
+  '/intelligence/alerts/': typeof AuthenticatedIntelligenceAlertsIndexRoute
   '/intelligence/channels/': typeof AuthenticatedIntelligenceChannelsIndexRoute
   '/intelligence/folders/': typeof AuthenticatedIntelligenceFoldersIndexRoute
   '/intelligence/niches/': typeof AuthenticatedIntelligenceNichesIndexRoute
@@ -620,6 +644,7 @@ export interface FileRoutesByTo {
   '/admin/jobs': typeof AuthenticatedAdminJobsRoute
   '/admin/messages': typeof AuthenticatedAdminMessagesRoute
   '/admin/plans': typeof AuthenticatedAdminPlansRoute
+  '/admin/readiness': typeof AuthenticatedAdminReadinessRoute
   '/admin/safety': typeof AuthenticatedAdminSafetyRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/agency/$workspaceId': typeof AuthenticatedAgencyWorkspaceIdRoute
@@ -658,6 +683,7 @@ export interface FileRoutesByTo {
   '/experiments': typeof AuthenticatedExperimentsIndexRoute
   '/intelligence': typeof AuthenticatedIntelligenceIndexRoute
   '/learnings': typeof AuthenticatedLearningsIndexRoute
+  '/onboarding': typeof AuthenticatedOnboardingIndexRoute
   '/projects': typeof AuthenticatedProjectsIndexRoute
   '/publish': typeof AuthenticatedPublishIndexRoute
   '/research': typeof AuthenticatedResearchIndexRoute
@@ -667,6 +693,7 @@ export interface FileRoutesByTo {
   '/intelligence/niches/$nicheId': typeof AuthenticatedIntelligenceNichesNicheIdRoute
   '/intelligence/videos/$videoId': typeof AuthenticatedIntelligenceVideosVideoIdRoute
   '/api/keys/$keyId/rotate': typeof ApiKeysKeyIdRotateRoute
+  '/intelligence/alerts': typeof AuthenticatedIntelligenceAlertsIndexRoute
   '/intelligence/channels': typeof AuthenticatedIntelligenceChannelsIndexRoute
   '/intelligence/folders': typeof AuthenticatedIntelligenceFoldersIndexRoute
   '/intelligence/niches': typeof AuthenticatedIntelligenceNichesIndexRoute
@@ -700,6 +727,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/jobs': typeof AuthenticatedAdminJobsRoute
   '/_authenticated/admin/messages': typeof AuthenticatedAdminMessagesRoute
   '/_authenticated/admin/plans': typeof AuthenticatedAdminPlansRoute
+  '/_authenticated/admin/readiness': typeof AuthenticatedAdminReadinessRoute
   '/_authenticated/admin/safety': typeof AuthenticatedAdminSafetyRoute
   '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
   '/_authenticated/agency/$workspaceId': typeof AuthenticatedAgencyWorkspaceIdRoute
@@ -738,6 +766,7 @@ export interface FileRoutesById {
   '/_authenticated/experiments/': typeof AuthenticatedExperimentsIndexRoute
   '/_authenticated/intelligence/': typeof AuthenticatedIntelligenceIndexRoute
   '/_authenticated/learnings/': typeof AuthenticatedLearningsIndexRoute
+  '/_authenticated/onboarding/': typeof AuthenticatedOnboardingIndexRoute
   '/_authenticated/projects/': typeof AuthenticatedProjectsIndexRoute
   '/_authenticated/publish/': typeof AuthenticatedPublishIndexRoute
   '/_authenticated/research/': typeof AuthenticatedResearchIndexRoute
@@ -747,6 +776,7 @@ export interface FileRoutesById {
   '/_authenticated/intelligence/niches/$nicheId': typeof AuthenticatedIntelligenceNichesNicheIdRoute
   '/_authenticated/intelligence/videos/$videoId': typeof AuthenticatedIntelligenceVideosVideoIdRoute
   '/api/keys/$keyId/rotate': typeof ApiKeysKeyIdRotateRoute
+  '/_authenticated/intelligence/alerts/': typeof AuthenticatedIntelligenceAlertsIndexRoute
   '/_authenticated/intelligence/channels/': typeof AuthenticatedIntelligenceChannelsIndexRoute
   '/_authenticated/intelligence/folders/': typeof AuthenticatedIntelligenceFoldersIndexRoute
   '/_authenticated/intelligence/niches/': typeof AuthenticatedIntelligenceNichesIndexRoute
@@ -780,6 +810,7 @@ export interface FileRouteTypes {
     | '/admin/jobs'
     | '/admin/messages'
     | '/admin/plans'
+    | '/admin/readiness'
     | '/admin/safety'
     | '/admin/users'
     | '/agency/$workspaceId'
@@ -818,6 +849,7 @@ export interface FileRouteTypes {
     | '/experiments/'
     | '/intelligence/'
     | '/learnings/'
+    | '/onboarding/'
     | '/projects/'
     | '/publish/'
     | '/research/'
@@ -827,6 +859,7 @@ export interface FileRouteTypes {
     | '/intelligence/niches/$nicheId'
     | '/intelligence/videos/$videoId'
     | '/api/keys/$keyId/rotate'
+    | '/intelligence/alerts/'
     | '/intelligence/channels/'
     | '/intelligence/folders/'
     | '/intelligence/niches/'
@@ -856,6 +889,7 @@ export interface FileRouteTypes {
     | '/admin/jobs'
     | '/admin/messages'
     | '/admin/plans'
+    | '/admin/readiness'
     | '/admin/safety'
     | '/admin/users'
     | '/agency/$workspaceId'
@@ -894,6 +928,7 @@ export interface FileRouteTypes {
     | '/experiments'
     | '/intelligence'
     | '/learnings'
+    | '/onboarding'
     | '/projects'
     | '/publish'
     | '/research'
@@ -903,6 +938,7 @@ export interface FileRouteTypes {
     | '/intelligence/niches/$nicheId'
     | '/intelligence/videos/$videoId'
     | '/api/keys/$keyId/rotate'
+    | '/intelligence/alerts'
     | '/intelligence/channels'
     | '/intelligence/folders'
     | '/intelligence/niches'
@@ -935,6 +971,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/jobs'
     | '/_authenticated/admin/messages'
     | '/_authenticated/admin/plans'
+    | '/_authenticated/admin/readiness'
     | '/_authenticated/admin/safety'
     | '/_authenticated/admin/users'
     | '/_authenticated/agency/$workspaceId'
@@ -973,6 +1010,7 @@ export interface FileRouteTypes {
     | '/_authenticated/experiments/'
     | '/_authenticated/intelligence/'
     | '/_authenticated/learnings/'
+    | '/_authenticated/onboarding/'
     | '/_authenticated/projects/'
     | '/_authenticated/publish/'
     | '/_authenticated/research/'
@@ -982,6 +1020,7 @@ export interface FileRouteTypes {
     | '/_authenticated/intelligence/niches/$nicheId'
     | '/_authenticated/intelligence/videos/$videoId'
     | '/api/keys/$keyId/rotate'
+    | '/_authenticated/intelligence/alerts/'
     | '/_authenticated/intelligence/channels/'
     | '/_authenticated/intelligence/folders/'
     | '/_authenticated/intelligence/niches/'
@@ -1198,6 +1237,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminPlansRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/readiness': {
+      id: '/_authenticated/admin/readiness'
+      path: '/readiness'
+      fullPath: '/admin/readiness'
+      preLoaderRoute: typeof AuthenticatedAdminReadinessRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/safety': {
       id: '/_authenticated/admin/safety'
       path: '/safety'
@@ -1373,6 +1419,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLearningsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/onboarding/': {
+      id: '/_authenticated/onboarding/'
+      path: '/onboarding'
+      fullPath: '/onboarding/'
+      preLoaderRoute: typeof AuthenticatedOnboardingIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/projects/': {
       id: '/_authenticated/projects/'
       path: '/projects'
@@ -1492,6 +1545,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiWebhooksStripeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/intelligence/alerts/': {
+      id: '/_authenticated/intelligence/alerts/'
+      path: '/intelligence/alerts'
+      fullPath: '/intelligence/alerts/'
+      preLoaderRoute: typeof AuthenticatedIntelligenceAlertsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/intelligence/channels/': {
       id: '/_authenticated/intelligence/channels/'
       path: '/intelligence/channels'
@@ -1589,6 +1649,7 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminJobsRoute: typeof AuthenticatedAdminJobsRoute
   AuthenticatedAdminMessagesRoute: typeof AuthenticatedAdminMessagesRoute
   AuthenticatedAdminPlansRoute: typeof AuthenticatedAdminPlansRoute
+  AuthenticatedAdminReadinessRoute: typeof AuthenticatedAdminReadinessRoute
   AuthenticatedAdminSafetyRoute: typeof AuthenticatedAdminSafetyRoute
   AuthenticatedAdminUsersRoute: typeof AuthenticatedAdminUsersRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
@@ -1600,6 +1661,7 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminJobsRoute: AuthenticatedAdminJobsRoute,
   AuthenticatedAdminMessagesRoute: AuthenticatedAdminMessagesRoute,
   AuthenticatedAdminPlansRoute: AuthenticatedAdminPlansRoute,
+  AuthenticatedAdminReadinessRoute: AuthenticatedAdminReadinessRoute,
   AuthenticatedAdminSafetyRoute: AuthenticatedAdminSafetyRoute,
   AuthenticatedAdminUsersRoute: AuthenticatedAdminUsersRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
@@ -1645,6 +1707,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedExperimentsIndexRoute: typeof AuthenticatedExperimentsIndexRoute
   AuthenticatedIntelligenceIndexRoute: typeof AuthenticatedIntelligenceIndexRoute
   AuthenticatedLearningsIndexRoute: typeof AuthenticatedLearningsIndexRoute
+  AuthenticatedOnboardingIndexRoute: typeof AuthenticatedOnboardingIndexRoute
   AuthenticatedProjectsIndexRoute: typeof AuthenticatedProjectsIndexRoute
   AuthenticatedPublishIndexRoute: typeof AuthenticatedPublishIndexRoute
   AuthenticatedResearchIndexRoute: typeof AuthenticatedResearchIndexRoute
@@ -1653,6 +1716,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedIntelligenceChannelsChannelIdRoute: typeof AuthenticatedIntelligenceChannelsChannelIdRoute
   AuthenticatedIntelligenceNichesNicheIdRoute: typeof AuthenticatedIntelligenceNichesNicheIdRoute
   AuthenticatedIntelligenceVideosVideoIdRoute: typeof AuthenticatedIntelligenceVideosVideoIdRoute
+  AuthenticatedIntelligenceAlertsIndexRoute: typeof AuthenticatedIntelligenceAlertsIndexRoute
   AuthenticatedIntelligenceChannelsIndexRoute: typeof AuthenticatedIntelligenceChannelsIndexRoute
   AuthenticatedIntelligenceFoldersIndexRoute: typeof AuthenticatedIntelligenceFoldersIndexRoute
   AuthenticatedIntelligenceNichesIndexRoute: typeof AuthenticatedIntelligenceNichesIndexRoute
@@ -1688,6 +1752,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedExperimentsIndexRoute: AuthenticatedExperimentsIndexRoute,
   AuthenticatedIntelligenceIndexRoute: AuthenticatedIntelligenceIndexRoute,
   AuthenticatedLearningsIndexRoute: AuthenticatedLearningsIndexRoute,
+  AuthenticatedOnboardingIndexRoute: AuthenticatedOnboardingIndexRoute,
   AuthenticatedProjectsIndexRoute: AuthenticatedProjectsIndexRoute,
   AuthenticatedPublishIndexRoute: AuthenticatedPublishIndexRoute,
   AuthenticatedResearchIndexRoute: AuthenticatedResearchIndexRoute,
@@ -1699,6 +1764,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedIntelligenceNichesNicheIdRoute,
   AuthenticatedIntelligenceVideosVideoIdRoute:
     AuthenticatedIntelligenceVideosVideoIdRoute,
+  AuthenticatedIntelligenceAlertsIndexRoute:
+    AuthenticatedIntelligenceAlertsIndexRoute,
   AuthenticatedIntelligenceChannelsIndexRoute:
     AuthenticatedIntelligenceChannelsIndexRoute,
   AuthenticatedIntelligenceFoldersIndexRoute:

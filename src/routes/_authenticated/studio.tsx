@@ -291,6 +291,10 @@ function StudioPage() {
                   </Button>
                 ))}
               </div>
+              {/* Phase 6 Stream B: entry into the /onboarding wizard (link only, no redesign). */}
+              <Button asChild variant="link" size="sm" className="text-muted-foreground">
+                <Link to="/onboarding">New here? Take the guided setup</Link>
+              </Button>
             </CardContent>
           </Card>
         ) : (

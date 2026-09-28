@@ -32,6 +32,7 @@ import {
 import { approvePublishJob } from "@/lib/publish.functions";
 import { publishJobToMeta } from "@/lib/meta.functions";
 import { MetadataDiffDialog } from "./MetadataDiffDialog";
+import { PackagingChecklist } from "./PackagingChecklist";
 
 /**
  * Phase 4, Stream A (F29) — Review Studio.
@@ -284,6 +285,11 @@ export function ReviewStudio() {
                     </span>
                   </p>
                 )}
+              </section>
+
+              {/* Packaging checklist (P6, advisory) — dismissals never gate publish */}
+              <section>
+                <PackagingChecklist publishJobId={selected.id} />
               </section>
 
               {/* Actions */}

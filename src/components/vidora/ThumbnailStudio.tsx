@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ThumbnailProjectEditor } from "./ThumbnailProjectEditor";
+import { SurfacePreview } from "./thumbnails/SurfacePreview";
 import { useI18n } from "@/lib/i18n";
 import {
   generateThumbnails,
@@ -206,6 +207,7 @@ export function ThumbnailStudio({
         <TabsList>
           <TabsTrigger value="variants">Variants</TabsTrigger>
           <TabsTrigger value="editor">Layered editor</TabsTrigger>
+          <TabsTrigger value="preview">Surface preview</TabsTrigger>
         </TabsList>
       </div>
       <Tabs defaultValue="variants">
@@ -378,6 +380,20 @@ export function ThumbnailStudio({
             videoTitle={videoTitle}
             videoTopic={videoTopic}
           />
+        </TabsContent>
+        <TabsContent value="preview">
+          {/* P6 Stream E (P4): surface preview of the selected/burned thumbnail. */}
+          {burnPreview || selected?.viewUrl ? (
+            <SurfacePreview
+              imageUrl={(burnPreview ?? selected?.viewUrl) as string}
+              videoTitle={videoTitle}
+            />
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Select a variant first — the surface preview shows how it reads at real
+              display sizes across feed, search, suggested, mobile, and channel views.
+            </p>
+          )}
         </TabsContent>
       </Tabs>
     </div>

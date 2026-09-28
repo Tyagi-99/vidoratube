@@ -1772,3 +1772,314 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
   publish, schedule, or spend beyond the existing gates — human approvals
   stay in the publish pipeline.
 - **Reverse:** disable the `/agent` route; the agent tables are additive.
+
+### D200. E2E runs against the production build with deterministic adapters (2026-09-28)
+
+- **Decision:** `npm run test:e2e` = `npm run build:e2e && playwright test`, where
+  `build:e2e` builds the production bundle (`NITRO_PRESET=node-server`,
+  `VITE_SUPABASE_URL=http://127.0.0.1:54321`) and the Playwright webServer
+  (`e2e/serve.mjs`) boots (1) a deterministic in-memory Supabase stub
+  (`e2e/stub-supabase/server.mjs`: GoTrue auth, PostgREST-ish CRUD, credit
+  RPCs with the same idempotency/debit/refund semantics as the SQL
+  migrations) on 127.0.0.1:54321 and (2) `.output/server/index.mjs` on
+  127.0.0.1:3100 with `VIDORA_E2E_ADAPTER=deterministic`. Script generation
+  takes a deterministic-adapter branch (canned topic-derived sections, zero
+  provider cost) while the real credit preflight, debit-first charge, and
+  version-save path run unchanged. This VM's Chromium hard-blocks direct
+  loopback navigation (`ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS`, no
+  working disable switch), so every spec page routes loopback requests
+  through a Playwright fulfillment bridge (`bridgeLocalhost`): the REAL
+  server responses are fetched by Node and fulfilled to the browser — app
+  code, server functions, and stub are all real; only the last-mile
+  transport is bridged. Adapter-dependent tests are labeled `[adapter]`.
+- **Reason:** no Supabase credentials, Docker, or provider keys exist in this
+  environment; the deterministic stub + adapters let the full critical-path
+  suite (signup, projects, script debit, approvals, stale-job refund, all
+  nav targets) run honestly against the production build with real
+  `credit_ledger` assertions.
+- **Reverse:** `test:e2e`/`playwright.config.ts` revert to `npm run dev`;
+  delete `e2e/serve.mjs`, `e2e/stub-supabase/`, `e2e/fixtures.ts`,
+  `e2e/adapter-helpers.ts`, `e2e/workflows.spec.ts` and the
+  `VIDORA_E2E_ADAPTER` branch in `scripts.functions.ts`.
+
+### D201. E2E stub fidelity + mobile project + stale-copy assertion updates (2026-09-28)
+
+- **Decision:** four follow-ups to D200's harness.
+  1. **Stub mirrors Postgres column defaults.** The Supabase stub now
+     applies migration column defaults server-side on INSERT
+     (`scripts.status: "draft"`, `projects.*`, `render_jobs.*`,
+     `script_versions.*`, `created_at`/`updated_at`) because raw
+     PostgREST inserts rely on the database; without this the app crashed
+     reading `scripts.status.label` after script creation.
+  2. **Stub seeds deterministic `pricing_plans`.** Starter $19 / Studio $49
+     / Scale $149 (+ INR anchors 1599/3999/11999) mirrored from the
+     migration seed INSERTs, installed on every reset — the pricing page
+     reads them via `getPricingPlans`, so plan-card tests assert real
+     values instead of an empty page.
+  3. **Mobile project uses viewport emulation, not `devices["iPhone 13"]`.**
+     That descriptor carries `defaultBrowserType: "webkit"` and crashes this
+     VM's Chromium on launch (`Target page, context or browser has been
+     closed`); the mobile project now sets `viewport 375×667` +
+     `isMobile` + `hasTouch` on Chromium directly, and the desktop
+     `chromium` project ignores `mobile.spec.ts` (it previously ran every
+     spec file, double-running the mobile tests and failing the 375px
+     hero-width assertion at desktop width).
+  4. **Stale marketing-copy assertions updated to the cinema redesign.**
+     `public`/`stranger`/`mobile` specs expected the pre-redesign hero
+     ("AI video studio"), the old checkout note ("checkout is not live"),
+     and a modal dialog at `/studio?create=script`; the current site says
+     "Script in.", "Checkout is being set up", and renders the create UI
+     as a page (`asPage`, no `role="dialog"`). Tests now assert the real
+     copy/behavior. No app copy changed — the redesign is user-approved.
+- **Reason:** keep the E2E suite honest against the production build: the
+  stub must behave like Postgres (defaults, seed data), the mobile
+  project must actually launch, and assertions must match the shipped UI
+  rather than a previous design.
+- **Reverse:** remove `COLUMN_DEFAULTS`/`seedStatic` from
+  `e2e/stub-supabase/server.mjs` (falls back to empty tables); restore the
+  iPhone 13 device descriptor in `playwright.config.ts` once WebKit or a
+  fixed Chromium is available; revert spec copy changes if the marketing
+  site is redesigned again.
+
+### D220. Onboarding: connect and scan steps are skippable (2026-09-28)
+
+- **Context:** the /onboarding wizard (Phase 6 Stream B) has nine steps:
+  welcome → connect → creator-type → niche → goal → brand → scan → idea →
+  video. Forcing every step would trap users who lack a YouTube channel or
+  don't want to spend credits yet.
+- **Decision:** `connect` and `scan` are skippable; every other step requires
+  an answer. YouTube can be connected later from the studio (the OAuth flow
+  itself is unchanged), and the niche scan costs a real research credit —
+  skipping is the honest option, never a dark pattern. `isSkippable()` in
+  `src/lib/onboarding/onboarding.ts` is the single source of truth.
+- **Reverse:** remove either step from `isSkippable()`; nothing else depends
+  on the skippable set.
+
+### D221. Onboarding: resume semantics and auto-skip to /studio (2026-09-28)
+
+- **Decision:** `/onboarding` never shows the wizard to a user who shouldn't
+  see it. `resolveOnboardingEntry()` redirects to `/studio` when there is no
+  progress row (never started, e.g. a fresh signup who landed here by
+  mistake) or when the row is `completed`. An in-progress row resumes at the
+  persisted `current_step`; a row with an unrecognized step restarts
+  defensively at `welcome`. `current_step` records where the user IS — the
+  advance mutation persists the *next* step before rendering it — so a tab
+  close or OAuth round-trip loses nothing.
+- **Reverse:** change `resolveOnboardingEntry()`; the DB rows remain valid.
+
+### D222. Onboarding: scan results persist immediately because the scan spends a credit (2026-09-28)
+
+- **Decision:** the niche-scan step (`createResearchProject`) debits a real
+  research credit via the existing rate-limit/debit path. On success the
+  wizard calls `onPersist()` immediately — before the user advances — so the
+  sub-niches and `research_project_id` are in `onboarding_progress.answers`
+  even if the tab closes. Re-running the scan on resume is never required.
+  Results are labelled "AI analysis" with an explicit no-guarantees note
+  (`ob_scan_credit_note`).
+- **Reverse:** drop the `onPersist` call in the scan step; the credit debit
+  still stands on its own.
+
+### D223. Onboarding route is reachable but not in the main nav (2026-09-28)
+
+- **Decision:** `/onboarding` is deliberately NOT in the app nav (excluded
+  from `src/components/vidora/appNav.ts`; the appNav reachability test does
+  not cover it). Entry points are (1) post-signup redirect in `auth.tsx`
+  (explicit `?next=` still wins) and (2) a "New here? Take the guided setup"
+  link in the studio empty state only. The route sets `noindex` so it is
+  never indexed.
+- **Reverse:** add it to the nav groups; entry-point links are independent.
+### D240. E2E_30_SECOND_CREATION runs on deterministic test-fixture adapters (2026-09-28)
+
+- **Decision:** the 30-second creation scenario test
+  (`src/lib/creation/quick-create/e2e-30-second-deterministic.test.ts`,
+  topic "Why do airplane windows have a tiny hole?") runs the REAL stage
+  logic (research linker, script builder, scene planner, caption timeline,
+  QC gate, SEO package, scene manifest schema) against in-test
+  deterministic adapters for the paid/heavy steps (TTS, image, music,
+  storage, publish gate, credit ledger). Every fixture output is labeled
+  `provider: "deterministic-test-adapter"`; timing is `estimate`, never
+  presented as measured; the assembly step produces a RECORD, never a
+  playable video. Research sources are real URLs verified 2026-09-28.
+- **Reverse:** delete the one test file; no production code depends on it.
+
+### D241. /admin/readiness: fail-closed tri-state banner, admin-only (2026-09-28)
+
+- **Decision:** the new `/admin/readiness` route
+  (`src/routes/_authenticated/admin.readiness.tsx` + pure logic in
+  `src/lib/readiness.ts` + probes in `src/lib/readiness.functions.ts`)
+  renders inside the existing `AdminLayout` shell (reused guard: inline
+  403 for non-admins) and the server function additionally enforces
+  `assertAdmin`. Check statuses are tri-state PASS / FAIL / UNCONFIGURED;
+  UNCONFIGURED means "probe could not run" (never "fine") and always
+  carries an exact remediation naming the missing key/secret/deploy and
+  where to set it. `computeReadinessBanner` is fail-closed: the banner
+  reports READY only when every BLOCKING check passes — it can never show
+  READY while a blocking check fails or is unconfigured. Blocking checks:
+  AI text, TTS, image gen, storage, database, FFmpeg/render service, job
+  queue, billing. Non-blocking: video gen (Complete Video Mode), YouTube
+  OAuth (per-user channel connection is the real gate). Public `/status`
+  untouched.
+- **Reverse:** remove the route file, nav entry, and the two lib files.
+
+### D242. Paid probes never auto-run — deliberate two-step opt-in (2026-09-28)
+
+- **Decision:** the two paid probes (one tiny ElevenLabs TTS synthesis,
+  one test image via the Lovable AI gateway) run ONLY when an admin
+  deliberately checks the opt-in box AND presses "Run checks with paid
+  probes"; the default run is free metadata/config probes only. The paid
+  button is disabled until the checkbox is ticked, and a paid-probe run is
+  labeled `PAID PROBE` with an estimated cost note on the check card and in
+  the banner timestamp line.
+- **Reverse:** set `includePaidProbes` default differently — the flag is a
+  single zod default on the server function input.
+
+### D243. routeTree.gen.ts regenerated with the official TanStack Generator (2026-09-28)
+
+- **Decision:** `src/routeTree.gen.ts` was regenerated with the bundled
+  `@tanstack/router-generator` `Generator` class (same defaults the vite
+  plugin uses: `./src/routes`, single quotes, no semicolons) instead of
+  hand-editing; the diff is purely additive. The generator does not emit
+  the TanStack Start `Register` module-augmentation block, so it was
+  re-appended verbatim (single-quote style) after regeneration.
+- **Reverse:** regenerate again after any route change with the same
+  command; never hand-edit the file.
+
+### D244. Readiness probes are free-metadata only; paid-provider failure is FAIL, not UNCONFIGURED (2026-09-28)
+
+- **Decision:** probes distinguish missing config (UNCONFIGURED — the key
+  isn't set, so the probe cannot run) from a configured-but-broken
+  dependency (FAIL — e.g. an invalid ElevenLabs key returning HTTP 401, a
+  stale render-worker heartbeat, an unreachable Supabase bucket). The TTS
+  check treats an absent ElevenLabs key + present `OPENAI_API_KEY` as a
+  PASS-with-note (fallback path documented), not a false green. No probe
+  ever presents config presence as a health guarantee without a free
+  metadata call when one exists (ElevenLabs /v2/user, gateway /v1/models,
+  bucket list, profile count).
+- **Reverse:** adjust per-check `blocking` flags or remediation copy in
+  `src/lib/readiness.functions.ts`.
+### D270. Phase 6 Stream D: docker-compose.yml reworked, service renamed to `worker` (2026-09-28)
+
+- **Decision:** the pre-existing compose service was named `render-worker`; renamed the service key to `worker` (container_name `vidora-render-worker` unchanged, so `scripts/deploy-worker.sh`'s `docker inspect` still works). Added per-variable comments documenting every worker env var and a docs pointer to `worker/.env.example`. Kept the pre-existing `deploy.resources.limits` but added an explicit NOTE that plain `docker compose up` (non-swarm) does not enforce them — the VPS itself must be sized (~4 vCPU / 8 GB for defaults).
+- **Reason:** the old file had zero per-variable documentation; a founder deploying this must know what each variable does and which are secrets without reading worker source.
+- **Reverse:** rename the service key back; nothing else references the key.
+
+### D271. Phase 6 Stream D: `worker/.env.example` is the authoritative worker env reference (2026-09-28)
+
+- **Decision:** added `worker/.env.example` covering all 11 vars from `worker/src/config.ts` (checked 1:1 against ConfigSchema), each with what-it-is / where-to-get-it / secret-or-not. The repo-root `.env.example` keeps its full worker section (deploy script + compose `env_file` read root `.env`) with a pointer to `worker/.env.example`; added the two missing keys (`BRAND_LOGOS_BUCKET`, `WORKER_CHAPTER_CONCURRENCY`).
+- **Reason:** the old root section was incomplete and undocumented; two env references must not drift — the pointer establishes which one is canonical.
+- **Reverse:** delete `worker/.env.example`; root section remains self-sufficient.
+
+### D272. Phase 6 Stream D: `docs/RENDER_WORKER_DEPLOY.md` — one-command deploy + /status verification (2026-09-28)
+
+- **Decision:** new deploy guide with: one-time Oracle host setup, `WORKER_HOST=... ./scripts/deploy-worker.sh` as the single deploy command, a full secrets checklist (required/secret/where/what-breaks), DB pre-checks (worker_heartbeats table + the 5 RPCs + private buckets, all with their real migration filenames), heartbeat verification on https://vidoratube.lovable.app/status ("no heartbeat recorded yet" → "Operational", 15-min ok / 60-min degraded thresholds read from `src/lib/worker-health.ts`), and a rollback procedure (compose down; claim lease reclaims jobs automatically).
+- **Reason:** the worker is still undeployed (founder blocker #1); the blocker is now actionable in one command with an observable success criterion instead of a vague "needs a deploy target".
+- **Reverse:** docs-only; nothing to revert in code.
+
+### D273. Phase 6 Stream D: FEATURE_MATRIX live-verification legend + ledger; COMPLETE ≠ live-verified (2026-09-28)
+
+- **Decision:** added a live-verification legend (`live`/`fakes`/`unconfigured`/`untested`/`design`/`infra`) and a per-feature "Live-provider verification ledger" at the end of `docs/FEATURE_MATRIX.md`. Documented the standing rule explicitly: COMPLETE in this matrix means code-complete with unit/integration tests green — it does NOT mean verified against real providers. Honest bottom line recorded: as of 2026-09-28, zero features have been exercised against a live external provider; all provider tests use fakes/mocks with zero network calls; the live-verified surface is infrastructure only (migrations applied, RLS checked, bundle published).
+- **Reason:** the matrix's U/I/E/M columns let a reader mistake "COMPLETE" for "proven live". The ledger is now the only place that answers "has it touched a real provider?"
+- **Reverse:** docs-only.
+
+### D274. Phase 6 Stream D: removed 4 stale jammed rows in FEATURE_MATRIX.md (2026-09-28)
+
+- **Decision:** the Creation table had 4 lines where stale Wave-1 duplicate rows were jammed after `||` on the same line as the proper row (F15, F17, F19, F26 duplicates with outdated content, e.g. "migration unapplied"). Deleted only the duplicate suffixes; kept the proper rows. The F26 content existed only as a jammed suffix, so I restored it as a proper row with the migration recorded as applied live 2026-09-28.
+- **Reason:** the jammed rows made the table unparseable and carried stale claims.
+- **Reverse:** docs-only; git history retains the old lines.
+
+### D275. Phase 6 Stream D: fixed stale migration filename in worker/README.md (2026-09-28)
+
+- **Decision:** the README told the founder to apply `supabase/migrations/20260925143500_server_render_worker.sql` — that file does not exist in this tree; `claim_render_job`/`heartbeat_render_job` actually live in `20260925120000_schema_reconciliation.sql`. Replaced with the verified full dependency list (worker_heartbeats, claim/heartbeat RPCs, requeue_stale_renders, finalize_render_billing, requeue_stale_chapters + their real migration filenames).
+- **Reason:** a founder following the old instruction would chase a missing file. Found by grep, not guessed.
+- **Reverse:** docs-only.
+
+### D276. Phase 6 Stream D: ElevenLabs `verified: true` voice IDs are code-claims, never live-checked (2026-09-28)
+
+- **Decision:** recorded as KNOWN_ISSUES.md #13: the `language_voices` seed + `src/lib/voices.ts` mark catalog voice IDs `verified: true`, but no `ELEVENLABS_API_KEY` exists in this environment, so no ID has ever been checked against the ElevenLabs API in this program. A wrong/rotated ID fails as a provider 404 on the first real TTS call — after the credit debit. One unqualified TTS call per catalog voice is founder-gated before paid paths are trusted; the ledger marks F17 `unconfigured`.
+- **Reason:** `verified: true` reads as "proven" and sits one step before real money; the honest state is "claimed in code, never tested".
+- **Reverse:** docs-only; flip the flag only after a live check.
+
+### D277. Phase 6 Stream D (continuation): fixed 3 accuracy gaps found on re-verification (2026-09-28)
+
+- **Decision:** (1) `docker-compose.yml`'s per-variable comment called SUPABASE_URL "secret" — it is public by design; only the service-role key is the secret. Fixed to "*required* (not a secret — it's public)". (2) `worker/README.md` still said the compose file ships "one `render-worker` service" after the D270 rename to `worker`; fixed to "one `worker` service (container `vidora-render-worker`)". (3) Added `stub` (= placeholder UI / partial shell, not implemented) to the FEATURE_MATRIX.md live-verification legend — the F19 row already used it but it was undefined.
+- **Reason:** a founder following the old wording would misclassify the URL as a secret or chase the old service key; the undefined legend code made F19's honesty label meaningless.
+- **Reverse:** docs-only.
+
+### D278. Phase 6 Stream D (continuation): historical test counts left as history; measured 87/87 (2026-09-28)
+
+- **Decision:** the old `76/76` worker-test counts in `docs/TEST_RESULTS.md`, `docs/SPRINT_REPORTS.md`, `docs/PRODUCT_AUDIT.md`, and pre-Phase-6 `IMPLEMENTATION_STATUS.md` sections are past-run records — left untouched. `docs/RENDER_WORKER_DEPLOY.md` states `npm run test:worker` 87/87 because I ran it in this worktree and measured it (10 test files, 87 pass / 0 fail).
+- **Reason:** rewriting past-run logs would falsify history; the deploy guide is a current runbook and must reflect a measured number.
+- **Reverse:** docs-only.
+
+### D279. Phase 6 Stream D (continuation): `docker compose config` unverified in this VM (2026-09-28)
+
+- **Decision:** recorded as unverified, not claimed as validated: `docker` is not installed in this VM's PATH, so `docker compose config` could not be run. The compose file was hand-checked against the real consumer (`scripts/deploy-worker.sh` — same filenames, same `container_name` in its `docker inspect`, same `WORKER_HOST`/`REMOTE_DIR` defaults) and the YAML follows the pre-existing file's proven structure; the real parse check happens on the deploy host when `scripts/deploy-worker.sh` runs `docker compose up -d`.
+- **Reason:** claiming a validation I never ran is exactly the dishonesty Stream D exists to remove. `IMPLEMENTATION_STATUS.md`'s Phase 6 section already marks this as the coordinator-visible gap.
+- **Reverse:** docs-only; re-verify on any host with Docker before the first real deploy.
+### D300. Watchtower: on-demand evaluation over existing tracked data, notification + draft idea (2026-09-28)
+
+- **Decision:** Phase 6 Stream E applies the Algrow AG-5 alert pattern as
+  Watchtower: alert rules evaluate the user's already-tracked channels,
+  videos, and snapshots on demand (a "Check now" button; no background
+  worker — Lovable's pg_cron is not provisioned per D175). Rule types:
+  breakout_video, title_pattern, growth_condition. Firing rules dedup with
+  stable keys (`alert:<ruleId>:<videoId|channelId>`) so re-checks never
+  re-fire. Each newly delivered alert emits an `intel.alert` notification
+  AND auto-creates a draft `video_ideas` row, so the signal lands in the
+  ideation backlog instead of stopping at a ping. Empty states are honest
+  (`no_rules`, `no_data`).
+- **Reverse:** drop the `/intelligence/alerts` route and the `alert_rules`
+  table; the evaluation library is additive.
+
+### D301. Title format library: deterministic packaging aids, never predictions (2026-09-28)
+
+- **Decision:** the TubeAI TI-3 pattern lands as a 12-format deterministic
+  library (`src/lib/creation/titles/formats.ts`) with slot templates, lever
+  labels, and usage notes. Deliberately no outperformance multipliers, no
+  CTR/virality claims — a unit test asserts the library serialization
+  contains none. Formats are starting points; the title generator fills
+  slots in the creator's voice.
+- **Reverse:** remove the format selector from Title Lab; formats are
+  in-memory, nothing persisted.
+
+### D302. Word vectors computed only from the user's own outlier corpus (2026-09-28)
+
+- **Decision:** the TubeAI TI-6 pattern is reimplemented without a
+  cross-platform word database: vectors are computed from the user's own
+  tracked `outlier_videos` with sample floors (≥3 videos per word, ≥10
+  videos before the panel renders) and median-outlier lift versus the
+  corpus median. Pairing suggestions and all copy use non-predictive
+  language; `insufficient_data` is an explicit state, never silence.
+- **Reverse:** hide the vectors panel in Title Lab; no new tables.
+
+### D303. Thumbnail surface previews are original generic mocks (2026-09-28)
+
+- **Decision:** the TubeAI TI-9 5-surface preview lands as a "Surface
+  preview" tab built from original generic mocks at explicit display
+  widths, labeled as approximations — no YouTube UI recreated, no
+  competitor videos embedded. Pure presentational component.
+- **Reverse:** remove the tab; surface specs are data, easily replaced.
+
+### D304. URL ingestion stores provenance only — no server-side fetching (2026-09-28)
+
+- **Decision:** the ShortForge SF-1 pattern lands as a "Start from"
+  selector on project creation (topic / draft / transcript / article /
+  URL). A URL source is stored as reference/provenance metadata only;
+  Vidora never fetches arbitrary URLs server-side (SSRF surface, untrusted
+  content, no evidence of competitor doing so safely). Optional pasted
+  notes can accompany a URL. Source provenance persists in
+  `projects.source_kind/source_text/source_url`.
+- **Reverse:** revert the creation form to topic/draft; columns are
+  nullable and additive.
+
+### D305. Packaging checklist is advisory; dismissals never bypass gates (2026-09-28)
+
+- **Decision:** the AgentTube AT-10 pattern lands as a versioned
+  pre-publish checklist in Review Studio (title / description / tags /
+  privacy / safety score / schedule rules, `CHECKLIST_VERSION = 1`).
+  Dismissals require a reason and are scoped global or per-channel, but
+  are purely advisory — they never bypass the strict evidence gate,
+  safety checks, approval workflow, or publish execution. The checklist
+  cannot block publishing on its own.
+- **Reverse:** remove the checklist component; the `checklist_dismissals`
+  table is additive.

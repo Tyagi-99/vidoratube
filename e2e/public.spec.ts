@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 
 /**
  * Public pages: no auth required.
@@ -14,9 +14,9 @@ test.describe("public pages", () => {
 
     await page.goto("/");
     await expect(page).toHaveTitle(/Vidora/i);
-    // Hero heading
+    // Hero heading (cinema redesign: "Script in. Film out.")
     await expect(
-      page.getByRole("heading", { name: /ai video studio/i })
+      page.getByRole("heading", { name: /script in/i })
     ).toBeVisible();
     // Pricing tiers visible on homepage
     await expect(page.getByText(/\$19/)).toBeVisible();
@@ -29,8 +29,8 @@ test.describe("public pages", () => {
     await expect(page.getByText(/\$19/)).toBeVisible();
     await expect(page.getByText(/\$49/)).toBeVisible();
     await expect(page.getByText(/\$149/)).toBeVisible();
-    // Honesty: checkout not live is disclosed
-    await expect(page.getByText(/checkout is not live/i)).toBeVisible();
+    // Honesty: checkout not live is disclosed ("Checkout is being set up")
+    await expect(page.getByText(/checkout is being set up/i).first()).toBeVisible();
   });
 
   test("studio is auth-gated", async ({ page }) => {

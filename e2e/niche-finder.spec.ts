@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "./fixtures";
 
 /**
  * E2E_NICHE_FINDER — permanent Phase 2 intelligence scenario (Stream D).
@@ -21,7 +21,7 @@ import { test, expect, type Page } from "@playwright/test";
  * REQUIRES: TEST_USER_EMAIL and TEST_USER_PASSWORD env vars (seeded test
  * account). Skipped automatically when not provided.
  * RUN: npx playwright test e2e/niche-finder.spec.ts
- *      (E2E_BASE_URL defaults to http://localhost:3000 and boots `npm run dev`)
+ *      (E2E_BASE_URL defaults to http://127.0.0.1:3100, served by `node e2e/serve.mjs`)
  *
  * SELECTOR ASSUMPTIONS (contract pins server functions, not UI text):
  * other streams' pages (niches/channels/outliers/trends/videos) are located

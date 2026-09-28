@@ -21,6 +21,8 @@ function getProxy() {
       server: `${u.protocol}//${u.hostname}:${u.port}`,
       username: decodeURIComponent(u.username) || undefined,
       password: decodeURIComponent(u.password) || undefined,
+      // Never proxy localhost: E2E targets the local deterministic stack.
+      bypass: "127.0.0.1,localhost",
     };
   } catch {
     return undefined;
@@ -35,7 +37,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: "html",
   use: {
-    baseURL: process.env.E2E_BASE_URL ?? "http://localhost:3000",
+    baseURL: process.env.E2E_BASE_URL ?? "http://127.0.0.1:3100",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
     ...(proxy ? { proxy } : {}),
@@ -43,6 +45,7 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
+      testIgnore: /mobile\.spec\.ts/,
       use: {
         ...devices["Desktop Chrome"],
         launchOptions: {
@@ -55,7 +58,11 @@ export default defineConfig({
       name: "mobile",
       testMatch: /mobile\.spec\.ts/,
       use: {
-        ...devices["iPhone 13"],
+        // devices["iPhone 13"] carries defaultBrowserType: "webkit" and crashes
+        // this VM's Chromium on launch; emulate the mobile viewport directly.
+        viewport: { width: 375, height: 667 },
+        isMobile: true,
+        hasTouch: true,
         launchOptions: {
           executablePath: "/opt/meta-chromium/chrome",
           args: ["--no-sandbox", "--disable-dev-shm-usage"],
@@ -66,12 +73,15 @@ export default defineConfig({
   webServer: process.env.E2E_BASE_URL
     ? undefined
     : {
-        command: "npm run dev",
-        url: "http://localhost:3000",
+        // Production build + deterministic adapters (D200): serves
+        // `.output/server/index.mjs` with VIDORA_E2E_ADAPTER=deterministic and
+        // a local deterministic Supabase stub. No real Supabase, no provider
+        // keys, no cost. See e2e/serve.mjs.
+        command: "node e2e/serve.mjs",
+        url: "http://127.0.0.1:3100",
         reuseExistingServer: !process.env.CI,
-        timeout: 120_000,
+        timeout: 240_000,
         env: {
-          // Dev server needs these; CI must provide real values.
           ...process.env,
         },
       },

@@ -67,8 +67,11 @@ function AuthPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [resetError, setResetError] = useState<string | null>(null);
 
-  const goNext = () => {
-    window.location.replace(safeAuthNext(next));
+  const goNext = (target?: string) => {
+    // Phase 6 Stream B: brand-new signups land on the onboarding wizard when
+    // there is no explicit ?next= destination. /onboarding auto-skips to
+    // /studio for already-onboarded users, so this is safe for return visits.
+    window.location.replace(target ?? safeAuthNext(next));
   };
 
   useEffect(() => {
@@ -101,7 +104,7 @@ function AuthPage() {
           email: parsed.data.email,
           password: parsed.data.password,
           options: {
-            emailRedirectTo: `${window.location.origin}/studio`,
+            emailRedirectTo: `${window.location.origin}/onboarding`,
             data: { display_name: parsed.data.displayName || parsed.data.email.split("@")[0] },
           },
         });
@@ -109,6 +112,10 @@ function AuthPage() {
         track("signup_completed", { method: "email" });
         if (data.user) identifyUser(data.user.id);
         toast.success("Account created — welcome to Vidora.");
+        // New accounts start the onboarding wizard; an explicit ?next=
+        // destination (e.g. an invite link) still wins.
+        goNext(next ? safeAuthNext(next) : "/onboarding");
+        return;
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({
           email: parsed.data.email,
