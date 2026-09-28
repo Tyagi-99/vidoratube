@@ -106,8 +106,8 @@ async function ttsCheck(paidProbes: boolean): Promise<ReadinessCheck> {
       "tts",
       "TTS (narration)",
       true,
-      `ElevenLabs probe failed: ${r.error ?? `HTTP ${r.status}`}. Key may be invalid or revoked.`,
-      "Verify ELEVENLABS_API_KEY in the ElevenLabs dashboard (API keys) and update it in Lovable Cloud Secrets / the server environment.",
+      `ElevenLabs probe failed: ${r.error ?? `HTTP ${r.status}`}. Key may be invalid or revoked — or it may be a restricted key without account access (such keys fail this /v1/user probe but can still synthesize; a voice preview succeeding is the real test).`,
+      "Verify ELEVENLABS_API_KEY in the ElevenLabs dashboard (API keys) and update it in Lovable Cloud Secrets / the server environment. If previews play fine, the key works for narration despite this probe.",
     );
   if (!paidProbes)
     return passed(
