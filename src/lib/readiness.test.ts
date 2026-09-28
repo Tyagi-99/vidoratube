@@ -6,6 +6,8 @@
  * not run, never "tested and fine".
  */
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import {
   computeReadinessBanner,
   failed,
@@ -86,4 +88,20 @@ describe("readiness banner rule", () => {
     expect(c.detail).toContain("not set");
     expect(c.detail).toContain("probe not run");
   });
+});
+
+describe("ElevenLabs probe URL", () => {
+  // Regression guard: the readiness/status probes must hit ElevenLabs' real
+  // account-info endpoint GET /v1/user. A /v2/user typo shipped once and made
+  // the probe 404 on every key, valid or not.
+  const SRC = resolve(process.cwd(), "src");
+  const files = ["lib/readiness.functions.ts", "lib/status.functions.ts"];
+
+  for (const f of files) {
+    it(`${f} probes api.elevenlabs.io/v1/user (never /v2/user)`, () => {
+      const src = readFileSync(resolve(SRC, f), "utf8");
+      expect(src).toContain("api.elevenlabs.io/v1/user");
+      expect(src).not.toContain("api.elevenlabs.io/v2/user");
+    });
+  }
 });

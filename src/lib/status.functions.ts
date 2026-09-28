@@ -89,8 +89,8 @@ export const getSystemStatus = createServerFn({ method: "GET" }).handler(
         if (!key) throw new Error("not_configured:ELEVENLABS_API_KEY is not set");
         const { signal, cancel } = timeoutSignal();
         try {
-          // /v2/user is a free account-info call — no synthesis credits spent.
-          const res = await fetch("https://api.elevenlabs.io/v2/user", {
+          // /v1/user is a free account-info call — no synthesis credits spent.
+          const res = await fetch("https://api.elevenlabs.io/v1/user", {
             headers: { "xi-api-key": key },
             signal,
           });

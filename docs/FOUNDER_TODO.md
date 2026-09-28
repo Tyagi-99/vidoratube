@@ -28,8 +28,11 @@ takes, and what it unblocks.
 - **What:** Create a Dodo Payments (Merchant of Record) account, complete KYC, and add
   `DODO_API_KEY` + `DODO_WEBHOOK_SECRET` to Lovable Cloud Secrets. Create one
   product per plan in the Dodo dashboard and set `DODO_PRODUCT_IDS` to the JSON
-  map, e.g. `{"starter":"prod_abc","studio":"prod_def","scale":"prod_ghi"}`
-  (format documented in `.env.example`).
+  map, e.g. `{"creator":"prod_abc","studio":"prod_def","pack_s":"prod_ghi","pack_m":"prod_jkl","pack_l":"prod_mno"}`
+  (slugs must match `src/lib/billing/plans.ts`: `creator`, `studio`, `pack_s`, `pack_m`, `pack_l`;
+  format documented in `.env.example`).
+  **Also set `DODO_ENVIRONMENT=live`** in Lovable Cloud Secrets — without it, checkout
+  calls Dodo's *test* API even with live keys, and every checkout will fail auth.
 - **Where:** https://dodopayments.com dashboard → Developers → API keys / Webhooks.
   Configure the webhook URL to `https://vidoratube.lovable.app/api/webhooks/dodo`.
 - **Time:** 1–2 days (account approval + KYC).

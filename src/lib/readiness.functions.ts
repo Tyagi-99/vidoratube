@@ -100,7 +100,7 @@ async function ttsCheck(paidProbes: boolean): Promise<ReadinessCheck> {
       "Set ELEVENLABS_API_KEY for the full voice catalog.",
     );
   }
-  const r = await freeProbe("https://api.elevenlabs.io/v2/user", { "xi-api-key": key });
+  const r = await freeProbe("https://api.elevenlabs.io/v1/user", { "xi-api-key": key });
   if (!r.ok)
     return failed(
       "tts",
@@ -114,7 +114,7 @@ async function ttsCheck(paidProbes: boolean): Promise<ReadinessCheck> {
       "tts",
       "TTS (narration)",
       true,
-      "ElevenLabs reachable (free /v2/user account probe).",
+      "ElevenLabs reachable (free /v1/user account probe).",
       "Set ELEVENLABS_API_KEY (ElevenLabs dashboard → API keys) in Lovable Cloud Secrets / the server environment.",
     );
   // Opt-in paid probe: one tiny real synthesis.

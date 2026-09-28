@@ -89,7 +89,7 @@ export const razorpayProvider: BillingProvider = {
 
   async createCheckout(req: CheckoutRequest): Promise<CheckoutResult> {
     if (req.currency !== "inr") {
-      throw new Error("Razorpay checkout supports INR only; use Stripe for USD.");
+      throw new Error("Razorpay checkout supports INR only; use Dodo for USD.");
     }
     const paise = req.plan.priceInrPaise;
     if (paise == null) throw new Error(`Plan ${req.plan.slug} has no INR price.`);
@@ -97,7 +97,7 @@ export const razorpayProvider: BillingProvider = {
       // Subscriptions need a Razorpay plan id created in the dashboard.
       // Until then, fail with a clear message (see docs/BILLING.md).
       throw new Error(
-        "Razorpay subscriptions are not set up yet. Choose a credit pack, or pay with Stripe (USD).",
+        "Razorpay subscriptions are not set up yet. Choose a credit pack, or pay with Dodo (USD).",
       );
     }
     const order = (await razorpayFetch("/orders", {

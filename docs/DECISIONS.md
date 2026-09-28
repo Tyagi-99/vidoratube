@@ -2211,3 +2211,46 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
   (`/status`, kept public) are cataloged as Learn-pillar features — they are
   part of running the business on the OS, not part of making a video.
 - **Reverse:** edit `feature-catalog.ts`.
+
+### D320. ElevenLabs probe used the real /v1/user endpoint (2026-09-29)
+
+- **Decision:** the TTS probes in `src/lib/readiness.functions.ts` and
+  `src/lib/status.functions.ts` called `GET https://api.elevenlabs.io/v2/user`,
+  which does not exist — the probe 404'd on every key, valid or not, and the
+  failure text blamed the key ("may be invalid or revoked"). Both now call
+  `GET /v1/user` (ElevenLabs' real account-info endpoint); `xi-api-key` auth
+  was already correct, as is the production `POST /v1/text-to-speech` path.
+  A regression test pins the `/v1/user` URL in both files.
+- **Reverse:** revert the two URL edits; delete the "ElevenLabs probe URL"
+  describe block in `src/lib/readiness.test.ts`.
+
+### D321. Dodo allowed in billing provider CHECKs (2026-09-29)
+
+- **Decision:** new migration `20260929010000_billing_dodo_provider_check.sql`
+  adds `'dodo'` to the provider CHECK constraints on `public.subscriptions`
+  and `public.billing_events`. Without it, the first Dodo webhook (the USD
+  path) would 500 on a CHECK violation and never grant credits. Idempotent;
+  drops any provider CHECK that still excludes 'dodo'.
+- **Reverse:** new migration removing 'dodo' from both CHECKs (do not edit
+  published migrations).
+
+### D322. client_errors policy enforces its own caps (2026-09-29)
+
+- **Decision:** migration `20260929020000_client_errors_policy_caps.sql`
+  replaces the flagged `WITH CHECK (true)` on the `client_errors` INSERT
+  policy with the payload caps that were previously only a table constraint
+  (message <= 2000, stack <= 8000, route <= 500, user_agent <= 1000).
+  Anonymous insert-only telemetry (D177) is preserved; the policy itself now
+  rejects oversized rows instead of waving everything through.
+- **Reverse:** new migration restoring `WITH CHECK (true)`.
+
+### D323. Billing go-live docs corrected (2026-09-29)
+
+- **Decision:** `.env.example` DODO_PRODUCT_IDS example now uses the real
+  catalog slugs (`creator`, `studio`, `pack_s`, `pack_m`, `pack_l`) instead
+  of the stale marketing names; `docs/FOUNDER_TODO.md` documents
+  `DODO_ENVIRONMENT=live` (without it, checkout calls Dodo's test API even
+  with live keys); Razorpay's dead-end "pay with Stripe (USD)" errors now
+  say Dodo (Stripe is not approved). Razorpay subscriptions stay
+  deliberately unimplemented (INR = one-time packs only).
+- **Reverse:** edit the three files back.
