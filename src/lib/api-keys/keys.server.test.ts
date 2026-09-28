@@ -381,6 +381,43 @@ describe("authenticateApiKey middleware", () => {
     }
   });
 
+  // D178: rate-limit state is exposed for X-RateLimit-* headers.
+  it("exposes rate-limit state on the success path", async () => {
+    const { db, rawKey } = await setup(["read:projects"], 10);
+    const limiter = new SlidingWindowRateLimiter();
+    const first = await authenticateApiKey(authed(rawKey), [], { db, limiter });
+    expect(first.ok).toBe(true);
+    if (first.ok) {
+      expect(first.rateLimit.limit).toBe(10);
+      expect(first.rateLimit.remaining).toBe(9);
+      expect(first.rateLimit.reset).toBeGreaterThan(Date.now() / 1000);
+    }
+    const second = await authenticateApiKey(authed(rawKey), [], { db, limiter });
+    expect(second.ok).toBe(true);
+    if (second.ok) expect(second.rateLimit.remaining).toBe(8);
+  });
+
+  it("exposes rate-limit state on the 429 path (remaining 0)", async () => {
+    const { db, rawKey } = await setup(["read:projects"], 1);
+    const limiter = new SlidingWindowRateLimiter();
+    expect((await authenticateApiKey(authed(rawKey), [], { db, limiter })).ok).toBe(true);
+    const denied = await authenticateApiKey(authed(rawKey), [], { db, limiter });
+    expect(denied.ok).toBe(false);
+    if (!denied.ok) {
+      expect(denied.failure.status).toBe(429);
+      expect(denied.failure.rateLimit?.limit).toBe(1);
+      expect(denied.failure.rateLimit?.remaining).toBe(0);
+      expect(denied.failure.rateLimit?.reset).toBeGreaterThan(Date.now() / 1000);
+    }
+  });
+
+  it("carries no rate-limit state on 401 (check never ran)", async () => {
+    const { db } = await setup();
+    const r = await authenticateApiKey(new Request("https://x.test/"), [], { db });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.failure.rateLimit).toBeUndefined();
+  });
+
   it("200-path: verified key passes with its scopes", async () => {
     const { db, rawKey } = await setup(["read:projects", "publish:request"]);
     const r = await authenticateApiKey(authed(rawKey), ["publish:request"], { db });

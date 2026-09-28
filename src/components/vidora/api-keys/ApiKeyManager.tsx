@@ -208,7 +208,7 @@ export function ApiKeyManager({ workspaceId, role }: { workspaceId: string; role
                         onClick={() => {
                           if (
                             window.confirm(
-                              `Rotate “${k.name}”? The old key stops working immediately.`,
+                              `Rotate “${k.name}”? The old key stops working immediately. The new key's raw value will be shown once, right after rotation.`,
                             )
                           ) {
                             rotate.mutate(k.id);

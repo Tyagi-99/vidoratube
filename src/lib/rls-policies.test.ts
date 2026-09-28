@@ -140,6 +140,11 @@ const OWNER_SCOPED_TABLES = [
   // Phase 4 Stream B — analytics (2026092804b000). monetization_settings is
   // keyed by user_id with an auth.uid() owner policy.
   "monetization_settings",
+  // Phase 5 Stream A — Vidora Agent (20260928050000). agent_messages is
+  // scoped via the parent conversation's user_id (EXISTS subquery), so
+  // every policy still references auth.uid().
+  "agent_conversations",
+  "agent_messages",
 ];
 
 /**

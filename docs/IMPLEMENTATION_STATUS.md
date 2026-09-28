@@ -256,3 +256,40 @@ Delivered in Phase 4 (F27–F41):
 - **Stream E (platform):** hashed/scoped/revocable API keys with `last_used_at`, authenticated + audited MCP server (JSON-RPC over HTTP POST), brand library (`brand_assets`), workspace invites (`workspace_invites`).
 
 Migration list for the founder: `docs/PHASE4_MIGRATION_LIST.md` (19 files total, filename order).
+
+## Phase 5 — Platform (F10, F41–F42): merged on `phase5/platform` (2026-09-28, NOT pushed to main)
+
+Contract pinned first on `phase5/contracts` (`docs/PHASE5_CONTRACTS.md` —
+agent tool list, API shape, message persistence, extension token model);
+three streams built in isolated worktrees, merged here with zero textual
+conflicts. One coordinator fix after merge: `rls-policies.test.ts`
+classified the two new agent tables as owner-scoped (was the single failing
+test). D-number collision at merge (all three streams claimed D178):
+Stream B keeps D178/D180, Stream C renumbered to D182, documented in D183.
+
+Delivered:
+- **Stream A — F10 Vidora Agent:** `src/lib/agent/` server loop
+  (`sendAgentMessage`): credit preflight per LLM turn (jobType `llm_chat`,
+  debit-first), the 8 pinned MCP tools via the Supabase MCP port (no
+  duplicated logic), draft-only invariant (asserts `status === "draft"`),
+  max 6 tool iterations, `agent.tool_call` audit rows, assistant messages
+  labeled "AI analysis"; `/agent` route with conversation list + thread,
+  honest unconfigured/insufficient-credits states. New migration
+  `20260928050000_p5_agent.sql` (`agent_conversations`, `agent_messages`,
+  owner-only RLS) — NOT applied live; needs dashboard apply (KNOWN_ISSUES).
+- **Stream B — F41 gaps:** standard `X-RateLimit-*` headers on `/api/mcp`
+  and `/api/keys*` (D178); rotation UX audited (settings UI already
+  complete; one copy fix); credit-gating audit (D180 — only
+  `draft_script` generate spends, already gated); permanent MCP E2E
+  harness `src/lib/mcp/e2e.test.ts` driving all 8 tools through the real
+  JSON-RPC envelope against a sandbox fake port (D179).
+- **Stream C — F42 (docs only):** `docs/CHROME_EXTENSION.md` (architecture,
+  minimal-scope token model, CAN/CANNOT table, threat model),
+  `docs/ENTERPRISE.md` (SSO/SAML design, DPA outline, residency notes);
+  F42 marked COMPLETE (design) in the matrix; D182.
+
+Gates on `phase5/platform`: `tsc --noEmit` clean, `vitest run`
+**1738/1738**, `npm run test:worker` **87/87**, `npm run build` PASS.
+Not pushed to `origin/main` per instruction — the branch is ready for
+review/merge. The `/agent` route has not been browser-verified
+(subagents have no live-browser access).

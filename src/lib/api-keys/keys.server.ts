@@ -30,6 +30,7 @@ import {
   isValidApiKeyFormat,
   normalizeScopes,
   type ApiKeyScope,
+  type RateLimitState,
 } from "./keys";
 // Structural DB surface (generated Database types are stale for api_keys).
 export {
@@ -159,10 +160,17 @@ export type ApiAuthFailure = {
   status: 401 | 403 | 429;
   error: string;
   retryAfterMs?: number | undefined;
+  /**
+   * D178: present whenever the key passed the rate-limit check (so on 429
+   * and on 403 after a successful check). Absent on 401, which runs before
+   * any check.
+   */
+  rateLimit?: RateLimitState | undefined;
 };
 
 export type ApiAuthResult =
-  { ok: true; key: VerifiedApiKey } | { ok: false; failure: ApiAuthFailure };
+  | { ok: true; key: VerifiedApiKey; rateLimit: RateLimitState }
+  | { ok: false; failure: ApiAuthFailure };
 
 /** Shared in-memory limiter (D155: single-instance; Redis for multi-instance). */
 export const apiKeyRateLimiter = new SlidingWindowRateLimiter();
@@ -197,6 +205,11 @@ export async function authenticateApiKey(
 
   const limiter = opts?.limiter ?? apiKeyRateLimiter;
   const limit = limiter.check(`api-key:${key.keyHash}`, key.rateLimitPerMin);
+  const rateLimit: RateLimitState = {
+    limit: limit.limit,
+    remaining: limit.remaining,
+    reset: limit.resetAt,
+  };
   if (!limit.allowed) {
     return {
       ok: false,
@@ -204,6 +217,7 @@ export async function authenticateApiKey(
         status: 429,
         error: `rate limit exceeded (${key.rateLimitPerMin}/min)`,
         retryAfterMs: limit.retryAfterMs,
+        rateLimit,
       },
     };
   }
@@ -212,14 +226,14 @@ export async function authenticateApiKey(
     if (!hasScope(key.scopes, scope)) {
       return {
         ok: false,
-        failure: { status: 403, error: `missing required scope: ${scope}` },
+        failure: { status: 403, error: `missing required scope: ${scope}`, rateLimit },
       };
     }
   }
 
   // Best-effort last-used touch, at most once per minute per key.
   await touchLastUsed(opts?.db, key).catch(() => {});
-  return { ok: true, key };
+  return { ok: true, key, rateLimit };
 }
 
 async function touchLastUsed(db: UntypedDb | undefined, key: VerifiedApiKey): Promise<void> {

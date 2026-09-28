@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { createApiKey, listApiKeys } from "@/lib/api-keys/keys.server";
+import { rateLimitHeaders } from "@/lib/api-keys/keys";
 import { auditKeyAction, requireAdminKey } from "@/lib/api-keys/rest.server";
 
 /**
@@ -22,7 +23,7 @@ export const Route = createFileRoute("/api/keys")({
         if ("response" in gate) return gate.response;
         const metas = await listApiKeys(gate.key.workspaceId);
         await auditKeyAction(gate.key, "api.keys.listed", null, { count: metas.length });
-        return Response.json({ keys: metas });
+        return Response.json({ keys: metas }, { headers: rateLimitHeaders(gate.rateLimit) });
       },
 
       POST: async ({ request }) => {
@@ -54,7 +55,7 @@ export const Route = createFileRoute("/api/keys")({
           if (!gate.key.createdBy) {
             return Response.json(
               { error: "this API key has no owning user and cannot create keys" },
-              { status: 403 },
+              { status: 403, headers: rateLimitHeaders(gate.rateLimit) },
             );
           }
           const created = await createApiKey(
@@ -73,7 +74,10 @@ export const Route = createFileRoute("/api/keys")({
             scopes: created.meta.scopes,
           });
           // rawKey is surfaced HERE ONLY — never stored, never logged.
-          return Response.json({ key: created.meta, raw_key: created.rawKey }, { status: 201 });
+          return Response.json(
+            { key: created.meta, raw_key: created.rawKey },
+            { status: 201, headers: rateLimitHeaders(gate.rateLimit) },
+          );
         } catch (e) {
           return Response.json(
             { error: e instanceof Error ? e.message : "could not create API key" },
