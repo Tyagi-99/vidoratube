@@ -1211,6 +1211,7 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
 
 
 
+
 ### D136. Comment sentiment is rule-based at ingest; AI is deferred and labeled
 
 - **Decision:** F36 sentiment/question classification ships as deterministic
@@ -1572,4 +1573,78 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
   Writes `publish.metadata_overwritten` audit.
 - **Reason:** Never silently overwrite live metadata — the founder's live
   channel metadata is one misclick away from damage otherwise.
+## Phase 4 — Stream B (Analytics), 2026-09-28
+
+### D167. `source` is REQUIRED on analytics/retention snapshots, defaulting to 'fixture'
+
+- **Decision:** `analytics_snapshots.source` and `retention_snapshots.source`
+  are `NOT NULL DEFAULT 'fixture'` with
+  `CHECK (source IN ('youtube_analytics','meta_insights','fixture'))`.
+  Ingestion paths write the real source explicitly; anything else renders
+  with a DEMO DATA badge in the UI.
+- **Reason:** The pinned contracts require a source label on every snapshot.
+  Defaulting to `fixture` makes the honest label the path of least
+  resistance — an unlabelled row can never masquerade as platform-measured.
+- **Reverse:** If a new platform source is added, extend the CHECK in a new
+  migration; never loosen the default.
+
+### D168. Dashboard deltas compare against the prior 28d, honestly
+
+- **Decision:** `pickDeltaPair` takes the latest snapshot and the latest
+  snapshot dated ≥28 days earlier, labeled "vs prior 28d". With no such
+  prior snapshot the UI shows "insufficient history" and no delta number.
+- **Reason:** A delta without a real baseline is a fabricated comparison.
+- **Reverse:** Window stays 28d unless a D-decision changes it.
+
+### D169. Content buckets derive from project metadata, never invented labels
+
+- **Decision:** Bucket key = `<projects.category> · <projects.preset>`
+  (pillar × format); missing metadata → "Uncategorized · standard".
+  Single-video buckets render with a `thinData` flag ("anecdote, not a trend").
+- **Reason:** Buckets must be explainable from data the user already owns.
+- **Reverse:** Add more dimensions (e.g. visual_style) via a new decision.
+
+### D170. Weakest-scene diagnosis from real points only
+
+- **Decision:** Hook baseline = mean of the first 3 retention points;
+  weakest scene = scene owning the point with the largest drop below that
+  baseline. Requires ≥4 points, never interpolates, counts unattributed
+  (scene-less) points separately. Diagnosis text is positional
+  (early/mid/late) and descriptive, never a guaranteed fix.
+- **Reason:** D73 honesty rules — no invented points.
+- **Reverse:** None.
+
+### D171. Channel audit findings are descriptive or AI-labeled, always evidenced
+
+- **Decision:** Five rules (upload cadence, CTR trend, retention vs the
+  documented 35% niche reference, metadata completeness, subscriber growth
+  stall over `channel_snapshots`). Every finding cites evidence rows
+  (snapshot ids/dates/values); guidance is `descriptive` or prefixed
+  "AI analysis — not a guaranteed fix".
+- **Reason:** An audit that can't show its work is a black box; one that
+  promises fixes is dishonest.
+- **Reverse:** Add rules freely; removing evidence citation needs a decision.
+
+### D172. Revenue is ESTIMATE unless provably measured
+
+- **Decision:** `revenueLabel()` returns `measured` only when
+  `revenue_basis='measured'` AND `source != 'fixture'`; fixture rows are
+  always demoted to `estimate`. RPM/CPM-derived revenue is always ESTIMATE;
+  `summarizeMonetization` returns `null` (not $0) when no RPM is set. The UI
+  carries a no-earnings-guarantees notice.
+- **Reason:** Contracts default `revenue_basis` to `estimate`; the UI must
+  make that impossible to misread.
+- **Reverse:** None.
+
+### D173. ROI costs are net ledger credits; unattributed spend stays visible
+
+- **Decision:** Cost per video = net `credit_ledger` deltas (debits negative,
+  refunds positive) attributed via
+  `ref_id → renders.id | renders.job_id (video_jobs) | projects.id (legacy)`
+  → `renders.project_id` → `publish_jobs` → video. Unattributable rows are
+  reported as "unattributed production cost", counted in totals, never
+  silently dropped. USD equivalents shown at every plan's effective
+  per-credit rate (`src/lib/billing/plans.ts`).
+- **Reason:** Real costs, honest gaps; per-plan transparency for the
+  founder's pricing decisions.
 - **Reverse:** None.

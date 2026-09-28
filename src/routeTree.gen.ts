@@ -20,6 +20,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as StatusRouteImport } from './routes/status'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthenticatedAnalyticsRouteRouteImport } from './routes/_authenticated/analytics.route'
 import { Route as AuthenticatedStudioRouteImport } from './routes/_authenticated/studio'
 import { Route as ApiKeysRouteImport } from './routes/api/keys'
 import { Route as ApiMcpRouteImport } from './routes/api/mcp'
@@ -39,6 +40,11 @@ import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAgencyIndexRouteImport } from './routes/_authenticated/agency.index'
 import { Route as AuthenticatedAgencyWorkspaceIdRouteImport } from './routes/_authenticated/agency.$workspaceId'
 import { Route as AuthenticatedAnalyticsIndexRouteImport } from './routes/_authenticated/analytics.index'
+import { Route as AuthenticatedAnalyticsAuditRouteImport } from './routes/_authenticated/analytics.audit'
+import { Route as AuthenticatedAnalyticsBucketsRouteImport } from './routes/_authenticated/analytics.buckets'
+import { Route as AuthenticatedAnalyticsMonetizationRouteImport } from './routes/_authenticated/analytics.monetization'
+import { Route as AuthenticatedAnalyticsRetentionRouteImport } from './routes/_authenticated/analytics.retention'
+import { Route as AuthenticatedAnalyticsRoiRouteImport } from './routes/_authenticated/analytics.roi'
 import { Route as AuthenticatedBillingIndexRouteImport } from './routes/_authenticated/billing.index'
 import { Route as AuthenticatedCharactersIndexRouteImport } from './routes/_authenticated/characters.index'
 import { Route as AuthenticatedCommentsIndexRouteImport } from './routes/_authenticated/comments.index'
@@ -134,6 +140,12 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAnalyticsRouteRoute =
+  AuthenticatedAnalyticsRouteRouteImport.update({
+    id: '/analytics',
+    path: '/analytics',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedStudioRoute = AuthenticatedStudioRouteImport.update({
   id: '/studio',
   path: '/studio',
@@ -232,9 +244,39 @@ const AuthenticatedAgencyWorkspaceIdRoute =
   } as any)
 const AuthenticatedAnalyticsIndexRoute =
   AuthenticatedAnalyticsIndexRouteImport.update({
-    id: '/analytics/',
-    path: '/analytics/',
-    getParentRoute: () => AuthenticatedRouteRoute,
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAnalyticsRouteRoute,
+  } as any)
+const AuthenticatedAnalyticsAuditRoute =
+  AuthenticatedAnalyticsAuditRouteImport.update({
+    id: '/audit',
+    path: '/audit',
+    getParentRoute: () => AuthenticatedAnalyticsRouteRoute,
+  } as any)
+const AuthenticatedAnalyticsBucketsRoute =
+  AuthenticatedAnalyticsBucketsRouteImport.update({
+    id: '/buckets',
+    path: '/buckets',
+    getParentRoute: () => AuthenticatedAnalyticsRouteRoute,
+  } as any)
+const AuthenticatedAnalyticsMonetizationRoute =
+  AuthenticatedAnalyticsMonetizationRouteImport.update({
+    id: '/monetization',
+    path: '/monetization',
+    getParentRoute: () => AuthenticatedAnalyticsRouteRoute,
+  } as any)
+const AuthenticatedAnalyticsRetentionRoute =
+  AuthenticatedAnalyticsRetentionRouteImport.update({
+    id: '/retention',
+    path: '/retention',
+    getParentRoute: () => AuthenticatedAnalyticsRouteRoute,
+  } as any)
+const AuthenticatedAnalyticsRoiRoute =
+  AuthenticatedAnalyticsRoiRouteImport.update({
+    id: '/roi',
+    path: '/roi',
+    getParentRoute: () => AuthenticatedAnalyticsRouteRoute,
   } as any)
 const AuthenticatedBillingIndexRoute =
   AuthenticatedBillingIndexRouteImport.update({
@@ -481,6 +523,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/status': typeof StatusRoute
   '/terms': typeof TermsRoute
+  '/analytics': typeof AuthenticatedAnalyticsRouteRouteWithChildren
   '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/studio': typeof AuthenticatedStudioRouteWithChildren
   '/api/keys': typeof ApiKeysRouteWithChildren
@@ -498,6 +541,11 @@ export interface FileRoutesByFullPath {
   '/admin/safety': typeof AuthenticatedAdminSafetyRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/agency/$workspaceId': typeof AuthenticatedAgencyWorkspaceIdRoute
+  '/analytics/audit': typeof AuthenticatedAnalyticsAuditRoute
+  '/analytics/buckets': typeof AuthenticatedAnalyticsBucketsRoute
+  '/analytics/monetization': typeof AuthenticatedAnalyticsMonetizationRoute
+  '/analytics/retention': typeof AuthenticatedAnalyticsRetentionRoute
+  '/analytics/roi': typeof AuthenticatedAnalyticsRoiRoute
   '/create/brand-voices': typeof AuthenticatedCreateBrandVoicesRoute
   '/create/campaigns': typeof AuthenticatedCreateCampaignsRoute
   '/create/quick-create': typeof AuthenticatedCreateQuickCreateRoute
@@ -568,6 +616,11 @@ export interface FileRoutesByTo {
   '/admin/safety': typeof AuthenticatedAdminSafetyRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/agency/$workspaceId': typeof AuthenticatedAgencyWorkspaceIdRoute
+  '/analytics/audit': typeof AuthenticatedAnalyticsAuditRoute
+  '/analytics/buckets': typeof AuthenticatedAnalyticsBucketsRoute
+  '/analytics/monetization': typeof AuthenticatedAnalyticsMonetizationRoute
+  '/analytics/retention': typeof AuthenticatedAnalyticsRetentionRoute
+  '/analytics/roi': typeof AuthenticatedAnalyticsRoiRoute
   '/create/brand-voices': typeof AuthenticatedCreateBrandVoicesRoute
   '/create/campaigns': typeof AuthenticatedCreateCampaignsRoute
   '/create/quick-create': typeof AuthenticatedCreateQuickCreateRoute
@@ -624,6 +677,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/status': typeof StatusRoute
   '/terms': typeof TermsRoute
+  '/_authenticated/analytics': typeof AuthenticatedAnalyticsRouteRouteWithChildren
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/_authenticated/studio': typeof AuthenticatedStudioRouteWithChildren
   '/api/keys': typeof ApiKeysRouteWithChildren
@@ -641,6 +695,11 @@ export interface FileRoutesById {
   '/_authenticated/admin/safety': typeof AuthenticatedAdminSafetyRoute
   '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
   '/_authenticated/agency/$workspaceId': typeof AuthenticatedAgencyWorkspaceIdRoute
+  '/_authenticated/analytics/audit': typeof AuthenticatedAnalyticsAuditRoute
+  '/_authenticated/analytics/buckets': typeof AuthenticatedAnalyticsBucketsRoute
+  '/_authenticated/analytics/monetization': typeof AuthenticatedAnalyticsMonetizationRoute
+  '/_authenticated/analytics/retention': typeof AuthenticatedAnalyticsRetentionRoute
+  '/_authenticated/analytics/roi': typeof AuthenticatedAnalyticsRoiRoute
   '/_authenticated/create/brand-voices': typeof AuthenticatedCreateBrandVoicesRoute
   '/_authenticated/create/campaigns': typeof AuthenticatedCreateCampaignsRoute
   '/_authenticated/create/quick-create': typeof AuthenticatedCreateQuickCreateRoute
@@ -697,6 +756,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/status'
     | '/terms'
+    | '/analytics'
     | '/admin'
     | '/studio'
     | '/api/keys'
@@ -714,6 +774,11 @@ export interface FileRouteTypes {
     | '/admin/safety'
     | '/admin/users'
     | '/agency/$workspaceId'
+    | '/analytics/audit'
+    | '/analytics/buckets'
+    | '/analytics/monetization'
+    | '/analytics/retention'
+    | '/analytics/roi'
     | '/create/brand-voices'
     | '/create/campaigns'
     | '/create/quick-create'
@@ -784,6 +849,11 @@ export interface FileRouteTypes {
     | '/admin/safety'
     | '/admin/users'
     | '/agency/$workspaceId'
+    | '/analytics/audit'
+    | '/analytics/buckets'
+    | '/analytics/monetization'
+    | '/analytics/retention'
+    | '/analytics/roi'
     | '/create/brand-voices'
     | '/create/campaigns'
     | '/create/quick-create'
@@ -839,6 +909,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/status'
     | '/terms'
+    | '/_authenticated/analytics'
     | '/_authenticated/admin'
     | '/_authenticated/studio'
     | '/api/keys'
@@ -856,6 +927,11 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/safety'
     | '/_authenticated/admin/users'
     | '/_authenticated/agency/$workspaceId'
+    | '/_authenticated/analytics/audit'
+    | '/_authenticated/analytics/buckets'
+    | '/_authenticated/analytics/monetization'
+    | '/_authenticated/analytics/retention'
+    | '/_authenticated/analytics/roi'
     | '/_authenticated/create/brand-voices'
     | '/_authenticated/create/campaigns'
     | '/_authenticated/create/quick-create'
@@ -1005,6 +1081,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/analytics': {
+      id: '/_authenticated/analytics'
+      path: '/analytics'
+      fullPath: '/analytics'
+      preLoaderRoute: typeof AuthenticatedAnalyticsRouteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/studio': {
       id: '/_authenticated/studio'
       path: '/studio'
@@ -1133,10 +1216,45 @@ declare module '@tanstack/react-router' {
     }
     '/_authenticated/analytics/': {
       id: '/_authenticated/analytics/'
-      path: '/analytics'
+      path: '/'
       fullPath: '/analytics/'
       preLoaderRoute: typeof AuthenticatedAnalyticsIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      parentRoute: typeof AuthenticatedAnalyticsRouteRoute
+    }
+    '/_authenticated/analytics/audit': {
+      id: '/_authenticated/analytics/audit'
+      path: '/audit'
+      fullPath: '/analytics/audit'
+      preLoaderRoute: typeof AuthenticatedAnalyticsAuditRouteImport
+      parentRoute: typeof AuthenticatedAnalyticsRouteRoute
+    }
+    '/_authenticated/analytics/buckets': {
+      id: '/_authenticated/analytics/buckets'
+      path: '/buckets'
+      fullPath: '/analytics/buckets'
+      preLoaderRoute: typeof AuthenticatedAnalyticsBucketsRouteImport
+      parentRoute: typeof AuthenticatedAnalyticsRouteRoute
+    }
+    '/_authenticated/analytics/monetization': {
+      id: '/_authenticated/analytics/monetization'
+      path: '/monetization'
+      fullPath: '/analytics/monetization'
+      preLoaderRoute: typeof AuthenticatedAnalyticsMonetizationRouteImport
+      parentRoute: typeof AuthenticatedAnalyticsRouteRoute
+    }
+    '/_authenticated/analytics/retention': {
+      id: '/_authenticated/analytics/retention'
+      path: '/retention'
+      fullPath: '/analytics/retention'
+      preLoaderRoute: typeof AuthenticatedAnalyticsRetentionRouteImport
+      parentRoute: typeof AuthenticatedAnalyticsRouteRoute
+    }
+    '/_authenticated/analytics/roi': {
+      id: '/_authenticated/analytics/roi'
+      path: '/roi'
+      fullPath: '/analytics/roi'
+      preLoaderRoute: typeof AuthenticatedAnalyticsRoiRouteImport
+      parentRoute: typeof AuthenticatedAnalyticsRouteRoute
     }
     '/_authenticated/billing/': {
       id: '/_authenticated/billing/'
@@ -1421,6 +1539,31 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedAnalyticsRouteRouteChildren {
+  AuthenticatedAnalyticsAuditRoute: typeof AuthenticatedAnalyticsAuditRoute
+  AuthenticatedAnalyticsBucketsRoute: typeof AuthenticatedAnalyticsBucketsRoute
+  AuthenticatedAnalyticsMonetizationRoute: typeof AuthenticatedAnalyticsMonetizationRoute
+  AuthenticatedAnalyticsRetentionRoute: typeof AuthenticatedAnalyticsRetentionRoute
+  AuthenticatedAnalyticsRoiRoute: typeof AuthenticatedAnalyticsRoiRoute
+  AuthenticatedAnalyticsIndexRoute: typeof AuthenticatedAnalyticsIndexRoute
+}
+
+const AuthenticatedAnalyticsRouteRouteChildren: AuthenticatedAnalyticsRouteRouteChildren =
+  {
+    AuthenticatedAnalyticsAuditRoute: AuthenticatedAnalyticsAuditRoute,
+    AuthenticatedAnalyticsBucketsRoute: AuthenticatedAnalyticsBucketsRoute,
+    AuthenticatedAnalyticsMonetizationRoute:
+      AuthenticatedAnalyticsMonetizationRoute,
+    AuthenticatedAnalyticsRetentionRoute: AuthenticatedAnalyticsRetentionRoute,
+    AuthenticatedAnalyticsRoiRoute: AuthenticatedAnalyticsRoiRoute,
+    AuthenticatedAnalyticsIndexRoute: AuthenticatedAnalyticsIndexRoute,
+  }
+
+const AuthenticatedAnalyticsRouteRouteWithChildren =
+  AuthenticatedAnalyticsRouteRoute._addFileChildren(
+    AuthenticatedAnalyticsRouteRouteChildren,
+  )
+
 interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminContentRoute: typeof AuthenticatedAdminContentRoute
   AuthenticatedAdminIntegrationsRoute: typeof AuthenticatedAdminIntegrationsRoute
@@ -1458,6 +1601,7 @@ const AuthenticatedStudioRouteWithChildren =
   AuthenticatedStudioRoute._addFileChildren(AuthenticatedStudioRouteChildren)
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAnalyticsRouteRoute: typeof AuthenticatedAnalyticsRouteRouteWithChildren
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRouteWithChildren
   AuthenticatedStudioRoute: typeof AuthenticatedStudioRouteWithChildren
   AuthenticatedAgencyWorkspaceIdRoute: typeof AuthenticatedAgencyWorkspaceIdRoute
@@ -1474,7 +1618,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedResearchProjectIdRoute: typeof AuthenticatedResearchProjectIdRoute
   AuthenticatedSettingsApiKeysRoute: typeof AuthenticatedSettingsApiKeysRoute
   AuthenticatedAgencyIndexRoute: typeof AuthenticatedAgencyIndexRoute
-  AuthenticatedAnalyticsIndexRoute: typeof AuthenticatedAnalyticsIndexRoute
   AuthenticatedBillingIndexRoute: typeof AuthenticatedBillingIndexRoute
   AuthenticatedCharactersIndexRoute: typeof AuthenticatedCharactersIndexRoute
   AuthenticatedCommentsIndexRoute: typeof AuthenticatedCommentsIndexRoute
@@ -1498,6 +1641,8 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAnalyticsRouteRoute:
+    AuthenticatedAnalyticsRouteRouteWithChildren,
   AuthenticatedAdminRoute: AuthenticatedAdminRouteWithChildren,
   AuthenticatedStudioRoute: AuthenticatedStudioRouteWithChildren,
   AuthenticatedAgencyWorkspaceIdRoute: AuthenticatedAgencyWorkspaceIdRoute,
@@ -1515,7 +1660,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedResearchProjectIdRoute: AuthenticatedResearchProjectIdRoute,
   AuthenticatedSettingsApiKeysRoute: AuthenticatedSettingsApiKeysRoute,
   AuthenticatedAgencyIndexRoute: AuthenticatedAgencyIndexRoute,
-  AuthenticatedAnalyticsIndexRoute: AuthenticatedAnalyticsIndexRoute,
   AuthenticatedBillingIndexRoute: AuthenticatedBillingIndexRoute,
   AuthenticatedCharactersIndexRoute: AuthenticatedCharactersIndexRoute,
   AuthenticatedCommentsIndexRoute: AuthenticatedCommentsIndexRoute,
