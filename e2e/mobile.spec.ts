@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 
 /**
  * Mobile layout checks at 375px width.
@@ -25,7 +25,8 @@ for (const path of PAGES) {
 
 test("homepage hero is readable at 375px", async ({ page }) => {
   await page.goto("/");
-  const hero = page.getByRole("heading", { name: /ai video studio/i });
+  // Hero heading (cinema redesign: "Script in. Film out.")
+  const hero = page.getByRole("heading", { name: /script in/i });
   await expect(hero).toBeVisible();
   const box = await hero.boundingBox();
   expect(box?.width).toBeLessThanOrEqual(375);

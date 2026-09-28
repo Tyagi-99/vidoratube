@@ -1772,3 +1772,71 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
   publish, schedule, or spend beyond the existing gates — human approvals
   stay in the publish pipeline.
 - **Reverse:** disable the `/agent` route; the agent tables are additive.
+
+### D200. E2E runs against the production build with deterministic adapters (2026-09-28)
+
+- **Decision:** `npm run test:e2e` = `npm run build:e2e && playwright test`, where
+  `build:e2e` builds the production bundle (`NITRO_PRESET=node-server`,
+  `VITE_SUPABASE_URL=http://127.0.0.1:54321`) and the Playwright webServer
+  (`e2e/serve.mjs`) boots (1) a deterministic in-memory Supabase stub
+  (`e2e/stub-supabase/server.mjs`: GoTrue auth, PostgREST-ish CRUD, credit
+  RPCs with the same idempotency/debit/refund semantics as the SQL
+  migrations) on 127.0.0.1:54321 and (2) `.output/server/index.mjs` on
+  127.0.0.1:3100 with `VIDORA_E2E_ADAPTER=deterministic`. Script generation
+  takes a deterministic-adapter branch (canned topic-derived sections, zero
+  provider cost) while the real credit preflight, debit-first charge, and
+  version-save path run unchanged. This VM's Chromium hard-blocks direct
+  loopback navigation (`ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS`, no
+  working disable switch), so every spec page routes loopback requests
+  through a Playwright fulfillment bridge (`bridgeLocalhost`): the REAL
+  server responses are fetched by Node and fulfilled to the browser — app
+  code, server functions, and stub are all real; only the last-mile
+  transport is bridged. Adapter-dependent tests are labeled `[adapter]`.
+- **Reason:** no Supabase credentials, Docker, or provider keys exist in this
+  environment; the deterministic stub + adapters let the full critical-path
+  suite (signup, projects, script debit, approvals, stale-job refund, all
+  nav targets) run honestly against the production build with real
+  `credit_ledger` assertions.
+- **Reverse:** `test:e2e`/`playwright.config.ts` revert to `npm run dev`;
+  delete `e2e/serve.mjs`, `e2e/stub-supabase/`, `e2e/fixtures.ts`,
+  `e2e/adapter-helpers.ts`, `e2e/workflows.spec.ts` and the
+  `VIDORA_E2E_ADAPTER` branch in `scripts.functions.ts`.
+
+### D201. E2E stub fidelity + mobile project + stale-copy assertion updates (2026-09-28)
+
+- **Decision:** four follow-ups to D200's harness.
+  1. **Stub mirrors Postgres column defaults.** The Supabase stub now
+     applies migration column defaults server-side on INSERT
+     (`scripts.status: "draft"`, `projects.*`, `render_jobs.*`,
+     `script_versions.*`, `created_at`/`updated_at`) because raw
+     PostgREST inserts rely on the database; without this the app crashed
+     reading `scripts.status.label` after script creation.
+  2. **Stub seeds deterministic `pricing_plans`.** Starter $19 / Studio $49
+     / Scale $149 (+ INR anchors 1599/3999/11999) mirrored from the
+     migration seed INSERTs, installed on every reset — the pricing page
+     reads them via `getPricingPlans`, so plan-card tests assert real
+     values instead of an empty page.
+  3. **Mobile project uses viewport emulation, not `devices["iPhone 13"]`.**
+     That descriptor carries `defaultBrowserType: "webkit"` and crashes this
+     VM's Chromium on launch (`Target page, context or browser has been
+     closed`); the mobile project now sets `viewport 375×667` +
+     `isMobile` + `hasTouch` on Chromium directly, and the desktop
+     `chromium` project ignores `mobile.spec.ts` (it previously ran every
+     spec file, double-running the mobile tests and failing the 375px
+     hero-width assertion at desktop width).
+  4. **Stale marketing-copy assertions updated to the cinema redesign.**
+     `public`/`stranger`/`mobile` specs expected the pre-redesign hero
+     ("AI video studio"), the old checkout note ("checkout is not live"),
+     and a modal dialog at `/studio?create=script`; the current site says
+     "Script in.", "Checkout is being set up", and renders the create UI
+     as a page (`asPage`, no `role="dialog"`). Tests now assert the real
+     copy/behavior. No app copy changed — the redesign is user-approved.
+- **Reason:** keep the E2E suite honest against the production build: the
+  stub must behave like Postgres (defaults, seed data), the mobile
+  project must actually launch, and assertions must match the shipped UI
+  rather than a previous design.
+- **Reverse:** remove `COLUMN_DEFAULTS`/`seedStatic` from
+  `e2e/stub-supabase/server.mjs` (falls back to empty tables); restore the
+  iPhone 13 device descriptor in `playwright.config.ts` once WebKit or a
+  fixed Chromium is available; revert spec copy changes if the marketing
+  site is redesigned again.
