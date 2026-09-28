@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Aperture,
   Building2,
   Check,
+  ChevronDown,
   Coins,
   Film,
   LogOut,
@@ -29,21 +30,47 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { getMyAccount } from "@/lib/jobs.functions";
 import { listWorkspaces } from "@/lib/agency/agency.functions";
+import { directLinks, mobileLinks, navGroups, type NavItem } from "./appNav";
 
-const links = [
-  { label: "Studio", to: "/studio" as const },
-  { label: "Projects", to: "/projects" as const },
-  { label: "Research", to: "/research" as const },
-  { label: "Create", to: "/create" as const },
-  { label: "Intelligence", to: "/intelligence" as const },
-  { label: "Agent", to: "/agent" as const },
-  { label: "Analytics", to: "/analytics" as const },
-  { label: "Thumbnails", to: "/thumbnails" as const },
-  { label: "Characters", to: "/characters" as const },
-  { label: "Agency", to: "/agency" as const },
-  { label: "Billing", to: "/billing" as const },
-  { label: "Settings", to: "/settings/api-keys" as const },
-];
+const desktopLinkClass =
+  "relative flex h-full items-center px-3 text-sm font-medium text-muted-foreground transition-colors after:absolute after:inset-x-3 after:bottom-0 after:h-px after:bg-accent after:opacity-0 hover:text-foreground";
+const desktopActiveClass = "text-foreground after:opacity-100";
+
+function NavGroupMenu({
+  label,
+  items,
+}: {
+  label: string;
+  items: NavItem[];
+}) {
+  const { pathname } = useLocation();
+  const isActive = items.some(
+    (item) => pathname === item.to || pathname.startsWith(`${item.to}/`),
+  );
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label={`${label} menu`}
+          className={`${desktopLinkClass} cursor-pointer gap-1 ${isActive ? desktopActiveClass : ""}`}
+        >
+          {label}
+          <ChevronDown className="size-3.5" aria-hidden="true" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-52">
+        {items.map((item) => (
+          <DropdownMenuItem key={item.to} asChild>
+            <Link to={item.to} className="w-full cursor-pointer">
+              {item.label}
+            </Link>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 export function AppChrome() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -78,16 +105,19 @@ export function AppChrome() {
         </Link>
 
         <nav aria-label="Studio" className="hidden h-full items-center gap-1 md:flex">
-          {links.map((item) => (
+          {directLinks.map((item) => (
             <Link
               key={item.to}
               to={item.to}
               activeOptions={{ exact: item.to === "/studio" }}
-              activeProps={{ className: "text-foreground after:opacity-100" }}
-              className="relative flex h-full items-center px-3 text-sm font-medium text-muted-foreground transition-colors after:absolute after:inset-x-3 after:bottom-0 after:h-px after:bg-accent after:opacity-0 hover:text-foreground"
+              activeProps={{ className: desktopActiveClass }}
+              className={desktopLinkClass}
             >
               {item.label}
             </Link>
+          ))}
+          {navGroups.map((group) => (
+            <NavGroupMenu key={group.label} label={group.label} items={group.items} />
           ))}
           {account.data?.isAdmin && (
             <Link
@@ -190,7 +220,7 @@ export function AppChrome() {
           className="border-t border-border bg-background px-4 py-3 md:hidden"
         >
           <div className="mx-auto grid max-w-[1440px] gap-1">
-            {links.map((item) => (
+            {mobileLinks.map((item) => (
               <Link
                 key={item.to}
                 to={item.to}
