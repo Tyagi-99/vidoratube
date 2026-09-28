@@ -95,6 +95,8 @@ export const generateTitlesSchema = z.object({
   topic: z.string().trim().min(1).max(200),
   keywords: z.array(z.string().trim().min(1).max(60)).max(20).default([]),
   maxVariants: z.number().int().min(1).max(12).default(10),
+  /** Optional pinned format id (Phase 6 Stream E, TI-3 pattern). */
+  formatId: z.string().trim().min(1).max(60).optional(),
 });
 
 export const setVariantStatusSchema = z.object({
@@ -177,7 +179,11 @@ export const generateAndSaveTitleVariants = createServerFn({ method: "POST" })
       topic: data.topic,
       keywords: data.keywords,
       maxVariants: data.maxVariants,
+      ...(data.formatId ? { formatId: data.formatId } : {}),
     });
+    if (titles.length === 0 && data.formatId) {
+      throw new Error("That format did not produce any variants for this topic.");
+    }
     const rows = titles.map((title) => ({
       user_id: userId,
       project_id: data.projectId,

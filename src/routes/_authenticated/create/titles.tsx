@@ -38,6 +38,8 @@ import {
 } from "@/lib/creation/titles/titles.functions";
 import type { TitleScore } from "@/lib/creation/contracts";
 import type { Json } from "@/integrations/supabase/types";
+import { getTitleFormat, listTitleFormats } from "@/lib/creation/titles/formats";
+import { getTitleWordVectors } from "@/lib/creation/titles/vectors.functions";
 
 export const Route = createFileRoute("/_authenticated/create/titles")({
   component: TitleLab,
@@ -166,10 +168,18 @@ function TitleLab() {
   const [projectId, setProjectId] = useState("");
   const [topic, setTopic] = useState("");
   const [keywords, setKeywords] = useState("");
+  const [formatId, setFormatId] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   const [expOpen, setExpOpen] = useState(false);
   const [expName, setExpName] = useState("");
   const [expHypothesis, setExpHypothesis] = useState("");
+
+  const vectorsFn = useServerFn(getTitleWordVectors);
+  const vectors = useQuery({
+    queryKey: ["title-word-vectors"],
+    queryFn: () => vectorsFn({ data: {} }),
+  });
+  const activeFormat = formatId ? getTitleFormat(formatId) : null;
 
   const projects = useQuery({ queryKey: ["projects"], queryFn: () => listProjectsFn({}) });
   const variants = useQuery({
@@ -192,6 +202,7 @@ function TitleLab() {
             .split(",")
             .map((k) => k.trim())
             .filter(Boolean),
+          formatId: formatId || undefined,
         },
       }),
     onSuccess: (res) => {
@@ -271,6 +282,36 @@ function TitleLab() {
               placeholder="night trains"
             />
           </div>
+          {/* P6 Stream E (P2): pinned title format library */}
+          <div className="sm:col-span-2">
+            <Label htmlFor="tl-format">Title format (optional)</Label>
+            <Select
+              value={formatId}
+              onValueChange={(v) => setFormatId(v === "none" ? "" : v)}
+            >
+              <SelectTrigger id="tl-format">
+                <SelectValue placeholder="Generic templates…" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Generic templates…</SelectItem>
+                {listTitleFormats().map((f) => (
+                  <SelectItem key={f.id} value={f.id}>
+                    {f.name} — {f.lever}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {activeFormat && (
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                <Badge variant="secondary" className="mr-1.5">
+                  {activeFormat.lever}
+                </Badge>
+                <code className="rounded bg-muted px-1 py-0.5">{activeFormat.template}</code>
+                {" — "}
+                {activeFormat.note}
+              </p>
+            )}
+          </div>
           <div className="sm:col-span-2">
             <Button
               disabled={!projectId || !topic.trim() || generate.isPending}
@@ -280,6 +321,66 @@ function TitleLab() {
               Generate variants
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* P6 Stream E (P3): viral word vectors from the user's own outlier corpus */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="text-base">Word vectors</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {vectors.isPending ? (
+            <Skeleton className="h-16 w-full" />
+          ) : vectors.isError ? (
+            <p className="text-sm text-destructive">
+              Failed to load word vectors:{" "}
+              {vectors.error instanceof Error ? vectors.error.message : "unknown error"}
+            </p>
+          ) : vectors.data?.status === "insufficient_data" ? (
+            <p className="text-sm text-muted-foreground">{vectors.data.reason}</p>
+          ) : vectors.data?.status === "ok" ? (
+            <div className="space-y-4">
+              <p className="text-xs text-muted-foreground">
+                Words scored across {vectors.data.videoCount} of your tracked outlier videos —
+                packaging heuristics, not CTR predictions. Words need ≥3 videos to be scored.
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {vectors.data.vectors.slice(0, 15).map((v) => (
+                  <Badge
+                    key={v.word}
+                    variant="secondary"
+                    title={`${v.videos} videos · median ${v.medianOutlier}× outlier`}
+                  >
+                    {v.word} · {v.lift.toFixed(2)}×
+                  </Badge>
+                ))}
+                {vectors.data.vectors.length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    No words meet the 3-video floor yet — track more outliers.
+                  </p>
+                )}
+              </div>
+              {vectors.data.pairings.length > 0 && (
+                <div>
+                  <p className="mb-1.5 text-xs font-medium text-muted-foreground">
+                    Strong pairings in your outliers
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {vectors.data.pairings.slice(0, 8).map((p) => (
+                      <Badge
+                        key={`${p.wordA}|${p.wordB}`}
+                        variant="outline"
+                        title={`${p.videos} videos together · median ${p.medianOutlier}× outlier`}
+                      >
+                        {p.wordA} + {p.wordB}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : null}
         </CardContent>
       </Card>
 

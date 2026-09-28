@@ -261,6 +261,9 @@ function NewProjectDialog({
 
   const [topic, setTopic] = useState("");
   const [script, setScript] = useState("");
+  const [sourceKind, setSourceKind] = useState<"topic" | "draft" | "transcript" | "article" | "url">("topic");
+  const [sourceText, setSourceText] = useState("");
+  const [sourceUrl, setSourceUrl] = useState("");
   const [mode, setMode] = useState<"stock" | "image" | "video">("stock");
   const [preset, setPreset] = useState<"sleep" | "documentary" | "war_history">("documentary");
   const [style, setStyle] = useState(IMAGE_STYLES[0]!.id);
@@ -275,6 +278,9 @@ function NewProjectDialog({
         data: {
           topic,
           ...(script.trim() ? { script } : {}),
+          source_kind: sourceKind,
+          ...(sourceText.trim() ? { source_text: sourceText } : {}),
+          ...(sourceUrl.trim() ? { source_url: sourceUrl } : {}),
           mode,
           preset,
           visual_style: style,
@@ -289,6 +295,9 @@ function NewProjectDialog({
       onOpenChange(false);
       setTopic("");
       setScript("");
+      setSourceKind("topic");
+      setSourceText("");
+      setSourceUrl("");
       toast.success("Project created — open it to start generating.", {
         description: project.title,
       });
@@ -302,33 +311,119 @@ function NewProjectDialog({
         <DialogHeader>
           <DialogTitle>New project</DialogTitle>
           <DialogDescription>
-            Give Vidora a topic, or paste your own script and it will only handle the visuals and
-            voice.
+            Give Vidora a topic, paste your own script, or start from a transcript, article, or
+            reference link.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* P6 Stream E (P5): multi-source ingestion */}
+          <div className="space-y-2">
+            <Label>Start from</Label>
+            <Select value={sourceKind} onValueChange={(v) => setSourceKind(v as typeof sourceKind)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="topic">Topic</SelectItem>
+                <SelectItem value="draft">Draft / script</SelectItem>
+                <SelectItem value="transcript">Transcript (pasted)</SelectItem>
+                <SelectItem value="article">Article (pasted)</SelectItem>
+                <SelectItem value="url">Reference link</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="topic">Topic</Label>
             <Input
               id="topic"
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
-              placeholder="The fall of the Roman Republic"
+              placeholder={
+                sourceKind === "topic"
+                  ? "The fall of the Roman Republic"
+                  : "Short label (auto-filled from source if left empty)"
+              }
               maxLength={300}
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="script">Your script (optional)</Label>
-            <Textarea
-              id="script"
-              value={script}
-              onChange={(e) => setScript(e.target.value)}
-              placeholder="Paste a finished script to skip AI writing."
-              rows={4}
-            />
-          </div>
+          {sourceKind === "draft" && (
+            <div className="space-y-2">
+              <Label htmlFor="script">Your script</Label>
+              <Textarea
+                id="script"
+                value={script}
+                onChange={(e) => setScript(e.target.value)}
+                placeholder="Paste a finished script — Vidora will only handle the visuals and voice."
+                rows={4}
+              />
+            </div>
+          )}
+
+          {(sourceKind === "transcript" || sourceKind === "article") && (
+            <div className="space-y-2">
+              <Label htmlFor="source-text">
+                Paste the {sourceKind === "transcript" ? "transcript" : "article text"} (min 50
+                characters)
+              </Label>
+              <Textarea
+                id="source-text"
+                value={sourceText}
+                onChange={(e) => setSourceText(e.target.value)}
+                placeholder={
+                  sourceKind === "transcript"
+                    ? "0:00 welcome back — today we…"
+                    : "Paste the article Vidora should plan from…"
+                }
+                rows={6}
+                maxLength={100000}
+              />
+            </div>
+          )}
+
+          {sourceKind === "url" && (
+            <div className="space-y-2">
+              <Label htmlFor="source-url">Reference link (stored only — Vidora never fetches it)</Label>
+              <Input
+                id="source-url"
+                value={sourceUrl}
+                onChange={(e) => setSourceUrl(e.target.value)}
+                placeholder="https://…"
+                inputMode="url"
+                maxLength={2048}
+              />
+              <div className="space-y-2">
+                <Label htmlFor="source-text-url">Paste the content to work from (optional)</Label>
+                <Textarea
+                  id="source-text-url"
+                  value={sourceText}
+                  onChange={(e) => setSourceText(e.target.value)}
+                  placeholder="Paste the text Vidora should plan from…"
+                  rows={4}
+                  maxLength={100000}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                The link is kept as provenance. Vidora does not open or fetch it — paste any
+                content you want planned from.
+              </p>
+            </div>
+          )}
+
+          {sourceKind === "topic" && (
+            <div className="space-y-2">
+              <Label htmlFor="script">Your script (optional)</Label>
+              <Textarea
+                id="script"
+                value={script}
+                onChange={(e) => setScript(e.target.value)}
+                placeholder="Paste a finished script to skip AI writing."
+                rows={4}
+              />
+            </div>
+          )}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Video mode">

@@ -490,8 +490,8 @@ Algrow (algrow.online) is an all-in-one YouTube intelligence + AI media platform
 - WHY USERS VALUE IT: Passive monitoring — creators learn about competitor moves without checking dashboards daily.
 - VIDORA VERSION OF THE IDEA: Competitor-watch alerts in Vidora that auto-create draft idea cards when a tracked channel ships a breakout.
 - HOW OUR IMPLEMENTATION WILL DIFFER: Vidora's alerts write directly into the idea backlog as actionable drafts rather than just notifications.
-- IMPLEMENTATION STATUS: UNKNOWN — confirm in Phase 0a audit
-- TEST STATUS: NOT TESTED
+- IMPLEMENTATION STATUS: APPLIED (Phase 6 Stream E, 2026-09-28) — Watchtower: `/intelligence/alerts` route with owner-RLS `alert_rules` table (migration `20260928060000_p6e_alerts.sql`), three rule types (breakout_video / title_pattern / growth_condition), channel/folder/global scopes, on-demand `check-now`, stable dedup keys, `intel.alert` notifications, and a real `video_ideas` draft auto-created on each newly delivered alert. Pure-logic evaluation in `src/lib/intelligence/alerts.ts`.
+- TEST STATUS: Unit-tested — `src/lib/intelligence/alerts.test.ts` (24 tests: validation, breakout/title-pattern/growth evaluation, dedup, scopes, honest no-rules/no-data results); Playwright smoke in `e2e/watchtower.spec.ts` (skip-guarded on seeded test-user credentials). Migrations not yet applied to production (manual Lovable dashboard apply required).
 
 **AG-6 — Channel folders (saved watchlists)**
 - SOURCE: Algrow — https://algrow.online/changelog (Apr 9, 2026) + docs
@@ -632,8 +632,8 @@ TubeAI (tubeai.app) is an "AI agent for YouTube creators" called **Hugo** — a 
 - WHY USERS VALUE IT: Turns packaging from gut feel into pattern-matching — creators borrow structures that statistically outperform.
 - VIDORA VERSION OF THE IDEA: Format/template library inside Vidora's title generator, scored against Vidora's own tracked data.
 - HOW OUR IMPLEMENTATION WILL DIFFER: Vidora generates the title in the creator's voice from the template rather than presenting templates to fill in manually.
-- IMPLEMENTATION STATUS: UNKNOWN — confirm in Phase 0a audit
-- TEST STATUS: NOT TESTED
+- IMPLEMENTATION STATUS: APPLIED (Phase 6 Stream E, 2026-09-28) — deterministic format library in `src/lib/creation/titles/formats.ts` (12 original formats with slots, lever labels, and usage notes; no outperformance multipliers, no CTR/virality claims — D301). Title Lab (`/create/titles`) shows a format selector and `generateTitles` accepts an optional `formatId`; no database migration needed.
+- TEST STATUS: Unit-tested — `src/lib/creation/titles/titles-stream-e.test.ts` (format listing, slot rendering, invalid-format error, no-performance-claims invariant).
 
 **TI-4 — Smart Folders (rule-based auto-updating video collections with insights)**
 - SOURCE: TubeAI — https://tubeai.app/ (landing page)
@@ -662,8 +662,8 @@ TubeAI (tubeai.app) is an "AI agent for YouTube creators" called **Hugo** — a 
 - WHY USERS VALUE IT: Data-backed micro-optimization of titles — which exact words earn clicks in a niche.
 - VIDORA VERSION OF THE IDEA: Title word-scoring built into Vidora's script/title step, trained on Vidora's tracked outlier set.
 - HOW OUR IMPLEMENTATION WILL DIFFER: Vidora applies the scoring inline while generating titles, rather than as a separate analyzer tool.
-- IMPLEMENTATION STATUS: UNKNOWN — confirm in Phase 0a audit
-- TEST STATUS: NOT TESTED
+- IMPLEMENTATION STATUS: APPLIED (Phase 6 Stream E, 2026-09-28) — word/phrase vectors computed only from the user's own tracked `outlier_videos` (`src/lib/creation/titles/vectors.ts` + `vectors.functions.ts`): tokenization, ≥3 videos per word, ≥10 videos before the panel renders, median-outlier lift vs corpus median, pairing suggestions, honest `insufficient_data` state, non-predictive language throughout — D302. Shown inline in Title Lab.
+- TEST STATUS: Unit-tested — `src/lib/creation/titles/titles-stream-e.test.ts` (sample floors, lift math, pairing, insufficient-data).
 
 **TI-7 — A/B Strategies (package performance decisioning)**
 - SOURCE: TubeAI — https://tubeai.app/ (landing page)
@@ -692,8 +692,8 @@ TubeAI (tubeai.app) is an "AI agent for YouTube creators" called **Hugo** — a 
 - WHY USERS VALUE IT: Catches designs that fail at small sizes or next to real competitors before publishing — the exact gap where CTR is lost.
 - VIDORA VERSION OF THE IDEA: A packaging preview step in Vidora showing title+thumbnail at real YouTube sizes against competitor context.
 - HOW OUR IMPLEMENTATION WILL DIFFER: Vidora previews the full package (title + thumbnail + hook frame) as one unit in its pipeline.
-- IMPLEMENTATION STATUS: UNKNOWN — confirm in Phase 0a audit
-- TEST STATUS: NOT TESTED
+- IMPLEMENTATION STATUS: APPLIED (Phase 6 Stream E, 2026-09-28) — "Surface preview" tab in Thumbnail Studio (`src/components/vidora/thumbnails/`): original generic surface mocks (home / search / suggested / mobile / channel) at explicit display widths, labeled as approximations, built independently rather than copying YouTube's interface — D303.
+- TEST STATUS: Unit-tested — `src/components/vidora/thumbnails/surface-specs.test.ts` (4 tests: spec table integrity, widths, ordering).
 
 **TI-10 — Script writing "in my voice" (learns from your videos, cited research, retention-structured)**
 - SOURCE: TubeAI — https://tubeai.app/ (landing page)
@@ -785,8 +785,8 @@ ShortForge (shortforge.netlify.app) is an AI content-repurposing product whose s
 - WHY USERS VALUE IT: Removes the "blank page" problem — existing material or one rough thought becomes feedstock.
 - VIDORA VERSION OF THE IDEA: A "start from" step accepting a pasted transcript, article text, or URL alongside the current topic/draft entry.
 - HOW OUR IMPLEMENTATION WILL DIFFER: Ours will parse inputs into scene plans (narrative structure) rather than text-only derivatives, running inside Vidora's five-stage render pipeline.
-- IMPLEMENTATION STATUS: PARTIAL — Vidora accepts a topic or rough draft; transcript/article/URL ingestion not evident. Confirm in Phase 0a.
-- TEST STATUS: NOT TESTED
+- IMPLEMENTATION STATUS: APPLIED (Phase 6 Stream E, 2026-09-28) — "Start from" selector on project creation (`/projects`): topic, draft, transcript, article, URL sources with validation (`src/lib/studio/project-sources.ts`), source provenance persisted (`projects.source_kind` / `source_text` / `source_url`, migration `20260928060100_p6e_sources_checklist.sql`). URLs are stored as reference/provenance only — Vidora never fetches them server-side — D304.
+- TEST STATUS: Unit-tested — `src/lib/studio/project-sources.test.ts` (validation, derivation, URL reference-only). Migration not yet applied to production (manual Lovable dashboard apply required).
 
 **SF-2 — One-source campaign generator**
 - SOURCE: ShortForge — https://shortforge.netlify.app/ (homepage, hero preview + Features)
@@ -987,8 +987,8 @@ An open-source, self-hosted Node.js system (MIT license, ~3,872 stars, ~1,170 fo
 - WHY USERS VALUE IT: Catches packaging mistakes before publish, and the dismiss-with-reason history teaches the system the channel's conventions.
 - VIDORA VERSION OF THE IDEA: A pre-publish "packaging score" for title/description/tags/thumbnail — advisory checklist with dismiss reasons stored per channel.
 - HOW OUR IMPLEMENTATION WILL DIFFER: Vidora's version will be YouTube-SEO-first (titles, tags, thumbnails, chapters) rather than GEO/AIO/AEO-oriented, surfaced in the publish sheet rather than a separate studio.
-- IMPLEMENTATION STATUS: NOT IMPLEMENTED — no SEO/packaging review visible on Vidora's homepage. Confirm in Phase 0a.
-- TEST STATUS: NOT TESTED
+- IMPLEMENTATION STATUS: APPLIED (Phase 6 Stream E, 2026-09-28) — advisory packaging checklist in Review Studio (`src/lib/publish/checklist.ts` + `checklist.functions.ts`, owner-RLS `checklist_dismissals` in migration `20260928060100_p6e_sources_checklist.sql`): versioned rule set (title / description / tags / privacy / safety score / schedule), reason-required dismissals scoped global/per-channel, never bypassing safety, approval, or publish gates — D305.
+- TEST STATUS: Unit-tested — `src/lib/publish/checklist.test.ts` (7 tests: rules, dismiss/restore validation, advisory semantics). Migration not yet applied to production (manual Lovable dashboard apply required).
 
 **AT-11 — Analytics learning loop (channel-history-relative, human-approved)**
 - SOURCE: youtube-automation-agent — README "Close the performance loop" section

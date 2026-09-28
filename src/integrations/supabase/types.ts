@@ -1587,6 +1587,9 @@ export type Database = {
           result_url: string | null
           script: string | null
           settings: Json
+          source_kind: string
+          source_text: string | null
+          source_url: string | null
           stage: string
           status: string
           step: string
@@ -1618,6 +1621,9 @@ export type Database = {
           result_url?: string | null
           script?: string | null
           settings?: Json
+          source_kind?: string
+          source_text?: string | null
+          source_url?: string | null
           stage?: string
           status?: string
           step?: string
@@ -1649,6 +1655,9 @@ export type Database = {
           result_url?: string | null
           script?: string | null
           settings?: Json
+          source_kind?: string
+          source_text?: string | null
+          source_url?: string | null
           stage?: string
           status?: string
           step?: string
