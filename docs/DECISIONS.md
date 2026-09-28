@@ -1772,3 +1772,73 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
   publish, schedule, or spend beyond the existing gates — human approvals
   stay in the publish pipeline.
 - **Reverse:** disable the `/agent` route; the agent tables are additive.
+
+### D240. E2E_30_SECOND_CREATION runs on deterministic test-fixture adapters (2026-09-28)
+
+- **Decision:** the 30-second creation scenario test
+  (`src/lib/creation/quick-create/e2e-30-second-deterministic.test.ts`,
+  topic "Why do airplane windows have a tiny hole?") runs the REAL stage
+  logic (research linker, script builder, scene planner, caption timeline,
+  QC gate, SEO package, scene manifest schema) against in-test
+  deterministic adapters for the paid/heavy steps (TTS, image, music,
+  storage, publish gate, credit ledger). Every fixture output is labeled
+  `provider: "deterministic-test-adapter"`; timing is `estimate`, never
+  presented as measured; the assembly step produces a RECORD, never a
+  playable video. Research sources are real URLs verified 2026-09-28.
+- **Reverse:** delete the one test file; no production code depends on it.
+
+### D241. /admin/readiness: fail-closed tri-state banner, admin-only (2026-09-28)
+
+- **Decision:** the new `/admin/readiness` route
+  (`src/routes/_authenticated/admin.readiness.tsx` + pure logic in
+  `src/lib/readiness.ts` + probes in `src/lib/readiness.functions.ts`)
+  renders inside the existing `AdminLayout` shell (reused guard: inline
+  403 for non-admins) and the server function additionally enforces
+  `assertAdmin`. Check statuses are tri-state PASS / FAIL / UNCONFIGURED;
+  UNCONFIGURED means "probe could not run" (never "fine") and always
+  carries an exact remediation naming the missing key/secret/deploy and
+  where to set it. `computeReadinessBanner` is fail-closed: the banner
+  reports READY only when every BLOCKING check passes — it can never show
+  READY while a blocking check fails or is unconfigured. Blocking checks:
+  AI text, TTS, image gen, storage, database, FFmpeg/render service, job
+  queue, billing. Non-blocking: video gen (Complete Video Mode), YouTube
+  OAuth (per-user channel connection is the real gate). Public `/status`
+  untouched.
+- **Reverse:** remove the route file, nav entry, and the two lib files.
+
+### D242. Paid probes never auto-run — deliberate two-step opt-in (2026-09-28)
+
+- **Decision:** the two paid probes (one tiny ElevenLabs TTS synthesis,
+  one test image via the Lovable AI gateway) run ONLY when an admin
+  deliberately checks the opt-in box AND presses "Run checks with paid
+  probes"; the default run is free metadata/config probes only. The paid
+  button is disabled until the checkbox is ticked, and a paid-probe run is
+  labeled `PAID PROBE` with an estimated cost note on the check card and in
+  the banner timestamp line.
+- **Reverse:** set `includePaidProbes` default differently — the flag is a
+  single zod default on the server function input.
+
+### D243. routeTree.gen.ts regenerated with the official TanStack Generator (2026-09-28)
+
+- **Decision:** `src/routeTree.gen.ts` was regenerated with the bundled
+  `@tanstack/router-generator` `Generator` class (same defaults the vite
+  plugin uses: `./src/routes`, single quotes, no semicolons) instead of
+  hand-editing; the diff is purely additive. The generator does not emit
+  the TanStack Start `Register` module-augmentation block, so it was
+  re-appended verbatim (single-quote style) after regeneration.
+- **Reverse:** regenerate again after any route change with the same
+  command; never hand-edit the file.
+
+### D244. Readiness probes are free-metadata only; paid-provider failure is FAIL, not UNCONFIGURED (2026-09-28)
+
+- **Decision:** probes distinguish missing config (UNCONFIGURED — the key
+  isn't set, so the probe cannot run) from a configured-but-broken
+  dependency (FAIL — e.g. an invalid ElevenLabs key returning HTTP 401, a
+  stale render-worker heartbeat, an unreachable Supabase bucket). The TTS
+  check treats an absent ElevenLabs key + present `OPENAI_API_KEY` as a
+  PASS-with-note (fallback path documented), not a false green. No probe
+  ever presents config presence as a health guarantee without a free
+  metadata call when one exists (ElevenLabs /v2/user, gateway /v1/models,
+  bucket list, profile count).
+- **Reverse:** adjust per-check `blocking` flags or remediation copy in
+  `src/lib/readiness.functions.ts`.

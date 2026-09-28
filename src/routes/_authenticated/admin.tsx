@@ -16,6 +16,7 @@ import {
   ArrowLeft,
   ShieldCheck,
   ShieldAlert,
+  Activity,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
@@ -45,6 +46,7 @@ const nav = [
   { to: "/admin/integrations", label: "Integrations", icon: Plug },
   { to: "/admin/messages", label: "Inbox", icon: Inbox },
   { to: "/admin/safety", label: "Safety rules", icon: ShieldCheck },
+  { to: "/admin/readiness", label: "Readiness", icon: Activity },
 ] as const;
 
 function AdminLayout() {
