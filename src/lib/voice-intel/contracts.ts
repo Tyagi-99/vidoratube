@@ -7,12 +7,11 @@
  * Neither stream may change these shapes without coordinator approval.
  */
 import type {
-  VoiceAvailability,
   VoiceCharacter,
-  VoiceCostEstimate,
   VoiceModel,
   VoiceSelection,
 } from "./types";
+import type { VoiceAvailability } from "./availability";
 
 /** A saved, reusable voice configuration. */
 export interface VoiceProfile {
