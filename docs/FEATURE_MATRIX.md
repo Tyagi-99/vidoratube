@@ -91,7 +91,7 @@ checklist. `pass` = measured green · `missing` = not yet written ·
 | Feature | Current state | Target state | Frontend | Backend | Database | External API | U | I | E | M | Status |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | F41 API & MCP | REAL (code) — scoped API keys (hash-only storage, revocable, `last_used_at` tracking), JSON-RPC 2.0 MCP server over HTTP POST, authenticated + audited (D160) | Rotation, rate limits, credit gating | done | done | `api_keys`, `audit_logs` | — | pass (~51) | missing | missing | pending | COMPLETE |
-| F42 Chrome Extension | NOT STARTED | **Architecture only** in this program: token model with minimal scopes, design doc | design | design | — | — | n/a | n/a | n/a | pending | NOT STARTED |
+| F42 Chrome Extension | DESIGN (docs) — architecture + token model in `docs/CHROME_EXTENSION.md`; SSO/SAML + DPA + residency notes in `docs/ENTERPRISE.md` | **Architecture only** in this program: token model with minimal scopes, design doc | design | design | — | — | n/a | n/a | n/a | pending | COMPLETE (design) |
 
 ## Permanent E2E scenarios
 
