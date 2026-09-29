@@ -2413,3 +2413,25 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
   tour explicitly re-checks all 10 Hindi cards.
 - **Reverse:** point `voices/index.tsx` back at `VoiceStudio`; delete
   `voices/lab.tsx` and `VoiceLibraryPage.tsx`.
+
+## 2026-09-29: Eleven v4 default TTS model (promo window)
+- **Trigger:** ElevenLabs launched Eleven v4 + v4 Turbo on Sep 28, 2026 —
+  fastest and most emotive model, 90+ languages, ranked #1 by Artificial
+  Analysis; two-week launch offer prices v4 at $22/1M chars ($0.022/1k,
+  72% off $0.08/1k) until 2026-10-12. User asked to "change to v4 until
+  discount live".
+- **Decision:** `eleven_v4` is now the default model for voice previews
+  (routeVoiceForTts), the legacy TTS fallback (DEFAULT_VOICE_MODEL), the
+  voiceover synthesis plan, and autoSelectModel (all branches — v4 is both
+  fastest and most expressive). Added to VOICE_MODELS catalog, character
+  supportedModels, and the studio model dropdown. Honest promo pricing
+  wired through: ELEVENLABS_TTS_V4_USD_PER_CHAR = $0.022/1k in api-cost.ts,
+  ttsUnitCostUsd, estimateVoiceCost, elevenLabsRateUsdPerChar. v3 remains
+  user-selectable; no SSML usage in the codebase, so v4's disabled SSML
+  `<break>` tags are not a blocker. Gates: tsc clean, vitest 1980/1980,
+  build pass. Commit 8303fec.
+- **Reverse (mandatory after 2026-10-12):** v4 list price becomes $0.08/1k —
+  revisit whether v4 stays the default (multilingual v2 is $0.10/1k with
+  similar quality, flash is $0.05/1k). Flip DEFAULT_VOICE_MODEL, route,
+  plan.ts/autoSelectModel back, update the V4 pricing constant, re-run
+  tests + publish. A one-time cron on 2026-10-13 reminds the user to decide.
