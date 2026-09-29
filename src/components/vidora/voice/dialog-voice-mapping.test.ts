@@ -21,13 +21,16 @@ describe("resolveDialogVoiceKey", () => {
     expect(r.note).toBeNull();
   });
 
-  it("resolves an unmapped English voice to Adam with an explicit note", () => {
+  it("flags account-mapped voices the legacy pipeline can't consume yet (Sawyer)", () => {
+    // Sawyer is mapped to the user's own ElevenLabs voice, but the legacy
+    // render pipeline only knows the "sirius" key — the selection is saved
+    // and the note says so explicitly instead of silently substituting Adam.
     const r = resolveDialogVoiceKey(sel({ characterId: "sawyer" }));
     expect(r.viaFallback).toBe(true);
-    expect(r.effectiveCharacterId).toBe("adam");
+    expect(r.effectiveCharacterId).toBe("sawyer");
     expect(r.legacyKey).toBe("sirius");
     expect(r.note).toContain("Sawyer");
-    expect(r.note).toContain("Adam");
+    expect(r.note).toContain("video pipeline");
   });
 
   it("is honest when a language has no provider voice at all (Hindi)", () => {

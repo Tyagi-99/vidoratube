@@ -79,11 +79,17 @@ export function resolveVoiceForSynthesis(input: ResolveInput): VoiceResolution {
   };
 }
 
-function bestFallback(
+/**
+ * Picks the best same-language mapped fallback for an unmapped voice.
+ * Exported for tests: pass `candidates` to exercise the mechanism with
+ * synthetic data — production always uses the live catalog.
+ */
+export function bestFallback(
   requested: VoiceCharacter,
   categoryId: VoiceCategoryId | null,
+  candidates: VoiceCharacter[] = VOICE_CHARACTERS,
 ): VoiceCharacter | null {
-  const candidates = VOICE_CHARACTERS.filter(
+  const pool = candidates.filter(
     (c) =>
       c.id !== requested.id &&
       c.languageCode === requested.languageCode &&
@@ -91,8 +97,8 @@ function bestFallback(
       c.status !== "legacy" &&
       c.status !== "unavailable",
   );
-  if (candidates.length === 0) return null;
-  const scored = candidates.map((c) => {
+  if (pool.length === 0) return null;
+  const scored = pool.map((c) => {
     let s = c.score;
     if (categoryId && c.categoryTags.includes(categoryId)) s += 2;
     const shared = c.categoryTags.filter((t) => requested.categoryTags.includes(t)).length;

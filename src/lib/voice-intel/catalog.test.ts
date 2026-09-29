@@ -41,22 +41,39 @@ describe("voice catalog integrity", () => {
     expect(VOICE_CATEGORIES).toHaveLength(17);
   });
 
-  it("only Adam and Elli carry provider voice ids from the codebase", () => {
+  it("maps Adam, Elli, and the 9 account-verified English voices", () => {
     const mapped = VOICE_CHARACTERS.filter((c) => c.providerVoiceId);
-    expect(mapped.map((c) => c.id).sort()).toEqual(["adam", "elli"]);
+    expect(mapped.map((c) => c.id).sort()).toEqual([
+      "adam", "darian", "elara", "elli", "finley", "florence",
+      "jade", "lawrence", "sawyer", "talia", "warren",
+    ]);
     expect(voiceCharacter("adam")?.providerVoiceId).toBe("pNInz6obpgDQGcFmaJgB");
     expect(voiceCharacter("elli")?.providerVoiceId).toBe("MF3mGyEYCl7XYWb3QV9V");
+    expect(voiceCharacter("sawyer")?.providerVoiceId).toBe("IKne3meq5aSn9XLyUdCD");
+    expect(voiceCharacter("darian")?.providerVoiceId).toBe("cjVigY5qzO86Huf0OWal");
+    expect(voiceCharacter("finley")?.providerVoiceId).toBe("bIHbv24MWmeRgasZH58o");
+    expect(voiceCharacter("jade")?.providerVoiceId).toBe("hpp4J3VqNfWAUOO0d1Us");
+    expect(voiceCharacter("elara")?.providerVoiceId).toBe("pFZP5JQG7iQjIQuC4Bku");
+    expect(voiceCharacter("talia")?.providerVoiceId).toBe("cgSgspJ2msm6clMCkdW9");
+    expect(voiceCharacter("lawrence")?.providerVoiceId).toBe("pqHfZKP75CvOlQylNhV4");
+    expect(voiceCharacter("warren")?.providerVoiceId).toBe("nPczCjzI2devNBz1zQrb");
+    expect(voiceCharacter("florence")?.providerVoiceId).toBe("EXAVITQu4vr4xnSDxMaL");
     for (const c of mapped) expect(c.status).toBe("mapped");
   });
 
-  it("marks the other 38 characters unmapped with null provider voice id", () => {
+  it("marks the other 29 characters unmapped with null provider voice id", () => {
     const unmapped = VOICE_CHARACTERS.filter((c) => !c.providerVoiceId);
-    expect(unmapped).toHaveLength(38);
+    expect(unmapped).toHaveLength(29);
     for (const c of unmapped) expect(c.status).toBe("unmapped");
   });
 
-  it("never invents a provider voice id: every id is a known codebase id", () => {
-    const known = new Set(["pNInz6obpgDQGcFmaJgB", "MF3mGyEYCl7XYWb3QV9V"]);
+  it("never invents a provider voice id: every id is an account-verified id", () => {
+    const known = new Set([
+      "pNInz6obpgDQGcFmaJgB", "MF3mGyEYCl7XYWb3QV9V",
+      "IKne3meq5aSn9XLyUdCD", "cjVigY5qzO86Huf0OWal", "bIHbv24MWmeRgasZH58o",
+      "hpp4J3VqNfWAUOO0d1Us", "pFZP5JQG7iQjIQuC4Bku", "cgSgspJ2msm6clMCkdW9",
+      "pqHfZKP75CvOlQylNhV4", "nPczCjzI2devNBz1zQrb", "EXAVITQu4vr4xnSDxMaL",
+    ]);
     for (const c of VOICE_CHARACTERS) {
       if (c.providerVoiceId) expect(known.has(c.providerVoiceId)).toBe(true);
     }

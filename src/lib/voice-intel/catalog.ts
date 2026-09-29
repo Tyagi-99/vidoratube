@@ -3,9 +3,10 @@
  * categories and model metadata (D327).
  *
  * HONESTY RULES (do not weaken):
- * - `providerVoiceId` is set ONLY for ids already present in this codebase
- *   (Adam → pNInz6obpgDQGcFmaJgB, Elli → MF3mGyEYCl7XYWb3QV9V). Every other
- *   character is `providerVoiceId: null` + `status: "unmapped"`.
+ * - `providerVoiceId` is set ONLY for ids copied from the user's own ElevenLabs
+ *   account (Adam → pNInz6obpgDQGcFmaJgB, Elli → MF3mGyEYCl7XYWb3QV9V, plus the
+ *   9 English characters mapped 2026-09-29 from the account's voice library).
+ *   Every other character is `providerVoiceId: null` + `status: "unmapped"`.
  * - `status: "mapped"` means "id from the codebase", NOT "verified live".
  *   Only a successful provider check flips a voice to "verified".
  * - `score` values are the spec's curated scores — the UI must label them
@@ -147,7 +148,7 @@ export const VOICE_CHARACTERS: VoiceCharacter[] = [
     categoryTags: ["crime_mystery", "horror", "documentary", "storytelling"],
     description: "Dark, atmospheric narrator built for suspense-driven storytelling. Ideal for longer mystery formats.",
     recommendedFor: ["True crime", "Dark history", "Reddit stories", "Horror narration"],
-    score: 9.6, isDefault: false,
+    score: 9.6, isDefault: false, providerVoiceId: "IKne3meq5aSn9XLyUdCD",
   }),
   c({
     id: "darian", name: "Darian", languageCode: "en", gender: "masculine", accent: null,
@@ -155,7 +156,7 @@ export const VOICE_CHARACTERS: VoiceCharacter[] = [
     categoryTags: ["storytelling", "emotional", "documentary", "podcast"],
     description: "Warm, grounded storyteller — excellent for 10–30 minute narration.",
     recommendedFor: ["Biographies", "Human-interest stories", "Emotional stories", "Long-form videos"],
-    score: 9.5, isDefault: false,
+    score: 9.5, isDefault: false, providerVoiceId: "cjVigY5qzO86Huf0OWal",
   }),
   c({
     id: "finley", name: "Finley", languageCode: "en", gender: "masculine", accent: null,
@@ -163,7 +164,7 @@ export const VOICE_CHARACTERS: VoiceCharacter[] = [
     categoryTags: ["documentary", "business_finance", "educational", "technology_ai", "news"],
     description: "Articulate professional narrator for documentary, history and explainers.",
     recommendedFor: ["History", "Science", "Business", "News-style narration"],
-    score: 9.4, isDefault: false,
+    score: 9.4, isDefault: false, providerVoiceId: "bIHbv24MWmeRgasZH58o",
   }),
   c({
     id: "jade", name: "Jade", languageCode: "en", gender: "feminine", accent: null,
@@ -171,7 +172,7 @@ export const VOICE_CHARACTERS: VoiceCharacter[] = [
     categoryTags: ["lifestyle_beauty", "shorts_reels", "entertainment", "conversational"],
     description: "Energetic modern voice for Shorts, Reels and social content.",
     recommendedFor: ["Beauty", "Lifestyle", "Social media", "UGC-style content"],
-    score: 9.3, isDefault: false,
+    score: 9.3, isDefault: false, providerVoiceId: "hpp4J3VqNfWAUOO0d1Us",
   }),
   c({
     id: "elara", name: "Elara", languageCode: "en", gender: "feminine", accent: null,
@@ -179,7 +180,7 @@ export const VOICE_CHARACTERS: VoiceCharacter[] = [
     categoryTags: ["technology_ai", "educational", "documentary", "conversational"],
     description: "Crisp professional voice for tech, AI and product explainers.",
     recommendedFor: ["SaaS", "Tutorials", "Product explainers", "Education"],
-    score: 9.2, isDefault: false,
+    score: 9.2, isDefault: false, providerVoiceId: "pFZP5JQG7iQjIQuC4Bku",
   }),
   c({
     id: "talia", name: "Talia", languageCode: "en", gender: "feminine", accent: null,
@@ -187,7 +188,7 @@ export const VOICE_CHARACTERS: VoiceCharacter[] = [
     categoryTags: ["lifestyle_beauty", "soft_calm", "educational", "storytelling"],
     description: "Warm, soft narrator for wellness, lifestyle and calm storytelling.",
     recommendedFor: ["Wellness", "Meditation", "Beauty", "Soft storytelling"],
-    score: 9.1, isDefault: false,
+    score: 9.1, isDefault: false, providerVoiceId: "cgSgspJ2msm6clMCkdW9",
   }),
   c({
     id: "lawrence", name: "Lawrence", languageCode: "en", gender: "masculine", accent: null,
@@ -195,7 +196,7 @@ export const VOICE_CHARACTERS: VoiceCharacter[] = [
     categoryTags: ["educational", "technology_ai", "shorts_reels", "news"],
     description: "Bright, informative voice for tutorials and fact content.",
     recommendedFor: ["Tutorials", "Facts", "Educational Shorts", "Informational videos"],
-    score: 9.0, isDefault: false,
+    score: 9.0, isDefault: false, providerVoiceId: "pqHfZKP75CvOlQylNhV4",
   }),
   c({
     id: "warren", name: "Warren", languageCode: "en", gender: "masculine", accent: null,
@@ -203,7 +204,7 @@ export const VOICE_CHARACTERS: VoiceCharacter[] = [
     categoryTags: ["shorts_reels", "entertainment", "conversational"],
     description: "Casual creator-style narrator for entertainment and social video.",
     recommendedFor: ["Entertainment", "Conversational videos", "Social content", "Shorts"],
-    score: 8.9, isDefault: false,
+    score: 8.9, isDefault: false, providerVoiceId: "nPczCjzI2devNBz1zQrb",
   }),
   c({
     id: "florence", name: "Florence", languageCode: "en", gender: "feminine", accent: null,
@@ -211,7 +212,7 @@ export const VOICE_CHARACTERS: VoiceCharacter[] = [
     categoryTags: ["emotional", "storytelling", "cinematic", "crime_mystery"],
     description: "Atmospheric, emotional narrator for romance, mystery and audiobook-style stories.",
     recommendedFor: ["Emotional storytelling", "Romance", "Mystery", "Fantasy", "Female narration"],
-    score: 8.8, isDefault: false,
+    score: 8.8, isDefault: false, providerVoiceId: "EXAVITQu4vr4xnSDxMaL",
   }),
 
   /* ── Hindi ── */

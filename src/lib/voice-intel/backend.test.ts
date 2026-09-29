@@ -603,17 +603,17 @@ describe("previewVoice", () => {
     expect(text).toContain("Some stories change the way we see the world");
   });
 
-  it("falls back explicitly for an unmapped character with a compatible voice", async () => {
-    // sawyer (en, unmapped) → adam (en, mapped). Never silent.
-    const db = makeDb([ok(null), ok(null), ok(null), ok(null)]);
+  it("synthesizes a mapped voice with its own account voice id (no fallback)", async () => {
+    // sawyer is mapped to the user's own ElevenLabs "Charlie" voice —
+    // mapped voices synthesize directly, never via fallback.
+    const db = makeDb([ok(null), ok(null), ok(null)]);
     const res = await call(db, { characterId: "sawyer", text: "dark tale" });
-    expect(res).toMatchObject({ ok: true, characterId: "adam", viaFallback: true });
-    expect(res["fallbackNote"]).toContain("Sawyer");
+    expect(res).toMatchObject({ ok: true, characterId: "sawyer", viaFallback: false });
     const [, synthOpts] = mocks.elevenLabsSynthesize.mock.calls[0] as unknown as [
       string,
       { voiceId: string },
     ];
-    expect(synthOpts.voiceId).toBe(ADAM_VOICE_ID);
+    expect(synthOpts.voiceId).toBe("IKne3meq5aSn9XLyUdCD");
   });
 
   it("maps a 401 provider failure to TTS_QUOTA_EXHAUSTED with friendly copy", async () => {

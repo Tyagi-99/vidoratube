@@ -8,6 +8,7 @@ import { estimateVoiceCost, formatNarrationDuration } from "./cost";
 import {
   availabilityLabel,
   availabilityOf,
+  bestFallback,
   friendlyTtsError,
   resolveVoiceForSynthesis,
 } from "./availability";
@@ -120,19 +121,31 @@ describe("availability", () => {
     expect(availabilityLabel("unmapped")).toBe("Not connected yet");
   });
 
-  it("unmapped English voice falls back explicitly to Adam (never silent)", () => {
-    const res = resolveVoiceForSynthesis({
-      characterId: "sawyer",
-      categoryId: "crime_mystery",
-      providerConfigured: true,
-    });
-    expect(res.ok).toBe(true);
-    if (res.ok && res.viaFallback) {
-      expect(res.character.id).toBe("adam");
-      expect(res.reason).toMatch(/Sawyer.*isn't connected/i);
-    } else {
-      throw new Error("expected an explicit fallback");
-    }
+  it("bestFallback picks the best same-language mapped voice when one exists", () => {
+    // Synthetic Hindi pool: the fallback mechanism is exercised with injected
+    // candidates because the live catalog currently has no partially-mapped language.
+    const requested = voiceCharacter("niraj")!;
+    const candidates = [
+      {
+        ...requested, id: "hindi-a", name: "Hindi A",
+        providerVoiceId: "voice-a", status: "mapped" as const,
+        score: 8.0, categoryTags: ["documentary"], isDefault: false,
+      },
+      {
+        ...requested, id: "hindi-b", name: "Hindi B",
+        providerVoiceId: "voice-b", status: "mapped" as const,
+        score: 9.5, categoryTags: ["crime_mystery"], isDefault: true,
+      },
+    ];
+    const pick = bestFallback(requested, "crime_mystery", candidates);
+    expect(pick?.id).toBe("hindi-b"); // category match + higher score + default bonus
+  });
+
+  it("bestFallback returns null when no same-language mapped voice exists", () => {
+    const requested = voiceCharacter("niraj")!;
+    expect(bestFallback(requested, null, [])).toBeNull();
+    // English candidates never serve a Hindi request.
+    expect(bestFallback(requested, null, [voiceCharacter("adam")!])).toBeNull();
   });
 
   it("hard-fails with a clear reason when no same-language fallback exists", () => {

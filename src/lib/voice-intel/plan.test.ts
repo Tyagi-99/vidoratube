@@ -47,16 +47,15 @@ describe("resolveSynthesisPlan", () => {
     expect(plan.modelId).toBe("eleven_multilingual_v2");
   });
 
-  it("unmapped voice resolves to an explicit same-language fallback", () => {
+  it("mapped voice resolves to its own provider voice id with no fallback", () => {
     const plan = resolveSynthesisPlan(
       { ...base, characterId: "sawyer", categoryId: "crime_mystery" },
       5000,
       true,
     );
-    expect(plan.viaFallback).toBe(true);
-    expect(plan.characterId).toBe("adam");
-    expect(plan.voiceId).toBe("pNInz6obpgDQGcFmaJgB");
-    expect(plan.fallbackNote).toMatch(/Sawyer/i);
+    expect(plan.viaFallback).toBe(false);
+    expect(plan.characterId).toBe("sawyer");
+    expect(plan.voiceId).toBe("IKne3meq5aSn9XLyUdCD");
   });
 
   it("no usable voice in the language yields null voiceId (legacy path)", () => {
