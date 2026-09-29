@@ -66,7 +66,7 @@ export const navGroups: { label: string; items: NavItem[] }[] = [
   {
     // Upload-footage flows: commentary over your own clip, or a raw take
     // trimmed + captioned automatically. Deep links into /studio creation modes.
-    label: "Automate Studio",
+    label: "Flow",
     items: [
       { label: "Voiceover", to: "/studio", search: { create: "voiceover" } },
       { label: "Automatic edit", to: "/studio", search: { create: "auto_edit" } },

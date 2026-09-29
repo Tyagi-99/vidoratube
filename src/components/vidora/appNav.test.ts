@@ -43,9 +43,9 @@ describe("app navigation reachability", () => {
     }
   });
 
-  it("exposes the Automate Studio upload-footage flows as menu deep links", () => {
-    const group = navGroups.find((g) => g.label === "Automate Studio");
-    expect(group, "missing Automate Studio nav group").toBeDefined();
+  it("exposes the Flow upload-footage flows as menu deep links", () => {
+    const group = navGroups.find((g) => g.label === "Flow");
+    expect(group, "missing Flow nav group").toBeDefined();
     expect(group!.items).toEqual([
       { label: "Voiceover", to: "/studio", search: { create: "voiceover" } },
       { label: "Automatic edit", to: "/studio", search: { create: "auto_edit" } },
