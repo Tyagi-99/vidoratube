@@ -287,7 +287,7 @@ export const FEATURE_CATALOG: CatalogPillar[] = [
       {
         name: "Meta publishing",
         description:
-          "Backend complete for Facebook and Instagram; the UI ships once Meta app review passes.",
+          "Backend complete for Facebook and Instagram — channel connect UI is live; the publishing UI ships once Meta app review passes.",
         route: "/publish",
         badge: "Shipping next",
       },

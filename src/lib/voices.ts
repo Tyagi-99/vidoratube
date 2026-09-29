@@ -1,5 +1,5 @@
 /**
- * P4 voice catalog — 10 built-in voices (English-first ordering), plus
+ * P4 voice catalog — 16 built-in voices (English-first ordering), plus
  * runtime-resolved library voices.
  *
  * Built-in voices use verified provider IDs already in the codebase.

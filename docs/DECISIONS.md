@@ -2499,3 +2499,25 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
   claim on gate failure).
 - **Reverse:** remove the assert call in the two enqueue handlers, move the
   gates back after the claim, drop the rerender pre-reserve/settle.
+
+## D334 — QA sweep follow-ups: guest-session policy backfill #2, honest pricing seed (2026-09-29)
+
+- **Decision:** two honesty/integrity follow-ups from the four read-only QA
+  audits landed as new migrations rather than edits to history:
+  1. `20260929133000_no_guest_sessions_backfill2.sql` adds the restrictive
+     "No guest sessions" policy to 8 post-convention tables the first
+     backfill missed (agent_conversations, agent_messages, alert_rules,
+     checklist_dismissals, onboarding_progress, monetization_settings,
+     quick_create_runs, seo_packages). Owner RLS still isolated users, but
+     anonymous sessions could use these tables directly via the anon REST
+     key, bypassing the app's no-guest rule.
+  2. `20260929134000_honest_pricing_seed_features.sql` rewrites the three
+     `pricing_plans.features` seed rows to match `HONEST_FEATURES`
+     (the pricing page's actual source of truth). The old seed over-claimed
+     4K exports, voice cloning, brand kit + custom fonts, dedicated manager,
+     and custom integrations.
+- **Also:** fixed the stale `voices.ts` header comment (says 10 voices, the
+  array holds 16) and clarified the Meta catalog entry (channel connect UI
+  is live; publishing UI ships after Meta app review).
+- **Reverse:** delete the two migration files (unapplied on prod); revert the
+  copy edits.
