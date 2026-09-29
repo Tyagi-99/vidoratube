@@ -4,6 +4,8 @@
  * with no nav entry) are invisible to users. See `appNav.test.ts`.
  */
 
+import type { CreationModeId } from "@/lib/creation-modes";
+
 export type NavRoute =
   | "/studio"
   | "/projects"
@@ -22,7 +24,7 @@ export type NavRoute =
   | "/billing"
   | "/settings/api-keys";
 
-export type NavItem = { label: string; to: NavRoute };
+export type NavItem = { label: string; to: NavRoute; search?: { create?: CreationModeId } };
 
 /** Always-visible top-level links (desktop). */
 export const directLinks: NavItem[] = [
@@ -59,6 +61,15 @@ export const navGroups: { label: string; items: NavItem[] }[] = [
       { label: "Agency", to: "/agency" },
       { label: "Billing", to: "/billing" },
       { label: "Settings", to: "/settings/api-keys" },
+    ],
+  },
+  {
+    // Upload-footage flows: commentary over your own clip, or a raw take
+    // trimmed + captioned automatically. Deep links into /studio creation modes.
+    label: "Automate Studio",
+    items: [
+      { label: "Voiceover", to: "/studio", search: { create: "voiceover" } },
+      { label: "Automatic edit", to: "/studio", search: { create: "auto_edit" } },
     ],
   },
 ];

@@ -61,8 +61,12 @@ function NavGroupMenu({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-52">
         {items.map((item) => (
-          <DropdownMenuItem key={item.to} asChild>
-            <Link to={item.to} className="w-full cursor-pointer">
+          <DropdownMenuItem key={item.label} asChild>
+            <Link
+              to={item.to}
+              {...(item.search ? { search: item.search } : {})}
+              className="w-full cursor-pointer"
+            >
               {item.label}
             </Link>
           </DropdownMenuItem>
@@ -222,8 +226,9 @@ export function AppChrome() {
           <div className="mx-auto grid max-w-[1440px] gap-1">
             {mobileLinks.map((item) => (
               <Link
-                key={item.to}
+                key={item.label}
                 to={item.to}
+                {...(item.search ? { search: item.search } : {})}
                 className="flex min-h-11 items-center gap-2 border-b border-border px-2 text-sm font-medium"
                 onClick={() => setMobileOpen(false)}
               >

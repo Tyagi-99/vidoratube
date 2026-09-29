@@ -36,10 +36,20 @@ describe("app navigation reachability", () => {
 
   it("has no duplicate nav targets", () => {
     const seen = new Set<string>();
-    for (const t of allNavTargets) {
-      expect(seen.has(t), `duplicate nav target: ${t}`).toBe(false);
-      seen.add(t);
+    for (const item of mobileLinks) {
+      const key = item.to + (item.search ? JSON.stringify(item.search) : "");
+      expect(seen.has(key), `duplicate nav target: ${key}`).toBe(false);
+      seen.add(key);
     }
+  });
+
+  it("exposes the Automate Studio upload-footage flows as menu deep links", () => {
+    const group = navGroups.find((g) => g.label === "Automate Studio");
+    expect(group, "missing Automate Studio nav group").toBeDefined();
+    expect(group!.items).toEqual([
+      { label: "Voiceover", to: "/studio", search: { create: "voiceover" } },
+      { label: "Automatic edit", to: "/studio", search: { create: "auto_edit" } },
+    ]);
   });
 
   it("mobile menu covers everything the desktop nav covers", () => {
