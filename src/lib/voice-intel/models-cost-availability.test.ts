@@ -16,41 +16,50 @@ import { voiceCharacter } from "./catalog";
 import type { VoiceCharacter } from "./types";
 
 describe("autoSelectModel", () => {
-  it("short-form content → Flash (fastest)", () => {
+  it("short-form content → Eleven v4 (fastest + most emotive)", () => {
     const { model, reason } = autoSelectModel({
       durationSeconds: 45,
       categoryId: "shorts_reels",
       languageCode: "en",
     });
-    expect(model.id).toBe("eleven_flash_v2_5");
-    expect(reason).toMatch(/short-form/i);
+    expect(model.id).toBe("eleven_v4");
+    expect(reason).toMatch(/eleven v4/i);
   });
 
-  it("long-form documentary → Multilingual v2 (quality + consistency)", () => {
+  it("long-form documentary → Eleven v4 (quality + consistency)", () => {
     const { model } = autoSelectModel({
       durationSeconds: 1200,
       categoryId: "documentary",
       languageCode: "en",
     });
-    expect(model.id).toBe("eleven_multilingual_v2");
+    expect(model.id).toBe("eleven_v4");
   });
 
-  it("emotional narration → v3 (expressive, alpha-labeled)", () => {
+  it("emotional narration → Eleven v4 (most expressive)", () => {
     const { model } = autoSelectModel({
       durationSeconds: 600,
       categoryId: "emotional",
       languageCode: "en",
       emotional: true,
     });
-    expect(model.id).toBe("eleven_v3");
-    expect(model.maturity).toBe("alpha");
+    expect(model.id).toBe("eleven_v4");
+    expect(model.expressiveness).toBe("very_high");
   });
 
-  it("medium content defaults to Multilingual v2", () => {
+  it("medium content defaults to Eleven v4", () => {
     const { model } = autoSelectModel({
       durationSeconds: 180,
       categoryId: "educational",
       languageCode: "hi",
+    });
+    expect(model.id).toBe("eleven_v4");
+  });
+
+  it("falls back to Multilingual v2 for languages v4 does not support", () => {
+    const { model } = autoSelectModel({
+      durationSeconds: 180,
+      categoryId: "educational",
+      languageCode: "xx",
     });
     expect(model.id).toBe("eleven_multilingual_v2");
   });
@@ -101,6 +110,11 @@ describe("estimateVoiceCost", () => {
     const flash = estimateVoiceCost("x".repeat(1000), { modelId: "eleven_flash_v2_5" });
     const multi = estimateVoiceCost("x".repeat(1000), { modelId: "eleven_multilingual_v2" });
     expect(multi.usd).toBeCloseTo(flash.usd * 2, 6);
+  });
+
+  it("eleven_v4 uses the promo rate ($0.022/1k) while the discount is live", () => {
+    const est = estimateVoiceCost("x".repeat(1000), { modelId: "eleven_v4" });
+    expect(est.usd).toBeCloseTo(0.022, 6);
   });
 
   it("formats narration duration as m:ss", () => {

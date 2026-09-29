@@ -128,9 +128,10 @@ export const DURATIONS = [1, 3, 5, 10, 15, 20, 30] as const;
 export const LANGUAGES = ["English", "Hindi", "Spanish", "French", "German", "Portuguese"] as const;
 
 export const ELEVENLABS_MODELS = [
+  { id: "eleven_v4", label: "Eleven v4 (fastest + most emotive — 72% off until Oct 12)" },
   { id: "eleven_flash_v2_5", label: "Flash v2.5 (fast, cheapest)" },
   { id: "eleven_turbo_v2_5", label: "Turbo v2.5" },
-  { id: "eleven_multilingual_v2", label: "Multilingual v2 (best quality)" },
+  { id: "eleven_multilingual_v2", label: "Multilingual v2" },
 ] as const;
 
 export function styleById(id: string | null | undefined): ImageStyle {

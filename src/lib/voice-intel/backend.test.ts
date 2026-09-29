@@ -352,10 +352,10 @@ describe("resolveModelId", () => {
   });
 
   it("auto-selects for 'auto', missing, or unknown ids", () => {
-    // Short text → flash (fastest generation for short-form).
-    expect(resolveModelId(adam, "hello", "auto")).toBe("eleven_flash_v2_5");
-    expect(resolveModelId(adam, "hello", null)).toBe("eleven_flash_v2_5");
-    expect(resolveModelId(adam, "hello", "nope_not_a_model")).toBe("eleven_flash_v2_5");
+    // Short text → Eleven v4 (fastest + most emotive while promo is live).
+    expect(resolveModelId(adam, "hello", "auto")).toBe("eleven_v4");
+    expect(resolveModelId(adam, "hello", null)).toBe("eleven_v4");
+    expect(resolveModelId(adam, "hello", "nope_not_a_model")).toBe("eleven_v4");
   });
 });
 
@@ -378,7 +378,7 @@ describe("listVoiceCharacters", () => {
     const res = await fn({ context: ctx(db) });
     expect(res.characters).toHaveLength(40);
     expect(res.characters.find((c) => c.id === "adam")!.providerVoiceId).toBe(ADAM_VOICE_ID);
-    expect(res.models).toHaveLength(5);
+    expect(res.models).toHaveLength(6);
   });
 
   it("merges DB overrides onto the catalog", async () => {
@@ -415,7 +415,7 @@ describe("listVoiceModels", () => {
     const db = makeDb([ok([])]);
     const res = await call(db);
     expect(res.source).toBe("table");
-    expect(res.models).toHaveLength(5);
+    expect(res.models).toHaveLength(6);
     expect(mocks.listModels).not.toHaveBeenCalled();
   });
 
@@ -424,7 +424,7 @@ describe("listVoiceModels", () => {
     const db = makeDb([missingTable()]);
     const res = await call(db);
     expect(res.source).toBe("seed");
-    expect(res.models).toHaveLength(5);
+    expect(res.models).toHaveLength(6);
   });
 
   it("merges provider ids with curated metadata; unknown ids stay conservative", async () => {
@@ -444,7 +444,7 @@ describe("listVoiceModels", () => {
     const db = makeDb([ok([])]);
     const res = await call(db);
     expect(res.source).toBe("table");
-    expect(res.models).toHaveLength(5);
+    expect(res.models).toHaveLength(6);
   });
 });
 
@@ -588,7 +588,7 @@ describe("previewVoice", () => {
     ];
     expect(text).toBe("hello");
     expect(synthOpts.voiceId).toBe(ADAM_VOICE_ID); // the character's OWN voice
-    expect(synthOpts.model).toBe("eleven_flash_v2_5"); // auto-selected for short text
+    expect(synthOpts.model).toBe("eleven_v4"); // auto-selected while v4 promo is live
     expect(mocks.storageUpload).toHaveBeenCalledTimes(1);
     const uploadArgs = mocks.storageUpload.mock.calls[0] as unknown as [string, ArrayBuffer, object];
     expect(uploadArgs[0]).toMatch(/^user-1\/voice-previews\/[0-9a-f]{64}\.mp3$/);

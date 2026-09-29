@@ -140,8 +140,8 @@ describe("voice catalog integrity", () => {
     expect(voiceLanguage("xx")).toBeUndefined();
   });
 
-  it("seeds 5 voice models with per-model supported params", () => {
-    expect(VOICE_MODELS).toHaveLength(5);
+  it("seeds 6 voice models with per-model supported params", () => {
+    expect(VOICE_MODELS).toHaveLength(6);
     const flash = VOICE_MODELS.find((m) => m.id === "eleven_flash_v2_5")!;
     expect(flash.supportedParams).toContain("speaker_boost");
     const openai = VOICE_MODELS.find((m) => m.id === "openai_tts_1")!;

@@ -112,6 +112,7 @@ export function voiceCategory(id: string | null | undefined): VoiceCategory | un
 /* ── Voice characters ──────────────────────────────────────────────────── */
 
 const ELEVENLABS_MODELS = [
+  "eleven_v4",
   "eleven_multilingual_v2",
   "eleven_flash_v2_5",
   "eleven_turbo_v2_5",
@@ -482,6 +483,18 @@ export function defaultCharacterForLanguage(languageCode: string): VoiceCharacte
  * seed is the honest fallback, never a permanently-hardcoded truth.
  */
 export const VOICE_MODELS: VoiceModel[] = [
+  {
+    id: "eleven_v4",
+    provider: "elevenlabs",
+    label: "Eleven v4",
+    quality: 5, speed: "fast", expressiveness: "very_high",
+    multilingual: true,
+    supportedLanguages: ["en", "hi", "es", "de", "fr", "pt", "it", "ar", "ja", "ko", "id", "tr"],
+    bestFor: "Default narration — fastest and most emotive (72%-off promo pricing until Oct 12, 2026)",
+    costMultiplier: 1,
+    supportedParams: ["stability", "similarity_boost", "style", "speed", "speaker_boost"],
+    maturity: "stable", isActive: true,
+  },
   {
     id: "eleven_multilingual_v2",
     provider: "elevenlabs",

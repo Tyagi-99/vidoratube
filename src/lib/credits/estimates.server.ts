@@ -28,6 +28,7 @@
 import {
   ELEVENLABS_TTS_MULTILINGUAL_USD_PER_CHAR,
   ELEVENLABS_TTS_USD_PER_CHAR,
+  ELEVENLABS_TTS_V4_USD_PER_CHAR,
   GATEWAY_IMAGE_USD_PER_IMAGE,
   GATEWAY_TTS_USD_PER_CHAR,
   OPENAI_TTS_USD_PER_CHAR,
@@ -70,7 +71,7 @@ export type EstimateInput = {
    * where the provider price matters (tts/image/llm_chat).
    */
   provider?: string | undefined;
-  /** Model id, e.g. "eleven_flash_v2_5", "eleven_multilingual_v2". */
+  /** Model id, e.g. "eleven_v4", "eleven_flash_v2_5", "eleven_multilingual_v2". */
   model?: string | undefined;
   /** TTS: exact narration character count when known (beats the wpm fallback). */
   characters?: number | undefined;
@@ -134,7 +135,10 @@ function isGatewayProvider(provider: string | undefined): boolean {
 
 /** ElevenLabs per-char USD rate from the model id (Flash default). */
 function elevenLabsRateUsdPerChar(model: string | undefined): number {
-  return (model ?? "").toLowerCase().includes("multilingual")
+  const m = (model ?? "").toLowerCase();
+  // eleven_v4 promo pricing ($0.022/1k) until 2026-10-12 — see api-cost.ts.
+  if (m === "eleven_v4") return ELEVENLABS_TTS_V4_USD_PER_CHAR;
+  return m.includes("multilingual")
     ? ELEVENLABS_TTS_MULTILINGUAL_USD_PER_CHAR
     : ELEVENLABS_TTS_USD_PER_CHAR;
 }
@@ -189,7 +193,7 @@ function estimateTts(input: EstimateInput): CostEstimate {
   if (provider === "elevenlabs") {
     rateUsdPerChar = elevenLabsRateUsdPerChar(input.model);
     costBasis = "list-price";
-    label = `ElevenLabs ${input.model ?? "eleven_flash_v2_5"}`;
+    label = `ElevenLabs ${input.model ?? "eleven_v4"}`;
   } else if (provider === "openai") {
     rateUsdPerChar = OPENAI_TTS_USD_PER_CHAR;
     costBasis = "list-price";

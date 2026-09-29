@@ -60,7 +60,7 @@ export function resolveSynthesisPlan(
       ? resolution.character.providerVoiceId
       : null;
 
-  let modelId = "eleven_multilingual_v2";
+  let modelId = "eleven_v4";
   if (selection.modelId && selection.modelId !== "auto") {
     const m = voiceModel(selection.modelId);
     if (m && m.isActive) modelId = m.id;

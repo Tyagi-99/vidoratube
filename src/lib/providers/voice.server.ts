@@ -2,7 +2,7 @@ import { providerFetch } from "./http.server";
 import { withProviderTelemetry } from "./telemetry.server";
 import type { ProviderResult } from "./contracts";
 import type { CostCtx } from "../api-cost";
-import { ELEVENLABS_TTS_MULTILINGUAL_USD_PER_CHAR, ELEVENLABS_TTS_USD_PER_CHAR } from "../api-cost";
+import { ELEVENLABS_TTS_MULTILINGUAL_USD_PER_CHAR, ELEVENLABS_TTS_USD_PER_CHAR, ELEVENLABS_TTS_V4_USD_PER_CHAR } from "../api-cost";
 
 export type VoiceOption = { id: string; name: string; category?: string | undefined };
 
@@ -18,7 +18,12 @@ export type VoiceSettings = {
 };
 
 export const DEFAULT_VOICE_ID = "JBFqnCBsd6RMkjVDRZzb"; // George
-export const DEFAULT_VOICE_MODEL = "eleven_flash_v2_5";
+/**
+ * Default TTS model. Eleven v4 (launched Sep 28, 2026) while its 72%-off
+ * promo pricing is live (until 2026-10-12). Revisit after the promo ends —
+ * see docs/DECISIONS.md "2026-09-29: Eleven v4 default".
+ */
+export const DEFAULT_VOICE_MODEL = "eleven_v4";
 
 export function elevenLabsConfigured(): boolean {
   return Boolean(process.env["ELEVENLABS_API_KEY"]);
@@ -66,8 +71,10 @@ export async function synthesize(text: string, settings: VoiceSettings): Promise
   return res.arrayBuffer();
 }
 
-/** USD/char rate for the model actually used (Flash vs Multilingual tier). */
+/** USD/char rate for the model actually used (v4 promo vs Flash vs Multilingual tier). */
 export function ttsUnitCostUsd(model: string): number {
+  const m = model.toLowerCase();
+  if (m === "eleven_v4") return ELEVENLABS_TTS_V4_USD_PER_CHAR;
   return /multilingual/i.test(model)
     ? ELEVENLABS_TTS_MULTILINGUAL_USD_PER_CHAR
     : ELEVENLABS_TTS_USD_PER_CHAR;

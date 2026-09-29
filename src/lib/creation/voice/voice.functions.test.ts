@@ -147,7 +147,7 @@ const okChainResult = {
   ok: true as const,
   audio: new Uint8Array([0x49, 0x44, 0x33, 0x04]),
   provider: "elevenlabs",
-  model: "eleven_flash_v2_5",
+  model: "eleven_v4",
   latencyMs: 1200,
   characters: 38,
   unitCostUsd: 0.0001,
@@ -264,14 +264,14 @@ describe("runVoiceoverJob orchestration", () => {
       audioUrl: "https://signed.example/audio.mp3",
       durationSeconds: 12,
       provider: "elevenlabs",
-      model: "eleven_flash_v2_5",
+      model: "eleven_v4",
       characters: 38,
     });
 
     // Exactly one chain attempt with the preferred provider first.
     expect(mocks.synthesizeSpeechWithFallback).toHaveBeenCalledTimes(1);
     const chainCall = mocks.synthesizeSpeechWithFallback.mock.calls[0]!;
-    expect(chainCall[1]).toMatchObject({ voiceId: "vid123", model: "eleven_flash_v2_5" });
+    expect(chainCall[1]).toMatchObject({ voiceId: "vid123", model: "eleven_v4" });
     expect(chainCall[2].providers[0]).toBe(mocks.elevenlabs);
 
     // Debit happened before the paid call.
@@ -312,7 +312,7 @@ describe("runVoiceoverJob orchestration", () => {
       audioUrl: "https://signed.example/old.mp3",
       durationSeconds: 0,
       provider: "openai",
-      model: "eleven_flash_v2_5",
+      model: "eleven_v4",
       characters: input.text.length,
     });
     expect(mocks.synthesizeSpeechWithFallback).not.toHaveBeenCalled();

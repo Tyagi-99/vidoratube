@@ -17,7 +17,7 @@ describe("resolveSynthesisPlan", () => {
     const plan = resolveSynthesisPlan(base, 5000, true);
     expect(plan.voiceId).toBe("pNInz6obpgDQGcFmaJgB");
     expect(plan.viaFallback).toBe(false);
-    expect(plan.modelId).toBe("eleven_multilingual_v2");
+    expect(plan.modelId).toBe("eleven_v4");
   });
 
   it("honours an explicit model choice", () => {
@@ -29,13 +29,13 @@ describe("resolveSynthesisPlan", () => {
     expect(plan.modelId).toBe("eleven_flash_v2_5");
   });
 
-  it("auto model picks Flash for short-form", () => {
+  it("auto model picks Eleven v4 for short-form", () => {
     const plan = resolveSynthesisPlan(
       { ...base, categoryId: "shorts_reels" },
       400,
       true,
     );
-    expect(plan.modelId).toBe("eleven_flash_v2_5");
+    expect(plan.modelId).toBe("eleven_v4");
   });
 
   it("falls back to an unknown model id safely", () => {
@@ -44,7 +44,7 @@ describe("resolveSynthesisPlan", () => {
       5000,
       true,
     );
-    expect(plan.modelId).toBe("eleven_multilingual_v2");
+    expect(plan.modelId).toBe("eleven_v4");
   });
 
   it("mapped voice resolves to its own provider voice id with no fallback", () => {

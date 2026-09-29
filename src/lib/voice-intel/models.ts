@@ -84,13 +84,14 @@ export interface AutoModelChoice {
   reason: string;
 }
 
-const SHORT_FORM_SECONDS = 90;
 const LONG_FORM_SECONDS = 300;
 
 /**
  * Auto — Recommended model selection (spec §Auto Model Mode):
- * short-form → fastest generation; long-form → quality + consistency;
- * highly emotional → most expressive.
+ * Eleven v4 is both the fastest AND the most emotive model, so it wins
+ * every branch while its 72%-off promo pricing is live (until 2026-10-12).
+ * Revisit this function when the promo ends — see docs/DECISIONS.md
+ * "2026-09-29: Eleven v4 default".
  */
 export function autoSelectModel(input: AutoModelInput): AutoModelChoice {
   const { durationSeconds, categoryId, languageCode, emotional = false } = input;
@@ -99,36 +100,30 @@ export function autoSelectModel(input: AutoModelInput): AutoModelChoice {
   const supportsLang = (m: VoiceModel) =>
     m.supportedLanguages.includes(languageCode);
 
-  if (durationSeconds <= SHORT_FORM_SECONDS || categoryId === "shorts_reels") {
-    const m = byId("eleven_flash_v2_5");
-    return {
-      model: m,
-      reason: `Short-form content (${Math.round(durationSeconds)}s) — Flash prioritizes generation speed.`,
-    };
-  }
+  const v4 = byId("eleven_v4");
+  const model = supportsLang(v4) ? v4 : byId("eleven_multilingual_v2");
+
   if (
     emotional ||
     (categoryId !== null &&
       ["emotional", "horror", "cinematic", "storytelling"].includes(categoryId) &&
       durationSeconds > 120)
   ) {
-    const m = byId("eleven_v3");
     return {
-      model: supportsLang(m) ? m : byId("eleven_multilingual_v2"),
+      model,
       reason:
-        "Emotionally-driven narration — v3 prioritizes expressiveness (alpha model).",
+        "Emotionally-driven narration — Eleven v4 is the most expressive model (promo pricing until Oct 12).",
     };
   }
   if (durationSeconds >= LONG_FORM_SECONDS) {
-    const m = byId("eleven_multilingual_v2");
     return {
-      model: m,
-      reason: `Long-form (${Math.round(durationSeconds / 60)} min) — Multilingual v2 prioritizes quality and voice consistency.`,
+      model,
+      reason: `Long-form (${Math.round(durationSeconds / 60)} min) — Eleven v4 prioritizes quality and voice consistency (promo pricing until Oct 12).`,
     };
   }
   return {
-    model: byId("eleven_multilingual_v2"),
-    reason: "Balanced default — quality multilingual narration.",
+    model,
+    reason: "Eleven v4 — fastest and most emotive model (promo pricing until Oct 12).",
   };
 }
 

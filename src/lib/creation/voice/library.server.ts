@@ -238,7 +238,7 @@ export function routeVoiceForTts(entry: VoiceLibraryEntry): TtsRoute {
       synthesizable: true,
       preferredProvider: "elevenlabs",
       voiceId: entry.providerVoiceId,
-      model: "eleven_flash_v2_5",
+      model: "eleven_v4",
     };
   }
   if (entry.provider === "openai") {

@@ -11,8 +11,9 @@
  * - ElevenLabs TTS: $0.05 per 1,000 characters on the Flash/Turbo API tier
  *   (elevenlabs.io API rate card via cloudzero.com/blog/elevenlabs-pricing
  *   and developer.puter.com, Jun-Sep 2026 roundups). Our default model is
- *   eleven_flash_v2_5 -> Flash tier. Multilingual v2/v3 would be $0.10/1k;
- *   call sites using a non-Flash model should pass the higher rate.
+ *   eleven_v4 on the Sep 28, 2026 launch promo ($0.022/1k until 2026-10-12);
+ *   Multilingual v2/v3 would be $0.10/1k; call sites using a non-default
+ *   model pass the matching rate.
  * - Lovable AI gateway chat: the gateway bills its OWN credits, not USD, so
  *   an exact USD cost is unknowable. We record the underlying model's list
  *   price as a reference: Google Gemini 2.5 Flash, $0.30 / 1M input tokens
@@ -43,6 +44,14 @@ import type { Database } from "@/integrations/supabase/types";
 export const ELEVENLABS_TTS_USD_PER_CHAR = 0.05 / 1000;
 /** ElevenLabs TTS, Multilingual v2/v3 API tier: $0.10 / 1k characters. */
 export const ELEVENLABS_TTS_MULTILINGUAL_USD_PER_CHAR = 0.1 / 1000;
+/**
+ * ElevenLabs TTS, Eleven v4 PROMO tier: $0.022 / 1k characters.
+ * Introductory offer from the Sep 28, 2026 v4 launch — runs two weeks,
+ * until 2026-10-12 (runtimewire.com launch coverage). After that v4 list
+ * price is $0.08/1k: revisit this constant AND the v4 default when the
+ * promo ends (see docs/DECISIONS.md entry "2026-09-29: Eleven v4 default").
+ */
+export const ELEVENLABS_TTS_V4_USD_PER_CHAR = 0.022 / 1000;
 
 /** OpenAI TTS, gpt-4o-mini-tts list price: $0.60 / 1M characters. */
 export const OPENAI_TTS_USD_PER_CHAR = 0.6 / 1_000_000;

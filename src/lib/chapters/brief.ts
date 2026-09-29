@@ -60,7 +60,7 @@ export function buildContinuityBrief(input: {
     voice: {
       id: input.voiceId,
       languageCode: input.languageCode,
-      model: input.voiceModel ?? "eleven_flash_v2_5",
+      model: input.voiceModel ?? "eleven_v4",
     },
     pacing: {
       wordsPerMinute: input.wordsPerMinute ?? 150,
