@@ -58,10 +58,10 @@ describe("resolveSynthesisPlan", () => {
     expect(plan.voiceId).toBe("IKne3meq5aSn9XLyUdCD");
   });
 
-  it("no usable voice in the language yields null voiceId (legacy path)", () => {
-    const plan = resolveSynthesisPlan({ ...base, languageCode: "hi", characterId: "niraj" }, 5000, true);
+  it("unknown character yields null voiceId with an explicit note (legacy path)", () => {
+    const plan = resolveSynthesisPlan({ ...base, characterId: "nope" }, 5000, true);
     expect(plan.voiceId).toBeNull();
-    expect(plan.fallbackNote).toMatch(/Niraj/i);
+    expect(plan.fallbackNote).toMatch(/unknown/i);
   });
 
   it("clamps out-of-range settings defensively", () => {

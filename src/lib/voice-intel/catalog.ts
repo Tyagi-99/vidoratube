@@ -4,9 +4,10 @@
  *
  * HONESTY RULES (do not weaken):
  * - `providerVoiceId` is set ONLY for ids copied from the user's own ElevenLabs
- *   account (Adam → pNInz6obpgDQGcFmaJgB, Elli → MF3mGyEYCl7XYWb3QV9V, plus the
- *   9 English characters mapped 2026-09-29 from the account's voice library).
- *   Every other character is `providerVoiceId: null` + `status: "unmapped"`.
+ *   account (Adam → pNInz6obpgDQGcFmaJgB, Elli → MF3mGyEYCl7XYWb3QV9V, the
+ *   9 English characters mapped 2026-09-29, and the 29 Hindi/Spanish/German
+ *   characters mapped 2026-09-29 from premade voices added to the account's
+ *   voice library). No character is `providerVoiceId: null` anymore.
  * - `status: "mapped"` means "id from the codebase", NOT "verified live".
  *   Only a successful provider check flips a voice to "verified".
  * - `score` values are the spec's curated scores — the UI must label them
@@ -222,7 +223,7 @@ export const VOICE_CHARACTERS: VoiceCharacter[] = [
     categoryTags: ["storytelling", "emotional", "cinematic", "motivational", "soft_calm"],
     description: "Smooth, emotional cinematic narrator — the default Hindi storyteller.",
     recommendedFor: ["Village stories", "Dramatic stories", "Emotional stories", "Romance", "Motivational videos"],
-    score: 9.7, isDefault: true,
+    score: 9.7, isDefault: true, providerVoiceId: "k0gtD0Bbpi6hL40jfHfm",
   }),
   c({
     id: "raju", name: "Raju", languageCode: "hi", gender: "masculine", accent: null,
@@ -230,7 +231,7 @@ export const VOICE_CHARACTERS: VoiceCharacter[] = [
     categoryTags: ["storytelling", "documentary", "soft_calm", "educational"],
     description: "Natural, warm human narrator for stories that feel personal.",
     recommendedFor: ["Moral stories", "Documentary", "Long-form narration", "Educational"],
-    score: 9.5, isDefault: false,
+    score: 9.5, isDefault: false, providerVoiceId: "HH8sIQq8WOcER3Nu118i",
   }),
   c({
     id: "aakash", name: "Aakash", languageCode: "hi", gender: "masculine", accent: null,
@@ -238,7 +239,7 @@ export const VOICE_CHARACTERS: VoiceCharacter[] = [
     categoryTags: ["storytelling", "documentary", "educational", "podcast"],
     description: "Professional, balanced narrator for long-form Hindi content.",
     recommendedFor: ["Audiobooks", "Hindi explainers", "Documentary", "Educational narration"],
-    score: 9.4, isDefault: false,
+    score: 9.4, isDefault: false, providerVoiceId: "JlfM9BOUS7FcsHfTqsAy",
   }),
   c({
     id: "bunty", name: "Bunty", languageCode: "hi", gender: "masculine", accent: null,
@@ -246,7 +247,7 @@ export const VOICE_CHARACTERS: VoiceCharacter[] = [
     categoryTags: ["shorts_reels", "entertainment", "news", "conversational"],
     description: "Punchy, fast voice built for viral Hindi Shorts and Reels.",
     recommendedFor: ["Shorts", "Reels", "Viral hooks", "Facts", "Fast storytelling"],
-    score: 9.3, isDefault: false,
+    score: 9.3, isDefault: false, providerVoiceId: "3OUAuH7CeDSQhCCijs1Y",
   }),
   c({
     id: "monika-sogam", name: "Monika Sogam", languageCode: "hi", gender: "feminine", accent: null,
@@ -254,7 +255,7 @@ export const VOICE_CHARACTERS: VoiceCharacter[] = [
     categoryTags: ["emotional", "storytelling", "lifestyle_beauty", "educational"],
     description: "Warm, calm natural female narrator.",
     recommendedFor: ["Emotional stories", "Lifestyle", "Education", "Female narration"],
-    score: 9.2, isDefault: false,
+    score: 9.2, isDefault: false, providerVoiceId: "OtEfb2LVzIE45wdYe54M",
   }),
   c({
     id: "kali-devi", name: "Kali Devi", languageCode: "hi", gender: "feminine", accent: null,
@@ -262,7 +263,7 @@ export const VOICE_CHARACTERS: VoiceCharacter[] = [
     categoryTags: ["emotional", "cinematic", "storytelling"],
     description: "Expressive cinematic female storyteller.",
     recommendedFor: ["Emotional stories", "Dramatic narration", "Cultural stories", "Cinematic content"],
-    score: 9.1, isDefault: false,
+    score: 9.1, isDefault: false, providerVoiceId: "Be3X8pg7kLN4vyyMC3QN",
   }),
   c({
     id: "krishna-gupta", name: "Krishna Gupta", languageCode: "hi", gender: "masculine", accent: null,
@@ -270,7 +271,7 @@ export const VOICE_CHARACTERS: VoiceCharacter[] = [
     categoryTags: ["shorts_reels", "entertainment", "news", "conversational"],
     description: "Modern, energetic voice for Hindi social media.",
     recommendedFor: ["Shorts", "Reels", "Facts", "Entertainment", "Social media"],
-    score: 9.0, isDefault: false,
+    score: 9.0, isDefault: false, providerVoiceId: "T3s9anIvGvoeogXyFyMt",
   }),
   c({
     id: "devi", name: "Devi", languageCode: "hi", gender: "feminine", accent: null,
@@ -278,7 +279,7 @@ export const VOICE_CHARACTERS: VoiceCharacter[] = [
     categoryTags: ["motivational", "educational", "soft_calm", "storytelling"],
     description: "Positive, warm motivating narrator.",
     recommendedFor: ["Motivational videos", "Positive stories", "Education", "Wellness"],
-    score: 8.9, isDefault: false,
+    score: 8.9, isDefault: false, providerVoiceId: "o6qTxWUeRyzRYZyUNDVJ",
   }),
   c({
     id: "vikram", name: "Vikram", languageCode: "hi", gender: "masculine", accent: null,
@@ -286,7 +287,7 @@ export const VOICE_CHARACTERS: VoiceCharacter[] = [
     categoryTags: ["educational", "technology_ai", "news", "conversational"],
     description: "Clear, professional voice for Hindi tutorials and explainers.",
     recommendedFor: ["Tutorials", "Education", "Technology", "Informational videos"],
-    score: 8.8, isDefault: false,
+    score: 8.8, isDefault: false, providerVoiceId: "F8IvasoAdpDhOjLm5YBm",
   }),
   c({
     id: "vikrant", name: "Vikrant", languageCode: "hi", gender: "masculine", accent: null,
@@ -294,7 +295,7 @@ export const VOICE_CHARACTERS: VoiceCharacter[] = [
     categoryTags: ["educational", "technology_ai", "conversational"],
     description: "Direct, instructional narrator for how-to content.",
     recommendedFor: ["How-to videos", "Education", "Tutorials", "Tech"],
-    score: 8.7, isDefault: false,
+    score: 8.7, isDefault: false, providerVoiceId: "Aano0MRpH01ekWzUtv60",
   }),
 
   /* ── Spanish ── */
@@ -304,7 +305,7 @@ export const VOICE_CHARACTERS: VoiceCharacter[] = [
     categoryTags: ["cinematic", "documentary", "crime_mystery", "emotional", "storytelling"],
     description: "Deep, rich cinematic narrator — the default Spanish storyteller.",
     recommendedFor: ["Documentary", "Mystery", "Crime", "History", "Emotional storytelling"],
-    score: 9.8, isDefault: true,
+    score: 9.8, isDefault: true, providerVoiceId: "DdKbXdRlBmj7Ty7N0FVr",
   }),
   c({
     id: "alberto-rodriguez", name: "Alberto Rodríguez", languageCode: "es", gender: "masculine", accent: null,
@@ -312,7 +313,7 @@ export const VOICE_CHARACTERS: VoiceCharacter[] = [
     categoryTags: ["documentary", "business_finance", "crime_mystery", "storytelling"],
     description: "Serious, professional narrator for long-form Spanish content.",
     recommendedFor: ["Biography", "Business", "History", "True crime"],
-    score: 9.7, isDefault: false,
+    score: 9.7, isDefault: false, providerVoiceId: "hyKxCTlAqtnW188CgltM",
   }),
   c({
     id: "david-martin", name: "David Martin", languageCode: "es", gender: "masculine", accent: null,
@@ -320,7 +321,7 @@ export const VOICE_CHARACTERS: VoiceCharacter[] = [
     categoryTags: ["documentary", "educational", "business_finance", "storytelling"],
     description: "Confident, balanced professional narrator.",
     recommendedFor: ["Educational", "Business", "General storytelling", "Spain-focused narration"],
-    score: 9.5, isDefault: false,
+    score: 9.5, isDefault: false, providerVoiceId: "uCQe5kObQIjtylU0HL3m",
   }),
   c({
     id: "carmelo", name: "Carmelo", languageCode: "es", gender: "masculine", accent: null,
@@ -328,7 +329,7 @@ export const VOICE_CHARACTERS: VoiceCharacter[] = [
     categoryTags: ["horror", "crime_mystery", "documentary"],
     description: "Mature, mysterious voice for dark Spanish storytelling.",
     recommendedFor: ["Horror", "Mystery", "Crime", "Dark history", "Suspense"],
-    score: 9.4, isDefault: false,
+    score: 9.4, isDefault: false, providerVoiceId: "YqZLNYWZm98oKaaLZkUA",
   }),
   c({
     id: "fernando-martinez", name: "Fernando Martínez", languageCode: "es", gender: "masculine", accent: null,
@@ -336,7 +337,7 @@ export const VOICE_CHARACTERS: VoiceCharacter[] = [
     categoryTags: ["shorts_reels", "entertainment", "news", "conversational"],
     description: "Fast, persuasive voice for high-energy Spanish content.",
     recommendedFor: ["Shorts", "Reels", "Advertising", "Facts", "Fast-paced videos"],
-    score: 9.3, isDefault: false,
+    score: 9.3, isDefault: false, providerVoiceId: "MjtZn5tagxL1RO6w9ER5",
   }),
   c({
     id: "enrique-mondragon", name: "Enrique Mondragón", languageCode: "es", gender: "masculine", accent: "Mexican Spanish",
@@ -344,7 +345,7 @@ export const VOICE_CHARACTERS: VoiceCharacter[] = [
     categoryTags: ["storytelling", "documentary", "entertainment", "podcast"],
     description: "Natural Mexican Spanish narrator.",
     recommendedFor: ["Mexican storytelling", "Documentary", "Entertainment", "Long-form videos"],
-    score: 9.2, isDefault: false,
+    score: 9.2, isDefault: false, providerVoiceId: "Wl3O9lmFSMgGFTTwuS6f",
   }),
   c({
     id: "antonio", name: "Antonio", languageCode: "es", gender: "masculine", accent: "Mexican Spanish",
@@ -352,7 +353,7 @@ export const VOICE_CHARACTERS: VoiceCharacter[] = [
     categoryTags: ["conversational", "podcast", "entertainment", "shorts_reels"],
     description: "Friendly, casual Mexican Spanish conversationalist.",
     recommendedFor: ["Podcasts", "Entertainment", "Social videos", "Conversational content"],
-    score: 9.1, isDefault: false,
+    score: 9.1, isDefault: false, providerVoiceId: "94zOad0g7T7K4oa7zhDq",
   }),
   c({
     id: "agustin", name: "Agustín", languageCode: "es", gender: "masculine", accent: "Argentine",
@@ -360,7 +361,7 @@ export const VOICE_CHARACTERS: VoiceCharacter[] = [
     categoryTags: ["conversational", "entertainment", "podcast"],
     description: "Relaxed Argentine conversational narrator.",
     recommendedFor: ["Casual storytelling", "Entertainment", "Podcasts", "Social content"],
-    score: 9.0, isDefault: false,
+    score: 9.0, isDefault: false, providerVoiceId: "zR7eV8hMFnxhSSAcCYW0",
   }),
   c({
     id: "sara-martin", name: "Sara Martin", languageCode: "es", gender: "feminine", accent: null,
@@ -368,7 +369,7 @@ export const VOICE_CHARACTERS: VoiceCharacter[] = [
     categoryTags: ["educational", "documentary", "lifestyle_beauty", "conversational"],
     description: "Clear, professional friendly female voice.",
     recommendedFor: ["Education", "Documentary", "Lifestyle", "Female narration"],
-    score: 8.9, isDefault: false,
+    score: 8.9, isDefault: false, providerVoiceId: "uDhfdG2VwEjWZ4JYzggn",
   }),
   c({
     id: "el-faraon", name: "El Faraon", languageCode: "es", gender: "masculine", accent: "Latin-American",
@@ -376,7 +377,7 @@ export const VOICE_CHARACTERS: VoiceCharacter[] = [
     categoryTags: ["storytelling", "motivational", "cinematic", "documentary"],
     description: "Deep, strong Latin-American narrator.",
     recommendedFor: ["History", "Motivational", "Cinematic narration", "Storytelling"],
-    score: 8.8, isDefault: false,
+    score: 8.8, isDefault: false, providerVoiceId: "K3TeN3ZVK8WnOeJ0NYqZ",
   }),
 
   /* ── German ── */
@@ -386,7 +387,7 @@ export const VOICE_CHARACTERS: VoiceCharacter[] = [
     categoryTags: ["documentary", "crime_mystery", "business_finance", "cinematic", "storytelling"],
     description: "Rich, deep cinematic narrator — the default German storyteller.",
     recommendedFor: ["Documentary", "History", "Crime", "Mystery", "Business"],
-    score: 9.7, isDefault: true,
+    score: 9.7, isDefault: true, providerVoiceId: "re2r5d74PqDzicySNW0I",
   }),
   c({
     id: "helmut-stieglbauer", name: "Helmut Stieglbauer", languageCode: "de", gender: "masculine", accent: null,
@@ -394,7 +395,7 @@ export const VOICE_CHARACTERS: VoiceCharacter[] = [
     categoryTags: ["documentary", "crime_mystery", "cinematic", "storytelling"],
     description: "Deep, dynamic dramatic narrator.",
     recommendedFor: ["History", "Crime", "Cinematic", "Dramatic storytelling"],
-    score: 9.6, isDefault: false,
+    score: 9.6, isDefault: false, providerVoiceId: "Fghah4fztZORbiKfIGAs",
   }),
   c({
     id: "christian", name: "Christian", languageCode: "de", gender: "masculine", accent: null,
@@ -402,7 +403,7 @@ export const VOICE_CHARACTERS: VoiceCharacter[] = [
     categoryTags: ["storytelling", "documentary", "educational", "conversational"],
     description: "Warm, captivating natural narrator.",
     recommendedFor: ["Long-form storytelling", "Biography", "Travel", "Educational stories"],
-    score: 9.5, isDefault: false,
+    score: 9.5, isDefault: false, providerVoiceId: "z1EhmmPwF0ENGYE8dBE6",
   }),
   c({
     id: "otto", name: "Otto", languageCode: "de", gender: "masculine", accent: null,
@@ -410,7 +411,7 @@ export const VOICE_CHARACTERS: VoiceCharacter[] = [
     categoryTags: ["conversational", "entertainment", "shorts_reels", "educational"],
     description: "Casual, creator-like German narrator.",
     recommendedFor: ["YouTube narration", "Conversational videos", "Explainers", "Shorts"],
-    score: 9.4, isDefault: false,
+    score: 9.4, isDefault: false, providerVoiceId: "FTNCalFNG5bRnkkaP5Ug",
   }),
   c({
     id: "mila", name: "Mila", languageCode: "de", gender: "feminine", accent: null,
@@ -418,7 +419,7 @@ export const VOICE_CHARACTERS: VoiceCharacter[] = [
     categoryTags: ["documentary", "news", "educational", "shorts_reels"],
     description: "Confident professional female narrator.",
     recommendedFor: ["Documentary", "Commentary", "News", "Educational"],
-    score: 9.3, isDefault: false,
+    score: 9.3, isDefault: false, providerVoiceId: "dCnu06FiOZma2KVNUoPZ",
   }),
   c({
     id: "benjamin", name: "Benjamin", languageCode: "de", gender: "masculine", accent: null,
@@ -426,7 +427,7 @@ export const VOICE_CHARACTERS: VoiceCharacter[] = [
     categoryTags: ["educational", "technology_ai", "conversational"],
     description: "Clear, professional voice for German education and tech.",
     recommendedFor: ["Education", "Tutorials", "Explainers", "Technology"],
-    score: 9.1, isDefault: false,
+    score: 9.1, isDefault: false, providerVoiceId: "MbbPUteESkJWr4IAaW35",
   }),
   c({
     id: "toby", name: "Toby", languageCode: "de", gender: "masculine", accent: null,
@@ -434,7 +435,7 @@ export const VOICE_CHARACTERS: VoiceCharacter[] = [
     categoryTags: ["entertainment", "podcast", "conversational"],
     description: "Casual, friendly conversational narrator.",
     recommendedFor: ["Entertainment", "Podcasts", "Casual storytelling", "Social content"],
-    score: 9.0, isDefault: false,
+    score: 9.0, isDefault: false, providerVoiceId: "aTTiK3YzK3dXETpuDE2h",
   }),
   c({
     id: "sissi", name: "Sissi", languageCode: "de", gender: "feminine", accent: null,
@@ -442,7 +443,7 @@ export const VOICE_CHARACTERS: VoiceCharacter[] = [
     categoryTags: ["shorts_reels", "lifestyle_beauty", "entertainment"],
     description: "Energetic, expressive female voice.",
     recommendedFor: ["Shorts", "Reels", "Lifestyle", "Entertainment"],
-    score: 8.9, isDefault: false,
+    score: 8.9, isDefault: false, providerVoiceId: "7eVMgwCnXydb3CikjV7a",
   }),
   c({
     id: "elli", name: "Elli", languageCode: "de", gender: "feminine", accent: null,
@@ -458,7 +459,7 @@ export const VOICE_CHARACTERS: VoiceCharacter[] = [
     categoryTags: ["entertainment", "storytelling", "conversational"],
     description: "Expressive, character-driven narrator.",
     recommendedFor: ["Animation", "Characters", "Comedy", "Storytelling"],
-    score: 8.7, isDefault: false,
+    score: 8.7, isDefault: false, providerVoiceId: "PnDjdkPdsPizyMoHbJma",
   }),
 ];
 

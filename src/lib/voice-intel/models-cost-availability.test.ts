@@ -13,6 +13,7 @@ import {
   resolveVoiceForSynthesis,
 } from "./availability";
 import { voiceCharacter } from "./catalog";
+import type { VoiceCharacter } from "./types";
 
 describe("autoSelectModel", () => {
   it("short-form content → Flash (fastest)", () => {
@@ -116,8 +117,14 @@ describe("availability", () => {
   });
 
   it("unmapped voice is never reported ready", () => {
-    const niraj = voiceCharacter("niraj")!;
-    expect(availabilityOf(niraj, true)).toBe("unmapped");
+    // Synthetic unmapped character: the live catalog has none left, so the
+    // availability logic is exercised without depending on catalog data.
+    const ghost = {
+      ...voiceCharacter("niraj")!,
+      providerVoiceId: null,
+      status: "unmapped" as const,
+    };
+    expect(availabilityOf(ghost, true)).toBe("unmapped");
     expect(availabilityLabel("unmapped")).toBe("Not connected yet");
   });
 
@@ -125,7 +132,7 @@ describe("availability", () => {
     // Synthetic Hindi pool: the fallback mechanism is exercised with injected
     // candidates because the live catalog currently has no partially-mapped language.
     const requested = voiceCharacter("niraj")!;
-    const candidates = [
+    const candidates: VoiceCharacter[] = [
       {
         ...requested, id: "hindi-a", name: "Hindi A",
         providerVoiceId: "voice-a", status: "mapped" as const,
@@ -148,13 +155,17 @@ describe("availability", () => {
     expect(bestFallback(requested, null, [voiceCharacter("adam")!])).toBeNull();
   });
 
-  it("hard-fails with a clear reason when no same-language fallback exists", () => {
+  it("mapped Hindi voice resolves directly with its own provider voice id", () => {
     const res = resolveVoiceForSynthesis({
       characterId: "niraj",
       providerConfigured: true,
     });
-    expect(res.ok).toBe(false);
-    if (!res.ok) expect(res.reason).toMatch(/Niraj/i);
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.viaFallback).toBe(false);
+      expect(res.character.id).toBe("niraj");
+      expect(res.character.providerVoiceId).toBe("k0gtD0Bbpi6hL40jfHfm");
+    }
   });
 
   it("unknown character id fails cleanly", () => {

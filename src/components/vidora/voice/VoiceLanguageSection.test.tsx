@@ -112,8 +112,10 @@ describe("VoiceLanguageSection", () => {
     await waitFor(() => {
       expect(within(smartDefault()).getByText("Niraj")).toBeInTheDocument();
     });
-    // Unmapped voice: honest badge.
-    expect(within(smartDefault()).getByText("Not connected yet")).toBeInTheDocument();
+    // Mapped voice: no "Not connected yet" badge on the smart-default card.
+    expect(
+      within(smartDefault()).queryByText("Not connected yet"),
+    ).not.toBeInTheDocument();
   });
 
   it("re-ranks the library when a category is selected (real recommend engine)", async () => {
@@ -216,7 +218,7 @@ describe("VoiceLanguageSection", () => {
     expect(within(summary()).getByText("Adam")).toBeInTheDocument();
   });
 
-  it("summary panel is honest about an unmapped selection", async () => {
+  it("summary panel shows no connection warning for a mapped selection", async () => {
     const user = userEvent.setup();
     render(<VoiceLanguageSection />);
     await user.click(screen.getByRole("button", { name: /hindi/i }));
@@ -224,8 +226,8 @@ describe("VoiceLanguageSection", () => {
       expect(within(smartDefault()).getByText("Niraj")).toBeInTheDocument();
     });
     expect(
-      within(summary()).getByText(/isn't connected to a narration provider yet/),
-    ).toBeInTheDocument();
+      within(summary()).queryByText(/isn't connected to a narration provider yet/),
+    ).not.toBeInTheDocument();
   });
 
   it("warns when picking a voice that differs from the channel default", async () => {

@@ -33,14 +33,17 @@ describe("resolveDialogVoiceKey", () => {
     expect(r.note).toContain("video pipeline");
   });
 
-  it("is honest when a language has no provider voice at all (Hindi)", () => {
+  it("flags account-mapped Hindi voices the legacy pipeline can't consume yet (Niraj)", () => {
+    // Niraj is mapped to the user's own ElevenLabs voice, but the legacy
+    // render pipeline only knows the "sirius" key — the selection is saved
+    // and the note says so explicitly instead of claiming full wiring.
     const r = resolveDialogVoiceKey(
       sel({ languageCode: "hi", characterId: "niraj" }),
     );
     expect(r.viaFallback).toBe(true);
+    expect(r.effectiveCharacterId).toBe("niraj");
     expect(r.note).toContain("Niraj");
-    expect(r.note).toContain("Hindi");
-    expect(r.note).toContain("standard narration voice");
+    expect(r.note).toContain("video pipeline");
   });
 
   it("flags provider-mapped voices the pipeline can't consume (Elli)", () => {

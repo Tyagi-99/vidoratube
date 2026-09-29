@@ -514,11 +514,12 @@ describe("checkVoiceAvailability", () => {
     expect(res401.providerConfigured).toBe(false);
   });
 
-  it("does not live-validate unmapped characters", async () => {
+  it("live-validates newly mapped characters against the provider", async () => {
     const db = makeDb([ok(null)]);
+    mocks.validateVoice.mockResolvedValueOnce({ ok: true, status: "ready" });
     const res = await call(db, "niraj");
-    expect(res.availability).toBe("unmapped");
-    expect(mocks.validateVoice).not.toHaveBeenCalled();
+    expect(mocks.validateVoice).toHaveBeenCalledWith("k0gtD0Bbpi6hL40jfHfm");
+    expect(res.availability).toBe("ready");
   });
 });
 
@@ -542,12 +543,17 @@ describe("previewVoice", () => {
     expect(mocks.elevenLabsSynthesize).not.toHaveBeenCalled();
   });
 
-  it("returns UNMAPPED_VOICE (null fallback) for a character with no compatible fallback", async () => {
-    // niraj (hi) — no mapped Hindi voice exists in the catalog.
-    const db = makeDb([ok(null)]);
-    const res = await call(db, { characterId: "niraj" });
-    expect(res).toMatchObject({ ok: false, code: "UNMAPPED_VOICE", fallbackCharacterId: null });
-    expect(mocks.elevenLabsSynthesize).not.toHaveBeenCalled();
+  it("previews a newly mapped Hindi voice with its own account voice id (no fallback)", async () => {
+    // niraj is mapped to the user's own ElevenLabs "Niraj" voice —
+    // mapped voices synthesize directly, never via fallback.
+    const db = makeDb([ok(null), ok(null), ok(null)]);
+    const res = await call(db, { characterId: "niraj", text: "ek kahani" });
+    expect(res).toMatchObject({ ok: true, characterId: "niraj", viaFallback: false });
+    const [, synthOpts] = mocks.elevenLabsSynthesize.mock.calls[0] as unknown as [
+      string,
+      { voiceId: string },
+    ];
+    expect(synthOpts.voiceId).toBe("k0gtD0Bbpi6hL40jfHfm");
   });
 
   it("returns the cached URL without synthesizing on a cache hit", async () => {
@@ -640,15 +646,14 @@ describe("compareVoices", () => {
       data: { characterIds: string[]; text: string };
       context: { supabase: never; userId: string };
     }) => Promise<{ results: { characterId: string; audioUrl: string | null; error: string | null }[] }>;
-    // adam: char row miss, cache miss, cache insert. niraj: char row miss (no fallback).
+    // adam: char row miss, cache miss, cache insert. niraj: char row miss, cache miss, cache insert.
     const db = makeDb([ok(null), ok(null), ok(null), ok(null)]);
     const res = await fn({ data: { characterIds: ["adam", "niraj"], text: "same text" }, context: ctx(db) });
     expect(res.results).toHaveLength(2);
     expect(res.results[0]).toMatchObject({ characterId: "adam", error: null });
     expect(res.results[0]!.audioUrl).toBe("https://cdn.test/preview.mp3");
-    expect(res.results[1]).toMatchObject({ characterId: "niraj", audioUrl: null });
-    expect(typeof res.results[1]!.error).toBe("string");
-    expect(res.results[1]!.error).not.toContain("UNMAPPED_VOICE");
+    expect(res.results[1]).toMatchObject({ characterId: "niraj", error: null });
+    expect(res.results[1]!.audioUrl).toBe("https://cdn.test/preview.mp3");
   });
 });
 
