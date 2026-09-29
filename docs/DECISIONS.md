@@ -2435,3 +2435,67 @@ ask"). Each entry: decision, reason, how to reverse. Newest first.
   similar quality, flash is $0.05/1k). Flip DEFAULT_VOICE_MODEL, route,
   plan.ts/autoSelectModel back, update the V4 pricing constant, re-run
   tests + publish. A one-time cron on 2026-10-13 reminds the user to decide.
+
+### D331. Voice-count marketing truth updated: 16 → 40 (2026-09-29)
+
+- **Decision:** the D307/D316 guardrail pinned "16 built-in voices" from the
+  legacy `VOICE_CATALOG` (`src/lib/voices.ts`). The 40-character voice-intel
+  catalog (`src/lib/voice-intel/catalog.ts`, 10 characters × 4 languages, all
+  mapped to real ElevenLabs voice IDs, previews verified) superseded it as the
+  product's voice surface on 2026-09-29. All derived marketing counts now read
+  from `VOICE_CHARACTERS`: `Hero.tsx` stat strip, `feature-catalog.ts`
+  ("N built-in voices out of the box"), and the `marketing-claims.test.ts`
+  pin (now 40). Hardcoded homepage claims corrected: "16 built-in voices" →
+  40 (VoiceWall, index meta), "12 built-in English voices" → 10 (Pipeline),
+  FAQ language answer → 10 per language across EN/HI/ES/DE.
+- **Known divergence (P2):** the project-workspace `VoicePicker` still offers
+  the legacy 16 voices while `/voices` advertises 40 characters. Recommended
+  follow-up: migrate the picker onto the voice-intel catalog; not done here
+  because it changes narration voice IDs on existing projects.
+- **Reverse:** point the three derived counts back at `VOICE_CATALOG` and
+  restore the hardcoded copy.
+
+### D332. Budget caps enforced atomically inside debit RPCs, ledger becomes the spend source (2026-09-29)
+
+- **Decision:** month-to-date budget spend is now computed from attributed
+  `credit_ledger` debits (new nullable `workspace_id`/`project_id` columns,
+  migration `20260929132000`), not from `generation_jobs.cost_actual_credits`
+  alone — the old source was blind to voice/render/video-job debits.
+  `debit_credits_for_minutes` and `debit_credits_amount_once` accept the scope
+  and enforce workspace/project caps inside the same row lock as the balance
+  check, so a cap can never be breached by a concurrent race. Legacy
+  `generation_jobs` costs without an attributed ledger debit are still counted
+  via a NOT-attributed fallback (no double-counting).
+- **Callers updated:** voiceover TTS, Voice Intelligence narration, chapter
+  renders, and server renders now pass their workspace/project scope; friendly
+  "monthly credit cap" / "project credit cap" errors replace raw RPC messages.
+  `createVideoJob` has no workspace/project on its schema, so its debits stay
+  unattributed (uncapped) — accepted gap, P2.
+- **Tests:** 60 credit-module tests + 5 new reserve-render-billing tests green;
+  SQL concurrency verification script at
+  `~/workspace/goals/vidoratube-vidora-ai-development/hidden_files/qa-budget-concurrency-verify.sql`
+  (run after applying the migration; live DB work delegated to owner).
+- **Reverse:** revert migration `20260929132000`, restore the old
+  `getMonthToDateSpend`, drop the scope params.
+
+### D333. Rerender/publish/worker-liveness billing hardening (2026-09-29, QA sweep)
+
+- **Decision:** three billing-integrity gaps closed in the same sweep:
+  1. `rerenderChapter` performed cache-miss ElevenLabs TTS with no credit
+     reserve and no rate limit. It now rate-limits (10/hour/user), pre-reserves
+     a conservative 130-wpm estimate before any synthesis, then settles to the
+     exact quote from real durations — same rule as `enqueueChapterRender`.
+  2. `runExecutePublishJob` claimed the `uploading` status BEFORE the three
+     hard gates (approval record, current safety score, strict evidence gate),
+     burning gate-failed jobs into `failed`. All gates now run before the
+     atomic claim; a gate failure leaves the job retryable in `approved`.
+  3. `enqueueServerRender` and `enqueueChapterRender` debited before checking
+     worker liveness. New exported `assertServerWorkerAvailable` (heartbeat <
+     15 min, or recent claim from an older worker build) runs before any
+     debit; offline workers get a friendly "use the fast browser render"
+     message instead of a stranded paid job.
+- **Tests:** worker-liveness (5), rerender wiring audit (5), publish-gate
+  reorder (updated PROOF tests assert retryable `approved` + no `uploading`
+  claim on gate failure).
+- **Reverse:** remove the assert call in the two enqueue handlers, move the
+  gates back after the claim, drop the rerender pre-reserve/settle.

@@ -5241,6 +5241,10 @@ export type Database = {
           p_reason: string
           p_ref_id?: string
           p_user_id: string
+          // Added by migration 20260929132000 (budget attribution). Regenerate
+          // types from the live DB after applying it.
+          p_workspace_id?: string | null
+          p_project_id?: string | null
         }
         Returns: number
       }
@@ -5258,6 +5262,10 @@ export type Database = {
           p_reason: string
           p_ref_id?: string
           p_user_id: string
+          // Added by migration 20260929132000 (budget attribution). Regenerate
+          // types from the live DB after applying it.
+          p_workspace_id?: string | null
+          p_project_id?: string | null
         }
         Returns: number
       }

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { VOICE_CATALOG } from "./voices";
+import { VOICE_CHARACTERS } from "./voice-intel/catalog";
 import { STYLES } from "../components/vidora/cinema/StyleGallery";
 import {
   FEATURE_CATALOG,
@@ -14,12 +14,16 @@ import {
  * Marketing numbers that exist in code must be derived from code, never
  * hardcoded: the hero stat strip and the feature catalog read the voice
  * catalog and the style gallery directly. This test pins the code truth
- * (16 built-in voices, 6 styles) and fails if a stale hardcoded claim
+ * (40 built-in voice characters, 6 styles) and fails if a stale hardcoded claim
  * ("25+", "10 visual styles") ever reappears in Hero.tsx.
+ *
+ * The voice-intel catalog (40 characters, 10 per language x 4 languages)
+ * superseded the legacy 16-voice catalog as the product's voice surface on
+ * 2026-09-29 (see docs/DECISIONS.md).
  */
 
 const ROOT = resolve(process.cwd());
-const BUILT_IN_VOICES = VOICE_CATALOG.filter((v) => !v.library).length;
+const BUILT_IN_VOICES = VOICE_CHARACTERS.length;
 
 /** Banned in catalog one-liners: guarantees, virality promises, income claims, fake social proof. */
 const BANNED_CATALOG: { pattern: RegExp; reason: string }[] = [
@@ -36,8 +40,8 @@ const BANNED_CATALOG: { pattern: RegExp; reason: string }[] = [
 ];
 
 describe("marketing claims are derived from code", () => {
-  it("pins the code truth: 16 built-in voices, 6 styles", () => {
-    expect(BUILT_IN_VOICES).toBe(16);
+  it("pins the code truth: 40 built-in voice characters, 6 styles", () => {
+    expect(BUILT_IN_VOICES).toBe(40);
     expect(STYLES.length).toBe(6);
   });
 
@@ -52,7 +56,7 @@ describe("marketing claims are derived from code", () => {
     expect(hero).not.toMatch(/["'>]10["'<]/);
     expect(hero).not.toMatch(/\b10\+?\s*(visual\s+)?styles?/i);
     // Counts must come from the catalogs, not literals.
-    expect(hero).toContain("VOICE_CATALOG");
+    expect(hero).toContain("VOICE_CHARACTERS");
     expect(hero).toContain("STYLES");
   });
 

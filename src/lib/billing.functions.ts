@@ -198,12 +198,15 @@ export async function reserveRenderBilling(
   userId: string,
   renderId: string,
   quotedCredits: number = DEFAULT_RENDER_RESERVE_MINUTES,
+  scope?: { workspaceId?: string | undefined; projectId?: string | undefined },
 ): Promise<void> {
   const { error } = await supabaseAdmin.rpc("debit_credits_amount_once", {
     p_user_id: userId,
     p_amount: quotedCredits,
     p_reason: `Server render reserve (${quotedCredits} credits)`,
     p_ref_id: renderId,
+    p_workspace_id: scope?.workspaceId ?? null,
+    p_project_id: scope?.projectId ?? null,
   });
   if (error) {
     const msg = error instanceof Error ? error.message : String((error as { message?: string })?.message ?? error);
@@ -211,6 +214,12 @@ export async function reserveRenderBilling(
       throw new Error(
         `Not enough credits to start a server render (needs ${quotedCredits}). Top up or use the fast browser render.`,
       );
+    }
+    if (msg.includes("WORKSPACE_BUDGET_EXCEEDED")) {
+      throw new Error("This workspace has hit its monthly credit cap.");
+    }
+    if (msg.includes("PROJECT_BUDGET_EXCEEDED")) {
+      throw new Error("This project has hit its credit cap.");
     }
     throw new Error(msg);
   }

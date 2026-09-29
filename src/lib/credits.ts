@@ -17,12 +17,21 @@ function toOutOfCredits(error: { message: string }): never {
   if (error.message.includes("INSUFFICIENT_CREDITS")) {
     throw new Error(OUT_OF_CREDITS_MESSAGE);
   }
+  // P1-5: atomic budget enforcement surfaces these from the debit RPCs.
+  if (error.message.includes("WORKSPACE_BUDGET_EXCEEDED")) {
+    throw new Error("This workspace has hit its monthly credit cap.");
+  }
+  if (error.message.includes("PROJECT_BUDGET_EXCEEDED")) {
+    throw new Error("This project has hit its credit cap.");
+  }
   throw new Error(error.message);
 }
 
 /**
  * Debit N finished minutes for a job. Idempotent per jobId.
  * Requires the 20260925194000_per_minute_credits migration.
+ * Pass `scope` when the spend belongs to a workspace/project — the debit RPC
+ * then enforces that scope's budget cap atomically (P1-5, 2026-09-29).
  */
 export async function debitMinutesForJob(
   supabaseAdmin: SupabaseClient<Database>,
@@ -30,12 +39,15 @@ export async function debitMinutesForJob(
   jobId: string,
   minutes: number,
   reason: string,
+  scope?: { workspaceId?: string | undefined; projectId?: string | undefined },
 ): Promise<void> {
   const { error } = await supabaseAdmin.rpc("debit_credits_for_minutes", {
     p_user_id: userId,
     p_minutes: Math.max(1, Math.ceil(minutes)),
     p_reason: reason,
     p_ref_id: jobId,
+    p_workspace_id: scope?.workspaceId ?? null,
+    p_project_id: scope?.projectId ?? null,
   });
   if (error) toOutOfCredits(error);
 }

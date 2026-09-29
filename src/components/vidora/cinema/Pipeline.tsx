@@ -11,7 +11,7 @@ const SCENES = [
     no: "02",
     icon: Mic,
     title: "The voice",
-    body: "Pick from 12 built-in English voices — narrators, calm storytellers, energetic hosts. Hindi voices available too; more languages in beta.",
+    body: "Pick from 10 built-in English voices — narrators, calm storytellers, energetic hosts. Hindi, Spanish, and German voices available too.",
   },
   {
     no: "03",

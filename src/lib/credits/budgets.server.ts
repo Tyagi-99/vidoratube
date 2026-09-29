@@ -7,15 +7,14 @@
  *   project_budgets(project_id PK, credit_cap NULL = no cap)
  *
  * ── WHERE SPEND COMES FROM (read this before "optimizing") ────────────────
- * `credit_ledger` carries NO workspace_id / project_id column — only
- * user_id, delta, reason, ref_id. Attributing ledger rows to a workspace
- * would be guesswork (e.g. parsing reason text), so we deliberately do NOT
- * do it. Month-to-date spend is computed from
- * `generation_jobs.cost_actual_credits`, which DOES carry workspace_id,
- * project_id, user_id and created_at. Limitation: spend only counts jobs
- * that record `cost_actual_credits`; legacy paths that debit purely through
- * the ledger RPCs without a generation_jobs row are invisible to budgets.
- * This is stated, not hidden.
+ * `credit_ledger` carries nullable `workspace_id` / `project_id` attribution
+ * columns (migration 20260929132000). Debit RPCs accept the scope and write
+ * it on the ledger row, so month-to-date spend is computed from attributed
+ * ledger debits — covering voice, render, and video-job paths, not just
+ * generation_jobs. Legacy `generation_jobs.cost_actual_credits` rows without
+ * an attributed ledger debit are still counted (no double-counting).
+ * Unattributed debits (scope unknown at debit time) remain invisible to caps;
+ * callers should pass their scope whenever they know it.
  *
  * Authorization: budget writes are privileged. The workspace role helper
  * lives in `../agency/agency.functions.ts` (`getWorkspaceRole`); this module
@@ -242,21 +241,68 @@ export function monthStartUtc(now: Date = new Date()): string {
  * cost_actual_credits count as 0. All job statuses count: actual cost is
  * actual cost, whether the job succeeded or failed.
  */
+/**
+ * Month-to-date spend for a workspace or project, in credits.
+ *
+ * P1-5 (2026-09-29 audit): spend used to come only from
+ * `generation_jobs.cost_actual_credits`, so voice/render/video-job debits
+ * that touch just the ledger were invisible to caps. Now the primary source
+ * is attributed `credit_ledger` debits (every debit RPC writes workspace_id /
+ * project_id when the caller knows its scope). The `generation_jobs`
+ * fallback is kept only for jobs with NO attributed ledger debit, so legacy
+ * rows are still counted without double-counting.
+ */
 export async function getMonthToDateSpend(
   admin: SupabaseClient<Database>,
   scope: { workspaceId?: string | undefined; projectId?: string | undefined },
 ): Promise<number> {
   const a = asAdmin(admin);
-  let query = a
+  const monthStart = monthStartUtc();
+  const scopeCol = scope.projectId ? "project_id" : "workspace_id";
+  const scopeVal = (scope.projectId ?? scope.workspaceId) as string;
+  if (!scopeVal) throw new Error("getMonthToDateSpend requires a workspaceId or projectId.");
+
+  // 1. Attributed ledger debits (all debit paths that know their scope).
+  const { data: ledgerRows, error: ledgerError } = await a
+    .from("credit_ledger")
+    .select("delta")
+    .eq(scopeCol as never, scopeVal as never)
+    .lt("delta", 0)
+    .gte("created_at", monthStart);
+  if (ledgerError) throw new Error(`Could not compute month-to-date spend: ${ledgerError.message}`);
+  const ledgerSpend = (ledgerRows ?? []).reduce((sum, row) => {
+    const d = Number((row as unknown as { delta: number }).delta || 0);
+    return d < 0 ? sum + -d : sum;
+  }, 0);
+
+  // 2. Legacy fallback: generation_jobs rows whose cost was recorded but
+  //    never attributed in the ledger (no debit row with this job as ref).
+  //    The NOT IN guard prevents double-counting jobs that have both.
+  const { data: scopedJobs, error: scopedError } = await a
     .from("generation_jobs")
-    .select("cost_actual_credits")
-    .gte("created_at", monthStartUtc());
-  if (scope.projectId) query = query.eq("project_id" as never, scope.projectId);
-  else if (scope.workspaceId) query = query.eq("workspace_id" as never, scope.workspaceId);
-  else throw new Error("getMonthToDateSpend requires a workspaceId or projectId.");
-  const { data, error } = await query;
-  if (error) throw new Error(`Could not compute month-to-date spend: ${error.message}`);
-  return (data ?? []).reduce((sum, row) => sum + (Number(row.cost_actual_credits) || 0), 0);
+    .select("id, cost_actual_credits")
+    .eq(scopeCol as never, scopeVal as never)
+    .gte("created_at", monthStart);
+  if (scopedError) throw new Error(`Could not compute month-to-date spend: ${scopedError.message}`);
+  const jobIds = (scopedJobs ?? []).map((j) => (j as unknown as { id: string }).id);
+  let attributedRefIds = new Set<string>();
+  if (jobIds.length > 0) {
+    const { data: attributed, error: attrError } = await a
+      .from("credit_ledger")
+      .select("ref_id")
+      .in("ref_id", jobIds)
+      .lt("delta", 0);
+    if (attrError) throw new Error(`Could not compute month-to-date spend: ${attrError.message}`);
+    attributedRefIds = new Set(
+      (attributed ?? []).map((r) => (r as unknown as { ref_id: string }).ref_id),
+    );
+  }
+  const legacySpend = (scopedJobs ?? []).reduce((sum, j) => {
+    const row = j as unknown as { id: string; cost_actual_credits: number | null };
+    return attributedRefIds.has(row.id) ? sum : sum + (Number(row.cost_actual_credits) || 0);
+  }, 0);
+
+  return ledgerSpend + legacySpend;
 }
 
 export type BudgetCheckInput = {

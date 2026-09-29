@@ -3,8 +3,11 @@
  *
  * - `enqueueChapterRender`: script in → split into 4–8 chapters, one
  *   continuity brief, cached paragraph narration (only misses synthesized),
- *   one `renders` row per aspect (each with its own `render_chapters` rows),
- *   exact per-minute quote reserved up front like every server render.
+ *   one `renders` row per aspect (each with its own `render_chapters` rows).
+ *   A conservative estimate (130 wpm) of the quote is reserved BEFORE any
+ *   ElevenLabs synthesis so a 0-credit account cannot burn TTS spend; after
+ *   synthesis the estimate is refunded and the exact true quote is reserved
+ *   per row, like every server render.
  * - `rerenderChapter`: re-render ONE chapter with new script text. Only that
  *   chapter is marked queued; unchanged paragraphs reuse cached narration;
  *   the parent render is re-queued and the worker re-stitches all chapters.
@@ -45,14 +48,20 @@ const ChapterEnqueueSchema = z.object({
   /** Full narration script; split deterministically into 4–8 chapters. */
   script: z.string().min(1).max(200_000),
   aspect: z.enum(["16:9", "9:16", "1:1"]).optional(),
-  aspects: z.array(z.enum(["16:9", "9:16", "1:1"])).min(1).max(3).optional(),
+  aspects: z
+    .array(z.enum(["16:9", "9:16", "1:1"]))
+    .min(1)
+    .max(3)
+    .optional(),
   fps: z.number().int().min(24).max(60).default(30),
   burnCaptions: z.boolean().default(true),
   voiceId: z.string().max(100).default(DEFAULT_VOICE_ID),
   voiceModel: z.string().max(100).default(DEFAULT_VOICE_MODEL),
   languageCode: z.string().max(16).default("en"),
-  /** Premium voice doubles the per-minute quote (same rule as scenes path). */
-  premiumVoice: z.boolean().default(false),
+  // P2 fix (2026-09-29 audit): the old `premiumVoice` boolean was
+  // client-declared with no server-side catalog defining which voices are
+  // premium, so a caller could halve their quote at will. Removed — the
+  // billing math keeps the multiplier for when a real premium catalog exists.
   mode: z.enum(["story", "cinema"]).default("story"),
 });
 
@@ -95,6 +104,8 @@ export function buildChapterRows(
  * unchanged; the real per-chapter media plan lives in `render_chapters`.
  */
 export function buildChapterRenderRow(params: {
+  /** Preserved across the estimate → true-quote rebuild (defaults to a fresh id). */
+  id?: string;
   userId: string;
   groupId: string;
   aspect: AspectRatio;
@@ -109,7 +120,7 @@ export function buildChapterRenderRow(params: {
 }): RenderRowInsert {
   const p = params;
   return {
-    id: randomUUID(),
+    id: p.id ?? randomUUID(),
     user_id: p.userId,
     project_id: null,
     type: "full",
@@ -210,7 +221,18 @@ async function synthesizeParagraphsCached(
   return synthesizeCachedParagraphs(paragraphs, deps);
 }
 
-/** Enqueue a chapter-mode (long-form) server render. Rate-limited like scenes path. */
+/** Enqueue a chapter-mode (long-form) server render.
+ *
+ * P1 fix (2026-09-29 audit): the old code synthesized ALL paragraph narration
+ * (real ElevenLabs spend on cache misses) BEFORE any credit check — a 0-credit
+ * account could burn provider TTS in a loop. Now the order is:
+ *   1. rate limit (10/hour, like the scenes path),
+ *   2. estimate the duration from the script text and RESERVE the estimated
+ *      quote per aspect row BEFORE any synthesis,
+ *   3. synthesize (cache misses only),
+ *   4. settle the delta between estimate and true quote (top-up or refund).
+ * The estimate is conservative (130 wpm) so top-ups are rare.
+ */
 export const enqueueChapterRender = createServerFn({ method: "POST" })
   .middleware([requireAppUser])
   .inputValidator((i: unknown) => ChapterEnqueueSchema.parse(i))
@@ -218,9 +240,35 @@ export const enqueueChapterRender = createServerFn({ method: "POST" })
     const { userId } = context;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { reserveRenderBilling } = await import("../billing.functions");
+    const { enforcePostgresRateLimit } = await import("../rate-limit");
+
+    // 1. Rate limit: 10 chapter renders/hour, like the scenes path.
+    await enforcePostgresRateLimit(
+      supabaseAdmin,
+      `render:chapter:${userId}`,
+      { max: 10, windowSeconds: 3600 },
+      "You're starting chapter renders too fast. Please wait a bit and try again.",
+    );
+
+    // 1b. Worker liveness BEFORE any debit (P1, 2026-09-29 QA): a paid job
+    // stranded in `queued` with no worker is a billing defect.
+    const { assertServerWorkerAvailable } = await import("../server-renders.functions");
+    await assertServerWorkerAvailable(supabaseAdmin);
 
     const chapters = splitScriptIntoChapters(data.script);
     if (chapters.length === 0) throw new Error("Script produced no chapters.");
+
+    // 2. Conservative duration estimate from the script text (130 wpm — slower
+    // than the 150 wpm balancing estimate, so the pre-TTS reserve usually
+    // covers the true quote). This reserve happens BEFORE any ElevenLabs call.
+    const words = data.script.trim().split(/\s+/).length;
+    const estimatedSeconds = Math.max(1, Math.ceil((words / 130) * 60));
+    const aspects = resolveRenderAspects(data);
+    const estimatedQuote = quoteMultiAspectRender({
+      durationSeconds: estimatedSeconds,
+      mode: data.mode,
+      aspectCount: aspects.length,
+    });
 
     const brief = buildContinuityBrief({
       voiceId: data.voiceId,
@@ -228,7 +276,55 @@ export const enqueueChapterRender = createServerFn({ method: "POST" })
       voiceModel: data.voiceModel,
     });
 
-    // Narration for every paragraph, cached: only misses hit ElevenLabs.
+    const groupId = randomUUID();
+    const parentRows = aspects.map((aspect) =>
+      buildChapterRenderRow({
+        userId,
+        groupId,
+        aspect,
+        title: data.title,
+        fps: data.fps,
+        burnCaptions: data.burnCaptions,
+        mode: data.mode,
+        totalSeconds: estimatedSeconds,
+        expectedCredits: estimatedQuote.perAspect.totalCredits,
+        expectedMinutes: estimatedQuote.perAspect.minutes,
+        brief,
+      }),
+    );
+
+    // Reserve the ESTIMATED quote per aspect row BEFORE any TTS spend, using a
+    // throwaway idempotency ref. A 0-credit account fails here, before a
+    // single ElevenLabs call. The estimate is refunded in full after synthesis
+    // and replaced by the exact true-quote reserve below, so each row's own
+    // ref still carries exactly one debit (its true quote) — preserving the
+    // one-refund-per-row invariant for any future failure-refund path.
+    const preReserveRef = randomUUID();
+    const { error: preError } = await supabaseAdmin.rpc("debit_credits_amount_once", {
+      p_user_id: userId,
+      p_amount: estimatedQuote.perAspect.totalCredits,
+      p_reason: `Chapter render pre-reserve (estimate ${estimatedQuote.perAspect.totalCredits} credits)`,
+      p_ref_id: preReserveRef,
+      p_workspace_id: null,
+      p_project_id: data.projectId ?? null,
+    });
+    if (preError) {
+      const msg = preError.message ?? String(preError);
+      if (msg.includes("INSUFFICIENT_CREDITS")) {
+        throw new Error(
+          `Not enough credits to start a chapter render (needs ~${estimatedQuote.perAspect.totalCredits}). Top up or use the fast browser render.`,
+        );
+      }
+      if (msg.includes("WORKSPACE_BUDGET_EXCEEDED")) {
+        throw new Error("This workspace has hit its monthly credit cap.");
+      }
+      if (msg.includes("PROJECT_BUDGET_EXCEEDED")) {
+        throw new Error("This project has hit its credit cap.");
+      }
+      throw new Error(msg);
+    }
+
+    // 3. Narration for every paragraph, cached: only misses hit ElevenLabs.
     const narration = new Map<number, CachedParagraph[]>();
     let totalSeconds = 0;
     for (const c of chapters) {
@@ -243,20 +339,35 @@ export const enqueueChapterRender = createServerFn({ method: "POST" })
     }
     totalSeconds = Math.max(1, totalSeconds);
 
-    const aspects = resolveRenderAspects(data);
+    // 4. Settle: refund the estimate in full, then reserve the EXACT true
+    // quote per row (same rule as the scenes path: a failed reserve never
+    // leaves orphan queued renders).
+    const { refundMinutesForJob } = await import("../credits");
+    await refundMinutesForJob(
+      supabaseAdmin,
+      userId,
+      preReserveRef,
+      estimatedQuote.perAspect.totalCredits,
+      `Refund: chapter render pre-reserve settled ${preReserveRef}`,
+    );
     const quote = quoteMultiAspectRender({
       durationSeconds: totalSeconds,
       mode: data.mode,
-      premiumVoice: data.premiumVoice,
       aspectCount: aspects.length,
     });
-
-    const groupId = randomUUID();
-    const parentRows = aspects.map((aspect) =>
+    for (const row of parentRows) {
+      await reserveRenderBilling(supabaseAdmin, userId, row.id!, quote.perAspect.totalCredits, {
+        projectId: data.projectId,
+      });
+    }
+    // Rebuild the rows with the TRUE quote (same ids — the pre-reserve used a
+    // throwaway ref, so each row's own ref now carries exactly its true quote).
+    const finalRows = parentRows.map((row, i) =>
       buildChapterRenderRow({
+        id: row.id!,
         userId,
         groupId,
-        aspect,
+        aspect: aspects[i]!,
         title: data.title,
         fps: data.fps,
         burnCaptions: data.burnCaptions,
@@ -268,14 +379,9 @@ export const enqueueChapterRender = createServerFn({ method: "POST" })
       }),
     );
 
-    // Reserve the EXACT quote per aspect row BEFORE inserting (same rule as
-    // the scenes path: a failed reserve never leaves orphan queued renders).
-    for (const row of parentRows) {
-      await reserveRenderBilling(supabaseAdmin, userId, row.id!, quote.perAspect.totalCredits);
-    }
     const { data: inserted, error } = await supabaseAdmin
       .from("renders")
-      .insert(parentRows)
+      .insert(finalRows)
       .select("id");
     if (error) throw new Error(error.message);
 
@@ -284,9 +390,7 @@ export const enqueueChapterRender = createServerFn({ method: "POST" })
     const chapterRows = (inserted ?? []).flatMap((r) =>
       buildChapterRows(r.id, chapters, narration),
     );
-    const { error: chError } = await supabaseAdmin
-      .from("render_chapters")
-      .insert(chapterRows);
+    const { error: chError } = await supabaseAdmin.from("render_chapters").insert(chapterRows);
     if (chError) throw new Error(chError.message);
 
     return {
@@ -309,9 +413,13 @@ const RerenderChapterSchema = z.object({
  *
  * Only the targeted chapter row goes back to `queued`; unchanged paragraphs
  * reuse cached narration; the parent render is re-queued and the worker
- * re-stitches every chapter into a new final video. No new billing reserve
- * (D25: the parent's original exact quote still covers the finished
- * minutes, and settlement is idempotent).
+ * re-stitches every chapter into a new final video.
+ *
+ * Billing (P1, 2026-09-29 QA): the re-render consumes fresh paid TTS on
+ * cache misses, so it rate-limits (10/hour/user), pre-reserves a
+ * conservative estimate BEFORE any synthesis, then settles to the exact
+ * quote from the real durations — the parent's original quote does NOT
+ * cover new narration.
  */
 export const rerenderChapter = createServerFn({ method: "POST" })
   .middleware([requireAppUser])
@@ -323,7 +431,7 @@ export const rerenderChapter = createServerFn({ method: "POST" })
     // Ownership + chapter-mode check on the parent render.
     const { data: render, error: renderError } = await supabase
       .from("renders")
-      .select("id,user_id,engine,meta")
+      .select("id,user_id,engine,meta,project_id")
       .eq("id", data.renderId)
       .eq("user_id", userId)
       .eq("engine", "server_ffmpeg")
@@ -344,6 +452,56 @@ export const rerenderChapter = createServerFn({ method: "POST" })
     if (chapter.error) throw new Error(chapter.error.message);
     if (!chapter.data) throw new Error("Chapter not found");
 
+    const { enforcePostgresRateLimit } = await import("../rate-limit");
+    const { reserveRenderBilling } = await import("../billing.functions");
+    const { refundMinutesForJob } = await import("../credits");
+
+    // 1. Rate limit: re-renders hit paid TTS on cache misses, like the main
+    //    chapter path (P1, 2026-09-29 QA — previously uncharged/unlimited).
+    await enforcePostgresRateLimit(
+      supabaseAdmin,
+      `render:chapter-rerender:${userId}`,
+      { max: 10, windowSeconds: 3600 },
+      "You're re-rendering chapters too fast. Please wait a bit and try again.",
+    );
+
+    // 2. Conservative pre-reserve BEFORE any ElevenLabs call (130 wpm), so a
+    //    0-credit account fails before spending a cent on TTS.
+    const rerenderWords = data.scriptText.trim().split(/\s+/).filter(Boolean).length;
+    const rerenderEstSeconds = Math.max(1, Math.ceil((rerenderWords / 130) * 60));
+    const rerenderEstQuote = quoteMultiAspectRender({
+      durationSeconds: rerenderEstSeconds,
+      mode: "story",
+      aspectCount: 1,
+    });
+    const rerenderReserveRef = randomUUID();
+    const rerenderScope = {
+      projectId: (render as { project_id?: string | null }).project_id ?? undefined,
+    };
+    const { error: rerenderPreError } = await supabaseAdmin.rpc("debit_credits_amount_once", {
+      p_user_id: userId,
+      p_amount: rerenderEstQuote.perAspect.totalCredits,
+      p_reason: `Chapter re-render pre-reserve (estimate ${rerenderEstQuote.perAspect.totalCredits} credits)`,
+      p_ref_id: rerenderReserveRef,
+      p_workspace_id: null,
+      p_project_id: rerenderScope.projectId ?? null,
+    });
+    if (rerenderPreError) {
+      const msg = rerenderPreError.message ?? String(rerenderPreError);
+      if (msg.includes("INSUFFICIENT_CREDITS")) {
+        throw new Error(
+          `Not enough credits to re-render this chapter (needs ~${rerenderEstQuote.perAspect.totalCredits}). Top up or use the fast browser render.`,
+        );
+      }
+      if (msg.includes("WORKSPACE_BUDGET_EXCEEDED")) {
+        throw new Error("This workspace has hit its monthly credit cap.");
+      }
+      if (msg.includes("PROJECT_BUDGET_EXCEEDED")) {
+        throw new Error("This project has hit its credit cap.");
+      }
+      throw new Error(msg);
+    }
+
     const voice = meta.continuityBrief?.voice ?? {};
     const paragraphs = splitIntoParagraphs(data.scriptText);
     const cached = await synthesizeParagraphsCached(
@@ -355,6 +513,32 @@ export const rerenderChapter = createServerFn({ method: "POST" })
       },
       supabaseAdmin,
       RERENDER_BUCKET,
+    );
+
+    // 3. Settle: refund the estimate, debit the EXACT quote from the real
+    //    synthesized durations (same rule as the main chapter path).
+    await refundMinutesForJob(
+      supabaseAdmin,
+      userId,
+      rerenderReserveRef,
+      rerenderEstQuote.perAspect.totalCredits,
+      `Refund: chapter re-render pre-reserve settled ${rerenderReserveRef}`,
+    );
+    const rerenderTrueSeconds = Math.max(
+      1,
+      Math.ceil(cached.reduce((a, p) => a + p.durationSeconds, 0)),
+    );
+    const rerenderTrueQuote = quoteMultiAspectRender({
+      durationSeconds: rerenderTrueSeconds,
+      mode: "story",
+      aspectCount: 1,
+    });
+    await reserveRenderBilling(
+      supabaseAdmin,
+      userId,
+      chapter.data.id,
+      rerenderTrueQuote.perAspect.totalCredits,
+      rerenderScope,
     );
 
     // Reset only this chapter; the worker's resume logic skips the `done`

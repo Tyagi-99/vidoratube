@@ -1,5 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+// NOTE: this module is client-bundled — use Web Crypto, not node:crypto.
+const randomUUID = () => crypto.randomUUID();
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
 import { generateVideoPlan } from "./jobs.server";
@@ -188,26 +190,81 @@ export const createVideoJob = createServerFn({ method: "POST" })
     if (profile.credits < 1)
       throw new Error("You're out of credits. Upgrade your plan to keep rendering.");
 
-    const { data: job, error: insertError } = await supabase
-      .from("video_jobs")
-      .insert({
-        user_id: userId,
-        script: data.script,
-        voice: data.voice,
-        voice_config: data.voice_config ?? null,
-        format: data.format,
-        aspect_ratio: data.aspect_ratio,
-        idempotency_key: data.idempotency_key ?? null,
-        status: "running",
-        stage: "planning",
-        progress: 8,
-        step: "Writing narration",
-      })
-      .select()
-      .single();
-    if (insertError) throw new Error(insertError.message);
-
+    // P1 fix (2026-09-29 audit): the old code called generateVideoPlan (real
+    // AI spend) BEFORE any debit — a low-balance account could fire concurrent
+    // requests that all passed the read-only balance check above, burning AI
+    // spend before the atomic debits serialized and failed. Now we debit a
+    // conservative estimate FIRST (throwaway ref), then settle to the true
+    // quote after the plan exists.
     const { finishedMinutes } = await import("./billing/per-minute");
+    const preMinutes = Math.max(
+      1,
+      data.target_duration_seconds != null
+        ? finishedMinutes(data.target_duration_seconds)
+        : finishedMinutes(Math.max(60, (data.script.trim().split(/\s+/).length / 150) * 60)),
+    );
+
+    let job: { id: string } & Record<string, unknown>;
+    try {
+      const { data: inserted, error: insertError } = await supabase
+        .from("video_jobs")
+        .insert({
+          user_id: userId,
+          script: data.script,
+          voice: data.voice,
+          voice_config: data.voice_config ?? null,
+          format: data.format,
+          aspect_ratio: data.aspect_ratio,
+          idempotency_key: data.idempotency_key ?? null,
+          status: "running",
+          stage: "planning",
+          progress: 8,
+          step: "Writing narration",
+        })
+        .select()
+        .single();
+      if (insertError) {
+        // Unique backstop on (user_id, idempotency_key): a concurrent
+        // double-submit lost the race — return the winner's row instead of
+        // spending a second credit. The SELECT fast-path above already
+        // handles the non-racy retry.
+        if (insertError.code === "23505" && data.idempotency_key) {
+          const { data: winner } = await supabase
+            .from("video_jobs")
+            .select("*")
+            .eq("user_id", userId)
+            .eq("idempotency_key", data.idempotency_key)
+            .maybeSingle();
+          if (winner) return winner;
+        }
+        throw new Error(insertError.message);
+      }
+      job = inserted as { id: string } & Record<string, unknown>;
+    } catch (error) {
+      throw error instanceof Error ? error : new Error("Job creation failed");
+    }
+
+    const { debitMinutesForJob, refundMinutesForJob } = await import("./credits");
+    // Pre-reserve BEFORE the AI plan call. Atomic + idempotent per preRef, so
+    // concurrent requests serialize here — losers fail before any AI spend.
+    const preRef = randomUUID();
+    try {
+      await debitMinutesForJob(
+        supabaseAdmin,
+        userId,
+        preRef,
+        preMinutes,
+        `Video render pre-reserve (~${preMinutes} min)`,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Render failed";
+      await supabase
+        .from("video_jobs")
+        .update({ status: "failed", stage: "failed", step: "Failed", error: message })
+        .eq("id", job.id);
+      throw new Error(message);
+    }
+
     let reserveMinutes = 1;
     try {
       const plan = await generateVideoPlan(
@@ -245,12 +302,21 @@ export const createVideoJob = createServerFn({ method: "POST" })
 
       // Reserve finished minutes once the plan exists. Per-minute pricing:
       // 1 credit = 1 finished minute of Story Mode with a standard voice
-      // (see src/lib/billing/per-minute.ts for multipliers). The debit is a
-      // single atomic RPC (balance check + update + ledger insert in one
-      // transaction), so concurrent requests can never double-spend.
-      // Idempotent per job id: a retry after a network blip is a no-op.
-      const { debitMinutesForJob } = await import("./credits");
-      await debitMinutesForJob(
+      // (see src/lib/billing/per-minute.ts for multipliers). The pre-reserve
+      // above is refunded in full and replaced by the exact true-quote debit
+      // against the job id — a single atomic RPC (balance check + update +
+      // ledger insert in one transaction), idempotent per job id, so a retry
+      // after a network blip is a no-op and concurrent requests can never
+      // double-spend.
+      await refundMinutesForJob(
+        supabaseAdmin,
+        userId,
+        preRef,
+        preMinutes,
+        `Refund: video render pre-reserve settled ${job.id}`,
+      );
+      const { debitMinutesForJob: debitTrue } = await import("./credits");
+      await debitTrue(
         supabaseAdmin,
         userId,
         job.id,
@@ -265,7 +331,16 @@ export const createVideoJob = createServerFn({ method: "POST" })
         .from("video_jobs")
         .update({ status: "failed", stage: "failed", step: "Failed", error: message })
         .eq("id", job.id);
-      // Failed renders refund the actually-debited minutes automatically.
+      // Failed renders refund the actually-debited minutes automatically —
+      // both the pre-reserve (throwaway ref) and the true debit (job id).
+      // Both calls are idempotent no-ops when nothing was debited.
+      await refundMinutesForJob(
+        supabaseAdmin,
+        userId,
+        preRef,
+        preMinutes,
+        `Refund: failed video render pre-reserve ${job.id}`,
+      );
       await refundDebitedMinutes(supabaseAdmin, userId, job.id);
       throw new Error(message);
     }

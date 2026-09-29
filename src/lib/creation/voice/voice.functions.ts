@@ -524,6 +524,7 @@ export const runVoiceoverJob = createServerFn({ method: "POST" })
         job.id,
         estimateCredits,
         `Voiceover TTS (${route.preferredProvider}, ~${data.text.length} chars)`,
+        { workspaceId: data.workspaceId ?? undefined, projectId: data.projectId ?? undefined },
       );
 
       const result = await synthesizeSpeechWithFallback(

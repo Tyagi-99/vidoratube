@@ -609,8 +609,41 @@ export async function runExecutePublishJob({
   if (job.made_for_kids === null || job.made_for_kids === undefined) {
     throw new Error("Please confirm whether this video is made for kids.");
   }
+  if (!job.video_job_id) throw new Error("Publish job has no video attached.");
 
-  // Mark uploading (atomic guard against double-execution).
+  // HARD REQUIREMENT 1: a human approval record must exist for this job +
+  // scope. No approval row (e.g. a forged publish_jobs row) = rejection.
+  // Runs BEFORE the uploading claim so a gate failure leaves the job in
+  // `approved`/`scheduled` and retryable instead of burning it into `failed`.
+  await requirePublishApproval(supabaseAdmin, {
+    userId,
+    publishJobId: job.id,
+    scope: approvalScopeForPrivacy(job.privacy),
+  });
+
+  // HARD REQUIREMENT 2: re-check the CURRENT latest safety score — a low
+  // score recorded after approval must still block a public publish.
+  const { data: latestScore } = await supabaseAdmin
+    .from("safety_scores")
+    .select("score")
+    .eq("project_id", job.project_id)
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const execGate = evaluatePublishGate(latestScore?.score ?? null, job.privacy as PublishPrivacy);
+  if (execGate.blocked) {
+    throw new Error(publishBlockedMessage(execGate.score as number));
+  }
+  const execWarning = execGate.warning ? lowScoreWarningMessage(execGate.score as number) : null;
+
+  // HARD REQUIREMENT 3 (P3 Stream B / D99): re-check the strict evidence
+  // gate at execution time — claims confirmed after approval keep it
+  // green; a strict-mode project with unconfirmed claims cannot upload.
+  await assertPublishStrictGate(supabase, userId, job.project_id);
+
+  // Mark uploading (atomic guard against double-execution). All gates have
+  // passed at this point, so a claim failure here means a true race.
   const { data: claimed } = await supabase
     .from("publish_jobs")
     .update({ status: "uploading" })
@@ -620,31 +653,7 @@ export async function runExecutePublishJob({
     .maybeSingle();
   if (!claimed) throw new Error("This job is already being published.");
 
-  if (!job.video_job_id) throw new Error("Publish job has no video attached.");
   try {
-    // HARD REQUIREMENT 1: a human approval record must exist for this job +
-    // scope. No approval row (e.g. a forged publish_jobs row) = rejection.
-    await requirePublishApproval(supabaseAdmin, {
-      userId,
-      publishJobId: job.id,
-      scope: approvalScopeForPrivacy(job.privacy),
-    });
-
-    // HARD REQUIREMENT 2: re-check the CURRENT latest safety score — a low
-    // score recorded after approval must still block a public publish.
-    const { data: latestScore } = await supabaseAdmin
-      .from("safety_scores")
-      .select("score")
-      .eq("project_id", job.project_id)
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    const execGate = evaluatePublishGate(latestScore?.score ?? null, job.privacy as PublishPrivacy);
-    if (execGate.blocked) {
-      throw new Error(publishBlockedMessage(execGate.score as number));
-    }
-    const execWarning = execGate.warning ? lowScoreWarningMessage(execGate.score as number) : null;
     if (execWarning) {
       await recordPublishWarning(supabaseAdmin, {
         userId,
@@ -654,11 +663,6 @@ export async function runExecutePublishJob({
         message: execWarning,
       });
     }
-
-    // HARD REQUIREMENT 3 (P3 Stream B / D99): re-check the strict evidence
-    // gate at execution time — claims confirmed after approval keep it
-    // green; a strict-mode project with unconfirmed claims cannot upload.
-    await assertPublishStrictGate(supabase, userId, job.project_id);
 
     // Reuse the existing resumable uploader (handles scope, tokens, retries).
     const up: PublishUploader = uploader ?? (await import("./youtube-publish.server"));

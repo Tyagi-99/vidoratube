@@ -75,7 +75,7 @@ const statusStyles: Record<string, string> = {
 function StudioPage() {
   const { create: pageMode, youtube, reason } = Route.useSearch();
   const [modeChooserOpen, setModeChooserOpen] = useState(false);
-  const [publishTarget, setPublishTarget] = useState<{ id: string; title: string } | null>(null);
+  const [publishTarget, setPublishTarget] = useState<{ id: string; title: string; projectId?: string | undefined } | null>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -111,10 +111,12 @@ function StudioPage() {
       // Resume the publish the user started before the Google redirect.
       try {
         const pendingId = sessionStorage.getItem("vidora:yt-pending-publish");
+        const pendingProject = sessionStorage.getItem("vidora:yt-pending-project");
         sessionStorage.removeItem("vidora:yt-pending-publish");
+        sessionStorage.removeItem("vidora:yt-pending-project");
         if (pendingId) {
           const job = jobs.data?.find((j) => j.id === pendingId);
-          setPublishTarget({ id: pendingId, title: job?.title ?? "" });
+          setPublishTarget({ id: pendingId, title: job?.title ?? "", projectId: pendingProject ?? undefined });
         }
       } catch {
         /* ignore */
@@ -456,6 +458,7 @@ function StudioPage() {
         <PublishDialog
           jobId={publishTarget.id}
           jobTitle={publishTarget.title}
+          initialProjectId={publishTarget.projectId}
           open
           onOpenChange={(open) => {
             if (!open) setPublishTarget(null);

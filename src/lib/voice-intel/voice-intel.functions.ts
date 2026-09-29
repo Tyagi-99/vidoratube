@@ -436,7 +436,31 @@ export const synthesizeNarration = createServerFn({ method: "POST" })
     };
     await recordJob("pending", null, null);
 
-    // 5. Synthesize through the fallback chain.
+    // 5. ATOMIC DEBIT BEFORE SYNTHESIS (P1 fix 2026-09-29 audit). The preflight
+    //    above is a check, not a reserve — debiting the estimate here (via the
+    //    idempotent per-job RPC) guarantees the user actually pays before we
+    //    spend real ElevenLabs money. Concurrent requests serialize inside the
+    //    RPC; losers get INSUFFICIENT_CREDITS here, not free TTS. On provider
+    //    failure below, the debit is refunded.
+    const { debitMinutesForJob, refundMinutesForJob } = await import("@/lib/credits");
+    try {
+      await debitMinutesForJob(
+        supabaseAdmin,
+        userId,
+        jobId,
+        preflight.estimate.credits,
+        `Voice Intelligence narration (~${data.text.length} chars)`,
+        { projectId: data.projectId ?? undefined },
+      );
+    } catch {
+      await recordJob("failed", null, "Credit debit failed.");
+      return fail(
+        "INSUFFICIENT_CREDITS",
+        "We couldn't reserve credits for this narration — you were not charged. Check your balance and retry.",
+      );
+    }
+
+    // 6. Synthesize through the fallback chain.
     const result = await synthesizeSpeechWithFallback(
       data.text,
       { voiceId: character.providerVoiceId, model: modelId },
@@ -451,26 +475,22 @@ export const synthesizeNarration = createServerFn({ method: "POST" })
     );
     if (!result.ok || !result.audio) {
       const code = mapTtsErrorToPreviewCode(result.error);
+      // Provider failed AFTER the debit: refund the estimate (the RPC caps
+      // the refund at the actual debit — never mints credits).
+      try {
+        await refundMinutesForJob(
+          supabaseAdmin,
+          userId,
+          jobId,
+          preflight.estimate.credits,
+          `Refund: narration TTS failed ${jobId}`,
+        );
+      } catch {
+        // Refund failure must not mask the TTS error; the ledger row keeps
+        // the debit visible for support.
+      }
       await recordJob("failed", null, result.error?.message ?? "TTS failed.");
       return fail(code, friendlyTtsError(code));
-    }
-
-    // 6. Debit the preflight estimate — never without the preflight above.
-    try {
-      const { debitMinutesForJob } = await import("@/lib/credits");
-      await debitMinutesForJob(
-        supabaseAdmin,
-        userId,
-        jobId,
-        preflight.estimate.credits,
-        `Voice Intelligence narration (${result.provider}, ~${data.text.length} chars)`,
-      );
-    } catch {
-      await recordJob("failed", null, "Credit debit failed.");
-      return fail(
-        "INSUFFICIENT_CREDITS",
-        "We couldn't reserve credits for this narration — you were not charged. Check your balance and retry.",
-      );
     }
 
     // 7. Store, sign, and measure the real duration.

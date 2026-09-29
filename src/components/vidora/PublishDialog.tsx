@@ -15,10 +15,22 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   getYouTubeConnection,
   requestUploadScope,
-  publishJobToYouTube,
 } from "@/lib/youtube.functions";
+import {
+  createPublishJob,
+  approvePublishJob,
+  executePublishJob,
+} from "@/lib/publish.functions";
+import { listProjects } from "@/lib/studio.functions";
 import { track } from "@/lib/analytics";
 
 export const YT_REVOKED_FLAG = "vidora:yt-revoked";
@@ -28,18 +40,28 @@ type Privacy = "private" | "unlisted" | "public";
 export function PublishDialog({
   jobId,
   jobTitle,
+  initialProjectId,
   open,
   onOpenChange,
 }: {
   jobId: string;
   jobTitle: string;
+  initialProjectId?: string | undefined;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
   const queryClient = useQueryClient();
   const readFn = useServerFn(getYouTubeConnection);
   const scopeFn = useServerFn(requestUploadScope);
-  const publishFn = useServerFn(publishJobToYouTube);
+  // P1 fix (2026-09-29 audit): the Studio dialog no longer calls the legacy
+  // direct-upload path (publishJobToYouTube, deleted). Publishing now flows
+  // through the gated pipeline — create → approve → execute — so the safety
+  // gate, the strict evidence gate, and the unforgeable human-approval record
+  // all apply, exactly like the Publish page.
+  const createFn = useServerFn(createPublishJob);
+  const approveFn = useServerFn(approvePublishJob);
+  const executeFn = useServerFn(executePublishJob);
+  const projectsFn = useServerFn(listProjects);
 
   const connectionState = useQuery({
     queryKey: ["youtube"],
@@ -50,6 +72,14 @@ export function PublishDialog({
 
   const [privacy, setPrivacy] = useState<Privacy>("private");
   const [madeForKids, setMadeForKids] = useState<boolean | null>(null);
+  const [projectId, setProjectId] = useState<string>(initialProjectId ?? "");
+
+  const projectsState = useQuery({
+    queryKey: ["studio-projects"],
+    queryFn: () => projectsFn({}),
+    enabled: open,
+  });
+  const projects = (projectsState.data ?? []) as { id: string; title: string | null }[];
 
   const grantScope = useMutation({
     mutationFn: () => scopeFn({}),
@@ -57,14 +87,38 @@ export function PublishDialog({
       // Remember which video the user was publishing so the studio can resume
       // after Google redirects back with ?youtube=upload_granted.
       sessionStorage.setItem("vidora:yt-pending-publish", jobId);
+      if (projectId) sessionStorage.setItem("vidora:yt-pending-project", projectId);
       window.location.href = url;
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const publish = useMutation({
-    mutationFn: () =>
-      publishFn({ data: { id: jobId, privacy, madeForKids: madeForKids ?? false } }),
+    mutationFn: async () => {
+      // Step 1: draft publish job in the chosen project.
+      const { publishJob } = await createFn({
+        data: { project_id: projectId, video_job_id: jobId },
+      });
+      // Step 2: human approval — the safety gate (< 50 blocks public) and the
+      // strict evidence gate run here, server-side. Approving also writes the
+      // unforgeable approval record.
+      const approved = await approveFn({
+        data: {
+          publish_job_id: publishJob.id,
+          title: jobTitle || "Vidora video",
+          privacy,
+          madeForKids: madeForKids ?? false,
+          tags: [],
+        },
+      });
+      if (approved.safetyWarning) {
+        toast.warning("Published with a safety warning", {
+          description: approved.safetyWarning,
+        });
+      }
+      // Step 3: execute — re-checks every gate, then uploads.
+      return executeFn({ data: { publish_job_id: approved.publishJob.id } });
+    },
     onSuccess: (res) => {
       track("publish_succeeded", { job_id: jobId });
       toast.success(`Published to YouTube (${privacy})`, { description: res.url });
@@ -100,7 +154,7 @@ export function PublishDialog({
   });
 
   const needsScope = connectionState.data?.configured && connection && !connection.hasUploadScope;
-  const canPublish = connection && connection.hasUploadScope && madeForKids !== null;
+  const canPublish = connection && connection.hasUploadScope && madeForKids !== null && projectId !== "";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -156,6 +210,27 @@ export function PublishDialog({
           </div>
         ) : (
           <div className="space-y-5 py-2">
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">
+                Project <span className="text-destructive">*</span>
+              </Label>
+              <Select value={projectId} onValueChange={(v) => setProjectId(v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose the project to publish under…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {projects.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.title ?? "Untitled project"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                Publishing runs the safety and evidence checks for this project before
+                uploading.
+              </p>
+            </div>
             <div className="space-y-2">
               <Label className="text-sm font-semibold">Visibility</Label>
               <RadioGroup

@@ -34,6 +34,7 @@ const mocks = vi.hoisted(() => ({
   listModels: vi.fn(),
   preflightCreditsCheck: vi.fn(),
   debitMinutesForJob: vi.fn(),
+  refundMinutesForJob: vi.fn(),
   storageUpload: vi.fn(),
   storageSign: vi.fn(),
 }));
@@ -75,6 +76,7 @@ vi.mock("../credits/preflight.server", () => ({
 
 vi.mock("@/lib/credits", () => ({
   debitMinutesForJob: mocks.debitMinutesForJob,
+  refundMinutesForJob: mocks.refundMinutesForJob,
 }));
 
 vi.mock("@/integrations/supabase/client.server", () => ({
@@ -720,12 +722,19 @@ describe("synthesizeNarration", () => {
     expect(text).toBe("hello world");
     expect(synthOpts.voiceId).toBe(ADAM_VOICE_ID);
     expect(synthOpts.model).toBe("eleven_multilingual_v2");
-    // Debit used the preflight estimate (2 credits) against the job id.
+    // Debit used the preflight estimate (2 credits) against the job id, and —
+    // P1 fix — the debit happened BEFORE the provider synthesis call, so a
+    // 0-credit account can never burn TTS spend.
     expect(mocks.debitMinutesForJob).toHaveBeenCalledTimes(1);
     const debitArgs = mocks.debitMinutesForJob.mock.calls[0] as unknown as unknown[];
     expect(debitArgs[1]).toBe("user-1");
     expect(debitArgs[2]).toBe(res["jobId"]);
     expect(debitArgs[3]).toBe(2);
+    expect(mocks.debitMinutesForJob.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.synthesizeSpeechWithFallback.mock.invocationCallOrder[0]!,
+    );
+    // No refund on the happy path.
+    expect(mocks.refundMinutesForJob).not.toHaveBeenCalled();
     // Job ledger: pending → succeeded with the signed URL.
     const jobUpserts = db.calls.filter(
       (c) => c.table === "voice_generation_jobs" && c.method === "upsert",
@@ -738,7 +747,7 @@ describe("synthesizeNarration", () => {
     });
   });
 
-  it("maps a quota failure to TTS_QUOTA_EXHAUSTED and never debits", async () => {
+  it("maps a quota failure to TTS_QUOTA_EXHAUSTED, debiting first then refunding", async () => {
     mocks.synthesizeSpeechWithFallback.mockResolvedValueOnce({
       ok: false,
       audio: null,
@@ -752,7 +761,17 @@ describe("synthesizeNarration", () => {
     const db = makeDb([ok(null), ok(null), ok(null)]);
     const res = await call(db, { text: "hello world", selection });
     expect(res).toMatchObject({ ok: false, code: "TTS_QUOTA_EXHAUSTED" });
-    expect(mocks.debitMinutesForJob).not.toHaveBeenCalled();
+    // P1 fix: the estimate is debited BEFORE synthesis (so the provider call
+    // was paid for), then refunded in full when the provider fails.
+    expect(mocks.debitMinutesForJob).toHaveBeenCalledTimes(1);
+    expect(mocks.refundMinutesForJob).toHaveBeenCalledTimes(1);
+    const refundArgs = mocks.refundMinutesForJob.mock.calls[0] as unknown as unknown[];
+    expect(refundArgs[1]).toBe("user-1");
+    // Refund targets the same job id the debit used.
+    expect(refundArgs[2]).toBe(
+      (mocks.debitMinutesForJob.mock.calls[0] as unknown as unknown[])[2],
+    );
+    expect(refundArgs[3]).toBe(2);
     expect(mocks.storageUpload).not.toHaveBeenCalled();
     const jobUpserts = db.calls.filter(
       (c) => c.table === "voice_generation_jobs" && c.method === "upsert",

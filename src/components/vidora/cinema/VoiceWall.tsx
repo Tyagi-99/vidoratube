@@ -29,8 +29,8 @@ export function VoiceWall() {
               Cast your narrator.
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
-              16 built-in voices. Not the flat robot read — directors pick
-              for warmth, gravity, or mischief. More languages in beta.
+              40 built-in voices across English, Hindi, Spanish, and German. Not the flat robot read — directors pick
+              for warmth, gravity, or mischief.
             </p>
           </div>
           <a

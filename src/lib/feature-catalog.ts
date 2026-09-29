@@ -17,10 +17,10 @@
  *   against src/routes. Nothing invented.
  */
 
-import { VOICE_CATALOG } from "./voices";
+import { VOICE_CHARACTERS } from "./voice-intel/catalog";
 
 /** Derived from code (D307) — marketing copy must never hardcode this. */
-const BUILT_IN_VOICE_COUNT = VOICE_CATALOG.filter((v) => !v.library).length;
+const BUILT_IN_VOICE_COUNT = VOICE_CHARACTERS.length;
 
 export type CatalogBadge = "Needs a key" | "Shipping next" | "Design only";
 

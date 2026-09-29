@@ -268,9 +268,14 @@ describe("runExecutePublishJob — approval enforcement (PROOF)", () => {
       }),
     ).rejects.toThrow(/no human approval/i);
     expect(uploader.calls).toHaveLength(0);
-    // The job is marked failed with the reason (audit trail).
-    expect(db.tables["publish_jobs"]![0]!.status).toBe("failed");
-    expect(db.tables["publish_jobs"]![0]!.error).toMatch(/no human approval/i);
+    // Gates run BEFORE the uploading claim (2026-09-29 QA): a gate failure
+    // leaves the job retryable in `approved` — it is NOT burned into
+    // `failed`, and no `uploading` claim was ever written.
+    expect(db.tables["publish_jobs"]![0]!.status).toBe("approved");
+    const claims = db.writes.filter(
+      (w) => w.table === "publish_jobs" && w.op === "update" && w.patch?.status === "uploading",
+    );
+    expect(claims).toHaveLength(0);
   });
 
   it("PROCEEDS once the approval row exists — uploader called exactly once", async () => {
@@ -315,6 +320,12 @@ describe("runExecutePublishJob — approval enforcement (PROOF)", () => {
       }),
     ).rejects.toThrow(/blocked/i);
     expect(uploader.calls).toHaveLength(0);
+    // Gate failure leaves the job retryable — no uploading claim was written.
+    expect(db.tables["publish_jobs"]![0]!.status).toBe("approved");
+    const claims = db.writes.filter(
+      (w) => w.table === "publish_jobs" && w.op === "update" && w.patch?.status === "uploading",
+    );
+    expect(claims).toHaveLength(0);
   });
 
   it("private publish with score < 50 proceeds AND records a warning", async () => {

@@ -48,8 +48,11 @@ describe("server function input validation", () => {
   });
 
   it("the YouTube publish endpoint validates its payload", () => {
-    const src = readFileSync(join(LIB_DIR, "youtube.functions.ts"), "utf8");
-    expect(src).toContain("publishSchema");
+    // Since the legacy direct-upload bypass was removed (2026-09-29 QA),
+    // publishing goes through the gated flow: createPublishJob →
+    // approvePublishJob (COPPA declaration) → executePublishJob.
+    const src = readFileSync(join(LIB_DIR, "publish.functions.ts"), "utf8");
+    expect(src).toContain("approvePublishJobSchema");
     // madeForKids is required by YouTube (COPPA declaration).
     expect(src).toMatch(/madeForKids:\s*z\.boolean\(\)/);
   });

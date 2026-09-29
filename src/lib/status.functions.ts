@@ -38,11 +38,55 @@ async function check(
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Check failed";
-    if (message.startsWith("not_configured:")) {
-      return { name, status: "not_configured", latencyMs: null, detail: message.slice(15) };
-    }
-    return { name, status: "down", latencyMs: Date.now() - started, detail: message };
+    const classified = classifyCheckError(message);
+    return {
+      name,
+      status: classified.status,
+      latencyMs: classified.status === "not_configured" ? null : Date.now() - started,
+      detail: classified.detail,
+    };
   }
+}
+
+/**
+ * Maps a thrown check error to a status. Prefix conventions:
+ * - "not_configured:…" → the dependency is not set up (no latency).
+ * - "degraded:…" → reachable but unhealthy/misleading (e.g. a restricted
+ *   ElevenLabs key that 401s on /v1/user yet can still synthesize).
+ * - anything else → down.
+ */
+export function classifyCheckError(message: string): {
+  status: CheckStatus;
+  detail: string;
+} {
+  if (message.startsWith("not_configured:")) {
+    return { status: "not_configured", detail: message.slice("not_configured:".length) };
+  }
+  if (message.startsWith("degraded:")) {
+    return { status: "degraded", detail: message.slice("degraded:".length) };
+  }
+  return { status: "down", detail: message };
+}
+
+/**
+ * Probes the ElevenLabs account endpoint. A 401 does NOT mean TTS is down:
+ * restricted TTS-scoped keys return 401 on /v1/user yet can still synthesize
+ * (voice previews only enter the playing state after real synthesis), so it is
+ * reported as degraded with guidance instead of down.
+ */
+export async function probeElevenLabsUser(key: string, signal: AbortSignal): Promise<string> {
+  const res = await fetch("https://api.elevenlabs.io/v1/user", {
+    headers: { "xi-api-key": key },
+    signal,
+  });
+  if (res.status === 401)
+    throw new Error(
+      "degraded:account probe returned 401 — key is present but restricted or invalid. " +
+        "Restricted TTS keys fail this /v1/user probe but can still synthesize; " +
+        "run the paid TTS probe on /admin/readiness for the definitive check.",
+    );
+  if (!res.ok) throw new Error(`ElevenLabs returned ${res.status}`);
+  return "ElevenLabs reachable";
 }
 
 /**
@@ -90,12 +134,7 @@ export const getSystemStatus = createServerFn({ method: "GET" }).handler(
         const { signal, cancel } = timeoutSignal();
         try {
           // /v1/user is a free account-info call — no synthesis credits spent.
-          const res = await fetch("https://api.elevenlabs.io/v1/user", {
-            headers: { "xi-api-key": key },
-            signal,
-          });
-          if (!res.ok) throw new Error(`ElevenLabs returned ${res.status}`);
-          return "ElevenLabs reachable";
+          return await probeElevenLabsUser(key, signal);
         } finally {
           cancel();
         }

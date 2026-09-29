@@ -2,15 +2,17 @@ import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, Play } from "lucide-react";
 import { Timecode, RecBadge } from "./Timecode";
-import { VOICE_CATALOG } from "@/lib/voices";
+import { VOICE_CHARACTERS } from "@/lib/voice-intel/catalog";
 import { STYLES } from "./StyleGallery";
 
 /**
  * Marketing counts are derived from code, never hardcoded (D307): the hero
  * stat strip and copy read the voice catalog and style gallery directly, so
  * the public numbers can never drift from what the product actually ships.
+ * The voice-intel catalog (40 characters across 4 languages) is the current
+ * voice surface — it superseded the legacy 16-voice catalog on 2026-09-29.
  */
-const BUILT_IN_VOICE_COUNT = VOICE_CATALOG.filter((v) => !v.library).length;
+const BUILT_IN_VOICE_COUNT = VOICE_CHARACTERS.length;
 const VISUAL_STYLE_COUNT = STYLES.length;
 
 const STAGES = [
@@ -260,7 +262,7 @@ export function Hero() {
                 ["1080p", "MP4 download"],
                 [String(BUILT_IN_VOICE_COUNT), "built-in AI voices"],
                 [String(VISUAL_STYLE_COUNT), "visual styles"],
-                ["EN · हिन्दी", "and more"],
+                ["EN · HI · ES · DE", "narration languages"],
               ].map(([v, l]) => (
                 <div key={l} className="bg-background px-5 py-4">
                   <dt className="font-display text-2xl font-bold text-foreground">{v}</dt>

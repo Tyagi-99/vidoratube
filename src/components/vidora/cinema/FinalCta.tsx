@@ -31,7 +31,7 @@ export function FinalCta() {
           </Link>
         </div>
         <p className="mt-6 font-mono text-xs text-muted-foreground">
-          1080p MP4 · yours to keep · publish to YouTube in one click
+          1080p MP4 · yours to keep · review &amp; publish to YouTube
         </p>
       </div>
     </section>

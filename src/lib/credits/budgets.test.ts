@@ -139,21 +139,50 @@ describe("project budgets", () => {
 });
 
 describe("getMonthToDateSpend", () => {
-  it("sums cost_actual_credits from generation_jobs (NOT the ledger)", async () => {
+  it("sums attributed ledger debits (voice/render/video-job paths included)", async () => {
     const seen: string[] = [];
-    const { admin } = mockAdmin(
-      {
-        generation_jobs: noErr([
-          { cost_actual_credits: 10 },
-          { cost_actual_credits: 2.5 },
-          { cost_actual_credits: null },
+    const ledgerCalls: string[][] = [];
+    const from = vi.fn((table: string) => {
+      seen.push(table);
+      if (table === "credit_ledger") {
+        ledgerCalls.push([]);
+        // First call: delta rows; second: ref_id attribution.
+        return ledgerCalls.length === 1
+          ? chainable(noErr([{ delta: -7 }, { delta: -3 }, { delta: 5 }]))
+          : chainable(noErr([]));
+      }
+      return chainable(noErr([]));
+    });
+    const admin = { from } as unknown as SupabaseClient<Database>;
+    await expect(getMonthToDateSpend(admin, { workspaceId: "ws-1" })).resolves.toBe(10);
+    // Proves the spend source: the ledger first, not generation_jobs alone.
+    expect(seen[0]).toBe("credit_ledger");
+  });
+
+  it("counts legacy generation_jobs costs only when no ledger debit is attributed", async () => {
+    const from = vi.fn((table: string) => {
+      if (table === "credit_ledger") {
+        // select("delta") list query vs select("ref_id") attribution query:
+        // distinguish by chaining — the mock serves both from one canned map
+        // keyed by call order.
+        const n = from.mock.calls.filter((c) => c[0] === "credit_ledger").length;
+        return n === 1 ? chainable(noErr([])) : chainable(noErr([{ ref_id: "job-attributed" }]));
+      }
+      return chainable(
+        noErr([
+          { id: "job-attributed", cost_actual_credits: 100 },
+          { id: "job-legacy", cost_actual_credits: 25 },
         ]),
-      },
-      (t) => seen.push(t),
-    );
-    await expect(getMonthToDateSpend(admin, { workspaceId: "ws-1" })).resolves.toBe(12.5);
-    // Proves the spend source: generation_jobs, never credit_ledger.
-    expect(seen).toEqual(["generation_jobs"]);
+      );
+    });
+    const admin = { from } as unknown as SupabaseClient<Database>;
+    // 100 is excluded (attributed debit exists); 25 counted via fallback.
+    await expect(getMonthToDateSpend(admin, { workspaceId: "ws-1" })).resolves.toBe(25);
+  });
+
+  it("requires a scope", async () => {
+    const { admin } = mockAdmin({});
+    await expect(getMonthToDateSpend(admin, {})).rejects.toThrow("requires a workspaceId");
   });
 });
 
@@ -167,17 +196,27 @@ describe("checkBudgetForSpend", () => {
   };
 
   /**
-   * Spend dispatch: checkBudgetForSpend queries workspace spend first, then
-   * project spend. The mock serves wsSpent to the first generation_jobs
-   * query and projSpent to the second — matching the module's call order —
-   * but only for scopes the test actually enables.
+   * Spend dispatch: getMonthToDateSpend queries the ledger (delta rows) first,
+   * then generation_jobs, then the ledger again (ref attribution). The mock
+   * serves wsSpent/projSpent through the ledger delta rows — matching the
+   * module's call order — but only for scopes the test actually enables.
+   * Odd credit_ledger calls = delta query; even = ref_id attribution (empty).
    */
   function budgetAdmin(opts: BudgetOpts, scopes: { ws: boolean; proj: boolean }) {
     const spendQueue: number[] = [];
     if (scopes.ws) spendQueue.push(opts.wsSpent ?? 0);
     if (scopes.proj) spendQueue.push(opts.projSpent ?? 0);
+    // credit_ledger is queried twice per scope (deltas, then ref attribution),
+    // but the second query is skipped when there are no legacy jobs. The
+    // generation_jobs query always sits between the two, so use it as the
+    // marker that flips the next ledger query to "attribution".
+    let deltaQueriesServed = 0;
+    let expectAttribution = false;
     const from = vi.fn((table: string) => {
       if (table === "workspace_budgets") {
+        // A fresh budget read starts a new spend-check cycle: the next
+        // ledger query is the delta query, not an attribution query.
+        expectAttribution = false;
         return chainable(
           noErr(
             opts.wsCap === undefined && opts.wsThreshold === undefined
@@ -191,6 +230,7 @@ describe("checkBudgetForSpend", () => {
         );
       }
       if (table === "project_budgets") {
+        expectAttribution = false;
         return chainable(
           noErr(
             opts.projCap === undefined
@@ -199,8 +239,23 @@ describe("checkBudgetForSpend", () => {
           ),
         );
       }
-      const spent = spendQueue.shift() ?? 0;
-      return chainable(noErr([{ cost_actual_credits: spent }]));
+      if (table === "credit_ledger") {
+        if (!expectAttribution) {
+          const spent = spendQueue[deltaQueriesServed] ?? 0;
+          deltaQueriesServed += 1;
+          return chainable(noErr(spent === 0 ? [] : [{ delta: -spent }]));
+        }
+        expectAttribution = false;
+        return chainable(noErr([]));
+      }
+      if (table === "generation_jobs") {
+        // No legacy unattributed jobs in these tests; flip the marker so a
+        // subsequent ledger query is treated as the attribution query (the
+        // module skips it entirely when the jobs list is empty).
+        expectAttribution = true;
+        return chainable(noErr([]));
+      }
+      return chainable(noErr([]));
     });
     return { from, admin: { from } as unknown as SupabaseClient<Database> };
   }
@@ -265,6 +320,7 @@ describe("checkBudgetForSpend", () => {
 
 describe("preflightCreditsCheck", () => {
   function fullAdmin(opts: { balance: number; wsCap?: number | null; wsSpent?: number }) {
+    let deltaServed = false;
     const from = vi.fn((table: string) => {
       if (table === "profiles") return chainable(noErr({ credits: opts.balance }));
       if (table === "workspace_budgets") {
@@ -276,7 +332,16 @@ describe("preflightCreditsCheck", () => {
           ),
         );
       }
-      return chainable(noErr([{ cost_actual_credits: opts.wsSpent ?? 0 }]));
+      if (table === "credit_ledger") {
+        // First ledger query per spend call = deltas; the attribution query
+        // is skipped when generation_jobs returns no legacy rows.
+        if (!deltaServed) {
+          deltaServed = true;
+          return chainable(noErr(opts.wsSpent ? [{ delta: -(opts.wsSpent ?? 0) }] : []));
+        }
+        return chainable(noErr([]));
+      }
+      return chainable(noErr([]));
     });
     return { from, admin: { from } as unknown as SupabaseClient<Database> };
   }

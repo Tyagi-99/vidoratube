@@ -53,7 +53,35 @@ describe("debitMinutesForJob", () => {
       p_minutes: 4,
       p_reason: "Video render (4 finished min)",
       p_ref_id: "job-1",
+      p_workspace_id: null,
+      p_project_id: null,
     });
+  });
+
+  it("passes workspace/project scope through for atomic budget enforcement", async () => {
+    const { rpc, admin } = minutesMock({ data: 96, error: null });
+    await debitMinutesForJob(admin, "user-1", "job-1", 4, "r", {
+      workspaceId: "ws-1",
+      projectId: "proj-1",
+    });
+    expect(rpc).toHaveBeenCalledWith(
+      "debit_credits_for_minutes",
+      expect.objectContaining({ p_workspace_id: "ws-1", p_project_id: "proj-1" }),
+    );
+  });
+
+  it("throws the friendly workspace-cap message on WORKSPACE_BUDGET_EXCEEDED", async () => {
+    const { admin } = minutesMock({ data: null, error: { message: "WORKSPACE_BUDGET_EXCEEDED" } });
+    await expect(debitMinutesForJob(admin, "user-1", "job-1", 4, "r")).rejects.toThrow(
+      "monthly credit cap",
+    );
+  });
+
+  it("throws the friendly project-cap message on PROJECT_BUDGET_EXCEEDED", async () => {
+    const { admin } = minutesMock({ data: null, error: { message: "PROJECT_BUDGET_EXCEEDED" } });
+    await expect(debitMinutesForJob(admin, "user-1", "job-1", 4, "r")).rejects.toThrow(
+      "credit cap",
+    );
   });
 
   it("rounds fractional minutes up to a whole credit", async () => {

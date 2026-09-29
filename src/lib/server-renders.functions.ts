@@ -3,6 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 // universal Web Crypto API instead (browsers, Node 19+, workers).
 const randomUUID = () => crypto.randomUUID();
 import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireAppUser } from "./server-auth";
 import type { Database } from "@/integrations/supabase/types";
 import { quoteMultiAspectRender } from "./billing/per-minute";
@@ -165,6 +166,10 @@ export const enqueueServerRender = createServerFn({ method: "POST" })
     }
     const rows = buildServerRenderRows({ userId, groupId, input: data, agencyMeta });
 
+    // P1 (2026-09-29 QA): refuse to debit/enqueue when no worker is alive —
+    // a paid job stranded in `queued` forever is a billing defect.
+    await assertServerWorkerAvailable(supabaseAdmin);
+
     // P7: reserve the EXACT quoted render cost BEFORE creating the jobs, so
     // a failed reserve never leaves orphan queued renders. Idempotent per
     // render id; settled deterministically by finalize_render_billing (the
@@ -177,7 +182,10 @@ export const enqueueServerRender = createServerFn({ method: "POST" })
       if (typeof expected !== "number" || expected < 1) {
         throw new Error("Render quote missing — refusing to enqueue without an exact cost.");
       }
-      await reserveRenderBilling(supabaseAdmin, userId, row.id!, expected);
+      await reserveRenderBilling(supabaseAdmin, userId, row.id!, expected, {
+        workspaceId: data.workspaceId ?? undefined,
+        projectId: data.projectId,
+      });
     }
 
     const { data: inserted, error } = await supabase.from("renders").insert(rows).select("*");
@@ -424,6 +432,46 @@ export const listServerRenders = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     return rows ?? [];
   });
+
+/**
+ * Worker-liveness gate for enqueue paths (P1, 2026-09-29 QA).
+ *
+ * Throws when no render worker is alive, so a debit/enqueue never strands a
+ * paid job in `queued` forever. Same signals as getServerWorkerStatus:
+ * a heartbeat within 15 minutes, or a recent claim by an older worker build.
+ * Exported for tests.
+ */
+export async function assertServerWorkerAvailable(
+  supabaseAdmin: Pick<SupabaseClient<Database>, "from">,
+): Promise<void> {
+  const HEARTBEAT_WINDOW_MS = 15 * 60 * 1000;
+  const { data: beat } = await supabaseAdmin
+    .from("worker_heartbeats")
+    .select("last_seen_at")
+    .order("last_seen_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const beatAt = beat?.last_seen_at ?? null;
+  if (beatAt != null && Date.now() - new Date(beatAt).getTime() < HEARTBEAT_WINDOW_MS) {
+    return;
+  }
+  const { data: row } = await supabaseAdmin
+    .from("renders")
+    .select("updated_at")
+    .eq("engine", "server_ffmpeg")
+    .not("claimed_by", "is", null)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const lastSeenAt = row?.updated_at ?? null;
+  if (lastSeenAt != null && Date.now() - new Date(lastSeenAt).getTime() < HEARTBEAT_WINDOW_MS) {
+    return;
+  }
+  throw new Error(
+    "No render worker is online right now, so a server render can't start. " +
+      "Use the fast browser render instead, or try again once the worker is deployed.",
+  );
+}
 
 /**
  * Feature-detection for the native-FFmpeg server worker.

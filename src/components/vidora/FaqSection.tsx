@@ -34,7 +34,7 @@ export const faqs = [
   {
     question: "Which languages are supported?",
     answer:
-      "Narration is available in English and Hindi today — 12 English and 4 Hindi built-in voices, plus more from the connected voice library. More languages are in Beta and ship from November 2026.",
+      "Narration is available in English, Hindi, Spanish, and German today — 10 built-in voices per language, plus more from the connected voice library. More languages are in Beta and ship from November 2026.",
   },
 ];
 
