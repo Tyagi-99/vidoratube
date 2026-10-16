@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.15"
   }
   public: {
     Tables: {
@@ -110,6 +110,63 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "agent_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      alert_rules: {
+        Row: {
+          channel_id: string | null
+          conditions: Json
+          created_at: string
+          folder_id: string | null
+          id: string
+          is_active: boolean
+          last_fired_at: string | null
+          name: string
+          rule_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          channel_id?: string | null
+          conditions?: Json
+          created_at?: string
+          folder_id?: string | null
+          id?: string
+          is_active?: boolean
+          last_fired_at?: string | null
+          name: string
+          rule_type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          channel_id?: string | null
+          conditions?: Json
+          created_at?: string
+          folder_id?: string | null
+          id?: string
+          is_active?: boolean
+          last_fired_at?: string | null
+          name?: string
+          rule_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alert_rules_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alert_rules_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "folders"
             referencedColumns: ["id"]
           },
         ]
@@ -842,6 +899,33 @@ export type Database = {
         }
         Relationships: []
       }
+      channel_voice_defaults: {
+        Row: {
+          created_at: string
+          id: string
+          scope: string
+          selection: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          scope: string
+          selection?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          scope?: string
+          selection?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       channels: {
         Row: {
           created_at: string
@@ -937,6 +1021,44 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      checklist_dismissals: {
+        Row: {
+          channel_id: string | null
+          checklist_version: number
+          created_at: string
+          id: string
+          reason: string
+          rule_id: string
+          user_id: string
+        }
+        Insert: {
+          channel_id?: string | null
+          checklist_version: number
+          created_at?: string
+          id?: string
+          reason: string
+          rule_id: string
+          user_id: string
+        }
+        Update: {
+          channel_id?: string | null
+          checklist_version?: number
+          created_at?: string
+          id?: string
+          reason?: string
+          rule_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_dismissals_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       client_channels: {
         Row: {
@@ -1559,27 +1681,33 @@ export type Database = {
           created_at: string
           delta: number
           id: string
+          project_id: string | null
           reason: string
           ref_id: string | null
           user_id: string
+          workspace_id: string | null
         }
         Insert: {
           admin_id?: string | null
           created_at?: string
           delta: number
           id?: string
+          project_id?: string | null
           reason: string
           ref_id?: string | null
           user_id: string
+          workspace_id?: string | null
         }
         Update: {
           admin_id?: string | null
           created_at?: string
           delta?: number
           id?: string
+          project_id?: string | null
           reason?: string
           ref_id?: string | null
           user_id?: string
+          workspace_id?: string | null
         }
         Relationships: []
       }
@@ -1846,6 +1974,39 @@ export type Database = {
           id?: string
           name?: string
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      generated_voice_previews: {
+        Row: {
+          audio_url: string
+          cache_key: string
+          character_id: string
+          created_at: string
+          id: string
+          model_id: string
+          text_hash: string
+          user_id: string
+        }
+        Insert: {
+          audio_url: string
+          cache_key: string
+          character_id: string
+          created_at?: string
+          id?: string
+          model_id: string
+          text_hash: string
+          user_id: string
+        }
+        Update: {
+          audio_url?: string
+          cache_key?: string
+          character_id?: string
+          created_at?: string
+          id?: string
+          model_id?: string
+          text_hash?: string
           user_id?: string
         }
         Relationships: []
@@ -2465,6 +2626,36 @@ export type Database = {
         }
         Relationships: []
       }
+      onboarding_progress: {
+        Row: {
+          answers: Json
+          completed: boolean
+          created_at: string
+          current_step: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          answers?: Json
+          completed?: boolean
+          created_at?: string
+          current_step?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          answers?: Json
+          completed?: boolean
+          created_at?: string
+          current_step?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       outlier_videos: {
         Row: {
           channel_id: string
@@ -2774,6 +2965,7 @@ export type Database = {
           user_id: string
           visual_bible: Json
           visual_style: string
+          voice_config: Json | null
         }
         Insert: {
           aspect_ratio?: string
@@ -2809,6 +3001,7 @@ export type Database = {
           user_id: string
           visual_bible?: Json
           visual_style?: string
+          voice_config?: Json | null
         }
         Update: {
           aspect_ratio?: string
@@ -2844,6 +3037,7 @@ export type Database = {
           user_id?: string
           visual_bible?: Json
           visual_style?: string
+          voice_config?: Json | null
         }
         Relationships: [
           {
@@ -4388,6 +4582,32 @@ export type Database = {
         }
         Relationships: []
       }
+      user_voice_favorites: {
+        Row: {
+          character_id: string
+          created_at: string
+          user_id: string
+        }
+        Insert: {
+          character_id: string
+          created_at?: string
+          user_id: string
+        }
+        Update: {
+          character_id?: string
+          created_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_voice_favorites_character_id_fkey"
+            columns: ["character_id"]
+            isOneToOne: false
+            referencedRelation: "voice_characters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       video_analytics: {
         Row: {
           age_days: number | null
@@ -4697,6 +4917,240 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      voice_analytics_events: {
+        Row: {
+          created_at: string
+          event: string
+          id: string
+          metadata: Json
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          event: string
+          id?: string
+          metadata?: Json
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          event?: string
+          id?: string
+          metadata?: Json
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      voice_categories: {
+        Row: {
+          blurb: string
+          created_at: string
+          icon: string
+          id: string
+          label: string
+          sort: number
+          updated_at: string
+        }
+        Insert: {
+          blurb?: string
+          created_at?: string
+          icon?: string
+          id: string
+          label: string
+          sort?: number
+          updated_at?: string
+        }
+        Update: {
+          blurb?: string
+          created_at?: string
+          icon?: string
+          id?: string
+          label?: string
+          sort?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      voice_characters: {
+        Row: {
+          accent: string | null
+          category_tags: Json
+          created_at: string
+          description: string
+          gender: string
+          id: string
+          is_default: boolean
+          language_code: string
+          name: string
+          personality_tags: Json
+          provider: string
+          provider_voice_id: string | null
+          recommended_for: Json
+          score: number
+          status: string
+          supported_models: Json
+          updated_at: string
+        }
+        Insert: {
+          accent?: string | null
+          category_tags?: Json
+          created_at?: string
+          description?: string
+          gender: string
+          id: string
+          is_default?: boolean
+          language_code: string
+          name: string
+          personality_tags?: Json
+          provider?: string
+          provider_voice_id?: string | null
+          recommended_for?: Json
+          score?: number
+          status?: string
+          supported_models?: Json
+          updated_at?: string
+        }
+        Update: {
+          accent?: string | null
+          category_tags?: Json
+          created_at?: string
+          description?: string
+          gender?: string
+          id?: string
+          is_default?: boolean
+          language_code?: string
+          name?: string
+          personality_tags?: Json
+          provider?: string
+          provider_voice_id?: string | null
+          recommended_for?: Json
+          score?: number
+          status?: string
+          supported_models?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      voice_generation_jobs: {
+        Row: {
+          audio_url: string | null
+          character_id: string
+          characters: number
+          created_at: string
+          error: string | null
+          id: string
+          model_id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          audio_url?: string | null
+          character_id: string
+          characters: number
+          created_at?: string
+          error?: string | null
+          id?: string
+          model_id: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          audio_url?: string | null
+          character_id?: string
+          characters?: number
+          created_at?: string
+          error?: string | null
+          id?: string
+          model_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      voice_models: {
+        Row: {
+          best_for: string
+          cost_multiplier: number
+          created_at: string
+          expressiveness: string
+          id: string
+          is_active: boolean
+          label: string
+          maturity: string
+          multilingual: boolean
+          provider: string
+          quality: number
+          speed: string
+          supported_languages: Json
+          supported_params: Json
+          updated_at: string
+        }
+        Insert: {
+          best_for?: string
+          cost_multiplier?: number
+          created_at?: string
+          expressiveness?: string
+          id: string
+          is_active?: boolean
+          label: string
+          maturity?: string
+          multilingual?: boolean
+          provider?: string
+          quality?: number
+          speed?: string
+          supported_languages?: Json
+          supported_params?: Json
+          updated_at?: string
+        }
+        Update: {
+          best_for?: string
+          cost_multiplier?: number
+          created_at?: string
+          expressiveness?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          maturity?: string
+          multilingual?: boolean
+          provider?: string
+          quality?: number
+          speed?: string
+          supported_languages?: Json
+          supported_params?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      voice_profiles: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          selection: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          selection?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          selection?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       voiceovers: {
         Row: {
@@ -5238,13 +5692,11 @@ export type Database = {
       debit_credits_amount_once: {
         Args: {
           p_amount: number
+          p_project_id?: string
           p_reason: string
           p_ref_id?: string
           p_user_id: string
-          // Added by migration 20260929132000 (budget attribution). Regenerate
-          // types from the live DB after applying it.
-          p_workspace_id?: string | null
-          p_project_id?: string | null
+          p_workspace_id?: string
         }
         Returns: number
       }
@@ -5259,13 +5711,11 @@ export type Database = {
       debit_credits_for_minutes: {
         Args: {
           p_minutes: number
+          p_project_id?: string
           p_reason: string
           p_ref_id?: string
           p_user_id: string
-          // Added by migration 20260929132000 (budget attribution). Regenerate
-          // types from the live DB after applying it.
-          p_workspace_id?: string | null
-          p_project_id?: string | null
+          p_workspace_id?: string
         }
         Returns: number
       }
